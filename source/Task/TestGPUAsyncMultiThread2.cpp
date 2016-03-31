@@ -1,5 +1,6 @@
 #include "ZBlend.h"
 #include "ZReproject.h"
+#include "RicohUtil.h"
 #include "AudioVideoProcessor.h"
 #include "StampedFrameQueue.h"
 #include "PinnedMemoryPool.h"
@@ -31,12 +32,13 @@ typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 int numVideos;
 cv::Size srcSize, dstSize;
 std::vector<avp::AudioVideoReader> readers;
-std::vector<cv::gpu::GpuMat> dstMasksGpu;
-std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
-CudaTilingMultibandBlendFast blender;
-std::vector<cv::gpu::Stream> streams;
-std::vector<cv::gpu::CudaMem> pinnedMems;
-std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
+//std::vector<cv::gpu::GpuMat> dstMasksGpu;
+//std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
+//CudaTilingMultibandBlendFast blender;
+//std::vector<cv::gpu::Stream> streams;
+//std::vector<cv::gpu::CudaMem> pinnedMems;
+//std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
+CudaMultiCameraPanoramaRender2 render;
 PinnedMemoryPool srcFramesMemoryPool;
 SharedAudioVideoFramePool dstFramesMemoryPool;
 FrameVectorBuffer decodeFramesBuffer(2);
@@ -131,15 +133,19 @@ void gpuProcThread()
         dstFramesMemoryPool.get(deepFrame);
         cv::Mat blendImageCpu(dstSize, CV_8UC4, deepFrame.data, deepFrame.step);
         
-        for (int i = 0; i < numVideos; i++)
-            streams[i].enqueueUpload(deepFrames.mems[i], imagesGpu[i]);
-        for (int i = 0; i < numVideos; i++)
-            cudaReprojectTo16S(imagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
-        for (int i = 0; i < numVideos; i++)
-            streams[i].waitForCompletion();
+        //for (int i = 0; i < numVideos; i++)
+        //    streams[i].enqueueUpload(deepFrames.mems[i], imagesGpu[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    cudaReprojectTo16S(imagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    streams[i].waitForCompletion();
 
-        blender.blend(reprojImagesGpu, blendImageGpu);
-        blendImageGpu.download(blendImageCpu);
+        //blender.blend(reprojImagesGpu, blendImageGpu);
+        //blendImageGpu.download(blendImageCpu);
+        std::vector<cv::Mat> images(numVideos);
+        for (int i = 0; i < numVideos; i++)
+            images[i] = deepFrames.mems[i];
+        render.render(images, blendImageCpu);
         procFrameBuffer.push(deepFrame);
 
         count++;
@@ -204,14 +210,14 @@ int main(int argc, char* argv[])
         printf("Could not find camera_param_file\n");
         return 0;
     }
-    std::string::size_type pos = cameraParamFile.find_last_of(".");
-    std::string ext = cameraParamFile.substr(pos + 1);
+    //std::string::size_type pos = cameraParamFile.find_last_of(".");
+    //std::string ext = cameraParamFile.substr(pos + 1);
 
-    std::vector<PhotoParam> params;
-    if (ext == "pts")
-        loadPhotoParamFromPTS(cameraParamFile, params);
-    else
-        loadPhotoParamFromXML(cameraParamFile, params);
+    //std::vector<PhotoParam> params;
+    //if (ext == "pts")
+    //    loadPhotoParamFromPTS(cameraParamFile, params);
+    //else
+    //    loadPhotoParamFromXML(cameraParamFile, params);
     //rotateCameras(params, 0, 0, -3.1415926535898 / 2);
 
     dstSize.width = parser.get<int>("pano_width");
@@ -269,29 +275,28 @@ int main(int argc, char* argv[])
     srcSize.height = readers[0].getVideoHeight();
     //std::swap(srcSize.width, srcSize.height);
 
-    std::vector<cv::Mat> dstMasks;
-    std::vector<cv::Mat> dstSrcMaps, xmaps, ymaps;
-    //getReprojectMapsAndMasks(pi, srcSize, dstSrcMaps, dstMasks);
-    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
+    //std::vector<cv::Mat> dstMasks;
+    //std::vector<cv::Mat> dstSrcMaps, xmaps, ymaps;
+    //getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
-    dstMasksGpu.resize(numVideos);
-    xmapsGpu.resize(numVideos);
-    ymapsGpu.resize(numVideos);
-    cv::Mat map32F;
-    cv::Mat map64F[2];
-    for (int i = 0; i < numVideos; i++)
-    {
-        dstMasksGpu[i].upload(dstMasks[i]);
-        cv::split(dstSrcMaps[i], map64F);
-        map64F[0].convertTo(map32F, CV_32F);
-        xmapsGpu[i].upload(map32F);
-        map64F[1].convertTo(map32F, CV_32F);
-        ymapsGpu[i].upload(map32F);
-    }
-    dstSrcMaps.clear();
-    map32F.release();
-    map64F[0].release();
-    map64F[1].release();
+    //dstMasksGpu.resize(numVideos);
+    //xmapsGpu.resize(numVideos);
+    //ymapsGpu.resize(numVideos);
+    //cv::Mat map32F;
+    //cv::Mat map64F[2];
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    dstMasksGpu[i].upload(dstMasks[i]);
+    //    cv::split(dstSrcMaps[i], map64F);
+    //    map64F[0].convertTo(map32F, CV_32F);
+    //    xmapsGpu[i].upload(map32F);
+    //    map64F[1].convertTo(map32F, CV_32F);
+    //    ymapsGpu[i].upload(map32F);
+    //}
+    //dstSrcMaps.clear();
+    //map32F.release();
+    //map64F[0].release();
+    //map64F[1].release();
 
     //for (int i = 0; i < numVideos; i++)
     //{
@@ -299,22 +304,23 @@ int main(int argc, char* argv[])
     //    cv::waitKey(0);
     //}    
 
-    success = blender.prepare(dstMasks, 16, 2);
+    //success = blender.prepare(dstMasks, 16, 2);
+    success = render.prepare(cameraParamFile, srcSize, dstSize);
     if (!success)
     {
         printf("Blender prepare failed, exit.\n");
         return 0;
     }
-    dstMasks.clear();
+    //dstMasks.clear();
     //return 0;
 
-    streams.resize(numVideos);
-    pinnedMems.resize(numVideos);
-    for (int i = 0; i < numVideos; i++)
-        pinnedMems[i].create(srcSize, CV_8UC4);
+    //streams.resize(numVideos);
+    //pinnedMems.resize(numVideos);
+    //for (int i = 0; i < numVideos; i++)
+    //    pinnedMems[i].create(srcSize, CV_8UC4);
 
-    imagesGpu.resize(numVideos);
-    reprojImagesGpu.resize(numVideos);
+    //imagesGpu.resize(numVideos);
+    //reprojImagesGpu.resize(numVideos);
 
     ok = dstFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
     if (!ok)
@@ -360,11 +366,11 @@ int main(int argc, char* argv[])
     printf("time elapsed total = %f seconds, average process time per frame = %f second\n",
         timerAll.elapse(), timerAll.elapse() / (actualWriteFrame ? actualWriteFrame : 1));
     
-    dstMasksGpu.clear();
-    xmapsGpu.clear();
-    ymapsGpu.clear();
-    pinnedMems.clear();
-    imagesGpu.clear();
-    reprojImagesGpu.clear();
+    //dstMasksGpu.clear();
+    //xmapsGpu.clear();
+    //ymapsGpu.clear();
+    //pinnedMems.clear();
+    //imagesGpu.clear();
+    //reprojImagesGpu.clear();
     return 0;
 }
