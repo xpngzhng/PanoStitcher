@@ -235,7 +235,7 @@ bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int ma
     numImages = currNumMasks;
 
     std::vector<cv::Mat> uniqueMasksCpu;
-    getUniqueMasks(masks, uniqueMasksCpu);
+    getNonIntersectingMasks(masks, uniqueMasksCpu);
 
     uniqueMasks.resize(numImages);
     for (int i = 0; i < numImages; i++)

@@ -57,7 +57,7 @@ void getWeightsLinearBlend(const std::vector<cv::Mat>& masks, int radius, std::v
 {
     int numImages = masks.size();
     std::vector<cv::Mat> uniqueMasks(numImages);
-    getUniqueMasks(masks, uniqueMasks);
+    getNonIntersectingMasks(masks, uniqueMasks);
 
     std::vector<cv::Mat> dists(numImages);
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
@@ -262,45 +262,6 @@ bool TilingLinearBlend::prepare(const std::vector<cv::Mat>& masks, int radius)
     numImages = currNumMasks;
     rows = currRows;
     cols = currCols;
-
-    /*cv::Mat indexImage = cv::Mat::zeros(rows, cols, CV_8UC1);
-    cv::Mat indexMask = cv::Mat::zeros(rows, cols, CV_8UC1);
-    cv::Mat currIndex(rows, cols, CV_8UC1);
-    for (int i = 0; i < numImages; i++)
-    {
-        currIndex.setTo(0);
-        currIndex.setTo(i + 1, masks[i]);
-        simplePaste(currIndex, masks[i], indexImage, indexMask);
-    }
-    std::vector<cv::Mat> uniqueMasks(numImages);
-    cv::Mat belong;
-    for (int i = 0; i < numImages; i++)
-    {
-        uniqueMasks[i].create(rows, cols, CV_8UC1);
-        uniqueMasks[i].setTo(0);
-        belong = indexImage == (i + 1);
-        uniqueMasks[i].setTo(255, belong);
-    }
-    indexImage.release();
-    indexMask.release();
-    currIndex.release();
-    belong.release();*/
-
-    //std::vector<cv::Mat> uniqueMasks(numImages);
-    //getUniqueMasks(masks, uniqueMasks);
-
-    //std::vector<cv::Mat> dists(numImages);
-    //cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
-    //double sigma = radius / 3.0;
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    cv::GaussianBlur(uniqueMasks[i], dists[i], blurSize, sigma, sigma);
-    //    cv::bitwise_and(dists[i], masks[i], dists[i]);
-    //    //cv::imshow("dist", dists[i]);
-    //    //cv::waitKey(0);
-    //}
-
-    //calcWeights(dists, weights);
 
     getWeightsLinearBlend(masks, radius, weights);
     
