@@ -160,12 +160,6 @@ private:
     SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
     FrameVectorBuffer decodeFramesBuffer;
     FrameBuffer procFrameBuffer;
-    //std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
-    //CudaTilingMultibandBlendFast blender;
-    //std::vector<cv::gpu::Stream> streams;
-    //std::vector<cv::gpu::CudaMem> pinnedMems;
-    //std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
-    //cv::gpu::GpuMat blendImageGpu;
     cv::Mat blendImageCpu;
     avp::AudioVideoWriter2 writer;
 
@@ -175,16 +169,6 @@ private:
     std::atomic<int> finishPercent;
 
     int validFrameCount;
-
-    //std::mutex mtxDecodedImages;
-    //std::condition_variable cvDecodedImagesForWrite, cvDecodedImagesForRead;
-    //bool decodedImagesOwnedByDecodeThread;
-    //bool videoEnd;
-
-    //std::mutex mtxEncodedImage;
-    //std::condition_variable cvEncodedImageForWrite, cvEncodedImageForRead;
-    //bool encodedImageOwnedByProcThread;
-    //bool procEnd;
 
     ProgressCallbackFunction progressCallbackFunc;
     void* progressCallbackData;

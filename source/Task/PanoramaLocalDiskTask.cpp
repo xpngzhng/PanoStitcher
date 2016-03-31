@@ -286,21 +286,6 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
 
     numVideos = srcVideoFiles.size();
 
-    //std::vector<PhotoParam> params;
-    //if (!loadPhotoParams(cameraParamFile, params))
-    //{
-    //    printf("Error in %s, failed to load params\n", __FUNCTION__);
-    //}
-    //if (params.size() < numVideos)
-    //{
-    //    printf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
-    //    return false;
-    //}
-    //else if (params.size() > numVideos)
-    //{
-    //    printf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
-    //}
-
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
 
@@ -336,29 +321,6 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
     printf("Info in %s, open videos done\n", __FUNCTION__);
     printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
 
-    //std::vector<cv::Mat> dstMasks;
-    //std::vector<cv::Mat> dstSrcMaps, xmaps, ymaps;
-    //getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
-
-    //xmapsGpu.resize(numVideos);
-    //ymapsGpu.resize(numVideos);
-    //cv::Mat map32F;
-    //cv::Mat map64F[2];
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    cv::split(dstSrcMaps[i], map64F);
-    //    map64F[0].convertTo(map32F, CV_32F);
-    //    xmapsGpu[i].upload(map32F);
-    //    map64F[1].convertTo(map32F, CV_32F);
-    //    ymapsGpu[i].upload(map32F);
-    //}
-    //dstSrcMaps.clear();
-    //map32F.release();
-    //map64F[0].release();
-    //map64F[1].release();
-
-    //ok = blender.prepare(dstMasks, 16, 2);
-    //ok = blender.prepare(dstMasks, 50);
     ok = render.prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
@@ -372,23 +334,12 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
         printf("Error in %s, could not init memory pool\n", __FUNCTION__);
         return false;
     }
-    //dstMasks.clear();
-
-    //streams.resize(numVideos);
-    //pinnedMems.resize(numVideos);
-    //for (int i = 0; i < numVideos; i++)
-    //    pinnedMems[i].create(srcSize, CV_8UC4);
-
-    //imagesGpu.resize(numVideos);
-    //reprojImagesGpu.resize(numVideos);
 
     printf("Info in %s, prepare finish\n", __FUNCTION__);
 
     printf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", "medium"));
-    //ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-    //    true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
         ok = writer.open(dstVideoFile, "", true, true, "aac", readers[audioIndex].getAudioSampleType(),
@@ -430,9 +381,6 @@ bool CudaPanoramaLocalDiskTask::start()
 
     printf("Info in %s, write video begin\n", __FUNCTION__);
 
-    //decodedImagesOwnedByDecodeThread = true;
-    //encodedImageOwnedByProcThread = true;
-
     decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::decode, this));
     procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::proc, this));
     encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::encode, this));
@@ -469,16 +417,7 @@ void CudaPanoramaLocalDiskTask::clear()
     srcSize = cv::Size();
     dstSize = cv::Size();
     readers.clear();
-    //xmapsGpu.clear();
-    //ymapsGpu.clear();
-    //streams.clear();
-    //pinnedMems.clear();
-    //imagesGpu.clear();
-    //reprojImagesGpu.clear();
     writer.close();
-
-    //videoEnd = false;
-    //procEnd = false;
 
     srcFramesMemoryPool.clear();
     audioFramesMemoryPool.clear();
@@ -493,9 +432,6 @@ void CudaPanoramaLocalDiskTask::clear()
     finishPercent.store(0);
 
     validFrameCount = 0;
-
-    //decodedImagesOwnedByDecodeThread = true;
-    //encodedImageOwnedByProcThread = true;
 
     if (decodeThread && decodeThread->joinable())
         decodeThread->join();
@@ -526,62 +462,6 @@ void CudaPanoramaLocalDiskTask::decode()
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
-/*
-#if ENABLE_CALC_TIME
-    ztool::Timer timer;
-#endif
-    while (true)
-    {
-#if ENABLE_CALC_TIME
-        timer.start();
-#endif
-        {
-            std::unique_lock<std::mutex> ul(mtxDecodedImages);
-            cvDecodedImagesForWrite.wait(ul, [this]{return decodedImagesOwnedByDecodeThread; });
-            bool successRead = true;
-            //timerDecode.start();
-            for (int i = 0; i < numVideos; i++)
-            {
-                avp::AudioVideoFrame frame;
-                if (!readers[i].read(frame))
-                {
-                    successRead = false;
-                    break;
-                }
-                cv::Mat src(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
-                cv::Mat dst(pinnedMems[i]);
-                src.copyTo(dst);
-            }
-            //timerDecode.end();
-
-            if (!successRead || isCanceled)
-                break;
-
-            // NOTICE!!!!!!
-            // The following line had better be after break.
-            // If not, before the lock at the end of the function, if proc() arrives at the first lock and wait,
-            // it may find decodedImagesOwnedByDecodeThread == false, but procEnd == false, 
-            // then the last frames will be reprojected and blends twice.
-            decodedImagesOwnedByDecodeThread = false;
-        }
-        cvDecodedImagesForRead.notify_one();
-        decodeCount++;
-        //printf("decode count = %d\n", decodeCount);
-
-#if ENABLE_CALC_TIME
-        timer.end();
-        printf("d %f %f\n", timerDecode.elapse(), timer.elapse());
-#endif
-    }
-
-    {
-        std::unique_lock<std::mutex> ul(mtxDecodedImages);
-        cvDecodedImagesForWrite.wait(ul, [this]{return decodedImagesOwnedByDecodeThread; });
-        decodedImagesOwnedByDecodeThread = false;
-        videoEnd = true;
-    }
-    cvDecodedImagesForRead.notify_one();
-*/
     std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
     avp::SharedAudioVideoFrame audioFrame;
 
@@ -649,89 +529,6 @@ void CudaPanoramaLocalDiskTask::proc()
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
-    /*
-#if ENABLE_CALC_TIME
-    ztool::Timer timer, timerWR, timerWW;
-#endif
-    while (true)
-    {
-#if ENABLE_CALC_TIME
-        timer.start();
-#endif
-        {
-#if ENABLE_CALC_TIME
-            timerWR.start();
-#endif
-            std::unique_lock<std::mutex> ul(mtxDecodedImages);
-            cvDecodedImagesForRead.wait(ul, [this]{return !decodedImagesOwnedByDecodeThread; });
-#if ENABLE_CALC_TIME
-            timerWR.end();
-#endif
-            if (videoEnd)
-                break;
-
-            //timerReproject.start();
-            for (int i = 0; i < numVideos; i++)
-                streams[i].enqueueUpload(pinnedMems[i], imagesGpu[i]);
-            for (int i = 0; i < numVideos; i++)
-                cudaReprojectTo16S(imagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
-            for (int i = 0; i < numVideos; i++)
-                streams[i].waitForCompletion();
-            //timerReproject.end();
-
-            decodedImagesOwnedByDecodeThread = true;
-        }
-        cvDecodedImagesForWrite.notify_one();
-
-#if ENABLE_CALC_TIME
-        timerBlend.start();
-#endif
-        blender.blend(reprojImagesGpu, blendImageGpu);
-        cv::gpu::Stream::Null().waitForCompletion();
-
-#if ENABLE_CALC_TIME
-        timerBlend.end();
-#endif
-
-        {
-#if ENABLE_CALC_TIME
-            timerWW.start();
-#endif
-            std::unique_lock<std::mutex> ul(mtxEncodedImage);
-            cvEncodedImageForWrite.wait(ul, [this]{return encodedImageOwnedByProcThread; });
-#if ENABLE_CALC_TIME
-            timerWW.end();
-#endif
-
-            blendImageGpu.download(blendImageCpu);
-            encodedImageOwnedByProcThread = false;
-        }
-        cvEncodedImageForRead.notify_one();
-        procCount++;
-        //printf("proc count = %d\n", procCount);
-#if ENABLE_CALC_TIME
-        timer.end();
-        printf("p wr %f, r %f, b %f, ww %f, %f\n",
-            timerWR.elapse(), timerReproject.elapse(), timerBlend.elapse(), timerWW.elapse(), timer.elapse());
-#endif
-    }
-
-    {
-        std::unique_lock<std::mutex> ul(mtxDecodedImages);
-        cvDecodedImagesForRead.wait(ul, [this]{return !decodedImagesOwnedByDecodeThread; });
-        decodedImagesOwnedByDecodeThread = true;
-    }
-    cvDecodedImagesForWrite.notify_one();
-
-    {
-        std::unique_lock<std::mutex> ul(mtxEncodedImage);
-        cvEncodedImageForWrite.wait(ul, [this]{return encodedImageOwnedByProcThread; });
-        encodedImageOwnedByProcThread = false;
-        procEnd = true;
-    }
-    cvEncodedImageForRead.notify_one();
-    */
-
     StampedPinnedMemoryVector srcFrames;
     avp::SharedAudioVideoFrame dstFrame;
     std::vector<cv::Mat> images(numVideos);
@@ -773,54 +570,6 @@ void CudaPanoramaLocalDiskTask::encode()
         step = 1;
     printf("validFrameCount = %d, step = %d\n", validFrameCount, step);
     ztool::Timer timerEncode;
-    //cv::Mat smallImage;
-    /*
-#if ENABLE_CALC_TIME
-    ztool::Timer timer;
-#endif
-    while (true)
-    {
-#if ENABLE_CALC_TIME
-        timer.start();
-#endif
-        {
-            std::unique_lock<std::mutex> ul(mtxEncodedImage);
-            cvEncodedImageForRead.wait(ul, [this]{return !encodedImageOwnedByProcThread; });
-
-            if (procEnd)
-                break;
-
-            //cv::resize(blendImageCpu, smallImage, cv::Size(), 0.25, 0.25, cv::INTER_NEAREST);
-            //cv::imshow("preview", smallImage);
-            //cv::waitKey(1);
-
-            //timerEncode.start();
-            avp::AudioVideoFrame frame = avp::videoFrame(blendImageCpu.data, blendImageCpu.step, avp::PixelTypeBGR32, blendImageCpu.cols, blendImageCpu.rows, -1LL);
-            writer.write(frame);
-            //timerEncode.end();
-
-            encodeCount++;
-            //printf("frame %d finish, encode time = %f\n", count, timerEncode.elapse());
-            //printf("encode frame count = %d\n", encodeCount);
-
-            //if (progressCallbackFunc && (encodeCount % step == 0))
-            //    progressCallbackFunc(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100), progressCallbackData);
-            if (encodeCount % step == 0)
-                finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
-
-            encodedImageOwnedByProcThread = true;
-        }
-        cvEncodedImageForWrite.notify_one();
-#if ENABLE_CALC_TIME
-        timer.end();
-        printf("e %f, %f\n", timerEncode.elapse(), timer.elapse());
-#endif
-    }
-
-    //if (progressCallbackFunc)
-    //    progressCallbackFunc(1.0, progressCallbackData);
-    */
-
     encodeCount = 0;
     avp::SharedAudioVideoFrame deepFrame;
     while (true)
