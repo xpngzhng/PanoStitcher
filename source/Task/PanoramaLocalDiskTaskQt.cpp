@@ -175,6 +175,7 @@ void QtCPUPanoramaLocalDiskTask::run(QWidget* obj)
 
     //if (progressCallbackFunc)
     //    progressCallbackFunc(1.0, progressCallbackData);
+    progressDialog->setValue(100);
 
     printf("Info in %s, write video finish\n", __FUNCTION__);
     finish = true;

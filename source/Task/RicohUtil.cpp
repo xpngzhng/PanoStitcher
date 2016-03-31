@@ -830,3 +830,107 @@ bool CudaMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::
 {
     return ptrImpl->render(src, dst);
 }
+
+struct CudaMultiCameraPanoramaRender2::Impl
+{
+    Impl() : success(0) {};
+    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+
+    cv::Size srcFullSize;
+    std::vector<cv::gpu::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::gpu::GpuMat> srcImagesGPU;
+    std::vector<cv::gpu::GpuMat> reprojImagesGPU;
+    cv::gpu::GpuMat blendImageGPU;
+    cv::Mat blendImage;
+    std::vector<cv::gpu::Stream> streams;
+    CudaTilingMultibandBlendFast blender;
+    int numImages;
+    int success;
+};
+
+bool CudaMultiCameraPanoramaRender2::Impl::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    srcFullSize = srcSize;
+
+    std::string::size_type length = path.length();
+    std::string fileExt = path.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path, params);
+        else /*if (fileExt == "xml")*/
+            loadPhotoParamFromXML(path, params);
+        /*else
+        return false;*/
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, dstSrcMaps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+    if (!blender.prepare(masks, 20, 2))
+        return false;
+
+    cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+    streams.resize(numImages);
+
+    success = 1;
+    return true;
+}
+
+bool CudaMultiCameraPanoramaRender2::Impl::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcFullSize)
+            return false;
+        if (src[i].type() != CV_8UC4)
+            return false;
+    }
+
+    srcImagesGPU.resize(numImages);
+    reprojImagesGPU.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        streams[i].enqueueUpload(src[i], srcImagesGPU[i]);
+    for (int i = 0; i < numImages; i++)
+        cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+    for (int i = 0; i < numImages; i++)
+        streams[i].waitForCompletion();
+
+    blender.blend(reprojImagesGPU, blendImageGPU);
+    blendImageGPU.download(dst);
+    return true;
+}
+
+CudaMultiCameraPanoramaRender2::CudaMultiCameraPanoramaRender2()
+{
+    ptrImpl.reset(new Impl);
+}
+
+bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    return ptrImpl->prepare(path, srcSize, dstSize);
+}
+
+bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+{
+    return ptrImpl->render(src, dst);
+}

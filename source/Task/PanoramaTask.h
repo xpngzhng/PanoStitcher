@@ -352,7 +352,7 @@ private:
     int audioThreadJoined;
     void audioSource();
 
-    std::unique_ptr<PanoramaRender> ptrRender;
+    CudaMultiCameraPanoramaRender render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;

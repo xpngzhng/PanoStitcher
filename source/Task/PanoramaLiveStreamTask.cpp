@@ -170,11 +170,15 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    if (useCuda) 
-        ptrRender.reset(new CudaMultiCameraPanoramaRender); 
-    else 
-        ptrRender.reset(new CPUMultiCameraPanoramaRender);
-    renderPrepareSuccess = ptrRender->prepare(renderConfigName, videoFrameSize, renderFrameSize);
+    // IMPORTANT NOTICE!!!!!!
+    // FORCE PIXEL_TYPE_BGR_32
+    // SUPPORT GPU ONLY
+    //if (useCuda) 
+    //    ptrRender.reset(new CudaMultiCameraPanoramaRender); 
+    //else 
+    //    ptrRender.reset(new CPUMultiCameraPanoramaRender);
+    //ptrRender.reset(new CudaMultiCameraPanoramaRender);
+    renderPrepareSuccess = render.prepare(renderConfigName, videoFrameSize, renderFrameSize);
 
     if (!renderPrepareSuccess)
     {
@@ -814,7 +818,7 @@ void PanoramaLiveStreamTask::procVideo()
                     CV_8UC4, frames[i].data, frames[i].step);
             }
             procTimer.start();
-            ok = ptrRender->render(src, result);
+            ok = render.render(src, result);
             procTimer.end();
             if (!ok)
             {

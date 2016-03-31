@@ -69,3 +69,16 @@ private:
     struct Impl;
     std::shared_ptr<Impl> ptrImpl;
 };
+
+// render accepts pinned memory cv::Mat
+class CudaMultiCameraPanoramaRender2 : public PanoramaRender
+{
+public:
+    CudaMultiCameraPanoramaRender2();
+    ~CudaMultiCameraPanoramaRender2() {};
+    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+private:
+    struct Impl;
+    std::shared_ptr<Impl> ptrImpl;
+};
