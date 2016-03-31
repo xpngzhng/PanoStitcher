@@ -50,26 +50,6 @@ public:
         }
         else
         {
-            /*
-            for (PoolType::iterator itr = pool.begin(); itr != pool.end(); ++itr)
-            {
-                ptrMemory = *itr;
-                StampedPinnedMemory& stampedMem = *ptrMemory.get();
-                // We only need to check buffer[0].refcount
-                // because all CudaMem in buffer have the same (*refcount)
-                if (stampedMem.buffer[0].refcount && (*stampedMem.buffer[0].refcount > 1))
-                {
-                    ptrMemory.reset();
-                    continue;
-                }
-                else
-                {
-                    pool.erase(itr);
-                    break;
-                }
-            }
-            */
-
             // If currCapacity == maxCapacity, we cannot allocate more memory
             // We can only change allocated memory to put new frames
             if (size == maxCapacity)
@@ -156,7 +136,6 @@ public:
         mems = stampedMem.buffer;
         timeStamp = stampedMem.timeStamp;
         size--;
-        printf("pull\n");
 
         return true;
     }

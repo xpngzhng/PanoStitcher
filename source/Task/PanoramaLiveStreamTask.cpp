@@ -759,7 +759,6 @@ void PanoramaLiveStreamTask::procVideo()
     std::vector<cv::Mat> src;
     cv::Mat result, scaledResult;
     bool ok;
-    //long long int begTimeStamp = -1LL;
     int roundedFrameRate = videoFrameRate + 0.5;
     int count = -1;
     ztool::Timer timer;
@@ -770,30 +769,15 @@ void PanoramaLiveStreamTask::procVideo()
         //printf("show\n");
         if (!syncedFramesBufferForProc.pull(mems, timeStamp))
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
-        printf("ts %lld\n", timeStamp);
+        //printf("ts %lld\n", timeStamp);
         //printf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
         if (mems.size() == numVideos)
         {
-            /*if (begTimeStamp < 0)
-            {
-                begTimeStamp = frames[0].timeStamp;
-                count = 0;
-            }
-            else
-            {
-                count++;
-                if (stitchFrameRateCallbackFunc && count % roundedFrameRate == 0)
-                {
-                    double actualFrameRate = count * 1000000.0 / double(frames[0].timeStamp - begTimeStamp);
-                    stitchFrameRateCallbackFunc(actualFrameRate, stitchFrameRateCallbackData);
-                }
-            }*/
             ztool::Timer localTimer, procTimer, copyTimer;
-            //printf("%lld\n", frames[0].timeStamp);
             if (count < 0)
             {
                 count = 0;
