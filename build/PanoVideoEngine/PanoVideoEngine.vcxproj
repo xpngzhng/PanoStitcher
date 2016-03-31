@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\source\Task\PanoramaTask.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\RicohUtil.h" />
+    <ClInclude Include="..\..\source\Task\SharedAudioVideoFramePool.h" />
     <ClInclude Include="..\..\source\Task\StampedFrameQueue.h" />
     <ClInclude Include="..\..\source\Task\StampedPinnedMemoryPool.h" />
   </ItemGroup>
@@ -33,7 +34,6 @@
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
-    <ClCompile Include="..\..\source\Task\TestLiveStreamTask.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}</ProjectGuid>
@@ -47,7 +47,7 @@
     <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v120</PlatformToolset>
@@ -60,7 +60,7 @@
     <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
@@ -130,6 +130,7 @@ copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
 copy "$(SolutionDir)..\source\Task\RicohUtil.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
+copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
 </Command>
     </PostBuildEvent>
     <CudaCompile>
@@ -181,6 +182,7 @@ copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
 copy "$(SolutionDir)..\source\Task\RicohUtil.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
+copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
 </Command>
     </PostBuildEvent>
     <CudaCompile>
