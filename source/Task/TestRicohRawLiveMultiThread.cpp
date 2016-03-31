@@ -31,13 +31,6 @@ void read()
     avp::AudioVideoFrame rawImage;
     while (!end)
     {
-        /*printf("currCount = %d\n", frameCount++);
-        if (frameCount >= 9600)
-        {
-        end = true;
-        break;
-        }*/
-
         bool success = true;
         timerDecode.start();
         success = reader.read(rawImage);
@@ -117,7 +110,6 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
-    //reader.open("F:\\panovideo\\ricoh\\R0010005.MP4", avp::PixelTypeBGR24);
     std::vector<avp::Device> devices;
     avp::listDirectShowDevices(devices);
     if (devices.empty())
@@ -180,10 +172,6 @@ int main(int argc, char* argv[])
     }
 
     timerAll.start();
-
-    //cv::namedWindow("frame");
-    //cv::imshow("frame", intersect);
-    //cv::waitKey(1);
 
     std::thread readThread(read);
     std::thread displayThread(display);
