@@ -753,7 +753,9 @@ void PanoramaLiveStreamTask::procVideo()
         addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
     }
 
-    std::vector<avp::SharedAudioVideoFrame> frames;
+    //std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<cv::gpu::CudaMem> mems;
+    long long int timeStamp;
     std::vector<cv::Mat> src;
     cv::Mat result, scaledResult;
     bool ok;
@@ -766,10 +768,12 @@ void PanoramaLiveStreamTask::procVideo()
         if (finish || renderEndFlag)
             break;
         //printf("show\n");
-        syncedFramesBufferForProc.pull(frames);
+        if (!syncedFramesBufferForProc.pull(mems, timeStamp))
+            continue;
+        printf("ts %lld\n", timeStamp);
         //printf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
-        if (frames.size() == numVideos)
+        if (mems.size() == numVideos)
         {
             /*if (begTimeStamp < 0)
             {
@@ -812,11 +816,13 @@ void PanoramaLiveStreamTask::procVideo()
             // IMPORTANT NOTICE!!!!!!
             // FORCE PIXEL_TYPE_BGR_32
             // SUPPORT GPU ONLY
+            //for (int i = 0; i < numVideos; i++)
+            //{
+            //    src[i] = cv::Mat(frames[i].height, frames[i].width, 
+            //        CV_8UC4, frames[i].data, frames[i].step);
+            //}
             for (int i = 0; i < numVideos; i++)
-            {
-                src[i] = cv::Mat(frames[i].height, frames[i].width, 
-                    CV_8UC4, frames[i].data, frames[i].step);
-            }
+                src[i] = mems[i];
             procTimer.start();
             ok = render.render(src, result);
             procTimer.end();
@@ -831,7 +837,7 @@ void PanoramaLiveStreamTask::procVideo()
             copyTimer.start();
             cv::Mat resultROI = result(addROI);
             addImage.copyTo(resultROI, addMask);
-            avp::AudioVideoFrame shallow = avp::videoFrame(result.data, result.step, pixelType, result.cols, result.rows, frames[0].timeStamp);
+            avp::AudioVideoFrame shallow = avp::videoFrame(result.data, result.step, pixelType, result.cols, result.rows, timeStamp);
             avp::SharedAudioVideoFrame deep(shallow);
             {
                 std::lock_guard<std::mutex> lg(stitchedFrameMutex);

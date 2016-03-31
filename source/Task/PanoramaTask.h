@@ -2,6 +2,7 @@
 
 #include "AudioVideoProcessor.h"
 #include "StampedFrameQueue.h"
+#include "StampedPinnedMemoryPool.h"
 #include "RicohUtil.h"
 #include "ZBlend.h"
 #include "opencv2/core/core.hpp"
@@ -352,7 +353,7 @@ private:
     int audioThreadJoined;
     void audioSource();
 
-    CudaMultiCameraPanoramaRender render;
+    CudaMultiCameraPanoramaRender2 render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -414,6 +415,7 @@ private:
     int pixelType;
     int finish;
     std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
-    RealTimeFrameVectorQueue syncedFramesBufferForShow, syncedFramesBufferForProc;
+    RealTimeFrameVectorQueue syncedFramesBufferForShow;
+    StampedPinnedMemoryPool syncedFramesBufferForProc;
     RealTimeFrameQueue procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
 };
