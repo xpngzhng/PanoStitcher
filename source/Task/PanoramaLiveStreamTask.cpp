@@ -465,8 +465,6 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
 
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", streamVideoEncodePreset));
-    if (streamURL.substr(0, 4) == "rtmp")
-        writerOpts.push_back(std::make_pair("ar", "44100"));
     streamOpenSuccess = streamWriter.open(streamURL, streamURL.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), streamAudioBitRate,
