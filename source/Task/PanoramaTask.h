@@ -46,6 +46,21 @@ private:
     std::unique_ptr<Impl> ptrImpl;
 };
 
+// video encoder:
+// h264
+// h264_qsv
+
+// video preset
+// ultrafast
+// superfast
+// veryfast
+// faster
+// fast
+// medium
+// slow
+// slower
+// veryslow
+
 typedef void(*ProgressCallbackFunction)(double p, void* data);
 
 class PanoramaLocalDiskTask
@@ -54,7 +69,8 @@ public:
     virtual ~PanoramaLocalDiskTask() {};
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, ProgressCallbackFunction func, void* data) = 0;
+        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
+        ProgressCallbackFunction func, void* data) = 0;
     virtual bool start() = 0;
     virtual void waitForCompletion() = 0;
     virtual int getProgress() const = 0;
@@ -68,7 +84,8 @@ public:
     ~CPUPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+        ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -85,7 +102,8 @@ public:
     ~CudaPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+        ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -115,12 +133,12 @@ public:
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
-    bool openLiveStream(const std::string& name,
-        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS);
+    bool openLiveStream(const std::string& name, int width, int height, int videoBPS, 
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    void beginSaveToDisk(const std::string& dir,
-        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDuration);
+    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
     void beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data);

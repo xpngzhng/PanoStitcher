@@ -31,12 +31,12 @@ struct PanoramaLiveStreamTask::Impl
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
-    bool openLiveStream(const std::string& name,
-        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS);
+    bool openLiveStream(const std::string& name, int width, int height, int videoBPS, 
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    void beginSaveToDisk(const std::string& dir,
-        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDuration);
+    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
     void beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data);
@@ -113,6 +113,7 @@ struct PanoramaLiveStreamTask::Impl
     std::string fileWriterFormat;
     cv::Size fileFrameSize;
     int fileVideoBitRate;
+    std::string fileVideoEncoder;
     std::string fileVideoEncodePreset;
     int fileAudioBitRate;
     int fileDuration;
@@ -449,7 +450,7 @@ void PanoramaLiveStreamTask::Impl::cancelGetStitchedVideoFrame()
 }
 
 bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
-    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS)
+    int width, int height, int videoBPS, const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
     streamURL = name;
     streamFrameSize.width = width;
@@ -468,7 +469,7 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
     streamOpenSuccess = streamWriter.open(streamURL, streamURL.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), streamAudioBitRate,
-        true, "h264", pixelType, streamFrameSize.width, streamFrameSize.height,
+        true, videoEncoder == "h264_qsv" ? "h264_qsv" : "h264", pixelType, streamFrameSize.width, streamFrameSize.height,
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
     {
@@ -512,16 +513,19 @@ void PanoramaLiveStreamTask::Impl::closeLiveStream()
     }
 }
 
-void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir,
-    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
+void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+    const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
     fileWriterFormat = dir + "/temp%d.mp4";
     fileFrameSize.width = width;
     fileFrameSize.height = height;
     fileVideoBitRate = videoBPS;
+    fileVideoEncoder = videoEncoder;
     fileVideoEncodePreset = videoPreset;
     fileAudioBitRate = audioBPS;
     fileDuration = fileDurationInSeconds;
+    if (fileVideoEncoder != "h264" || fileVideoEncoder != "h264_qsv")
+        fileVideoEncoder = "h264";
     if (fileVideoEncodePreset != "ultrafast" || fileVideoEncodePreset != "superfast" ||
         fileVideoEncodePreset != "veryfast" || fileVideoEncodePreset != "faster" ||
         fileVideoEncodePreset != "fast" || fileVideoEncodePreset != "medium" || fileVideoEncodePreset != "slow" ||
@@ -1146,7 +1150,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     bool ok = writer.open(buf, "mp4", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
-        true, "h264", pixelType, fileFrameSize.width, fileFrameSize.height,
+        true, fileVideoEncoder, pixelType, fileFrameSize.width, fileFrameSize.height,
         videoFrameRate, fileVideoBitRate, writerOpts);
     if (!ok)
     {
@@ -1180,7 +1184,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
                 ok = writer.open(buf, "mp4", true,
                     audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
                     audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
-                    true, "h264", pixelType, fileFrameSize.width, fileFrameSize.height,
+                    true, fileVideoEncoder, pixelType, fileFrameSize.width, fileFrameSize.height,
                     videoFrameRate, fileVideoBitRate, writerOpts);
                 if (!ok)
                 {
@@ -1331,10 +1335,10 @@ void PanoramaLiveStreamTask::stopVideoStitch()
     ptrImpl->stopVideoStitch();
 }
 
-bool PanoramaLiveStreamTask::openLiveStream(const std::string& name,
-    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS)
+bool PanoramaLiveStreamTask::openLiveStream(const std::string& name, int width, int height, int videoBPS, 
+    const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
-    return ptrImpl->openLiveStream(name, width, height, videoBPS, videoPreset, audioBPS);
+    return ptrImpl->openLiveStream(name, width, height, videoBPS, videoEncoder, videoPreset, audioBPS);
 }
 
 void PanoramaLiveStreamTask::closeLiveStream()
@@ -1342,10 +1346,10 @@ void PanoramaLiveStreamTask::closeLiveStream()
     ptrImpl->closeLiveStream();
 }
 
-void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir,
-    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDuration)
+void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+    const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration)
 {
-    ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoPreset, audioBPS, fileDuration);
+    ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
 }
 
 void PanoramaLiveStreamTask::stopSaveToDisk()

@@ -14,7 +14,8 @@ struct CPUPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+        ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -59,7 +60,8 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
+    ProgressCallbackFunction func, void* data)
 {
     clear();
 
@@ -116,18 +118,19 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     printf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
-    options.push_back(std::make_pair("preset", "medium"));
+    options.push_back(std::make_pair("preset", dstVideoPreset));
+    std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
         ok = writer.open(dstVideoFile, "", true, 
             true, "aac", readers[audioIndex].getAudioSampleType(), readers[audioIndex].getAudioChannelLayout(), 
             readers[audioIndex].getAudioSampleRate(), 128000,
-            true, "h264_qsv", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
+            true, format, avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
     }
     else
     {
         ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-            true, "h264_qsv", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
+            true, format, avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
     }
     if (!ok)
     {
@@ -318,10 +321,11 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+    ProgressCallbackFunction func, void* data)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
-        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, func, data);
+        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, dstVideoEncoder, dstVideoPreset, func, data);
 }
 
 bool CPUPanoramaLocalDiskTask::start()
@@ -359,7 +363,8 @@ struct CudaPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+        ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -414,7 +419,8 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+    ProgressCallbackFunction func, void* data)
 {
     clear();
 
@@ -479,17 +485,18 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     printf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
-    options.push_back(std::make_pair("preset", "medium"));
+    options.push_back(std::make_pair("preset", dstVideoPreset));
+    std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
         ok = writer.open(dstVideoFile, "", true, true, "aac", readers[audioIndex].getAudioSampleType(),
             readers[audioIndex].getAudioChannelLayout(), readers[audioIndex].getAudioSampleRate(), 128000,
-            true, "h264_qsv", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
     }
     else
     {
         ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-            true, "h264_qsv", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
     }
     if (!ok)
     {
@@ -752,10 +759,11 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+    ProgressCallbackFunction func, void* data)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
-        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, func, data);
+        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, dstVideoEncoder, dstVideoPreset, func, data);
 }
 
 bool CudaPanoramaLocalDiskTask::start()

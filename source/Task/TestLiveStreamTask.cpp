@@ -12,6 +12,7 @@ int audioBitRate = 96000;
 
 cv::Size streamFrameSize(1440, 720);
 int streamBitRate;
+std::string streamEncoder;
 std::string streamEncodePreset;
 std::string streamURL;
 
@@ -19,6 +20,7 @@ int saveFile;
 cv::Size fileFrameSize(1440, 720);
 int fileDuration;
 int fileBitRate;
+std::string fileEncoder;
 std::string fileEncodePreset;
 
 std::string cameraParamPath;
@@ -148,14 +150,16 @@ int main(int argc, char* argv[])
         "{pano_stream_frame_width     | 1440          | pano video live stream picture width}"
         "{pano_stream_frame_height    | 720           | pano video live stream picture height}"
         "{pano_stream_bits_per_second | 1000000       | pano video live stream bits per second}"
-        "{pano_stream_encode_preset   | veryfast      | pano video live stream x264 encode preset}"
+        "{pano_stream_encoder         | h264          | pano video live stream encoder}"
+        "{pano_stream_encode_preset   | veryfast      | pano video live stream encode preset}"
         "{pano_stream_url             | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
         "{pano_save_file              | false         | whether to save audio video to local hard disk}"
         "{pano_file_duration          | 60            | each local pano audio video file duration in seconds}"
         "{pano_file_frame_width       | 1440          | pano video local file picture width}"
         "{pano_file_frame_height      | 720           | pano video local file picture height}"
         "{pano_file_bits_per_second   | 1000000       | pano video local file bits per second}"
-        "{pano_file_encode_preset     | veryfast      | pano video local file x264 encode preset}"
+        "{pano_file_encoder           | h264          | pano video local file encoder}"
+        "{pano_file_encode_preset     | veryfast      | pano video local file encode preset}"
         "{enable_audio                | false         | enable audio or not}"
         "{enable_interactive_select_devices | false   | enable interactice select devices}"
         "{enable_cuda                 | false         | enable cuda reproject and blend to render panorama image}";
@@ -179,6 +183,9 @@ int main(int argc, char* argv[])
     saveFile = parser.get<bool>("pano_save_file");
     fileDuration = parser.get<int>("pano_file_duration");
     fileBitRate = parser.get<int>("pano_file_bits_per_second");
+    fileEncoder = parser.get<std::string>("pano_file_encoder");
+    if (fileEncoder != "h264_qsv")
+        fileEncoder = "h264";
     fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
     if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
         fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||
@@ -328,6 +335,9 @@ int main(int argc, char* argv[])
 
     streamURL = parser.get<std::string>("pano_stream_url");
     streamBitRate = parser.get<int>("pano_stream_bits_per_second");
+    streamEncoder = parser.get<std::string>("pano_stream_encoder");
+    if (streamEncoder != "h264_qsv")
+        streamEncoder = "h264";
     streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
     if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
         streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
@@ -336,7 +346,8 @@ int main(int argc, char* argv[])
         streamEncodePreset = "veryfast";
     if (streamURL.size() && streamURL != "null")
     {
-        ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, streamBitRate, streamEncodePreset, 96000);
+        ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, 
+            streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
         {
             printf("Could not open rtmp streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
@@ -350,7 +361,8 @@ int main(int argc, char* argv[])
 
     if (saveFile)
     {
-        task.beginSaveToDisk("", fileFrameSize.width, fileFrameSize.height, fileBitRate, fileEncodePreset, 96000, fileDuration);
+        task.beginSaveToDisk("", fileFrameSize.width, fileFrameSize.height, 
+            fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);
