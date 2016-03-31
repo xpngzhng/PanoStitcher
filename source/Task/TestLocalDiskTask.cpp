@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     bool ok = task->init(srcVideoNames, offset, cameraParamFile, panoVideoName,
-        dstSize.width, dstSize.height, 48000000, displayProgress, 0);
+        dstSize.width, dstSize.height, 15000000, displayProgress, 0);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

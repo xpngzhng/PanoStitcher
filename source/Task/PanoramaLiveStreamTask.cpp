@@ -35,10 +35,13 @@ bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& de
     videoReaders.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
+        // IMPORTANT NOTICE!!!!!!
+        // FORCE PIXEL_TYPE_BGR_32
+        // SUPPORT GPU ONLY
         opts.resize(2);
         opts.push_back(std::make_pair("video_device_number", videoDevices[i].numString));
         ok = videoReaders[i].open("video=" + videoDevices[i].shortName,
-            false, true, avp::PixelTypeBGR24, "dshow", opts);
+            false, true, avp::PixelTypeBGR32, "dshow", opts);
         if (!ok)
         {
             printf("Could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
@@ -158,7 +161,11 @@ void PanoramaLiveStreamTask::closeAudioDevice()
 
 bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool useCuda)
 {
-    pixelType = useCuda ? avp::PixelTypeBGR32 : avp::PixelTypeBGR24;
+    //pixelType = useCuda ? avp::PixelTypeBGR32 : avp::PixelTypeBGR24;
+    // IMPORTANT NOTICE!!!!!!
+    // FORCE PIXEL_TYPE_BGR_32
+    // SUPPORT GPU ONLY
+    pixelType = avp::PixelTypeBGR32;
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
@@ -524,7 +531,7 @@ void PanoramaLiveStreamTask::videoSource(int index)
         {
             timer.end();
             double actualFps = (count - beginCheckCount) / timer.elapse();
-            printf("[%8x] fps = %f\n", id, actualFps);
+            //printf("[%8x] fps = %f\n", id, actualFps);
             if (index == 0 && videoFrameRateCallbackFunc)
                 videoFrameRateCallbackFunc(actualFps, videoFrameRateCallbackData);
             if (abs(actualFps - videoFrameRate) > 2 && videoCheckFrameRate)
@@ -746,9 +753,10 @@ void PanoramaLiveStreamTask::procVideo()
     std::vector<cv::Mat> src;
     cv::Mat result, scaledResult;
     bool ok;
-    long long int begTimeStamp = -1LL;
+    //long long int begTimeStamp = -1LL;
     int roundedFrameRate = videoFrameRate + 0.5;
-    long long int count = 0;
+    int count = -1;
+    ztool::Timer timer;
     while (true)
     {
         if (finish || renderEndFlag)
@@ -759,7 +767,7 @@ void PanoramaLiveStreamTask::procVideo()
         // NOTICE: it would be better to check frames's pixelType and other properties.
         if (frames.size() == numVideos)
         {
-            if (begTimeStamp < 0)
+            /*if (begTimeStamp < 0)
             {
                 begTimeStamp = frames[0].timeStamp;
                 count = 0;
@@ -772,15 +780,42 @@ void PanoramaLiveStreamTask::procVideo()
                     double actualFrameRate = count * 1000000.0 / double(frames[0].timeStamp - begTimeStamp);
                     stitchFrameRateCallbackFunc(actualFrameRate, stitchFrameRateCallbackData);
                 }
+            }*/
+            ztool::Timer localTimer, procTimer, copyTimer;
+            //printf("%lld\n", frames[0].timeStamp);
+            if (count < 0)
+            {
+                count = 0;
+                timer.start();
+            }
+            else
+            {
+                count++;
+                if (count == roundedFrameRate)
+                {
+                    printf("%d ", count);
+                    timer.end();
+                    double elapse = timer.elapse();
+                    timer.start();
+                    count = 0;
+                    printf(" %f\n", elapse);
+
+                    if (stitchFrameRateCallbackFunc)
+                        stitchFrameRateCallbackFunc(roundedFrameRate / elapse, stitchFrameRateCallbackData);
+                }
             }
             src.resize(numVideos);
+            // IMPORTANT NOTICE!!!!!!
+            // FORCE PIXEL_TYPE_BGR_32
+            // SUPPORT GPU ONLY
             for (int i = 0; i < numVideos; i++)
             {
                 src[i] = cv::Mat(frames[i].height, frames[i].width, 
-                    CV_8UC3, frames[i].data, frames[i].step);
+                    CV_8UC4, frames[i].data, frames[i].step);
             }
-
+            procTimer.start();
             ok = ptrRender->render(src, result);
+            procTimer.end();
             if (!ok)
             {
                 printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
@@ -789,6 +824,7 @@ void PanoramaLiveStreamTask::procVideo()
             }
             //cv::imshow("result", result);
             //cv::waitKey(1);
+            copyTimer.start();
             cv::Mat resultROI = result(addROI);
             addImage.copyTo(resultROI, addMask);
             avp::AudioVideoFrame shallow = avp::videoFrame(result.data, result.step, pixelType, result.cols, result.rows, frames[0].timeStamp);
@@ -802,6 +838,9 @@ void PanoramaLiveStreamTask::procVideo()
                 procFrameBufferForSend.push(deep);
             if (fileConfigSet)
                 procFrameBufferForSave.push(deep);
+            copyTimer.end();
+            localTimer.end();
+            printf("%f, %f, %f\n", procTimer.elapse(), copyTimer.elapse(), localTimer.elapse());
         }
     }
 

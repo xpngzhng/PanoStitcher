@@ -333,11 +333,18 @@ int main(int argc, char* argv[])
         streamEncodePreset != "fast" || streamEncodePreset != "medium" || streamEncodePreset != "slow" ||
         streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
         streamEncodePreset = "veryfast";
-    ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, streamBitRate, streamEncodePreset, 96000);
-    if (!ok)
+    if (streamURL.size() && streamURL != "null")
     {
-        printf("Could not open rtmp streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
-        return 0;
+        ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, streamBitRate, streamEncodePreset, 96000);
+        if (!ok)
+        {
+            printf("Could not open rtmp streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
+            return 0;
+        }
+    }
+    else
+    {
+        printf("pano_stream_url empty, no live stream\n");
     }
 
     if (saveFile)
