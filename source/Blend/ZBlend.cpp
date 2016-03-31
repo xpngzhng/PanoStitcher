@@ -1238,13 +1238,13 @@ void checkBelonging(const cv::Mat& image, const cv::Mat& mask, cv::Mat& blendIma
     timer.start();
 #endif
     splitRegion(blendMask, mask, intersectMask, blendRegionWork, currRegionWork);
-    cv::imshow("blend region", blendRegionWork);
-    cv::imshow("curr  region", currRegionWork);
+    //cv::imshow("blend region", blendRegionWork);
+    //cv::imshow("curr  region", currRegionWork);
 #if WRITE_CONSOLE
     timer.end();
     printf("findSeam time elapse: %f\n", timer.elapse());
 #endif
     image.copyTo(blendImage, currRegionWork);
     blendMask |= mask;
-    cv::waitKey(0);
+    //cv::waitKey(0);
 }

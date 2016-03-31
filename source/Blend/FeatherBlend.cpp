@@ -222,7 +222,7 @@ void featherBlend(const cv::Mat& image, const cv::Mat& mask, cv::Mat& blendImage
     printf("findSeam time elapse: %f\n", timer.elapse());
 #endif
     blendMask |= mask;
-    cv::waitKey(0);
+    //cv::waitKey(0);
 }
 
 void featherBlendProgressively(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, 
@@ -405,7 +405,7 @@ bool TilingFeatherBlend::prepareWithDist(const std::vector<cv::Mat>& masks)
         dists[i] = masks[i].clone();
         asymptoticExpSaturateScale(dists[i], 10000, 100);
         showFloatMat("scaled", dists[i]);
-        cv::waitKey(0);
+        //cv::waitKey(0);
     }
     timer.end();
     //printf("dist trans time = %f\n", timer.elapse());
