@@ -190,6 +190,18 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
         return false;
     }
 
+    renderPrepareSuccess = procFramePool.initAsVideoFramePool(pixelType, width, height);
+
+    if (!renderPrepareSuccess)
+    {
+        printf("Could not init proc frame pool\n");
+
+        if (logCallbackFunc)
+            logCallbackFunc("Video stitch prepare failed", logCallbackData);
+
+        return false;
+    }
+
     if (logCallbackFunc)
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
@@ -479,6 +491,8 @@ void PanoramaLiveStreamTask::closeAll()
     }    
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
+    procFramePool.clear();
+    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
@@ -776,9 +790,9 @@ void PanoramaLiveStreamTask::procVideo()
                     printf("%d ", count);
                     timer.end();
                     double elapse = timer.elapse();
+                    printf(" %f, %f\n", elapse, count / elapse);
                     timer.start();
                     count = 0;
-                    printf(" %f\n", elapse);
 
                     if (stitchFrameRateCallbackFunc)
                         stitchFrameRateCallbackFunc(roundedFrameRate / elapse, stitchFrameRateCallbackData);
@@ -788,7 +802,8 @@ void PanoramaLiveStreamTask::procVideo()
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i];
-            frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
+            //frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
+            procFramePool.get(frame);
             result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
             procTimer.start();
             ok = render.render(src, result);
@@ -841,7 +856,7 @@ void PanoramaLiveStreamTask::postProc()
         if (!procFrameBufferForPostProc.pull(frame))
             continue;
 
-        ztool::Timer timer;
+        //ztool::Timer timer;
         cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
         cv::Mat resultROI = result(addROI);
         addImage.copyTo(resultROI, addMask);
@@ -854,8 +869,8 @@ void PanoramaLiveStreamTask::postProc()
             procFrameBufferForSend.push(frame);
         if (fileConfigSet)
             procFrameBufferForSave.push(frame);
-        timer.end();
-        printf("%f\n", timer.elapse());
+        //timer.end();
+        //printf("%f\n", timer.elapse());
     }
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);

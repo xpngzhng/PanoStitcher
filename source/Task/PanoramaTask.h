@@ -3,6 +3,7 @@
 #include "AudioVideoProcessor.h"
 #include "StampedFrameQueue.h"
 #include "StampedPinnedMemoryPool.h"
+#include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
 #include "ZBlend.h"
 #include "opencv2/core/core.hpp"
@@ -420,5 +421,6 @@ private:
     std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
     RealTimeFrameVectorQueue syncedFramesBufferForShow;
     StampedPinnedMemoryPool syncedFramesBufferForProc;
+    SharedAudioVideoFramePool procFramePool;
     RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
 };
