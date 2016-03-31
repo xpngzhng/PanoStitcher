@@ -30,11 +30,12 @@ typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
 typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 
 int numVideos;
+int audioIndex;
 cv::Size srcSize, dstSize;
 std::vector<avp::AudioVideoReader> readers;
 CudaMultiCameraPanoramaRender2 render;
 PinnedMemoryPool srcFramesMemoryPool;
-SharedAudioVideoFramePool dstFramesMemoryPool;
+SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
 FrameVectorBuffer decodeFramesBuffer(2);
 FrameBuffer procFrameBuffer(4);
 ztool::Timer timerAll, timerTotal, timerDecode, timerUpload, timerReproject, timerBlend, timerDownload, timerEncode;
@@ -71,13 +72,33 @@ void decodeThread()
 {
     int count = 0;
     std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
+    avp::SharedAudioVideoFrame audioFrame;
 
     while (true)
-    {
+    {        
+        if (audioIndex >= 0 && audioIndex < numVideos)
+        {
+            if (!readers[audioIndex].read(shallowFrames[audioIndex]))
+            {
+                videoEnd = true;
+                break;
+            }
+
+            if (shallowFrames[audioIndex].mediaType == avp::AUDIO)
+            {
+                audioFramesMemoryPool.get(audioFrame);
+                avp::copy(shallowFrames[audioIndex], audioFrame);
+                procFrameBuffer.push(audioFrame);
+                continue;
+            }
+        }
 
         bool successRead = true;
         for (int i = 0; i < numVideos; i++)
         {
+            if (i == audioIndex)
+                continue;
+
             if (!readers[i].read(shallowFrames[i]))
             {
                 successRead = false;
@@ -170,8 +191,9 @@ int main(int argc, char* argv[])
         "{c | num_frames_skip | 100 | number of frames to skip}"
         "{d | pano_width | 2048 | pano picture width}"
         "{e | pano_height | 1024 | pano picture height}"
-        "{h | pano_video_name | panoptslibx264_4k.mp4 | xml param file path}"
-        "{g | pano_video_num_frames | 1000 | number of frames to write}";
+        "{h | pano_video_name | panoptslibx264withaudio.mp4 | xml param file path}"
+        "{g | pano_video_num_frames | 1000 | number of frames to write}"
+        "{f | audio_index | 0 | select audio from which video}";
 
     cv::CommandLineParser parser(argc, argv, keys);
     
@@ -211,11 +233,21 @@ int main(int argc, char* argv[])
 
     printf("Open videos and set to the correct frames\n");
 
+    bool openAudio = false;
+    audioIndex = parser.get<int>("audio_index");
+    if (audioIndex >= numVideos)
+    {
+        printf("Warning, audio index out of bound, no audio in output file\n");
+        audioIndex = -1;
+    }
+    if (audioIndex >= 0 && audioIndex < numVideos)
+        openAudio = true;
+
     bool ok = false;
     readers.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
-        ok = readers[i].open(srcVideoNames[i], false, true, avp::PixelTypeBGR32/*avp::PixelTypeBGR24*/);
+        ok = readers[i].open(srcVideoNames[i], i == audioIndex, true, avp::PixelTypeBGR32);
         if (!ok)
             break;
         int count = offset[i] + numSkip;
@@ -234,6 +266,18 @@ int main(int argc, char* argv[])
     {
         printf("Could not init memory pool\n");
         return 0;
+    }
+
+    if (openAudio)
+    {
+        ok = audioFramesMemoryPool.initAsAudioFramePool(readers[audioIndex].getAudioSampleType(),
+            readers[audioIndex].getAudioNumChannels(), readers[audioIndex].getAudioChannelLayout(),
+            readers[audioIndex].getAudioNumSamples());
+        if (!ok)
+        {
+            printf("Could not init memory pool\n");
+            return 0;
+        }
     }
 
     printf("Open videos done\n");
@@ -261,8 +305,17 @@ int main(int argc, char* argv[])
     panoVideoName = parser.get<std::string>("pano_video_name");
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", "medium"));
-    success = writer.open(panoVideoName, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0, 
-        true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+    if (openAudio)
+    {
+        success = writer.open(panoVideoName, "", true, true, "aac", readers[audioIndex].getAudioSampleType(), 
+            readers[audioIndex].getAudioChannelLayout(), readers[audioIndex].getAudioSampleRate(), 128000,
+            true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+    }
+    else
+    {
+        success = writer.open(panoVideoName, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
+            true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+    }
     if (!success)
     {
         printf("Video writer open failed, exit.\n");
