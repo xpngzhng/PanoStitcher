@@ -1,9 +1,8 @@
 #include "ZReproject.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
-#include <cuda_runtime.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
+#include "cuda_runtime.h"
 
 void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
 {
@@ -40,14 +39,14 @@ int main()
     printf("setup finish\n");
 
     cv::Mat tempCpu(8, 8, CV_8UC1);
-    cv::gpu::GpuMat tempGpu(tempCpu);
+    cv::cuda::GpuMat tempGpu(tempCpu);
     printf("start\n");
 
     cv::Size dstSize = cv::Size(1024, 512);
 
     //{
     //    cv::Mat ss(2000, 4000, CV_64FC4);
-    //    cv::gpu::GpuMat dd(ss);
+    //    cv::cuda::GpuMat dd(ss);
     //    //dd.upload(ss);
     //    printf("OK\n");
 
@@ -70,10 +69,10 @@ int main()
     //    std::vector<cv::Mat> maps, masks;
     //    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
-    //    std::vector<cv::gpu::GpuMat> xmaps, ymaps;
+    //    std::vector<cv::cuda::GpuMat> xmaps, ymaps;
     //    cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);
 
-    //    cv::gpu::GpuMat gmat;
+    //    cv::cuda::GpuMat gmat;
     //    gmat.create(cv::Size(2048, 1024), CV_8UC4);
 
     //    cv::Mat splitMats[2];
@@ -109,7 +108,7 @@ int main()
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
-        std::vector<cv::gpu::GpuMat> xmaps, ymaps;
+        std::vector<cv::cuda::GpuMat> xmaps, ymaps;
         cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);
 
         cv::Mat splitMats[2];

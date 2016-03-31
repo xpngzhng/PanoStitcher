@@ -1,9 +1,10 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/stream_accessor.hpp>
-#include <opencv2/gpu/device/common.hpp>
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "device_functions.h"
 
 texture<uchar4, 2> srcTexture;
 texture<float, 2> xmapTexture, ymapTexture;
@@ -175,8 +176,8 @@ __global__ void reprojectCubicKernel(unsigned char* dstData,
         resampling(srcWidth, srcHeight, srcx, srcy, ptrDst);
 }
 
-void cudaReproject(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, 
-    const cv::gpu::GpuMat& xmap, const cv::gpu::GpuMat& ymap, cv::gpu::Stream& stream)
+void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, 
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream)
 {
     CV_Assert(src.data && src.type() == CV_8UC4 &&
         xmap.data && xmap.type() == CV_32FC1 && ymap.data && ymap.type() == CV_32FC1 &&
@@ -192,7 +193,7 @@ void cudaReproject(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
     cudaSafeCall(cudaBindTexture2D(NULL, xmapTexture, xmap.data, chanDescFloat, xmap.cols, xmap.rows, xmap.step));
     cudaSafeCall(cudaBindTexture2D(NULL, ymapTexture, ymap.data, chanDescFloat, ymap.cols, ymap.rows, ymap.step));
 
-    cudaStream_t st = cv::gpu::StreamAccessor::getStream(stream);
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
     dim3 block(16, 16);
     dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
     reprojectCubicKernel<unsigned char><<<grid, block, 0, st>>>(dst.data, dstSize.height, dstSize.width, dst.step, src.cols, src.rows);
@@ -205,8 +206,8 @@ void cudaReproject(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
     //cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void cudaReprojectTo16S(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
-    const cv::gpu::GpuMat& xmap, const cv::gpu::GpuMat& ymap, cv::gpu::Stream& stream)
+void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream)
 {
     CV_Assert(src.data && src.type() == CV_8UC4 &&
         xmap.data && xmap.type() == CV_32FC1 && ymap.data && ymap.type() == CV_32FC1 &&
@@ -222,7 +223,7 @@ void cudaReprojectTo16S(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
     cudaSafeCall(cudaBindTexture2D(NULL, xmapTexture, xmap.data, chanDescFloat, xmap.cols, xmap.rows, xmap.step));
     cudaSafeCall(cudaBindTexture2D(NULL, ymapTexture, ymap.data, chanDescFloat, ymap.cols, ymap.rows, ymap.step));
 
-    cudaStream_t st = cv::gpu::StreamAccessor::getStream(stream);
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
     dim3 block(16, 16);
     dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
     reprojectCubicKernel<short><<<grid, block, 0, st>>>(dst.data, dstSize.height, dstSize.width, dst.step, src.cols, src.rows);

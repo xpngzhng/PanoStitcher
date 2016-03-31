@@ -1,15 +1,15 @@
 #include "ZBlend.h"
 #include "ZBlendAlgo.h"
 #include "Timer.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 #define NEED_MAIN 0
 
-void accumulate8UC4To32SC4(const cv::gpu::GpuMat& src, const cv::gpu::GpuMat& weight, cv::gpu::GpuMat& dst);
-void normalize32SC4Feather(cv::gpu::GpuMat& image);
+void accumulate8UC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst);
+void normalize32SC4Feather(cv::cuda::GpuMat& image);
 void getWeightsLinearBlend(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
 bool CudaTilingLinearBlend::prepare(const std::vector<cv::Mat>& masks, int radius)
@@ -84,7 +84,7 @@ bool CudaTilingLinearBlend::prepare(const std::vector<cv::Mat>& masks, int radiu
     return true;
 }
 
-void CudaTilingLinearBlend::blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage)
+void CudaTilingLinearBlend::blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;

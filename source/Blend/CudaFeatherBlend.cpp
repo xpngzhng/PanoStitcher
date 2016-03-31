@@ -1,15 +1,15 @@
 ﻿#include "ZBlend.h"
 #include "ZBlendAlgo.h"
 #include "Timer.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 #define NEED_MAIN 0
 
-void accumulate8UC4To32SC4(const cv::gpu::GpuMat& src, const cv::gpu::GpuMat& weight, cv::gpu::GpuMat& dst);
-void normalize32SC4Feather(cv::gpu::GpuMat& image);
+void accumulate8UC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst);
+void normalize32SC4Feather(cv::cuda::GpuMat& image);
 void calcWeightsFeatherBlend(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& weights);
 void distanceTransformFeatherBlend(const cv::Mat& mask, cv::Mat& dist);
 
@@ -35,10 +35,10 @@ class CudaTilingFeatherBlend
 public:
     CudaTilingFeatherBlend() : numImages(0), rows(0), cols(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks);
-    void blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
 private:
-    std::vector<cv::gpu::GpuMat> weights;
-    cv::gpu::GpuMat accumImage;
+    std::vector<cv::cuda::GpuMat> weights;
+    cv::cuda::GpuMat accumImage;
     int numImages;
     int rows, cols;
     bool success;
@@ -111,7 +111,7 @@ bool CudaTilingFeatherBlend::prepare(const std::vector<cv::Mat>& masks)
     return true;
 }
 
-void CudaTilingFeatherBlend::blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage)
+void CudaTilingFeatherBlend::blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <opencv2/core/core.hpp>
+#include "opencv2/core.hpp"
 
 void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot);
 

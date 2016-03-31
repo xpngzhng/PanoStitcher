@@ -1,14 +1,17 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/cuda_devptrs.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/device/common.hpp>
-#include <opencv2/gpu/device/border_interpolate.hpp>
-#include <opencv2/gpu/device/vec_traits.hpp>
-#include <opencv2/gpu/device/vec_math.hpp>
-#include <opencv2/gpu/device/saturate_cast.hpp>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <device_functions.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "opencv2/core/cuda/border_interpolate.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "device_functions.h"
+//#include <opencv2/gpu/gpu.hpp>
+//#include <opencv2/gpu/device/common.hpp>
+//#include <opencv2/gpu/device/border_interpolate.hpp>
+//#include <opencv2/gpu/device/vec_traits.hpp>
+//#include <opencv2/gpu/device/vec_math.hpp>
+//#include <opencv2/gpu/device/saturate_cast.hpp>
 
 #define PYR_DOWN_BLOCK_SIZE 256
 
@@ -748,7 +751,7 @@ __global__ void normalize32SC4(unsigned char* imageData, int imageRows, int imag
     }
 }
 
-void pyramidDown16SC1To16SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidDown16SC1To16SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_16SC1); 
 
@@ -760,7 +763,7 @@ void pyramidDown16SC1To16SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     dst.create(dstSize, CV_16SC1);
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     BrdColReflect101 rb(src.rows);
     BrdRowReflect101 cb(src.cols);
     cudaChannelFormatDesc chanDescShort = cudaCreateChannelDesc<short>();
@@ -771,7 +774,7 @@ void pyramidDown16SC1To16SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidDown16SC1To32SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidDown16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_16SC1); 
 
@@ -783,7 +786,7 @@ void pyramidDown16SC1To32SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     dst.create(dstSize, CV_32SC1);
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     BrdColReflect101 rb(src.rows);
     BrdRowReflect101 cb(src.cols);
     cudaChannelFormatDesc chanDescShort = cudaCreateChannelDesc<short>();
@@ -794,7 +797,7 @@ void pyramidDown16SC1To32SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidDown16SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidDown16SC4To32SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_16SC4); 
 
@@ -806,7 +809,7 @@ void pyramidDown16SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     dst.create(dstSize, CV_32SC4);
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     BrdColReflect101 rb(src.rows);
     BrdRowReflect101 cb(src.cols);
     cudaChannelFormatDesc chanDescShort4 = cudaCreateChannelDesc<short4>();
@@ -817,8 +820,8 @@ void pyramidDown16SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void divide32SC4To16SC4(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& srcAlpha,
-    cv::gpu::GpuMat& dstImage, cv::gpu::GpuMat& dstAlpha)
+void divide32SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha,
+    cv::cuda::GpuMat& dstImage, cv::cuda::GpuMat& dstAlpha)
 {
     CV_Assert(srcImage.data && srcImage.type() == CV_32SC4 &&
         srcAlpha.data && srcAlpha.type() == CV_32SC1 &&
@@ -828,7 +831,7 @@ void divide32SC4To16SC4(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& 
     dstAlpha.create(srcAlpha.size(), CV_16SC1);
 
     const dim3 block(256);
-    const dim3 grid(cv::gpu::divUp(srcImage.cols, block.x), cv::gpu::divUp(srcImage.rows, block.y));
+    const dim3 grid(cv::cuda::device::divUp(srcImage.cols, block.x), cv::cuda::device::divUp(srcImage.rows, block.y));
     divide32SC4To16SC4<<<grid, block>>>(srcImage.data, srcImage.rows, srcImage.cols, srcImage.step,
         srcAlpha.data, srcAlpha.rows, srcAlpha.cols, srcAlpha.step,
         dstImage.data, dstImage.rows, dstImage.cols, dstImage.step,
@@ -837,18 +840,18 @@ void divide32SC4To16SC4(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& 
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidDown16SC4To16SC4(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& srcAlpha,
-    cv::gpu::GpuMat& dstImage, cv::gpu::GpuMat& dstAlpha)
+void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha,
+    cv::cuda::GpuMat& dstImage, cv::cuda::GpuMat& dstAlpha)
 {
     CV_Assert(srcImage.data && srcImage.type() == CV_16SC4 &&
         srcAlpha.data && srcAlpha.type() == CV_16SC1 && srcImage.size() == srcAlpha.size());
-    cv::gpu::GpuMat dstImage32S, dstAlpha32S;
+    cv::cuda::GpuMat dstImage32S, dstAlpha32S;
     pyramidDown16SC4To32SC4(srcImage, dstImage32S, cv::Size());
     pyramidDown16SC1To32SC1(srcAlpha, dstAlpha32S, cv::Size());
     divide32SC4To16SC4(dstImage32S, dstAlpha32S, dstImage, dstAlpha);
 }
 
-void pyramidUp32SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidUp32SC4To32SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_32SC4);
     
@@ -860,7 +863,7 @@ void pyramidUp32SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv:
     dst.create(dstSize, CV_32SC4);
 
     const dim3 block(16, 16);
-    const dim3 grid(cv::gpu::divUp(dst.cols, block.x), cv::gpu::divUp(dst.rows, block.y));
+    const dim3 grid(cv::cuda::device::divUp(dst.cols, block.x), cv::cuda::device::divUp(dst.rows, block.y));
     BrdColReflect101 rb(src.rows);
     BrdRowReflect101 cb(src.cols);
     cudaChannelFormatDesc chanDescInt4 = cudaCreateChannelDesc<int4>();
@@ -871,7 +874,7 @@ void pyramidUp32SC4To32SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv:
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidUp16SC4To16SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidUp16SC4To16SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_16SC4);
     
@@ -883,7 +886,7 @@ void pyramidUp16SC4To16SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv:
     dst.create(dstSize, CV_16SC4);
 
     const dim3 block(16, 16);
-    const dim3 grid(cv::gpu::divUp(dst.cols, block.x), cv::gpu::divUp(dst.rows, block.y));
+    const dim3 grid(cv::cuda::device::divUp(dst.cols, block.x), cv::cuda::device::divUp(dst.rows, block.y));
     BrdColReflect101 rb(src.rows);
     BrdRowReflect101 cb(src.cols);
     cudaChannelFormatDesc chanDescShort4 = cudaCreateChannelDesc<short4>();
@@ -894,7 +897,7 @@ void pyramidUp16SC4To16SC4(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv:
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void accumulate16SC4To32SC4(const cv::gpu::GpuMat& src, const cv::gpu::GpuMat& weight, cv::gpu::GpuMat& dst)
+void accumulate16SC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst)
 {
     CV_Assert(src.data && src.type() == CV_16SC4 &&
         weight.data && weight.type() == CV_16SC1 &&
@@ -902,7 +905,7 @@ void accumulate16SC4To32SC4(const cv::gpu::GpuMat& src, const cv::gpu::GpuMat& w
         src.size() == weight.size() && src.size() == dst.size());
 
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), cv::gpu::divUp(src.rows, block.y));
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
     accumulate16SC4To32SC4<<<grid, block>>>(src.data, src.rows, src.cols, src.step, 
         weight.data, weight.rows, weight.cols, weight.step,
         dst.data, dst.rows, dst.cols, dst.step);
@@ -910,11 +913,11 @@ void accumulate16SC4To32SC4(const cv::gpu::GpuMat& src, const cv::gpu::GpuMat& w
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void normalize32SC4(cv::gpu::GpuMat& image)
+void normalize32SC4(cv::cuda::GpuMat& image)
 {
     CV_Assert(image.data && image.type() == CV_32SC4);
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(image.cols, block.x), cv::gpu::divUp(image.rows, block.y));
+    const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
     normalize32SC4<<<grid, block>>>(image.data, image.rows, image.cols, image.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());

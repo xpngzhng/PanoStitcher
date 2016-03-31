@@ -1,9 +1,9 @@
 ﻿#include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Timer.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -115,15 +115,15 @@ int main()
     //maskPaths.push_back("E:\\Projects\\Reprojecting\\Reproject\\mask3.bmp");
 
     std::vector<std::string> contentPaths;
-    contentPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\image0.bmp");
-    contentPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\image1.bmp");
-    contentPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\image2.bmp");
-    contentPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\image3.bmp");
+    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image0.bmp");
+    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image1.bmp");
+    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image2.bmp");
+    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image3.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\mask0.bmp");
-    maskPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\mask1.bmp");
-    maskPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\mask2.bmp");
-    maskPaths.push_back("C:\\Users\\zhengxuping\\Desktop\\PanoReprojection\\PanoTest\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask3.bmp");
 
     //std::vector<std::string> contentPaths;
     //contentPaths.push_back("E:\\Projects\\Stitching\\build\\Stitching\\PanoAll\\pano0000.tif");

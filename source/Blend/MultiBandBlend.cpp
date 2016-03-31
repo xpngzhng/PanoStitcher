@@ -1,8 +1,8 @@
 ﻿#include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Pyramid.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 void convert16STo16U(const cv::Mat& src, cv::Mat& dst)
 {

@@ -3,18 +3,16 @@
 #include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Pyramid.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "cuda_runtime.h"
 #include <iostream>
-
-#include <cuda_runtime.h>
 
 int main1()
 {
     cv::Mat tempCpu(8, 8, CV_8UC1);
-    cv::gpu::GpuMat tempGpu(tempCpu);
+    cv::cuda::GpuMat tempGpu(tempCpu);
     printf("start\n");
     //{
     //    int rows = 1024, cols = 2048, pad = 2;
@@ -22,11 +20,11 @@ int main1()
     //    cv::RNG rng;
     //    rng.fill(src, cv::RNG::NORMAL, 0, 1, true);
     //    ztool::Timer timer;
-    //    cv::gpu::GpuMat srcGpu(src), dstGpu(srcGpu.size(), srcGpu.type());
+    //    cv::cuda::GpuMat srcGpu(src), dstGpu(srcGpu.size(), srcGpu.type());
     //    timer.start();
     //    for (int i = 0; i < 80000; i++)
     //    {
-    //        //cv::gpu::GpuMat dstGpu;
+    //        //cv::cuda::GpuMat dstGpu;
     //        //timer.start();
     //        func(srcGpu, dstGpu);
     //        //timer.end();
@@ -51,12 +49,12 @@ int main1()
         cv::copyMakeBorder(src, srcPad, 2, 2, 2, 2, cv::BORDER_REFLECT_101);
 
         ztool::Timer timer;
-        cv::gpu::GpuMat srcGpu(src), srcPadGpu(srcPad);
-        cv::gpu::GpuMat dstGpu, dstPadGpu;
+        cv::cuda::GpuMat srcGpu(src), srcPadGpu(srcPad);
+        cv::cuda::GpuMat dstGpu, dstPadGpu;
         //timer.start();
         for (int i = 0; i < 1; i++)
         {
-            //cv::gpu::GpuMat dstGpu;
+            //cv::cuda::GpuMat dstGpu;
             //timer.start();
             pyramidDown16SC1To32SC1(srcGpu, dstGpu, cv::Size(), true);
             //timer.end();
@@ -69,7 +67,7 @@ int main1()
         //return 0;
         for (int i = 0; i < 1; i++)
         {
-            //cv::gpu::GpuMat dstPadGpu;
+            //cv::cuda::GpuMat dstPadGpu;
             //timer.start();
             pyramidDownPad16SC1To32SC1(srcPadGpu, dstPadGpu, cv::Size(), true);
             //timer.end();
@@ -101,10 +99,10 @@ int main1()
         cv::copyMakeBorder(src, srcPad, 2, 2, 2, 2, cv::BORDER_REFLECT_101);
 
         ztool::Timer timer;
-        cv::gpu::GpuMat srcGpu(src), srcPadGpu(srcPad);
+        cv::cuda::GpuMat srcGpu(src), srcPadGpu(srcPad);
         for (int i = 0; i < 100; i++)
         {
-            cv::gpu::GpuMat dstGpu;
+            cv::cuda::GpuMat dstGpu;
             timer.start();
             pyramidDown16SC4To32SC4(srcGpu, dstGpu, cv::Size(), false);
             timer.end();
@@ -114,7 +112,7 @@ int main1()
         printf("\n");
         for (int i = 0; i < 100; i++)
         {
-            cv::gpu::GpuMat dstPadGpu;
+            cv::cuda::GpuMat dstPadGpu;
             timer.start();
             pyramidDownPad16SC4To32SC4(srcPadGpu, dstPadGpu, cv::Size(), false);
             timer.end();
@@ -140,13 +138,13 @@ int main1()
     //    std::cout << src << std::endl << std::endl;
 
     //    ztool::Timer timer;
-    //    //cv::gpu::GpuMat srcGpu(src), srcPadGpu(srcPad);
-    //    cv::gpu::GpuMat srcGpu, srcPadGpu;
+    //    //cv::cuda::GpuMat srcGpu(src), srcPadGpu(srcPad);
+    //    cv::cuda::GpuMat srcGpu, srcPadGpu;
     //    srcGpu.upload(src);
     //    srcPadGpu.upload(srcPad);
     //    for (int i = 0; i < 100; i++)
     //    {
-    //        cv::gpu::GpuMat dstGpu;
+    //        cv::cuda::GpuMat dstGpu;
     //        timer.start();
     //        pyramidUp16SC4To16SC4(srcGpu, dstGpu, cv::Size(), false);
     //        timer.end();
@@ -157,7 +155,7 @@ int main1()
     //    printf("\n");
     //    for (int i = 0; i < 100; i++)
     //    {
-    //        cv::gpu::GpuMat dstPadGpu;
+    //        cv::cuda::GpuMat dstPadGpu;
     //        timer.start();
     //        pyramidUpPad16SC4To16SC4(srcPadGpu, dstPadGpu, cv::Size(), false);
     //        timer.end();
@@ -177,10 +175,10 @@ int main1()
     return 0;
 }
 
-void cudaMultibandBlend(const cv::gpu::GpuMat& image1, const cv::gpu::GpuMat& image2,
-    const cv::gpu::GpuMat& alpha1, const cv::gpu::GpuMat& alpha2,
-    cv::gpu::GpuMat& mask1, const cv::gpu::GpuMat& mask2,
-    bool horiWrap, int maxLevels, int minLength, cv::gpu::GpuMat& result);
+void cudaMultibandBlend(const cv::cuda::GpuMat& image1, const cv::cuda::GpuMat& image2,
+    const cv::cuda::GpuMat& alpha1, const cv::cuda::GpuMat& alpha2,
+    cv::cuda::GpuMat& mask1, const cv::cuda::GpuMat& mask2,
+    bool horiWrap, int maxLevels, int minLength, cv::cuda::GpuMat& result);
 
 int main2()
 {
@@ -219,15 +217,15 @@ int main2()
 
         //cv::Mat blendImage16SC4, gb;
         //blendImageC4.convertTo(blendImage16SC4, CV_16S);
-        //cv::gpu::GpuMat src(blendImage16SC4), dstPyr, dstBlur;
+        //cv::cuda::GpuMat src(blendImage16SC4), dstPyr, dstBlur;
         //timer.start();
         //pyramidDown16SC4To32SC4(src, dstPyr, cv::Size());
         //timer.end();
         //printf("down time = %f\n", timer.elapse());
         //timer.start();
-        //cv::gpu::GaussianBlur(src, dstBlur, cv::Size(5, 5), 1, 1);
+        //cv::cuda::GaussianBlur(src, dstBlur, cv::Size(5, 5), 1, 1);
         //timer.end();
-        //printf("gpu blur time = %f\n", timer.elapse());
+        //printf("cuda blur time = %f\n", timer.elapse());
         //timer.start();
         //cv::GaussianBlur(blendImage16SC4, gb, cv::Size(5, 5), 1, 1);
         //timer.end();
@@ -237,10 +235,10 @@ int main2()
         //cv::waitKey(0);
         //cv::imwrite("result.bmp", result);
 
-        cv::gpu::GpuMat blendImageGpu(blendImageC4), currImageGpu(currImageC4);
-        cv::gpu::GpuMat blendMaskGpu(blendMask), currMaskGpu(currMask);
-        cv::gpu::GpuMat blendRegionGpu(blendRegion), currRegionGpu(currRegion);
-        cv::gpu::GpuMat resultGpu;
+        cv::cuda::GpuMat blendImageGpu(blendImageC4), currImageGpu(currImageC4);
+        cv::cuda::GpuMat blendMaskGpu(blendMask), currMaskGpu(currMask);
+        cv::cuda::GpuMat blendRegionGpu(blendRegion), currRegionGpu(currRegion);
+        cv::cuda::GpuMat resultGpu;
         timer.start();
         cudaMultibandBlend(blendImageGpu, currImageGpu, blendMaskGpu, currMaskGpu, blendRegionGpu, currRegionGpu, false, 5, 2, resultGpu);
         timer.end();
@@ -291,7 +289,7 @@ int main()
     //printf("%d\n", CV_ELEM_SIZE(CV_64FC2));
     //for (int i = 1; i < 1024; i += 32)
     //{
-    //    cv::gpu::GpuMat mat(100, i, CV_32SC1);
+    //    cv::cuda::GpuMat mat(100, i, CV_32SC1);
     //    printf("width = %d, depth = %d\n", i, mat.step);
     //}
     //return 0;
@@ -402,7 +400,7 @@ int main()
 
     cv::Mat tempCpu(8, 8, CV_8UC1);
     printf("a\n");
-    cv::gpu::GpuMat tempGpu(tempCpu);
+    cv::cuda::GpuMat tempGpu(tempCpu);
     printf("start\n");
 
     ztool::Timer timer;
@@ -413,7 +411,7 @@ int main()
     getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
 
     std::vector<cv::Mat> imagesC4(numImages);
-    std::vector<cv::gpu::GpuMat> imagesGpu(numImages), masksGpu(numImages);
+    std::vector<cv::cuda::GpuMat> imagesGpu(numImages), masksGpu(numImages);
     int fromTo[] = { 0, 0, 1, 1, 2, 2 };
     cv::Mat tempC4(imageSize, CV_8UC4), blendImageC4;
     for (int i = 0; i < numImages; i++)
@@ -432,7 +430,7 @@ int main()
 
     /*{
     CudaTilingMultibandBlend blender;
-    cv::gpu::GpuMat blendImageGpu;
+    cv::cuda::GpuMat blendImageGpu;
     blender.prepare(masks, 20, 2);
     for (int i = 0; i < 100; i++)
     {
@@ -448,7 +446,7 @@ int main()
 
     {
         CudaTilingMultibandBlendFast blender;
-        cv::gpu::GpuMat blendImageGpu;
+        cv::cuda::GpuMat blendImageGpu;
         blender.prepare(masks, 20, 2);
         for (int i = 0; i < 500; i++)
         {
@@ -470,17 +468,17 @@ int main()
     _sleep(1000);
 
     //{
-    //    std::vector<cv::gpu::CudaMem> pinnedMems(numImages);
+    //    std::vector<cv::cuda::CudaMem> pinnedMems(numImages);
     //    std::vector<cv::Mat> pinnedImages(numImages);
     //    for (int i = 0; i < numImages; i++)
     //    {
-    //        pinnedMems[i] = cv::gpu::CudaMem(imagesC4[i]);
+    //        pinnedMems[i] = cv::cuda::CudaMem(imagesC4[i]);
     //        pinnedImages[i] = pinnedMems[i];
     //    }
     //    CudaTilingMultibandBlendFast blender;
-    //    cv::gpu::GpuMat blendImageGpu;
+    //    cv::cuda::GpuMat blendImageGpu;
     //    blender.prepare(masks, 20, 2);
-    //    std::vector<cv::gpu::Stream> streams(numImages);
+    //    std::vector<cv::cuda::Stream> streams(numImages);
     //    for (int i = 0; i < 0; i++)
     //    {
     //        timer.start();
@@ -499,19 +497,19 @@ int main()
     _sleep(1000);
 
     //{
-    //    std::vector<cv::gpu::CudaMem> pinnedMems(numImages);
+    //    std::vector<cv::cuda::CudaMem> pinnedMems(numImages);
     //    std::vector<cv::Mat> pinnedImages(numImages);
     //    for (int i = 0; i < numImages; i++)
     //    {
-    //        pinnedMems[i] = cv::gpu::CudaMem(imagesC4[i]);
+    //        pinnedMems[i] = cv::cuda::CudaMem(imagesC4[i]);
     //        pinnedImages[i] = pinnedMems[i];
     //    }
-    //    std::vector<std::vector<cv::gpu::GpuMat> > imagePyrs(numImages), image32SPyrs(numImages), imageUpPyrs(numImages);
-    //    std::vector<std::vector<cv::gpu::GpuMat> > alphaPyrs(numImages), weightPyrs(numImages);
-    //    std::vector<cv::gpu::GpuMat> resultPyr, resultUpPyr;
-    //    cv::gpu::GpuMat blendImageGpu;
+    //    std::vector<std::vector<cv::cuda::GpuMat> > imagePyrs(numImages), image32SPyrs(numImages), imageUpPyrs(numImages);
+    //    std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs(numImages), weightPyrs(numImages);
+    //    std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr;
+    //    cv::cuda::GpuMat blendImageGpu;
     //    prepare(masks, 20, 2, alphaPyrs, weightPyrs, resultPyr, image32SPyrs, imageUpPyrs, resultUpPyr);
-    //    std::vector<cv::gpu::Stream> streams(numImages);
+    //    std::vector<cv::cuda::Stream> streams(numImages);
     //    ztool::Timer partTimer;
     //    for (int i = 0; i < 500; i++)
     //    {
@@ -552,13 +550,13 @@ int main4()
         cv::RNG rng;
         rng.fill(src, cv::RNG::UNIFORM, 0, 255, true);
         ztool::Timer timer;
-        cv::gpu::GpuMat srcGpu(src);
-        cv::gpu::GpuMat dstGpu1, dstGpu2, auxGpu;
+        cv::cuda::GpuMat srcGpu(src);
+        cv::cuda::GpuMat dstGpu1, dstGpu2, auxGpu;
         printf("begin\n");
         timer.start();
         for (int i = 0; i < 10000; i++)
         {
-            //cv::gpu::GpuMat dstGpu;
+            //cv::cuda::GpuMat dstGpu;
             //timer.start();
             pyramidDown16SC1To32SC1(srcGpu, dstGpu1, cv::Size(), true);
             //timer.end();
@@ -576,13 +574,13 @@ int main4()
         cv::Mat horiTab, vertTab;
         getIndexTab(cols, blockSize, cv::BORDER_WRAP, horiTab);
         getIndexTab(rows, blockSize, cv::BORDER_REFLECT_101, vertTab);
-        cv::gpu::GpuMat horiTabGpu(horiTab), vertTabGpu(vertTab);
+        cv::cuda::GpuMat horiTabGpu(horiTab), vertTabGpu(vertTab);
         dstGpu2.create((rows + 1) >> 1, (cols + 1) >> 1, CV_32SC1);
         auxGpu.create(rows, (cols + 1) >> 1, CV_32SC1);
         timer.start();
         for (int i = 0; i < 10000; i++)
         {
-            //cv::gpu::GpuMat dstPadGpu;
+            //cv::cuda::GpuMat dstPadGpu;
             //timer.start();
             pyramidDown16SC1To32SC1(srcGpu, dstGpu2, auxGpu, horiTabGpu, vertTabGpu);
             //timer.end();

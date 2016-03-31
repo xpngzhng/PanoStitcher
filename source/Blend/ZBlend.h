@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -187,18 +187,18 @@ class CudaTilingMultibandBlend
 public:
     CudaTilingMultibandBlend() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
-    void tile(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& mask, int index);
-    void composite(cv::gpu::GpuMat& blendImage);
-    void blend(const std::vector<cv::gpu::GpuMat>& images, const std::vector<cv::gpu::GpuMat>& masks, cv::gpu::GpuMat& blendImage);
+    void tile(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& mask, int index);
+    void composite(cv::cuda::GpuMat& blendImage);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks, cv::cuda::GpuMat& blendImage);
 
 private:
-    std::vector<cv::gpu::GpuMat> uniqueMasks;
-    std::vector<cv::gpu::GpuMat> resultPyr;
-    std::vector<cv::gpu::GpuMat> imagePyr, image32SPyr;
-    std::vector<cv::gpu::GpuMat> alphaPyr, alpha32SPyr;
-    std::vector<cv::gpu::GpuMat> imageUpPyr, resultUpPyr;
-    std::vector<cv::gpu::GpuMat> weightPyr;
-    cv::gpu::GpuMat image16S, aux16S;
+    std::vector<cv::cuda::GpuMat> uniqueMasks;
+    std::vector<cv::cuda::GpuMat> resultPyr;
+    std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr;
+    std::vector<cv::cuda::GpuMat> alphaPyr, alpha32SPyr;
+    std::vector<cv::cuda::GpuMat> imageUpPyr, resultUpPyr;
+    std::vector<cv::cuda::GpuMat> weightPyr;
+    cv::cuda::GpuMat image16S, aux16S;
     int numImages;
     int rows, cols;
     int numLevels;
@@ -210,12 +210,12 @@ class CudaTilingMultibandBlendFast
 public:
     CudaTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
-    void blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
 
 private:
-    std::vector<cv::gpu::GpuMat> resultPyr, resultUpPyr;
-    std::vector<cv::gpu::GpuMat> imagePyr, image32SPyr, imageUpPyr;
-    std::vector<std::vector<cv::gpu::GpuMat> > alphaPyrs, weightPyrs;
+    std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr;
+    std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr, imageUpPyr;
+    std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;
     int numImages;
     int rows, cols;
     int numLevels;
@@ -223,25 +223,25 @@ private:
 };
 
 void prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength,
-    std::vector<std::vector<cv::gpu::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::gpu::GpuMat> >& weightPyrs,
-    std::vector<cv::gpu::GpuMat>& resultPyr, std::vector<std::vector<cv::gpu::GpuMat> >& image32SPyrs,
-    std::vector<std::vector<cv::gpu::GpuMat> >& imageUpPyrs, std::vector<cv::gpu::GpuMat>& resultUpPyr);
-void calcImagePyramid(const cv::gpu::GpuMat& image, const std::vector<cv::gpu::GpuMat>& alphaPyr,
-    std::vector<cv::gpu::GpuMat>& imagePyr, cv::gpu::Stream& stream,
-    std::vector<cv::gpu::GpuMat>& image32SPyr, std::vector<cv::gpu::GpuMat>& imageUpPyr);
-void calcResult(const std::vector<std::vector<cv::gpu::GpuMat> >& imagePyrs,
-    const std::vector<std::vector<cv::gpu::GpuMat> >& weightPyrs, cv::gpu::GpuMat& result,
-    std::vector<cv::gpu::GpuMat>& resultPyr, std::vector<cv::gpu::GpuMat>& resultUpPyr);
+    std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs,
+    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<std::vector<cv::cuda::GpuMat> >& image32SPyrs,
+    std::vector<std::vector<cv::cuda::GpuMat> >& imageUpPyrs, std::vector<cv::cuda::GpuMat>& resultUpPyr);
+void calcImagePyramid(const cv::cuda::GpuMat& image, const std::vector<cv::cuda::GpuMat>& alphaPyr,
+    std::vector<cv::cuda::GpuMat>& imagePyr, cv::cuda::Stream& stream,
+    std::vector<cv::cuda::GpuMat>& image32SPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr);
+void calcResult(const std::vector<std::vector<cv::cuda::GpuMat> >& imagePyrs,
+    const std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs, cv::cuda::GpuMat& result,
+    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<cv::cuda::GpuMat>& resultUpPyr);
 
 class CudaTilingLinearBlend
 {
 public:
     CudaTilingLinearBlend() : numImages(0), rows(0), cols(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int radius);
-    void blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
 private:
-    std::vector<cv::gpu::GpuMat> weights;
-    cv::gpu::GpuMat accumImage;
+    std::vector<cv::cuda::GpuMat> weights;
+    cv::cuda::GpuMat accumImage;
     int numImages;
     int rows, cols;
     bool success;

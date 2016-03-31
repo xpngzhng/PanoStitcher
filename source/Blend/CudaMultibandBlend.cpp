@@ -1,19 +1,20 @@
-﻿#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/device/common.hpp>
+﻿#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/cudaarithm.hpp"
 #include "Timer.h"
 #include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Pyramid.h"
 #include "CudaPyramid.h"
+#include "cuda_runtime.h"
 #include <iostream>
-#include <cuda_runtime.h>
 
 int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
 
-static void inspect(const cv::gpu::GpuMat& image)
+static void inspect(const cv::cuda::GpuMat& image)
 {
     cv::Mat cpuImage;
     image.download(cpuImage);
@@ -23,7 +24,7 @@ static void inspect(const cv::gpu::GpuMat& image)
     cv::waitKey(0);
 }
 
-static void inspect32S(cv::gpu::GpuMat& image)
+static void inspect32S(cv::cuda::GpuMat& image)
 {
     cv::Mat cpuImage;
     image.download(cpuImage);
@@ -37,7 +38,7 @@ static void inspect32S(cv::gpu::GpuMat& image)
     cv::waitKey(0);
 }
 
-static void createGaussPyramid(const cv::gpu::GpuMat& image, int numLevels, bool horiWrap, std::vector<cv::gpu::GpuMat>& pyr)
+static void createGaussPyramid(const cv::cuda::GpuMat& image, int numLevels, bool horiWrap, std::vector<cv::cuda::GpuMat>& pyr)
 {
     CV_Assert(image.data && image.type() == CV_16SC1);
     pyr.resize(numLevels + 1);
@@ -46,20 +47,20 @@ static void createGaussPyramid(const cv::gpu::GpuMat& image, int numLevels, bool
         pyramidDown16SC1To16SC1(pyr[i], pyr[i + 1], cv::Size(), horiWrap);
 }
 
-static void restoreImageFromLaplacePyramid(std::vector<cv::gpu::GpuMat>& pyr, bool horiWrap)
+static void restoreImageFromLaplacePyramid(std::vector<cv::cuda::GpuMat>& pyr, bool horiWrap)
 {
     if (pyr.empty())
         return;
-    cv::gpu::GpuMat tmp;
+    cv::cuda::GpuMat tmp;
     for (size_t i = pyr.size() - 1; i > 0; --i)
     {
         pyramidUp32SC4To32SC4(pyr[i], tmp, pyr[i - 1].size(), horiWrap);
-        cv::gpu::add(tmp, pyr[i - 1], pyr[i - 1]);
+        cv::cuda::add(tmp, pyr[i - 1], pyr[i - 1]);
     }
 }
 
-static void accumulate(const std::vector<cv::gpu::GpuMat>& imagePyr, const std::vector<cv::gpu::GpuMat>& weightPyr, 
-    std::vector<cv::gpu::GpuMat>& resultPyr)
+static void accumulate(const std::vector<cv::cuda::GpuMat>& imagePyr, const std::vector<cv::cuda::GpuMat>& weightPyr, 
+    std::vector<cv::cuda::GpuMat>& resultPyr)
 {
     CV_Assert(imagePyr.size() == weightPyr.size() && 
               imagePyr.size() == resultPyr.size());
@@ -68,42 +69,42 @@ static void accumulate(const std::vector<cv::gpu::GpuMat>& imagePyr, const std::
         accumulate16SC4To32SC4(imagePyr[i], weightPyr[i], resultPyr[i]);
 }
 
-static void normalize(std::vector<cv::gpu::GpuMat>& pyr)
+static void normalize(std::vector<cv::cuda::GpuMat>& pyr)
 {
     int size = pyr.size();
     for (int i = 0; i < size; i++)
         normalize32SC4(pyr[i]);
 }
 
-static void createLaplacePyramidPrecise(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& alpha, 
-    int numLevels, bool horiWrap, std::vector<cv::gpu::GpuMat>& pyr)
+static void createLaplacePyramidPrecise(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha, 
+    int numLevels, bool horiWrap, std::vector<cv::cuda::GpuMat>& pyr)
 {
     CV_Assert(image.data && image.type() == CV_16SC4 &&
         alpha.data && alpha.type() == CV_16SC1);
     pyr.resize(numLevels + 1);
     pyr[0] = image;
-    cv::gpu::GpuMat currAlpha;
+    cv::cuda::GpuMat currAlpha;
     currAlpha = alpha;
     for (int i = 0; i < numLevels; ++i)
     {
-        cv::gpu::GpuMat newAlpha;
+        cv::cuda::GpuMat newAlpha;
         pyramidDown16SC4To16SC4(pyr[i], currAlpha, horiWrap, pyr[i + 1], newAlpha);
         currAlpha = newAlpha;
     }
     currAlpha.release();
 
-    cv::gpu::GpuMat tmp;
+    cv::cuda::GpuMat tmp;
     for (int i = 0; i < numLevels; ++i)
     {
         pyramidUp16SC4To16SC4(pyr[i + 1], tmp, pyr[i].size(), horiWrap);
-        cv::gpu::subtract(pyr[i], tmp, pyr[i]);
+        cv::cuda::subtract(pyr[i], tmp, pyr[i]);
     }
 }
 
-void cudaMultibandBlend(const cv::gpu::GpuMat& image1, const cv::gpu::GpuMat& image2, 
-    const cv::gpu::GpuMat& alpha1, const cv::gpu::GpuMat& alpha2,
-    cv::gpu::GpuMat& mask1, const cv::gpu::GpuMat& mask2, 
-    bool horiWrap, int maxLevels, int minLength, cv::gpu::GpuMat& result)
+void cudaMultibandBlend(const cv::cuda::GpuMat& image1, const cv::cuda::GpuMat& image2, 
+    const cv::cuda::GpuMat& alpha1, const cv::cuda::GpuMat& alpha2,
+    cv::cuda::GpuMat& mask1, const cv::cuda::GpuMat& mask2, 
+    bool horiWrap, int maxLevels, int minLength, cv::cuda::GpuMat& result)
 {
     CV_Assert(image1.data && image1.type() == CV_8UC4 &&
         image2.data && image2.type() == CV_8UC4 &&
@@ -122,7 +123,7 @@ void cudaMultibandBlend(const cv::gpu::GpuMat& image1, const cv::gpu::GpuMat& im
         image2.copyTo(result, mask2);
         return;
     }
-    std::vector<cv::gpu::GpuMat> resultPyr(numLevels + 1);
+    std::vector<cv::cuda::GpuMat> resultPyr(numLevels + 1);
     resultPyr[0].create(image1.size(), CV_32SC4);
     resultPyr[0].setTo(0);
     for (int i = 1; i <= numLevels; i++)
@@ -131,8 +132,8 @@ void cudaMultibandBlend(const cv::gpu::GpuMat& image1, const cv::gpu::GpuMat& im
         resultPyr[i].setTo(0);
     }
 
-    cv::gpu::GpuMat image(size, CV_16SC4), mask(size, CV_16SC1);
-    std::vector<cv::gpu::GpuMat> imagePyr, weightPyr;
+    cv::cuda::GpuMat image(size, CV_16SC4), mask(size, CV_16SC1);
+    std::vector<cv::cuda::GpuMat> imagePyr, weightPyr;
 
     //static int count = 0;
     //count++;
@@ -171,11 +172,11 @@ void cudaMultibandBlend(const cv::gpu::GpuMat& image1, const cv::gpu::GpuMat& im
     resultPyr[0].convertTo(result, CV_8U);
 }
 
-void createLaplacePyramidPrecise(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& alpha, 
+void createLaplacePyramidPrecise(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha, 
     int numLevels, bool horiWrap, 
-    std::vector<cv::gpu::GpuMat>& imagePyr, std::vector<cv::gpu::GpuMat>& image32SPyr, 
-    std::vector<cv::gpu::GpuMat>& alphaPyr, std::vector<cv::gpu::GpuMat>& alpha32SPyr,
-    std::vector<cv::gpu::GpuMat>& imageUpPyr)
+    std::vector<cv::cuda::GpuMat>& imagePyr, std::vector<cv::cuda::GpuMat>& image32SPyr, 
+    std::vector<cv::cuda::GpuMat>& alphaPyr, std::vector<cv::cuda::GpuMat>& alpha32SPyr,
+    std::vector<cv::cuda::GpuMat>& imageUpPyr)
 {
     CV_Assert(image.data && image.type() == CV_16SC4 &&
         alpha.data && alpha.type() == CV_16SC1);
@@ -196,12 +197,12 @@ void createLaplacePyramidPrecise(const cv::gpu::GpuMat& image, const cv::gpu::Gp
     for (int i = 0; i < numLevels; ++i)
     {
         pyramidUp16SC4To16SC4(imagePyr[i + 1], imageUpPyr[i], imagePyr[i].size(), horiWrap);
-        cv::gpu::subtract(imagePyr[i], imageUpPyr[i], imagePyr[i]);
+        cv::cuda::subtract(imagePyr[i], imageUpPyr[i], imagePyr[i]);
     }
 }
 
-void restoreImageFromLaplacePyramid(std::vector<cv::gpu::GpuMat>& pyr, bool horiWrap, 
-    std::vector<cv::gpu::GpuMat>& upPyr)
+void restoreImageFromLaplacePyramid(std::vector<cv::cuda::GpuMat>& pyr, bool horiWrap, 
+    std::vector<cv::cuda::GpuMat>& upPyr)
 {
     if (pyr.empty())
         return;
@@ -209,7 +210,7 @@ void restoreImageFromLaplacePyramid(std::vector<cv::gpu::GpuMat>& pyr, bool hori
     for (size_t i = pyr.size() - 1; i > 0; --i)
     {
         pyramidUp32SC4To32SC4(pyr[i], upPyr[i - 1], pyr[i - 1].size(), horiWrap);
-        cv::gpu::add(upPyr[i - 1], pyr[i - 1], pyr[i - 1]);
+        cv::cuda::add(upPyr[i - 1], pyr[i - 1], pyr[i - 1]);
     }
 }
 
@@ -258,7 +259,7 @@ bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int ma
     return true;
 }
 /*
-void CudaTilingMultibandBlend::tile(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& mask, int index)
+void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& mask, int index)
 {
     if (!success)
         return;
@@ -267,10 +268,10 @@ void CudaTilingMultibandBlend::tile(const cv::gpu::GpuMat& image, const cv::gpu:
         mask.data && mask.type() == CV_8UC1 && mask.rows == rows && mask.cols == cols &&
         index >= 0 && index < numImages);
 
-    cv::gpu::GpuMat image16S;
+    cv::cuda::GpuMat image16S;
     image.convertTo(image16S, CV_16S);
-    std::vector<cv::gpu::GpuMat> imagePyr, weightPyr;
-    cv::gpu::GpuMat aux(rows, cols, CV_16SC1);
+    std::vector<cv::cuda::GpuMat> imagePyr, weightPyr;
+    cv::cuda::GpuMat aux(rows, cols, CV_16SC1);
     aux.setTo(0);
     aux.setTo(256, mask);
     createLaplacePyramidPrecise(image16S, aux, numLevels, true, imagePyr);
@@ -280,7 +281,7 @@ void CudaTilingMultibandBlend::tile(const cv::gpu::GpuMat& image, const cv::gpu:
     accumulate(imagePyr, weightPyr, resultPyr);
 }
 
-void CudaTilingMultibandBlend::composite(cv::gpu::GpuMat& blendImage)
+void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;
@@ -296,7 +297,7 @@ void CudaTilingMultibandBlend::composite(cv::gpu::GpuMat& blendImage)
 }
 */
 
-void CudaTilingMultibandBlend::tile(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& mask, int index)
+void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& mask, int index)
 {
     if (!success)
         return;
@@ -321,7 +322,7 @@ void CudaTilingMultibandBlend::tile(const cv::gpu::GpuMat& image, const cv::gpu:
     accumulate(imagePyr, weightPyr, resultPyr);
 }
 
-void CudaTilingMultibandBlend::composite(cv::gpu::GpuMat& blendImage)
+void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;
@@ -336,8 +337,8 @@ void CudaTilingMultibandBlend::composite(cv::gpu::GpuMat& blendImage)
         resultPyr[i].setTo(0);
 }
 
-void CudaTilingMultibandBlend::blend(const std::vector<cv::gpu::GpuMat>& images, 
-    const std::vector<cv::gpu::GpuMat>& masks, cv::gpu::GpuMat& blendImage)
+void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images, 
+    const std::vector<cv::cuda::GpuMat>& masks, cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;
@@ -363,7 +364,7 @@ static void getStepsOfImage32SPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        cv::gpu::GpuMat tmp(2, sizes[i].width, CV_32SC4);
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
     }
 }
@@ -374,7 +375,7 @@ static void getStepsOfImageUpPyr(const std::vector<cv::Size>& sizes, std::vector
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        cv::gpu::GpuMat tmp(2, sizes[i].width, CV_16SC4);
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_16SC4);
         steps[i] = tmp.step;
     }
 }
@@ -385,31 +386,31 @@ static void getStepsOfResultUpPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        cv::gpu::GpuMat tmp(2, sizes[i].width, CV_32SC4);
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
     }
 }
 
 static void allocMemoryForImage32SPyrAndImageUpPyr(const std::vector<cv::Size>& sizes, 
     const std::vector<int>& stepsImage32SPyr, const std::vector<int>& stepsImageUpPyr,
-    std::vector<cv::gpu::GpuMat>& image32SPyr, std::vector<cv::gpu::GpuMat>& imageUpPyr)
+    std::vector<cv::cuda::GpuMat>& image32SPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr)
 {
     int numLevels = sizes.size() - 1;
-    cv::gpu::GpuMat mem(sizes[0], CV_16SC4);
+    cv::cuda::GpuMat mem(sizes[0], CV_16SC4);
 
     imageUpPyr.resize(numLevels + 1);
     imageUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        imageUpPyr[i] = cv::gpu::GpuMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
+        imageUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
     image32SPyr.resize(numLevels + 1);
     for (int i = 1; i <= numLevels; i++)
-        image32SPyr[i] = cv::gpu::GpuMat(sizes[i], CV_32SC4, mem.data, stepsImage32SPyr[i]);
+        image32SPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32SC4, mem.data, stepsImage32SPyr[i]);
 }
 
 static void allocMemoryForResultPyrAndResultUpPyr(const std::vector<cv::Size>& sizes,
-    const std::vector<int>& stepsResultUpPyr, std::vector<cv::gpu::GpuMat>& resultPyr,
-    std::vector<cv::gpu::GpuMat>& resultUpPyr)
+    const std::vector<int>& stepsResultUpPyr, std::vector<cv::cuda::GpuMat>& resultPyr,
+    std::vector<cv::cuda::GpuMat>& resultUpPyr)
 {
     int numLevels = sizes.size() - 1;
 
@@ -417,11 +418,11 @@ static void allocMemoryForResultPyrAndResultUpPyr(const std::vector<cv::Size>& s
     for (int i = 0; i <= numLevels; i++)
         resultPyr[i].create(sizes[i], CV_32SC4);
 
-    cv::gpu::GpuMat mem(sizes[0], CV_32SC4);
+    cv::cuda::GpuMat mem(sizes[0], CV_32SC4);
     resultUpPyr.resize(numLevels + 1);
     resultUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        resultUpPyr[i] = cv::gpu::GpuMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
+        resultUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
 }
 
 bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
@@ -448,20 +449,20 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     std::vector<cv::Mat> uniqueMasks;
     getNonIntersectingMasks(masks, uniqueMasks);
 
-    std::vector<cv::gpu::GpuMat> uniqueMasksGpu(numImages);
+    std::vector<cv::cuda::GpuMat> uniqueMasksGpu(numImages);
     for (int i = 0; i < numImages; i++)
         uniqueMasksGpu[i].upload(uniqueMasks[i]);
     uniqueMasks.clear();
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
 
-    std::vector<cv::gpu::GpuMat> masksGpu(numImages);
+    std::vector<cv::cuda::GpuMat> masksGpu(numImages);
     for (int i = 0; i < numImages; i++)
         masksGpu[i].upload(masks[i]);
 
-    cv::gpu::GpuMat aux16S(rows, cols, CV_16SC1);
+    cv::cuda::GpuMat aux16S(rows, cols, CV_16SC1);
 
-    std::vector<cv::gpu::GpuMat> tempAlphaPyr(numLevels + 1);
+    std::vector<cv::cuda::GpuMat> tempAlphaPyr(numLevels + 1);
     alphaPyrs.resize(numImages);
     weightPyrs.resize(numImages);
     for (int i = 0; i < numImages; i++)
@@ -516,7 +517,7 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     return true;
 }
 
-void CudaTilingMultibandBlendFast::blend(const std::vector<cv::gpu::GpuMat>& images, cv::gpu::GpuMat& blendImage)
+void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;
@@ -552,15 +553,15 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::gpu::GpuMat>& ima
     resultPyr[0].convertTo(blendImage, CV_8U);
 }
 
-static void calcAlphasAndWeights(const std::vector<cv::gpu::GpuMat>& masks, const std::vector<cv::gpu::GpuMat>& uniqueMasks, int numLevels,
-    std::vector<std::vector<cv::gpu::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::gpu::GpuMat> >& weightPyrs)
+static void calcAlphasAndWeights(const std::vector<cv::cuda::GpuMat>& masks, const std::vector<cv::cuda::GpuMat>& uniqueMasks, int numLevels,
+    std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs)
 {
     int numImages = masks.size();
     int rows = masks[0].rows, cols = masks[0].cols;
 
-    cv::gpu::GpuMat aux16S(rows, cols, CV_16SC1);
+    cv::cuda::GpuMat aux16S(rows, cols, CV_16SC1);
 
-    std::vector<cv::gpu::GpuMat> tempAlphaPyr(numLevels + 1);
+    std::vector<cv::cuda::GpuMat> tempAlphaPyr(numLevels + 1);
     alphaPyrs.resize(numImages);
     weightPyrs.resize(numImages);
     for (int i = 0; i < numImages; i++)
@@ -584,15 +585,15 @@ static void calcAlphasAndWeights(const std::vector<cv::gpu::GpuMat>& masks, cons
 }
 
 void prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength,
-    std::vector<std::vector<cv::gpu::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::gpu::GpuMat> >& weightPyrs,
-    std::vector<cv::gpu::GpuMat>& resultPyr, std::vector<std::vector<cv::gpu::GpuMat> >& image32SPyrs,
-    std::vector<std::vector<cv::gpu::GpuMat> >& imageUpPyrs, std::vector<cv::gpu::GpuMat>& resultUpPyr)
+    std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs,
+    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<std::vector<cv::cuda::GpuMat> >& image32SPyrs,
+    std::vector<std::vector<cv::cuda::GpuMat> >& imageUpPyrs, std::vector<cv::cuda::GpuMat>& resultUpPyr)
 {
     int numImages = masks.size();
     int rows = masks[0].rows, cols = masks[0].cols;
     std::vector<cv::Mat> uniqueMasks;
     getNonIntersectingMasks(masks, uniqueMasks);
-    std::vector<cv::gpu::GpuMat> masksGpu(numImages), uniqueMasksGpu(numImages);
+    std::vector<cv::cuda::GpuMat> masksGpu(numImages), uniqueMasksGpu(numImages);
     for (int i = 0; i < numImages; i++)
     {
         masksGpu[i].upload(masks[i]);
@@ -621,9 +622,9 @@ void prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength,
     allocMemoryForResultPyrAndResultUpPyr(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
 }
 
-void calcImagePyramid(const cv::gpu::GpuMat& image, const std::vector<cv::gpu::GpuMat>& alphaPyr,
-    std::vector<cv::gpu::GpuMat>& imagePyr, cv::gpu::Stream& stream,
-    std::vector<cv::gpu::GpuMat>& image32SPyr, std::vector<cv::gpu::GpuMat>& imageUpPyr)
+void calcImagePyramid(const cv::cuda::GpuMat& image, const std::vector<cv::cuda::GpuMat>& alphaPyr,
+    std::vector<cv::cuda::GpuMat>& imagePyr, cv::cuda::Stream& stream,
+    std::vector<cv::cuda::GpuMat>& image32SPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr)
 {
     CV_Assert(image.type() == CV_16SC4 || image.type() == CV_8UC4);
     int numLevels = alphaPyr.size() - 1;
@@ -631,8 +632,7 @@ void calcImagePyramid(const cv::gpu::GpuMat& image, const std::vector<cv::gpu::G
     image32SPyr.resize(numLevels + 1);
     imageUpPyr.resize(numLevels + 1);
     if (image.type() == CV_8UC4)
-        //image.convertTo(imagePyr[0], CV_16S);
-        stream.enqueueConvert(image, imagePyr[0], CV_16S);
+        image.convertTo(imagePyr[0], CV_16S, stream);
     else
         imagePyr[0] = image;
     for (int j = 0; j < numLevels; j++)
@@ -647,9 +647,9 @@ void calcImagePyramid(const cv::gpu::GpuMat& image, const std::vector<cv::gpu::G
     }
 }
 
-void calcResult(const std::vector<std::vector<cv::gpu::GpuMat> >& imagePyrs, 
-    const std::vector<std::vector<cv::gpu::GpuMat> >& weightPyrs, cv::gpu::GpuMat& result,
-    std::vector<cv::gpu::GpuMat>& resultPyr, std::vector<cv::gpu::GpuMat>& resultUpPyr)
+void calcResult(const std::vector<std::vector<cv::cuda::GpuMat> >& imagePyrs, 
+    const std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs, cv::cuda::GpuMat& result,
+    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<cv::cuda::GpuMat>& resultUpPyr)
 {
     int size = resultPyr.size();
     for (int i = 0; i < size; i++)

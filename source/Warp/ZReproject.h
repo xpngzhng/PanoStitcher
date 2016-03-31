@@ -1,7 +1,7 @@
 #pragma once
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
 #include <vector>
 #include <string>
 #include <memory>
@@ -98,13 +98,13 @@ void reprojectParallelTo16S(const cv::Mat& src, cv::Mat& dst, const cv::Mat& dst
 void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst, const std::vector<cv::Mat>& dstSrcMaps);
 
 void cudaGenerateReprojectMap(const PhotoParam& param,
-    const cv::Size& srcSize, const cv::Size& dstSize, cv::gpu::GpuMat& xmap, cv::gpu::GpuMat& ymap);
+    const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap);
 
 void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params,
-    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::gpu::GpuMat>& xmaps, std::vector<cv::gpu::GpuMat>& ymaps);
+    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps);
 
-void cudaReproject(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
-    const cv::gpu::GpuMat& xmap, const cv::gpu::GpuMat& ymap, cv::gpu::Stream& stream = cv::gpu::Stream::Null());
+void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 
-void cudaReprojectTo16S(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst,
-    const cv::gpu::GpuMat& xmap, const cv::gpu::GpuMat& ymap, cv::gpu::Stream& stream = cv::gpu::Stream::Null());
+void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());

@@ -2,7 +2,7 @@
 
 #include "MathConstant.h"
 #include "Rotation.h"
-#include <opencv2/core/core.hpp>
+#include "opencv2/core.hpp"
 #include <vector>
 
 // Image horizontal axis is x, vertical axis is y.

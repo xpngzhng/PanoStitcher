@@ -1,6 +1,6 @@
 ﻿#include "ZBlendAlgo.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 void getImagesAndMasks(const std::vector<std::string>& imagePaths, 
     const std::vector<std::string>& maskPaths, cv::Size& imageSize, 

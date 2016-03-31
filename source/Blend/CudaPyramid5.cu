@@ -1,10 +1,10 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/device/common.hpp>
 #include "CudaUtil.cuh"
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <device_functions.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "device_functions.h"
 
 #define PYR_DOWN_BLOCK_WIDTH 16
 #define PYR_DOWN_BLOCK_HEIGHT 16
@@ -72,8 +72,8 @@ __global__ void pyrVertDown32SC1To32SC1(const unsigned char* auxData, int auxRow
         getRowPtr<int>(dstData, dstStep, dsty)[auxx] = sum;
 }
 
-void pyramidDown16SC1To32SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::gpu::GpuMat& aux,
-    const cv::gpu::GpuMat& horiIndexTab, const cv::gpu::GpuMat& vertIndexTab)
+void pyramidDown16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& aux,
+    const cv::cuda::GpuMat& horiIndexTab, const cv::cuda::GpuMat& vertIndexTab)
 {
     CV_Assert(src.data && src.type() == CV_16SC1 &&
         dst.data && dst.type() == CV_32SC1 &&
@@ -85,14 +85,14 @@ void pyramidDown16SC1To32SC1(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, c
     int dstRows = (srcRows + 1) >> 1, dstCols = (srcCols + 1) >> 1;
     CV_Assert(dst.rows == dstRows && dst.cols == dstCols &&
         aux.rows == srcRows && aux.cols == dstCols &&
-        horiIndexTab.cols == cv::gpu::divUp(srcCols, PYR_DOWN_BLOCK_WIDTH) * PYR_DOWN_BLOCK_WIDTH + 2 * PYR_DOWN_BLOCK_WIDTH &&
-        vertIndexTab.cols == cv::gpu::divUp(srcRows, PYR_DOWN_BLOCK_HEIGHT) * PYR_DOWN_BLOCK_HEIGHT + 2 * PYR_DOWN_BLOCK_HEIGHT);
+        horiIndexTab.cols == cv::cuda::device::divUp(srcCols, PYR_DOWN_BLOCK_WIDTH) * PYR_DOWN_BLOCK_WIDTH + 2 * PYR_DOWN_BLOCK_WIDTH &&
+        vertIndexTab.cols == cv::cuda::device::divUp(srcRows, PYR_DOWN_BLOCK_HEIGHT) * PYR_DOWN_BLOCK_HEIGHT + 2 * PYR_DOWN_BLOCK_HEIGHT);
 
     dim3 block(PYR_DOWN_BLOCK_WIDTH, PYR_DOWN_BLOCK_HEIGHT);
-    dim3 grid(cv::gpu::divUp(dst.cols, block.x), cv::gpu::divUp(src.rows, block.y));
+    dim3 grid(cv::cuda::device::divUp(dst.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
     pyrHoriDown16SC1To32SC1<<<grid, block>>>(src.data, src.rows, src.cols, src.step, 
         aux.data, aux.rows, aux.cols, aux.step, (int*)horiIndexTab.data);
-    grid.y = cv::gpu::divUp(dst.rows, block.y);
+    grid.y = cv::cuda::device::divUp(dst.rows, block.y);
     pyrVertDown32SC1To32SC1<<<grid, block>>>(aux.data, aux.rows, aux.cols, aux.step,
         dst.data, dst.rows, dst.cols, dst.step, (int*)vertIndexTab.data);
     //cudaSafeCall(cudaGetLastError());

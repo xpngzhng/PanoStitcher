@@ -1,7 +1,7 @@
 ﻿#include "ZBlend.h"
 #include "ZBlendAlgo.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
 #include <iostream>
 
 static void getDependentMatrices(const std::vector<cv::Mat>& images, 

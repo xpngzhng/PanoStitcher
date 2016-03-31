@@ -1,11 +1,10 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/stream_accessor.hpp>
-#include <opencv2/gpu/device/common.hpp>
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <device_functions.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "device_functions.h"
 #include "ZReproject.h"
 
 typedef double CalcType;
@@ -215,7 +214,7 @@ __global__ void remapKernel(unsigned char* xMapData, int xMapStep,
 }
 
 void cudaGenerateReprojectMap(const PhotoParam& photoParam,
-    const cv::Size& srcSize, const cv::Size& dstSize, cv::gpu::GpuMat& xmap, cv::gpu::GpuMat& ymap)
+    const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap)
 {
     int dstWidth = dstSize.width, dstHeight = dstSize.height;
     int srcWidth = srcSize.width, srcHeight = srcSize.height;
@@ -239,7 +238,7 @@ void cudaGenerateReprojectMap(const PhotoParam& photoParam,
 }
 
 void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params,
-    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::gpu::GpuMat>& xmaps, std::vector<cv::gpu::GpuMat>& ymaps)
+    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps)
 {
     int num = params.size();
     xmaps.resize(num);

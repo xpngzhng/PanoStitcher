@@ -42,7 +42,7 @@
 #ifndef _CV_GCGRAPH_H_
 #define _CV_GCGRAPH_H_
 
-#include <opencv2/core/core.hpp>
+#include "opencv2/core.hpp"
 
 template <class TWeight> class GCGraph
 {

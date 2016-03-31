@@ -1,5 +1,5 @@
 #pragma once
-#include <cuda_runtime.h>
+#include "cuda_runtime.h"
 #include <cmath>
 
 struct BrdRowReflect101

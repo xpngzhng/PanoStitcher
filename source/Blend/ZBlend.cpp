@@ -1,8 +1,8 @@
 ﻿#include "Timer.h"
 #include "ZBlendAlgo.h"
 #include "ZBlend.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 static const int pad = 8;
 static const bool fastBlend = false;

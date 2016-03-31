@@ -1,9 +1,9 @@
 ﻿#include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Timer.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -135,7 +135,7 @@ int main()
         printf("cpu tiling blend %f\n", timer.elapse());
     }
 
-    std::vector<cv::gpu::GpuMat> imagesGpu, masksGpu;
+    std::vector<cv::cuda::GpuMat> imagesGpu, masksGpu;
     imagesGpu.resize(numImages);
     masksGpu.resize(numImages);
     cv::Mat imageC4(images[0].size(), CV_8UC4);
@@ -153,7 +153,7 @@ int main()
     for (int i = 0; i < 20; i++)
     {
         timer.start();
-        cv::gpu::GpuMat result;
+        cv::cuda::GpuMat result;
         cudaBlender.blend(imagesGpu, masksGpu, result);
         timer.end();
         printf("gpu tiling blend %f\n", timer.elapse());

@@ -1,18 +1,17 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/cuda_devptrs.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/device/common.hpp>
-#include <opencv2/gpu/device/border_interpolate.hpp>
-#include <opencv2/gpu/device/vec_traits.hpp>
-#include <opencv2/gpu/device/vec_math.hpp>
-#include <opencv2/gpu/device/saturate_cast.hpp>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <device_functions.h>
+#include "CudaUtil.cuh"
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "opencv2/core/cuda/border_interpolate.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include "device_functions.h"
+#include <algorithm>
 
 #define PYR_DOWN_BLOCK_SIZE 256
 
-namespace cv { namespace gpu { namespace device
+namespace cv { namespace cuda { namespace device
 {
 
 __device__ inline int3 operator<<(int3 vec, unsigned numShiftBits)
@@ -428,7 +427,7 @@ __global__ void set(PtrStepSz<int> image, const PtrStepSz<unsigned char> mask, i
 }
 }}}
 
-void pyramidDown(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize, bool dstScaleBack)
+void pyramidDown(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool dstScaleBack)
 {
     CV_Assert(src.data && (src.type() == CV_32SC3 || src.type() == CV_32SC1)); 
 
@@ -441,24 +440,24 @@ void pyramidDown(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstS
     dst.create(dstSize, type);
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     if (type == CV_32SC3)
     {
-        cv::gpu::device::BrdColReflect101<int3> rb(src.rows);
-        cv::gpu::device::BrdRowReflect101<int3> cb(src.cols);    
-        cv::gpu::device::pyrDown32SC3<<<grid, block>>>(src, dst, rb, cb, dstScaleBack, dst.cols);
+        cv::cuda::device::BrdColReflect101<int3> rb(src.rows);
+        cv::cuda::device::BrdRowReflect101<int3> cb(src.cols);    
+        cv::cuda::device::pyrDown32SC3<<<grid, block>>>(src, dst, rb, cb, dstScaleBack, dst.cols);
     }
     else
     {
-        cv::gpu::device::BrdColReflect101<int> rb(src.rows);
-        cv::gpu::device::BrdRowReflect101<int> cb(src.cols);    
-        cv::gpu::device::pyrDown32SC1<<<grid, block>>>(src, dst, rb, cb, dstScaleBack, dst.cols);
+        cv::cuda::device::BrdColReflect101<int> rb(src.rows);
+        cv::cuda::device::BrdRowReflect101<int> cb(src.cols);    
+        cv::cuda::device::pyrDown32SC1<<<grid, block>>>(src, dst, rb, cb, dstScaleBack, dst.cols);
     }
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidUp(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSize)
+void pyramidUp(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type() == CV_32SC3);
     
@@ -470,14 +469,14 @@ void pyramidUp(const cv::gpu::GpuMat& src, cv::gpu::GpuMat& dst, cv::Size dstSiz
     dst.create(dstSize, CV_32SC3);
 
     const dim3 block(16, 16);
-    const dim3 grid(cv::gpu::divUp(dst.cols, block.x), cv::gpu::divUp(dst.rows, block.y));
-    cv::gpu::device::pyrUp32SC3<<<grid, block>>>(src, dst);
+    const dim3 grid(cv::cuda::device::divUp(dst.cols, block.x), cv::cuda::device::divUp(dst.rows, block.y));
+    cv::cuda::device::pyrUp32SC3<<<grid, block>>>(src, dst);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void divide(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& srcAlpha,
-    cv::gpu::GpuMat& dstImage, cv::gpu::GpuMat& dstAlpha)
+void divide(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha,
+    cv::cuda::GpuMat& dstImage, cv::cuda::GpuMat& dstAlpha)
 {
     CV_Assert(srcImage.data && srcImage.type() == CV_32SC3 &&
         srcAlpha.data && srcAlpha.type() == CV_32SC1 &&
@@ -487,13 +486,13 @@ void divide(const cv::gpu::GpuMat& srcImage, const cv::gpu::GpuMat& srcAlpha,
     dstAlpha.create(srcAlpha.size(), CV_32SC1);
 
     const dim3 block(256);
-    const dim3 grid(cv::gpu::divUp(srcImage.cols, block.x), cv::gpu::divUp(srcImage.rows, block.y));
-    cv::gpu::device::divide<<<grid, block>>>(srcImage, srcAlpha, dstImage, dstAlpha);
+    const dim3 grid(cv::cuda::device::divUp(srcImage.cols, block.x), cv::cuda::device::divUp(srcImage.rows, block.y));
+    cv::cuda::device::divide<<<grid, block>>>(srcImage, srcAlpha, dstImage, dstAlpha);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void accumulate(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& weight, cv::gpu::GpuMat& dst)
+void accumulate(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst)
 {
     CV_Assert(image.data && image.type() == CV_32SC3 &&
         weight.data && weight.type() == CV_32SC1 &&
@@ -501,56 +500,56 @@ void accumulate(const cv::gpu::GpuMat& image, const cv::gpu::GpuMat& weight, cv:
         image.size() == weight.size() && image.size() == dst.size());
 
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(image.cols, block.x), cv::gpu::divUp(image.rows, block.y));
-    cv::gpu::device::accumulate<<<grid, block>>>(image, weight, dst);
+    const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
+    cv::cuda::device::accumulate<<<grid, block>>>(image, weight, dst);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void normalize(cv::gpu::GpuMat& image)
+void normalize(cv::cuda::GpuMat& image)
 {
     CV_Assert(image.data && image.type() == CV_32SC3);
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(image.cols, block.x), cv::gpu::divUp(image.rows, block.y));
-    cv::gpu::device::normalize<<<grid, block>>>(image);
+    const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
+    cv::cuda::device::normalize<<<grid, block>>>(image);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void add(const cv::gpu::GpuMat& a, const cv::gpu::GpuMat& b, cv::gpu::GpuMat& c)
+void add(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c)
 {
     CV_Assert(a.data && a.type() == CV_32SC3 
         && b.data && b.type() == CV_32SC3&&
         a.size() == b.size());
     c.create(a.size(), CV_32SC3);
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(a.cols, block.x), cv::gpu::divUp(a.rows, block.y));
-    cv::gpu::device::add<<<grid, block>>>(a, b, c);
+    const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
+    cv::cuda::device::add<<<grid, block>>>(a, b, c);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void subtract(const cv::gpu::GpuMat& a, const cv::gpu::GpuMat& b, cv::gpu::GpuMat& c)
+void subtract(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c)
 {
     CV_Assert(a.data && a.type() == CV_32SC3 
         && b.data && b.type() == CV_32SC3&&
         a.size() == b.size());
     c.create(a.size(), CV_32SC3);
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(a.cols, block.x), cv::gpu::divUp(a.rows, block.y));
-    cv::gpu::device::subtract<<<grid, block>>>(a, b, c);
+    const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
+    cv::cuda::device::subtract<<<grid, block>>>(a, b, c);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void set(cv::gpu::GpuMat& image, const cv::gpu::GpuMat& mask, int val)
+void set(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& mask, int val)
 {
     CV_Assert(image.data && image.type() == CV_32SC1 &&
         mask.data && mask.type() == CV_8UC1 &&
         image.size() == mask.size());
     const dim3 block(32, 8);
-    const dim3 grid(cv::gpu::divUp(image.cols, block.x), cv::gpu::divUp(image.rows, block.y));
-    cv::gpu::device::set<<<grid, block>>>(image, mask, val);
+    const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
+    cv::cuda::device::set<<<grid, block>>>(image, mask, val);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }

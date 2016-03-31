@@ -1,9 +1,9 @@
 #include "CudaUtil.cuh"
-#include <opencv2/core/core.hpp>
-#include <opencv2/gpu/gpu.hpp>
-#include <opencv2/gpu/device/common.hpp>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/core/cuda/common.hpp"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
 
 #define PYR_DOWN_BLOCK_SIZE 256
 
@@ -376,112 +376,112 @@ __global__ void pyrUp16SC4To16SC4(const unsigned char* srcData, int srcRows, int
     }
 }
 
-void pyramidDownPad16SC1To32SC1(cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
+void pyramidDownPad16SC1To32SC1(cv::cuda::GpuMat& padSrc, cv::cuda::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
 {
     CV_Assert(padSrc.data && padSrc.type() == CV_16SC1); 
 
-    cv::gpu::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
+    cv::cuda::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
     if (padDstSize == cv::Size())
     {
         padDstSize.width = ((src.cols + 1) >> 1) + 4;
         padDstSize.height = ((src.rows + 1) >> 1) + 4;
     }
     padDst.create(padDstSize.height, padDstSize.width, CV_32SC1);
-    cv::gpu::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
+    cv::cuda::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
 
     if (horiWrap)
     {
         BrdRowWrap cb(src.cols);
-        padLeftRight<BrdRowWrap, short><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowWrap, short><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
     else
     {
         BrdRowReflect101 cb(src.cols);
-        padLeftRight<BrdRowReflect101, short><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowReflect101, short><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
 
     BrdColReflect101 rb(src.rows);    
-    padTopBottom<BrdColReflect101, short><<<cv::gpu::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
+    padTopBottom<BrdColReflect101, short><<<cv::cuda::device::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
     cudaSafeCall(cudaGetLastError());
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     pyrDown16SC1To32SC1<<<grid, block>>>(src.data, src.rows, src.cols, src.step, dst.data, dst.rows, dst.cols, dst.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidDownPad16SC1To16SC1(cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
+void pyramidDownPad16SC1To16SC1(cv::cuda::GpuMat& padSrc, cv::cuda::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
 {
     CV_Assert(padSrc.data && padSrc.type() == CV_16SC1); 
 
-    cv::gpu::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
+    cv::cuda::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
     if (padDstSize == cv::Size())
     {
         padDstSize.width = ((src.cols + 1) >> 1) + 4;
         padDstSize.height = ((src.rows + 1) >> 1) + 4;
     }
     padDst.create(padDstSize.height, padDstSize.width, CV_16SC1);
-    cv::gpu::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
+    cv::cuda::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
 
     if (horiWrap)
     {
         BrdRowWrap cb(src.cols);
-        padLeftRight<BrdRowWrap, short><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowWrap, short><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
     else
     {
         BrdRowReflect101 cb(src.cols);
-        padLeftRight<BrdRowReflect101, short><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowReflect101, short><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
 
     BrdColReflect101 rb(src.rows);    
-    padTopBottom<BrdColReflect101, short><<<cv::gpu::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
+    padTopBottom<BrdColReflect101, short><<<cv::cuda::device::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
     cudaSafeCall(cudaGetLastError());
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     pyrDown16SC1To16SC1<<<grid, block>>>(src.data, src.rows, src.cols, src.step, dst.data, dst.rows, dst.cols, dst.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidDownPad16SC4To32SC4(cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
+void pyramidDownPad16SC4To32SC4(cv::cuda::GpuMat& padSrc, cv::cuda::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
 {
     CV_Assert(padSrc.data && padSrc.type() == CV_16SC4); 
 
-    cv::gpu::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
+    cv::cuda::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
     if (padDstSize == cv::Size())
     {
         padDstSize.width = ((src.cols + 1) >> 1) + 4;
         padDstSize.height = ((src.rows + 1) >> 1) + 4;
     }
     padDst.create(padDstSize.height, padDstSize.width, CV_32SC4);
-    cv::gpu::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
+    cv::cuda::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
 
     if (horiWrap)
     {
         BrdRowWrap cb(src.cols);
-        padLeftRight<BrdRowWrap, short4><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowWrap, short4><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
     else
     {
         BrdRowReflect101 cb(src.cols);
-        padLeftRight<BrdRowReflect101, short4><<<cv::gpu::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
+        padLeftRight<BrdRowReflect101, short4><<<cv::cuda::device::divUp(src.rows, 256), 256>>>(src.data, src.rows, src.cols, src.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
 
     BrdColReflect101 rb(src.rows);    
-    padTopBottom<BrdColReflect101, short4><<<cv::gpu::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
+    padTopBottom<BrdColReflect101, short4><<<cv::cuda::device::divUp(padSrc.cols, 256), 256>>>(padSrc.data + 2 * padSrc.step, src.rows, padSrc.cols, padSrc.step, rb);
     cudaSafeCall(cudaGetLastError());
 
     const dim3 block(PYR_DOWN_BLOCK_SIZE);
-    const dim3 grid(cv::gpu::divUp(src.cols, block.x), dst.rows);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
     pyrDown16SC4To32SC4<<<grid, block>>>(src.data, src.rows, src.cols, src.step, dst.data, dst.rows, dst.cols, dst.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
@@ -489,94 +489,94 @@ void pyramidDownPad16SC4To32SC4(cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst
 
 // INFO: Due to different boundary treatment, pyramidUp functions in this file
 // produce different boundary result than that in other file.
-void pyramidUpPad32SC4To32SC4(const cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
+void pyramidUpPad32SC4To32SC4(const cv::cuda::GpuMat& padSrc, cv::cuda::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
 {
     CV_Assert(padSrc.data && padSrc.type() == CV_32SC4);
 
-    cv::gpu::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
+    cv::cuda::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
     if (padDstSize == cv::Size())
     {
         padDstSize.width = (src.cols << 1) + 4;
         padDstSize.height = (src.rows << 1) + 4;
     }
-    cv::gpu::GpuMat padTmp(padDstSize, CV_32SC4);
+    cv::cuda::GpuMat padTmp(padDstSize, CV_32SC4);
     padTmp.setTo(0);
-    cv::gpu::GpuMat tmp(padTmp, cv::Rect(2, 2, padTmp.cols - 4, padTmp.rows - 4));
+    cv::cuda::GpuMat tmp(padTmp, cv::Rect(2, 2, padTmp.cols - 4, padTmp.rows - 4));
     padDst.create(padDstSize, CV_32SC4);
-    cv::gpu::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
+    cv::cuda::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
     
     dim3 block(32, 8);
-    dim3 grid(cv::gpu::divUp(src.cols, block.x), cv::gpu::divUp(src.rows, block.y));
+    dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
     expand<int4><<<grid, block>>>(src.data, src.rows, src.cols, src.step, tmp.data, tmp.rows, tmp.cols, tmp.step);
     cudaSafeCall(cudaGetLastError());
 
     if (horiWrap)
     {
         BrdRowWrap cb(tmp.cols);
-        padLeftRight<BrdRowWrap, int4><<<cv::gpu::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
+        padLeftRight<BrdRowWrap, int4><<<cv::cuda::device::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
     else
     {
         BrdRowReflect101 cb(tmp.cols);
-        padLeftRight<BrdRowReflect101, int4><<<cv::gpu::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
+        padLeftRight<BrdRowReflect101, int4><<<cv::cuda::device::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
 
     BrdColReflect101 rb(tmp.rows);    
-    padTopBottom<BrdColReflect101, int4><<<cv::gpu::divUp(padTmp.cols, 256), 256>>>(padTmp.data + 2 * padTmp.step, tmp.rows, padTmp.cols, padTmp.step, rb);
+    padTopBottom<BrdColReflect101, int4><<<cv::cuda::device::divUp(padTmp.cols, 256), 256>>>(padTmp.data + 2 * padTmp.step, tmp.rows, padTmp.cols, padTmp.step, rb);
     cudaSafeCall(cudaGetLastError());
 
     block = dim3(PYR_DOWN_BLOCK_SIZE);
-    grid = dim3(cv::gpu::divUp(dst.cols, block.x), dst.rows);
+    grid = dim3(cv::cuda::device::divUp(dst.cols, block.x), dst.rows);
     pyrUp32SC4To32SC4<<<grid, block>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, dst.data, dst.rows, dst.cols, dst.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void pyramidUpPad16SC4To16SC4(const cv::gpu::GpuMat& padSrc, cv::gpu::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
+void pyramidUpPad16SC4To16SC4(const cv::cuda::GpuMat& padSrc, cv::cuda::GpuMat& padDst, cv::Size padDstSize, bool horiWrap)
 {
     CV_Assert(padSrc.data && padSrc.type() == CV_16SC4);
 
-    cv::gpu::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
+    cv::cuda::GpuMat src(padSrc, cv::Rect(2, 2, padSrc.cols - 4, padSrc.rows - 4));
     if (padDstSize == cv::Size())
     {
         padDstSize.width = (src.cols << 1) + 4;
         padDstSize.height = (src.rows << 1) + 4;
     }
-    cv::gpu::GpuMat padTmp(padDstSize, CV_16SC4);
+    cv::cuda::GpuMat padTmp(padDstSize, CV_16SC4);
     padTmp.setTo(0);
-    cv::gpu::GpuMat tmp(padTmp, cv::Rect(2, 2, padTmp.cols - 4, padTmp.rows - 4));
+    cv::cuda::GpuMat tmp(padTmp, cv::Rect(2, 2, padTmp.cols - 4, padTmp.rows - 4));
     padDst.create(padDstSize, CV_16SC4);
-    cv::gpu::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
+    cv::cuda::GpuMat dst(padDst, cv::Rect(2, 2, padDst.cols - 4, padDst.rows - 4));
     
     dim3 block(32, 8);
-    dim3 grid(cv::gpu::divUp(src.cols, block.x), cv::gpu::divUp(src.rows, block.y));
+    dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
     expand<short4><<<grid, block>>>(src.data, src.rows, src.cols, src.step, tmp.data, tmp.rows, tmp.cols, tmp.step);
     cudaSafeCall(cudaGetLastError());
 
     if (horiWrap)
     {
         BrdRowWrap cb(tmp.cols);
-        padLeftRight<BrdRowWrap, short4><<<cv::gpu::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
+        padLeftRight<BrdRowWrap, short4><<<cv::cuda::device::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
     else
     {
         BrdRowReflect101 cb(tmp.cols);
-        padLeftRight<BrdRowReflect101, short4><<<cv::gpu::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
+        padLeftRight<BrdRowReflect101, short4><<<cv::cuda::device::divUp(tmp.rows, 256), 256>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, cb);
         cudaSafeCall(cudaGetLastError());
     }
 
     BrdColReflect101 rb(tmp.rows);    
-    padTopBottom<BrdColReflect101, short4><<<cv::gpu::divUp(padTmp.cols, 256), 256>>>(padTmp.data + 2 * padTmp.step, tmp.rows, padTmp.cols, padTmp.step, rb);
+    padTopBottom<BrdColReflect101, short4><<<cv::cuda::device::divUp(padTmp.cols, 256), 256>>>(padTmp.data + 2 * padTmp.step, tmp.rows, padTmp.cols, padTmp.step, rb);
     cudaSafeCall(cudaGetLastError());
 
     //padTmp.copyTo(padDst);
     //return;
 
     block = dim3(PYR_DOWN_BLOCK_SIZE);
-    grid = dim3(cv::gpu::divUp(dst.cols, block.x), dst.rows);
+    grid = dim3(cv::cuda::device::divUp(dst.cols, block.x), dst.rows);
     pyrUp16SC4To16SC4<<<grid, block>>>(tmp.data, tmp.rows, tmp.cols, tmp.step, dst.data, dst.rows, dst.cols, dst.step);
     cudaSafeCall(cudaGetLastError());
     cudaSafeCall(cudaDeviceSynchronize());

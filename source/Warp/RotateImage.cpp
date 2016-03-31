@@ -1,6 +1,5 @@
 #include "ConvertCoordinate.h"
 #include "Rotation.h"
-#include <opencv2/core/core.hpp>
 
 inline int clamp(int val, int low, int high)
 {

@@ -1,6 +1,6 @@
 #pragma once
 #include "MathConstant.h"
-#include <opencv2/core/core.hpp>
+#include "opencv2/core.hpp"
 #include <cmath>
 
 inline bool inRange(double val, double lowExc, double highExc)

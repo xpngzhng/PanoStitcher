@@ -1,6 +1,6 @@
 ﻿#include "ZBlendAlgo.h"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 void copyIfIntersect(const cv::Mat& src, cv::Mat& dst, 
     const cv::Rect& srcRect, const cv::Rect& dstRect)
