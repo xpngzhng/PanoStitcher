@@ -738,27 +738,6 @@ void PanoramaLiveStreamTask::procVideo()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    /*
-    cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
-    cv::Mat origMask(128, 256, CV_8UC1, maskData);
-    cv::Mat addImage;
-    cv::Mat addMask;
-    cv::Rect addROI;
-    if (renderFrameSize.width <= 256 || renderFrameSize.height <= 128)
-    {
-        cv::resize(origImage, addImage, renderFrameSize);
-        cv::resize(origMask, addMask, renderFrameSize);
-        addROI = cv::Rect(0, 0, renderFrameSize.width, renderFrameSize.height);
-    }
-    else
-    {
-        addImage = origImage;
-        addMask = origMask;
-        addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
-    }
-    */
-
-    //std::vector<avp::SharedAudioVideoFrame> frames;
     std::vector<cv::gpu::CudaMem> mems;
     long long int timeStamp;
     std::vector<cv::Mat> src;
@@ -783,7 +762,7 @@ void PanoramaLiveStreamTask::procVideo()
         // NOTICE: it would be better to check frames's pixelType and other properties.
         if (mems.size() == numVideos)
         {
-            ztool::Timer localTimer, procTimer, copyTimer;
+            ztool::Timer localTimer, procTimer;
             if (count < 0)
             {
                 count = 0;
@@ -805,15 +784,8 @@ void PanoramaLiveStreamTask::procVideo()
                         stitchFrameRateCallbackFunc(roundedFrameRate / elapse, stitchFrameRateCallbackData);
                 }
             }
+
             src.resize(numVideos);
-            // IMPORTANT NOTICE!!!!!!
-            // FORCE PIXEL_TYPE_BGR_32
-            // SUPPORT GPU ONLY
-            //for (int i = 0; i < numVideos; i++)
-            //{
-            //    src[i] = cv::Mat(frames[i].height, frames[i].width, 
-            //        CV_8UC4, frames[i].data, frames[i].step);
-            //}
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i];
             frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
@@ -827,29 +799,10 @@ void PanoramaLiveStreamTask::procVideo()
                 finish = 1;
                 break;
             }
-            //cv::imshow("result", result);
-            //cv::waitKey(1);
             procFrameBufferForPostProc.push(frame);
 
-            /*
-            copyTimer.start();
-            cv::Mat resultROI = result(addROI);
-            addImage.copyTo(resultROI, addMask);
-            avp::AudioVideoFrame shallow = avp::videoFrame(result.data, result.step, pixelType, result.cols, result.rows, timeStamp);
-            avp::SharedAudioVideoFrame deep(shallow);
-            {
-                std::lock_guard<std::mutex> lg(stitchedFrameMutex);
-                stitchedFrame = deep;
-            }
-            procFrameBufferForShow.push(deep);
-            if (streamOpenSuccess)
-                procFrameBufferForSend.push(deep);
-            if (fileConfigSet)
-                procFrameBufferForSave.push(deep);
-            copyTimer.end();
             localTimer.end();
-            */
-            //printf("%f, %f, %f\n", procTimer.elapse(), copyTimer.elapse(), localTimer.elapse());
+            printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
         }
     }
 
@@ -888,6 +841,7 @@ void PanoramaLiveStreamTask::postProc()
         if (!procFrameBufferForPostProc.pull(frame))
             continue;
 
+        ztool::Timer timer;
         cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
         cv::Mat resultROI = result(addROI);
         addImage.copyTo(resultROI, addMask);
@@ -900,6 +854,8 @@ void PanoramaLiveStreamTask::postProc()
             procFrameBufferForSend.push(frame);
         if (fileConfigSet)
             procFrameBufferForSave.push(frame);
+        timer.end();
+        printf("%f\n", timer.elapse());
     }
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
