@@ -228,8 +228,10 @@ void PanoramaLiveStreamTask::stopVideoStitch()
     if (renderPrepareSuccess && !renderThreadJoined)
     {
         renderEndFlag = 1;
+        syncedFramesBufferForProc.stop();
         renderThread->join();
         renderThread.reset(0);
+        procFrameBufferForPostProc.stop();
         postProcThread->join();
         postProcThread.reset(0);
         renderPrepareSuccess = 0;
@@ -338,6 +340,7 @@ void PanoramaLiveStreamTask::closeLiveStream()
     if (streamOpenSuccess && !streamThreadJoined)
     {
         streamEndFlag = 1;
+        procFrameBufferForSend.stop();
         streamThread->join();
         streamThread.reset(0);
         streamOpenSuccess = 0;
@@ -378,6 +381,7 @@ void PanoramaLiveStreamTask::stopSaveToDisk()
     if (fileConfigSet && !fileThreadJoined)
     {
         fileEndFlag = 1;
+        procFrameBufferForSave.stop();
         fileThread->join();
         fileThread.reset(0);
         fileThreadJoined = 1;
@@ -398,6 +402,7 @@ void PanoramaLiveStreamTask::stopShowVideoSourceFrames()
     if (showVideoSourceThread && !showVideoSourceThreadJoined)
     {
         showVideoSourceEndFlag = 1;
+        syncedFramesBufferForShow.stop();
         showVideoSourceThread->join();
         showVideoSourceThread.reset(0);
         showVideoSourceThreadJoined = 1;
@@ -416,6 +421,7 @@ void PanoramaLiveStreamTask::stopShowStitchedFrame()
     if (showStitchedThread && !showStitchedThreadJoined)
     {
         showStitchedEndFlag = 1;
+        procFrameBufferForShow.stop();
         showStitchedThread->join();
         showStitchedThread.reset(0);
         showStitchedThreadJoined = 1;
@@ -743,6 +749,9 @@ void PanoramaLiveStreamTask::videoSink()
         }
     }
 
+    syncedFramesBufferForShow.stop();
+    syncedFramesBufferForProc.stop();
+
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
@@ -817,9 +826,11 @@ void PanoramaLiveStreamTask::procVideo()
             procFrameBufferForPostProc.push(frame);
 
             localTimer.end();
-            printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
+            //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
         }
     }
+
+    procFrameBufferForPostProc.stop();
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
@@ -873,6 +884,10 @@ void PanoramaLiveStreamTask::postProc()
         //printf("%f\n", timer.elapse());
     }
 
+    procFrameBufferForShow.stop();
+    procFrameBufferForSend.stop();
+    procFrameBufferForSave.stop();
+
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
@@ -909,6 +924,9 @@ void PanoramaLiveStreamTask::audioSource()
                 procFrameBufferForSave.push(deep);
         }
     }
+
+    procFrameBufferForSend.stop();
+    procFrameBufferForSave.stop();
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
@@ -1057,8 +1075,8 @@ void PanoramaLiveStreamTask::showVideoSource(ShowVideoSourceFramesCallbackFuncti
 
         if (func && data)
         {
-            syncedFramesBufferForShow.pull(frames);
-            func(frames, data);
+            if (syncedFramesBufferForShow.pull(frames))
+                func(frames, data);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
     }
@@ -1080,8 +1098,8 @@ void PanoramaLiveStreamTask::showStitched(ShowStichedFrameCallbackFunction func,
 
         if (func && data)
         {
-            procFrameBufferForShow.pull(frame);
-            func(frame, data);
+            if (procFrameBufferForShow.pull(frame))
+                func(frame, data);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
     }

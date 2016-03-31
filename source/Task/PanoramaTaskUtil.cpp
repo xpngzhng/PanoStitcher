@@ -85,13 +85,13 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
 
         if (hasOffsets)
         {
-            /*if (!readers[i].seek(1000000.0 * count / fps + 0.5, avp::VIDEO))
+            if (!readers[i].seek(1000000.0 * count / fps + 0.5, avp::VIDEO))
             {
                 printf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
                 ok = false;
                 break;
-            }*/
-            avp::AudioVideoFrame frame;
+            }
+            /*avp::AudioVideoFrame frame;
             for (int j = 0; j < count; j++)
             {
                 ok = readers[i].read(frame);
@@ -100,7 +100,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
                     printf("Error in %s, cannot go to target frame\n", __FUNCTION__);
                     break;
                 }
-            }
+            }*/
             if (!ok)
                 break;
         }

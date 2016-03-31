@@ -277,9 +277,9 @@ private:
 // for video source
 typedef CompleteQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
 // for synced video source
-typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
+typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
 // for audio source and proc result
-typedef RealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
+typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
 
 typedef void (*LogCallbackFunction)(const std::string& line, void* data);
 typedef void (*FrameRateCallbackFunction)(double fps, void* data);
