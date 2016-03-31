@@ -1,17 +1,8 @@
 #pragma once
 
 #include "AudioVideoProcessor.h"
-#include "StampedFrameQueue.h"
-#include "PinnedMemoryPool.h"
-#include "StampedPinnedMemoryPool.h"
-#include "SharedAudioVideoFramePool.h"
-#include "RicohUtil.h"
-#include "ZBlend.h"
 #include "opencv2/core.hpp"
-#include "opencv2/core/cuda.hpp"
 #include <memory>
-#include <mutex>
-#include <thread>
 #include <vector>
 
 class PanoramaPreviewTask
@@ -158,97 +149,4 @@ public:
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
-
-    /*std::vector<avp::AudioVideoReader> videoReaders;
-    std::vector<avp::Device> videoDevices;
-    cv::Size videoFrameSize;
-    int videoFrameRate;
-    int numVideos;
-    int videoOpenSuccess;
-    int videoCheckFrameRate;
-    std::vector<std::unique_ptr<std::thread> > videoSourceThreads;
-    std::unique_ptr<std::thread> videoSinkThread;
-    int videoEndFlag;
-    int videoThreadsJoined;
-    void videoSource(int index);
-    void videoSink();
-
-    avp::AudioVideoReader audioReader;
-    avp::Device audioDevice;
-    int audioSampleRate;
-    int audioOpenSuccess;
-    std::unique_ptr<std::thread> audioThread;
-    int audioEndFlag;
-    int audioThreadJoined;
-    void audioSource();
-
-    CudaMultiCameraPanoramaRender2 render;
-    std::string renderConfigName;
-    cv::Size renderFrameSize;
-    int renderPrepareSuccess;
-    std::unique_ptr<std::thread> renderThread;
-    int renderEndFlag;
-    int renderThreadJoined;
-    void procVideo();
-
-    std::unique_ptr<std::thread> postProcThread;
-    void postProc();
-
-    avp::AudioVideoWriter streamWriter;
-    std::string streamURL;
-    cv::Size streamFrameSize;
-    int streamVideoBitRate;
-    std::string streamVideoEncodePreset;
-    int streamAudioBitRate;
-    int streamOpenSuccess;
-    std::unique_ptr<std::thread> streamThread;
-    int streamEndFlag;
-    int streamThreadJoined;
-    void streamSend();
-
-    avp::AudioVideoWriter fileWriter;
-    std::string fileWriterFormat;
-    cv::Size fileFrameSize;
-    int fileVideoBitRate;
-    std::string fileVideoEncodePreset;
-    int fileAudioBitRate;
-    int fileDuration;
-    int fileConfigSet;
-    std::unique_ptr<std::thread> fileThread;
-    int fileEndFlag;
-    int fileThreadJoined;
-    void fileSave();
-
-    std::unique_ptr<std::thread> showVideoSourceThread;
-    int showVideoSourceEndFlag;
-    int showVideoSourceThreadJoined;
-    void showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data);
-
-    std::unique_ptr<std::thread> showStitchedThread;
-    int showStitchedEndFlag;
-    int showStitchedThreadJoined;
-    void showStitched(ShowStichedFrameCallbackFunction func, void* data);
-
-    std::mutex videoSourceFramesMutex;
-    std::vector<avp::SharedAudioVideoFrame> videoSourceFrames;
-
-    std::mutex stitchedFrameMutex;
-    avp::SharedAudioVideoFrame stitchedFrame;
-
-    LogCallbackFunction logCallbackFunc;
-    void* logCallbackData;
-
-    FrameRateCallbackFunction videoFrameRateCallbackFunc;
-    void* videoFrameRateCallbackData;
-
-    FrameRateCallbackFunction stitchFrameRateCallbackFunc;
-    void* stitchFrameRateCallbackData;
-
-    int pixelType;
-    int finish;
-    std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
-    RealTimeFrameVectorQueue syncedFramesBufferForShow;
-    StampedPinnedMemoryPool syncedFramesBufferForProc;
-    SharedAudioVideoFramePool procFramePool;
-    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;*/
 };

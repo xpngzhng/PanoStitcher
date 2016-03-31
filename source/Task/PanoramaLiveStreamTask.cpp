@@ -1,6 +1,13 @@
 #include "PanoramaTask.h"
+#include "StampedFrameQueue.h"
+#include "PinnedMemoryPool.h"
+#include "StampedPinnedMemoryPool.h"
+#include "SharedAudioVideoFramePool.h"
+#include "RicohUtil.h"
 #include "Timer.h"
 #include "Image.h"
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
 // for video source

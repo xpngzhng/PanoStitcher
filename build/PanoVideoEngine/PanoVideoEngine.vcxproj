@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
+    <ClCompile Include="..\..\source\Task\TestLiveStreamTask.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}</ProjectGuid>

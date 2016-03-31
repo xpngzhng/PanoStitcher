@@ -27,11 +27,11 @@ static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vect
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_param_file |  | camera param file path}"
-        "{b | video_path_offset_file |  | video path and offset file path}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{h | use_cuda | false | use gpu to accelerate computation}";
+        "{camera_param_file      |       | camera param file path}"
+        "{video_path_offset_file |       | video path and offset file path}"
+        "{pano_width             | 2048  | pano picture width}"
+        "{pano_height            | 1024  | pano picture height}"
+        "{use_cuda               | false | use gpu to accelerate computation}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 

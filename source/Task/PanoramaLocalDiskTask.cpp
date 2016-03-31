@@ -1,6 +1,11 @@
 #include "PanoramaTask.h"
 #include "PanoramaTaskUtil.h"
+#include "StampedFrameQueue.h"
+#include "ZBlend.h"
 #include "ZReproject.h"
+#include "RicohUtil.h"
+#include "PinnedMemoryPool.h"
+#include "SharedAudioVideoFramePool.h"
 #include "Timer.h"
 
 struct CPUPanoramaLocalDiskTask::Impl

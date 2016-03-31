@@ -1,6 +1,7 @@
 #include "PanoramaTask.h"
 #include "Timer.h"
 #include <fstream>
+#include <thread>
 
 static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vector<std::string>& videoPath, std::vector<int>& offset)
 {
