@@ -39,6 +39,48 @@ public:
             return false;
 
         std::shared_ptr<StampedPinnedMemory> ptrMemory;
+        PoolType::iterator itr = pool.begin();
+        // Go to the maybe available memory
+        // The first item is just the size-th item (counted from zero) of the list
+        for (int i = 0; i < size; i++)
+            ++itr;
+        PoolType::iterator itrEnd = itr;
+        bool foundAvailable = false;
+        for (; itr != pool.end(); ++itr)
+        {
+            ptrMemory = *itr;
+            StampedPinnedMemory& stampedMem = *ptrMemory.get();
+            if (!stampedMem.buffer[0].refcount || (*stampedMem.buffer[0].refcount == 1))
+            {
+                foundAvailable = true;
+                break;
+            }
+        }
+        if (foundAvailable)
+        {
+            // If we can found available memory, it must be that pointed by itrEnd
+            size++;
+        }
+        else
+        {
+            if (currCapacity < maxCapacity)
+            {
+                ptrMemory.reset(new StampedPinnedMemory);
+                currCapacity++;
+                size++;
+                printf("not full\n");
+            }
+            else
+            {
+                // If we cannot find available memory at the tail part of the list,
+                // We should erase the smallset time stamp item
+                ptrMemory = pool.front();
+                pool.pop_front();
+            }
+            pool.insert(itrEnd, ptrMemory);
+        }
+
+        /*
         if (currCapacity < maxCapacity)
         {
             ptrMemory.reset(new StampedPinnedMemory);
@@ -82,10 +124,10 @@ public:
                 }
                 if (foundAvailable)
                     size++;
-                // If we cannot find available memory at the tail part of the list,
-                // We should erase the smallset time stamp item
-                if (!foundAvailable)
+                else
                 {
+                    // If we cannot find available memory at the tail part of the list,
+                    // We should erase the smallset time stamp item
                     ptrMemory = pool.front();
                     pool.pop_front();
                     pool.insert(itrEnd, ptrMemory);
@@ -97,8 +139,8 @@ public:
             if (!ptrMemory.get())
                 return false;
         }
+        */
 
-        //pool.push_back(ptrMemory);
         StampedPinnedMemory& stampedMem = *ptrMemory.get();
         int num = frames.size();
         stampedMem.buffer.resize(num);
@@ -111,7 +153,8 @@ public:
         }
         stampedMem.timeStamp = frames[0].timeStamp;
 
-        for (PoolType::iterator itr = pool.begin(); itr != pool.end(); ++itr)
+        int i = 0;
+        for (PoolType::iterator itr = pool.begin(); (i < size) && (itr != pool.end()); ++itr, i++)
             printf("%lld ", (*itr)->timeStamp);
         printf("\n");
         
