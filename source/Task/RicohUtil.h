@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ZBlend.h"
 #include "opencv2/core.hpp"
 #include <memory>
 #include <string>
@@ -7,23 +8,27 @@
 class RicohPanoramaRender
 {
 public:
-    RicohPanoramaRender();
+    RicohPanoramaRender() : success(0) {};
     bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
     void render(const cv::Mat& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    cv::Mat dstSrcMap1, dstSrcMap2;
+    cv::Mat from1, from2, intersect;
+    cv::Mat weight1, weight2;
+    int success;
 };
 
 class DetuPanoramaRender
 {
 public:
-    DetuPanoramaRender();
+    DetuPanoramaRender() : success(0) {};
     bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
     void render(const cv::Mat& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    cv::Mat dstSrcMap;
+    int success;
 };
 
 class PanoramaRender
@@ -42,48 +47,78 @@ public:
 class DualGoProPanoramaRender : public PanoramaRender
 {
 public:
-    DualGoProPanoramaRender();
+    DualGoProPanoramaRender() : success(0) {};
     ~DualGoProPanoramaRender() {};
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    cv::Mat dstSrcMap1, dstSrcMap2;
+    cv::Mat mask1, mask2;
+    cv::Mat from1, from2, intersect;
+    cv::Mat weight1, weight2;
+    int success;
 };
 
 class CPUMultiCameraPanoramaRender : public PanoramaRender
 {
 public:
-    CPUMultiCameraPanoramaRender();
+    CPUMultiCameraPanoramaRender() : success(0) {};
     ~CPUMultiCameraPanoramaRender() {};
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    std::vector<cv::Mat> dstSrcMaps;
+    std::vector<cv::Mat> masks;
+    std::vector<cv::Mat> reprojImages;
+    TilingMultibandBlendFastParallel blender;
+    int numImages;
+    int success;
 };
 
 class CudaMultiCameraPanoramaRender : public PanoramaRender
 {
 public:
-    CudaMultiCameraPanoramaRender();
+    CudaMultiCameraPanoramaRender(): success(0) {};
     ~CudaMultiCameraPanoramaRender() {};
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::HostMem> srcMems;
+    std::vector<cv::Mat> srcImages;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    cv::cuda::GpuMat blendImageGPU;
+    cv::Mat blendImage;
+    std::vector<cv::cuda::Stream> streams;
+    CudaTilingMultibandBlendFast blender;
+    int numImages;
+    int success;
 };
 
 // render accepts pinned memory cv::Mat
 class CudaMultiCameraPanoramaRender2 : public PanoramaRender
 {
 public:
-    CudaMultiCameraPanoramaRender2();
+    CudaMultiCameraPanoramaRender2() : success(0) {};
     ~CudaMultiCameraPanoramaRender2() {};
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    struct Impl;
-    std::shared_ptr<Impl> ptrImpl;
+    cv::Size srcFullSize;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    cv::cuda::GpuMat blendImageGPU;
+    cv::Mat blendImage;
+    std::vector<cv::cuda::Stream> streams;
+    int blendType;
+    CudaTilingMultibandBlendFast mbBlender;
+    CudaTilingLinearBlend lBlender;
+    int numImages;
+    int success;
 };

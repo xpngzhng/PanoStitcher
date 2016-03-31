@@ -35,18 +35,9 @@ public:
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
-
 private:
-    void clear();
-
-    int numVideos;
-    cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
-    std::vector<cv::Mat> dstSrcMaps, dstMasks;
-    TilingMultibandBlendFastParallel blender;
-    std::vector<cv::Mat> reprojImages;
-    cv::Mat blendImage;
-    bool initSuccess;
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
 };
 
 class CudaPanoramaPreviewTask : public PanoramaPreviewTask
@@ -59,16 +50,9 @@ public:
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
-
 private:
-    void clear();
-
-    int numVideos;
-    cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
-    std::unique_ptr<PanoramaRender> ptrRender;
-    cv::Mat blendImage;
-    bool initSuccess;
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
 };
 
 typedef void(*ProgressCallbackFunction)(double p, void* data);
@@ -186,94 +170,6 @@ private:
     bool finish;
     bool isCanceled;
 };
-
-//class QWidget;
-//
-//class QtCPUPanoramaLocalDiskTask
-//{
-//public:
-//    QtCPUPanoramaLocalDiskTask();
-//    ~QtCPUPanoramaLocalDiskTask();
-//    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-//        const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-//        int dstVideoBitRate);
-//    void run(QWidget* obj);
-//    void cancel();
-//
-//private:
-//    void clear();
-//
-//    int numVideos;
-//    cv::Size srcSize, dstSize;
-//    std::vector<avp::AudioVideoReader> readers;
-//    std::vector<cv::Mat> dstSrcMaps, dstMasks;
-//    TilingMultibandBlendFast blender;
-//    std::vector<cv::Mat> reprojImages;
-//    cv::Mat blendImage;
-//    avp::AudioVideoWriter2 writer;
-//    bool endFlag;
-//
-//    int validFrameCount;
-//
-//    bool initSuccess;
-//    bool finish;
-//};
-//
-//class QtCudaPanoramaLocalDiskTask
-//{
-//public:
-//    QtCudaPanoramaLocalDiskTask();
-//    ~QtCudaPanoramaLocalDiskTask();
-//    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-//        const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-//        int dstVideoBitRate);
-//    void run(QWidget* obj);
-//    void cancel();
-//
-//private:
-//    void clear();
-//
-//    int numVideos;
-//    cv::Size srcSize, dstSize;
-//    std::vector<avp::AudioVideoReader> readers;
-//    std::vector<cv::cuda::GpuMat> xmapsGpu, ymapsGpu;
-//    CudaTilingMultibandBlendFast blender;
-//    std::vector<cv::cuda::Stream> streams;
-//    std::vector<cv::cuda::HostMem> pinnedMems;
-//    std::vector<cv::cuda::GpuMat> imagesGpu, reprojImagesGpu;
-//    cv::cuda::GpuMat blendImageGpu;
-//    cv::Mat blendImageCpu;
-//    avp::AudioVideoWriter2 writer;
-//
-//    int decodeCount;
-//    int procCount;
-//    int encodeCount;
-//    std::atomic<int> finishPercent;
-//
-//    int validFrameCount;
-//
-//    std::mutex mtxDecodedImages;
-//    std::condition_variable cvDecodedImagesForWrite, cvDecodedImagesForRead;
-//    bool decodedImagesOwnedByDecodeThread;
-//    bool videoEnd;
-//
-//    std::mutex mtxEncodedImage;
-//    std::condition_variable cvEncodedImageForWrite, cvEncodedImageForRead;
-//    bool encodedImageOwnedByProcThread;
-//    bool procEnd;
-//
-//    void decode();
-//    void proc();
-//    void encode();
-//
-//    std::unique_ptr<std::thread> decodeThread;
-//    std::unique_ptr<std::thread> procThread;
-//    std::unique_ptr<std::thread> encodeThread;
-//
-//    bool initSuccess;
-//    bool finish;
-//    bool isCanceled;
-//};
 
 // for video source
 typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;

@@ -2,17 +2,39 @@
 #include "PanoramaTaskUtil.h"
 #include "ZReproject.h"
 
-CPUPanoramaPreviewTask::CPUPanoramaPreviewTask()
+struct CPUPanoramaPreviewTask::Impl
+{
+    Impl();
+    ~Impl();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+        int dstWidth, int dstHeight);
+    bool reset(const std::string& cameraParamFile);
+    bool seek(const std::vector<long long int>& timeStamps);
+    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement);
+
+    void clear();
+
+    int numVideos;
+    cv::Size srcSize, dstSize;
+    std::vector<avp::AudioVideoReader> readers;
+    std::vector<cv::Mat> dstSrcMaps, dstMasks;
+    TilingMultibandBlendFastParallel blender;
+    std::vector<cv::Mat> reprojImages;
+    cv::Mat blendImage;
+    bool initSuccess;
+};
+
+CPUPanoramaPreviewTask::Impl::Impl()
 {
     clear();
 }
 
-CPUPanoramaPreviewTask::~CPUPanoramaPreviewTask()
+CPUPanoramaPreviewTask::Impl::~Impl()
 {
     clear();
 }
 
-bool CPUPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
     int dstWidth, int dstHeight)
 {
     clear();
@@ -69,7 +91,7 @@ bool CPUPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles,
     return true;
 }
 
-bool CPUPanoramaPreviewTask::reset(const std::string& cameraParamFile)
+bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
 {
     if (!initSuccess)
         return false;
@@ -102,7 +124,7 @@ bool CPUPanoramaPreviewTask::reset(const std::string& cameraParamFile)
     return true;
 }
 
-bool CPUPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
+bool CPUPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
         return false;
@@ -122,7 +144,7 @@ bool CPUPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
     return ok;
 }
 
-bool CPUPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CPUPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
 {
     if (!initSuccess)
         return false;
@@ -163,24 +185,75 @@ bool CPUPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>&
     return true;
 }
 
-void CPUPanoramaPreviewTask::clear()
+void CPUPanoramaPreviewTask::Impl::clear()
 {
     numVideos = 0;
     readers.clear();
     initSuccess = false;
 }
 
-CudaPanoramaPreviewTask::CudaPanoramaPreviewTask()
+CPUPanoramaPreviewTask::CPUPanoramaPreviewTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+CPUPanoramaPreviewTask::~CPUPanoramaPreviewTask()
+{
+
+}
+
+bool CPUPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+    int dstWidth, int dstHeight)
+{
+    return ptrImpl->init(srcVideoFiles, cameraParamFile, dstWidth, dstHeight);
+}
+
+bool CPUPanoramaPreviewTask::reset(const std::string& cameraParamFile)
+{
+    return ptrImpl->reset(cameraParamFile);
+}
+
+bool CPUPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
+{
+    return ptrImpl->seek(timeStamps);
+}
+
+bool CPUPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+{
+    return ptrImpl->stitch(result, timeStamps, frameIncrement);
+}
+
+struct CudaPanoramaPreviewTask::Impl
+{
+    Impl();
+    ~Impl();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+        int dstWidth, int dstHeight);
+    bool reset(const std::string& cameraParamFile);
+    bool seek(const std::vector<long long int>& timeStamps);
+    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
+
+    void clear();
+
+    int numVideos;
+    cv::Size srcSize, dstSize;
+    std::vector<avp::AudioVideoReader> readers;
+    std::unique_ptr<PanoramaRender> ptrRender;
+    cv::Mat blendImage;
+    bool initSuccess;
+};
+
+CudaPanoramaPreviewTask::Impl::Impl()
 {
     clear();
 }
 
-CudaPanoramaPreviewTask::~CudaPanoramaPreviewTask()
+CudaPanoramaPreviewTask::Impl::~Impl()
 {
     clear();
 }
 
-bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+bool CudaPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
     int dstWidth, int dstHeight)
 {
     clear();
@@ -220,7 +293,7 @@ bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles
     return true;
 }
 
-bool CudaPanoramaPreviewTask::reset(const std::string& cameraParamFile)
+bool CudaPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
 {
     if (!initSuccess)
         return false;
@@ -235,7 +308,7 @@ bool CudaPanoramaPreviewTask::reset(const std::string& cameraParamFile)
     return true;
 }
 
-bool CudaPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
+bool CudaPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
         return false;
@@ -255,7 +328,7 @@ bool CudaPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
     return ok;
 }
 
-bool CudaPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CudaPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
 {
     if (!initSuccess)
         return false;
@@ -293,10 +366,41 @@ bool CudaPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>
    return true;
 }
 
-void CudaPanoramaPreviewTask::clear()
+void CudaPanoramaPreviewTask::Impl::clear()
 {
     numVideos = 0;
     readers.clear();
     ptrRender.reset(0);
     initSuccess = false;
+}
+
+CudaPanoramaPreviewTask::CudaPanoramaPreviewTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+CudaPanoramaPreviewTask::~CudaPanoramaPreviewTask()
+{
+
+}
+
+bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
+    int dstWidth, int dstHeight)
+{
+    return ptrImpl->init(srcVideoFiles, cameraParamFile, dstWidth, dstHeight);
+}
+
+bool CudaPanoramaPreviewTask::reset(const std::string& cameraParamFile)
+{
+    return ptrImpl->reset(cameraParamFile);
+}
+
+bool CudaPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
+{
+    return ptrImpl->seek(timeStamps);
+}
+
+bool CudaPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+{
+    return ptrImpl->stitch(result, timeStamps, frameIncrement);
 }

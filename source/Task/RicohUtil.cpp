@@ -406,20 +406,7 @@ void reprojectAndBlendParallel(const cv::Mat& src1, const cv::Mat& src2,
 #include "RicohUtil.h"
 #include "ZReproject.h"
 
-struct RicohPanoramaRender::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    void render(const cv::Mat& src, cv::Mat& dst);
-
-    cv::Size srcFullSize;
-    cv::Mat dstSrcMap1, dstSrcMap2;
-    cv::Mat from1, from2, intersect;
-    cv::Mat weight1, weight2;
-    int success;
-};
-
-bool RicohPanoramaRender::Impl::prepare(const std::string& path, 
+bool RicohPanoramaRender::prepare(const std::string& path, 
     const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
@@ -445,7 +432,7 @@ bool RicohPanoramaRender::Impl::prepare(const std::string& path,
     return true;
 }
 
-void RicohPanoramaRender::Impl::render(const cv::Mat& src, cv::Mat& dst)
+void RicohPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
 {
     if (!success)
         return;
@@ -456,34 +443,7 @@ void RicohPanoramaRender::Impl::render(const cv::Mat& src, cv::Mat& dst)
         from1, from2, intersect, weight1, weight2, dst);
 }
 
-RicohPanoramaRender::RicohPanoramaRender()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool RicohPanoramaRender::prepare(const std::string& path, 
-    const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, srcSize, dstSize);
-}
-
-void RicohPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
-{
-    ptrImpl->render(src, dst);
-}
-
-struct DetuPanoramaRender::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    void render(const cv::Mat& src, cv::Mat& dst);
-
-    cv::Size srcFullSize;
-    cv::Mat dstSrcMap;
-    int success;
-};
-
-bool DetuPanoramaRender::Impl::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+bool DetuPanoramaRender::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
 
@@ -503,7 +463,7 @@ bool DetuPanoramaRender::Impl::prepare(const std::string& path, const cv::Size& 
     return true;
 }
 
-void DetuPanoramaRender::Impl::render(const cv::Mat& src, cv::Mat& dst)
+void DetuPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
 {
     if (!success)
         return;
@@ -515,37 +475,7 @@ void DetuPanoramaRender::Impl::render(const cv::Mat& src, cv::Mat& dst)
     reprojectParallel(src, dst, dstSrcMap);
 }
 
-DetuPanoramaRender::DetuPanoramaRender()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool DetuPanoramaRender::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, srcSize, dstSize);
-}
-
-void DetuPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
-{
-    ptrImpl->render(src, dst);
-}
-
-struct DualGoProPanoramaRender::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst);
-    bool getMasks(std::vector<cv::Mat>& masks) const;
-
-    cv::Size srcFullSize;
-    cv::Mat dstSrcMap1, dstSrcMap2;
-    cv::Mat mask1, mask2;
-    cv::Mat from1, from2, intersect;
-    cv::Mat weight1, weight2;
-    int success;
-};
-
-bool DualGoProPanoramaRender::Impl::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+bool DualGoProPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
 
@@ -571,7 +501,7 @@ bool DualGoProPanoramaRender::Impl::prepare(const std::string& path, const cv::S
     return true;    
 }
 
-bool DualGoProPanoramaRender::Impl::render(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
+bool DualGoProPanoramaRender::render(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
 {
     if (!success)
         return false;
@@ -585,53 +515,15 @@ bool DualGoProPanoramaRender::Impl::render(const cv::Mat& src1, const cv::Mat& s
     return true;
 }
 
-bool DualGoProPanoramaRender::Impl::getMasks(std::vector<cv::Mat>& masks) const
-{
-    if (!success)
-        return false;
-
-    masks.resize(2);
-    mask1.copyTo(masks[0]);
-    mask2.copyTo(masks[1]);
-    return true;
-}
-
-DualGoProPanoramaRender::DualGoProPanoramaRender()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool DualGoProPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, srcSize, dstSize);
-}
-
 bool DualGoProPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (src.size() != 2)
         return false;
 
-    return ptrImpl->render(src[0], src[1], dst);
+    return render(src[0], src[1], dst);
 }
 
-#include "ZBlend.h"
-
-struct CPUMultiCameraPanoramaRender::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
-
-    cv::Size srcFullSize;
-    std::vector<cv::Mat> dstSrcMaps;
-    std::vector<cv::Mat> masks;
-    std::vector<cv::Mat> reprojImages;
-    TilingMultibandBlendFastParallel blender;
-    int numImages;
-    int success;
-};
-
-bool CPUMultiCameraPanoramaRender::Impl::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CPUMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
 
@@ -668,7 +560,7 @@ bool CPUMultiCameraPanoramaRender::Impl::prepare(const std::string& path, const 
     return true;
 }
 
-bool CPUMultiCameraPanoramaRender::Impl::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CPUMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (!success)
         return false;
@@ -690,42 +582,7 @@ bool CPUMultiCameraPanoramaRender::Impl::render(const std::vector<cv::Mat>& src,
     return true;
 }
 
-CPUMultiCameraPanoramaRender::CPUMultiCameraPanoramaRender()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool CPUMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, srcSize, dstSize);
-}
-
-bool CPUMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
-{
-   return ptrImpl->render(src, dst);
-}
-
-struct CudaMultiCameraPanoramaRender::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
-
-    cv::Size srcFullSize;
-    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
-    std::vector<cv::cuda::HostMem> srcMems;
-    std::vector<cv::Mat> srcImages;
-    std::vector<cv::cuda::GpuMat> srcImagesGPU;
-    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
-    cv::cuda::GpuMat blendImageGPU;
-    cv::Mat blendImage;
-    std::vector<cv::cuda::Stream> streams;
-    CudaTilingMultibandBlendFast blender;
-    int numImages;
-    int success;
-};
-
-bool CudaMultiCameraPanoramaRender::Impl::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
 
@@ -774,7 +631,7 @@ bool CudaMultiCameraPanoramaRender::Impl::prepare(const std::string& path, const
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender::Impl::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CudaMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (!success)
         return false;
@@ -816,42 +673,7 @@ bool CudaMultiCameraPanoramaRender::Impl::render(const std::vector<cv::Mat>& src
     return true;
 }
 
-CudaMultiCameraPanoramaRender::CudaMultiCameraPanoramaRender()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool CudaMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, srcSize, dstSize);
-}
-
-bool CudaMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
-{
-    return ptrImpl->render(src, dst);
-}
-
-struct CudaMultiCameraPanoramaRender2::Impl
-{
-    Impl() : success(0) {};
-    bool prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
-
-    cv::Size srcFullSize;
-    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
-    std::vector<cv::cuda::GpuMat> srcImagesGPU;
-    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
-    cv::cuda::GpuMat blendImageGPU;
-    cv::Mat blendImage;
-    std::vector<cv::cuda::Stream> streams;
-    int blendType;
-    CudaTilingMultibandBlendFast mbBlender;
-    CudaTilingLinearBlend lBlender;
-    int numImages;
-    int success;
-};
-
-bool CudaMultiCameraPanoramaRender2::Impl::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     success = 0;
 
@@ -906,7 +728,7 @@ bool CudaMultiCameraPanoramaRender2::Impl::prepare(const std::string& path, int 
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender2::Impl::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (!success)
         return false;
@@ -950,19 +772,4 @@ bool CudaMultiCameraPanoramaRender2::Impl::render(const std::vector<cv::Mat>& sr
     }
     
     return true;
-}
-
-CudaMultiCameraPanoramaRender2::CudaMultiCameraPanoramaRender2()
-{
-    ptrImpl.reset(new Impl);
-}
-
-bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
-{
-    return ptrImpl->prepare(path, blendType, srcSize, dstSize);
-}
-
-bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
-{
-    return ptrImpl->render(src, dst);
 }

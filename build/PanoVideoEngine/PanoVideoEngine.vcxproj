@@ -132,7 +132,7 @@ copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
 copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
 copy "$(SolutionDir)..\source\Task\PinnedMemoryPool.h" ..\include
-</Command>
+copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
@@ -185,7 +185,7 @@ copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
 copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
 copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
 copy "$(SolutionDir)..\source\Task\PinnedMemoryPool.h" ..\include
-</Command>
+copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
