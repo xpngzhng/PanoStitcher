@@ -362,6 +362,9 @@ private:
     int renderThreadJoined;
     void procVideo();
 
+    std::unique_ptr<std::thread> postProcThread;
+    void postProc();
+
     avp::AudioVideoWriter streamWriter;
     std::string streamURL;
     cv::Size streamFrameSize;
@@ -417,5 +420,5 @@ private:
     std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
     RealTimeFrameVectorQueue syncedFramesBufferForShow;
     StampedPinnedMemoryPool syncedFramesBufferForProc;
-    RealTimeFrameQueue procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
+    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
 };

@@ -203,6 +203,7 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
     renderEndFlag = 0;
     renderThreadJoined = 0;
     renderThread.reset(new std::thread(&PanoramaLiveStreamTask::procVideo, this));
+    postProcThread.reset(new std::thread(&PanoramaLiveStreamTask::postProc, this));
 
     if (logCallbackFunc)
         logCallbackFunc("Video stitch thread create success", logCallbackData);
@@ -217,6 +218,8 @@ void PanoramaLiveStreamTask::stopVideoStitch()
         renderEndFlag = 1;
         renderThread->join();
         renderThread.reset(0);
+        postProcThread->join();
+        postProcThread.reset(0);
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
 
@@ -735,6 +738,7 @@ void PanoramaLiveStreamTask::procVideo()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
+    /*
     cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
     cv::Mat origMask(128, 256, CV_8UC1, maskData);
     cv::Mat addImage;
@@ -752,12 +756,14 @@ void PanoramaLiveStreamTask::procVideo()
         addMask = origMask;
         addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
     }
+    */
 
     //std::vector<avp::SharedAudioVideoFrame> frames;
     std::vector<cv::gpu::CudaMem> mems;
     long long int timeStamp;
     std::vector<cv::Mat> src;
-    cv::Mat result, scaledResult;
+    avp::SharedAudioVideoFrame frame;
+    cv::Mat result;
     bool ok;
     int roundedFrameRate = videoFrameRate + 0.5;
     int count = -1;
@@ -810,6 +816,8 @@ void PanoramaLiveStreamTask::procVideo()
             //}
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i];
+            frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
+            result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
             procTimer.start();
             ok = render.render(src, result);
             procTimer.end();
@@ -821,6 +829,9 @@ void PanoramaLiveStreamTask::procVideo()
             }
             //cv::imshow("result", result);
             //cv::waitKey(1);
+            procFrameBufferForPostProc.push(frame);
+
+            /*
             copyTimer.start();
             cv::Mat resultROI = result(addROI);
             addImage.copyTo(resultROI, addMask);
@@ -837,8 +848,58 @@ void PanoramaLiveStreamTask::procVideo()
                 procFrameBufferForSave.push(deep);
             copyTimer.end();
             localTimer.end();
+            */
             //printf("%f, %f, %f\n", procTimer.elapse(), copyTimer.elapse(), localTimer.elapse());
         }
+    }
+
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void PanoramaLiveStreamTask::postProc()
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
+    cv::Mat origMask(128, 256, CV_8UC1, maskData);
+    cv::Mat addImage;
+    cv::Mat addMask;
+    cv::Rect addROI;
+    if (renderFrameSize.width <= 256 || renderFrameSize.height <= 128)
+    {
+        cv::resize(origImage, addImage, renderFrameSize);
+        cv::resize(origMask, addMask, renderFrameSize);
+        addROI = cv::Rect(0, 0, renderFrameSize.width, renderFrameSize.height);
+    }
+    else
+    {
+        addImage = origImage;
+        addMask = origMask;
+        addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
+    }
+
+    avp::SharedAudioVideoFrame frame;
+    while (true)
+    {
+        if (finish || renderEndFlag)
+            break;
+
+        if (!procFrameBufferForPostProc.pull(frame))
+            continue;
+
+        cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+        cv::Mat resultROI = result(addROI);
+        addImage.copyTo(resultROI, addMask);
+        {
+            std::lock_guard<std::mutex> lg(stitchedFrameMutex);
+            stitchedFrame = frame;
+        }
+        procFrameBufferForShow.push(frame);
+        if (streamOpenSuccess)
+            procFrameBufferForSend.push(frame);
+        if (fileConfigSet)
+            procFrameBufferForSave.push(frame);
     }
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
