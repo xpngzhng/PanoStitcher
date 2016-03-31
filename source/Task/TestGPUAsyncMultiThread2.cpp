@@ -2,6 +2,8 @@
 #include "ZReproject.h"
 #include "AudioVideoProcessor.h"
 #include "StampedFrameQueue.h"
+#include "PinnedMemoryPool.h"
+#include "SharedAudioVideoFramePool.h"
 #include "Timer.h"
 
 #include <opencv2/core/core.hpp>
@@ -19,10 +21,17 @@
 
 #define ENABLE_CALC_TIME 0
 
+struct StampedPinnedMemoryVector
+{
+    std::vector<cv::gpu::CudaMem> mems;
+    long long int timeStamp;
+};
+
 typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
-typedef BoundedCompleteQueue<std::vector<avp::SharedAudioVideoFrame> > FrameVectorBuffer;
+typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 
 int numVideos;
+cv::Size srcSize, dstSize;
 std::vector<avp::AudioVideoReader> readers;
 std::vector<cv::gpu::GpuMat> dstMasksGpu;
 std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
@@ -30,7 +39,9 @@ CudaTilingMultibandBlendFast blender;
 std::vector<cv::gpu::Stream> streams;
 std::vector<cv::gpu::CudaMem> pinnedMems;
 std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
-FrameVectorBuffer decodeFramesBuffer(4);
+PinnedMemoryPool srcFramesMemoryPool;
+SharedAudioVideoFramePool dstFramesMemoryPool;
+FrameVectorBuffer decodeFramesBuffer(2);
 FrameBuffer procFrameBuffer(4);
 ztool::Timer timerAll, timerTotal, timerDecode, timerUpload, timerReproject, timerBlend, timerDownload, timerEncode;
 int frameCount;
@@ -89,9 +100,19 @@ void decodeThread()
 #if ENABLE_CALC_TIME
         timer.start();
 #endif
-        std::vector<avp::SharedAudioVideoFrame> deepFrames(numVideos);
+        //std::vector<avp::SharedAudioVideoFrame> deepFrames(numVideos);
+        //for (int i = 0; i < numVideos; i++)
+        //    deepFrames[i] = shallowFrames[i];
+        StampedPinnedMemoryVector deepFrames;
+        deepFrames.timeStamp = shallowFrames[0].timeStamp;
+        deepFrames.mems.resize(numVideos);
         for (int i = 0; i < numVideos; i++)
-            deepFrames[i] = shallowFrames[i];
+        {
+            srcFramesMemoryPool.get(deepFrames.mems[i]);
+            cv::Mat src(shallowFrames[i].height, shallowFrames[i].width, CV_8UC4, shallowFrames[i].data, shallowFrames[i].step);
+            cv::Mat dst = deepFrames.mems[i];
+            src.copyTo(dst);
+        }
 #if ENABLE_CALC_TIME
         timer.end();
         printf("d cp %f\n", timer.elapse());
@@ -110,10 +131,11 @@ void decodeThread()
 void gpuProcThread()
 {
     int count = 0;
-    std::vector<avp::SharedAudioVideoFrame> deepFrames(numVideos);
+    //std::vector<avp::SharedAudioVideoFrame> deepFrames(numVideos);
+    StampedPinnedMemoryVector deepFrames;
     cv::gpu::GpuMat blendImageGpu;
-    cv::Mat blendImageCpu;
-    cv::Mat transImage;
+    //cv::Mat blendImageCpu;
+    //cv::Mat transImage;
 #if ENABLE_CALC_TIME
     ztool::Timer timer;
     double t;
@@ -126,28 +148,31 @@ void gpuProcThread()
 #if ENABLE_CALC_TIME
         timer.start();
 #endif
-        for (int i = 0; i < numVideos; i++)
-        {
-            cv::Mat srcMat(deepFrames[i].height, deepFrames[i].width, CV_8UC4, deepFrames[i].data, deepFrames[i].step);
-            cv::Mat dstMat(pinnedMems[i]);
-            srcMat.copyTo(dstMat);
-            //cv::imshow("dst", dstMat);
-            //cv::waitKey(30);
-            //cv::transpose(srcMat, dstMat);
-            //cv::transpose(srcMat, transImage);
-            //cv::imshow("trans", transImage);
-            //cv::waitKey(10);
-            //cv::flip(transImage, dstMat, 1);
-            //cv::imshow("flip", transImage);
-            //cv::waitKey(20);
-        }
+        //for (int i = 0; i < numVideos; i++)
+        //{
+        //    cv::Mat srcMat(deepFrames[i].height, deepFrames[i].width, CV_8UC4, deepFrames[i].data, deepFrames[i].step);
+        //    cv::Mat dstMat(pinnedMems[i]);
+        //    srcMat.copyTo(dstMat);
+        //    //cv::imshow("dst", dstMat);
+        //    //cv::waitKey(30);
+        //    //cv::transpose(srcMat, dstMat);
+        //    //cv::transpose(srcMat, transImage);
+        //    //cv::imshow("trans", transImage);
+        //    //cv::waitKey(10);
+        //    //cv::flip(transImage, dstMat, 1);
+        //    //cv::imshow("flip", transImage);
+        //    //cv::waitKey(20);
+        //}
 #if ENABLE_CALC_TIME
         timer.end();
         t = timer.elapse();
 #endif
+        avp::SharedAudioVideoFrame deepFrame;
+        dstFramesMemoryPool.get(deepFrame);
+        cv::Mat blendImageCpu(dstSize, CV_8UC4, deepFrame.data, deepFrame.step);
         
         for (int i = 0; i < numVideos; i++)
-            streams[i].enqueueUpload(pinnedMems[i], imagesGpu[i]);
+            streams[i].enqueueUpload(deepFrames.mems[i]/*pinnedMems[i]*/, imagesGpu[i]);
         for (int i = 0; i < numVideos; i++)
             cudaReprojectTo16S(imagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
         for (int i = 0; i < numVideos; i++)
@@ -170,9 +195,9 @@ void gpuProcThread()
 #if ENABLE_CALC_TIME
         timer.start();
 #endif
-        avp::AudioVideoFrame shallowFrame = 
-            avp::videoFrame(blendImageCpu.data, blendImageCpu.step, avp::PixelTypeBGR32, blendImageCpu.cols, blendImageCpu.rows, -1LL);
-        avp::SharedAudioVideoFrame deepFrame = shallowFrame;
+        //avp::AudioVideoFrame shallowFrame = 
+        //    avp::videoFrame(blendImageCpu.data, blendImageCpu.step, avp::PixelTypeBGR32, blendImageCpu.cols, blendImageCpu.rows, -1LL);
+        //avp::SharedAudioVideoFrame deepFrame = shallowFrame;
 #if ENABLE_CALC_TIME
         timer.end();
         printf("p cp %f %f\n", t, timer.elapse());
@@ -296,7 +321,7 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
-    cv::Size srcSize, dstSize;
+    
     std::vector<std::string> srcVideoNames;
     std::vector<int> offset;
     //ReprojectParam pi;
@@ -366,6 +391,13 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
+    if (!ok)
+    {
+        printf("Could not init memory pool\n");
+        return 0;
+    }
+
     printf("Open videos done\n");
     printf("Prepare for reproject and blend\n");
 
@@ -419,6 +451,13 @@ int main(int argc, char* argv[])
 
     imagesGpu.resize(numVideos);
     reprojImagesGpu.resize(numVideos);
+
+    ok = dstFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
+    if (!ok)
+    {
+        printf("Could not init memory pool\n");
+        return 0;
+    }
 
     printf("Prepare finish, begin stitching.\n");
 
