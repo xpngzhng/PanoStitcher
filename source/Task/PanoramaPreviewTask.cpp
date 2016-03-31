@@ -28,7 +28,8 @@ bool CPUPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles,
     printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
-    ok = prepareSrcVideos(srcVideoFiles, true, std::vector<int>(), readers, srcSize, validFrameCount);
+    int audioIndex;
+    ok = prepareSrcVideos(srcVideoFiles, true, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -194,7 +195,8 @@ bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles
     printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
-    ok = prepareSrcVideos(srcVideoFiles, false, std::vector<int>(), readers, srcSize, validFrameCount);
+    int audioIndex;
+    ok = prepareSrcVideos(srcVideoFiles, false, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -206,7 +208,7 @@ bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
     ptrRender.reset(new CudaMultiCameraPanoramaRender);
-    ok = ptrRender->prepare(cameraParamFile, srcSize, dstSize);
+    ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
         printf("Error in %s, prepare failed\n", __FUNCTION__);
@@ -223,7 +225,7 @@ bool CudaPanoramaPreviewTask::reset(const std::string& cameraParamFile)
     if (!initSuccess)
         return false;
 
-    bool ok = ptrRender->prepare(cameraParamFile, srcSize, dstSize);
+    bool ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
         printf("Error in %s, prepare failed\n", __FUNCTION__);

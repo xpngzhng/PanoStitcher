@@ -159,26 +159,16 @@ void PanoramaLiveStreamTask::closeAudioDevice()
     }
 }
 
-bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool useCuda)
+bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
-    //pixelType = useCuda ? avp::PixelTypeBGR32 : avp::PixelTypeBGR24;
-    // IMPORTANT NOTICE!!!!!!
-    // FORCE PIXEL_TYPE_BGR_32
-    // SUPPORT GPU ONLY
     pixelType = avp::PixelTypeBGR32;
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    // IMPORTANT NOTICE!!!!!!
-    // FORCE PIXEL_TYPE_BGR_32
-    // SUPPORT GPU ONLY
-    //if (useCuda) 
-    //    ptrRender.reset(new CudaMultiCameraPanoramaRender); 
-    //else 
-    //    ptrRender.reset(new CPUMultiCameraPanoramaRender);
-    //ptrRender.reset(new CudaMultiCameraPanoramaRender);
-    renderPrepareSuccess = render.prepare(renderConfigName, videoFrameSize, renderFrameSize);
+    renderPrepareSuccess = render.prepare(renderConfigName, 
+        highQualityBlend ? PanoramaRender::BlendTypeMultiband : PanoramaRender::BlendTypeLinear, 
+        videoFrameSize, renderFrameSize);
 
     if (!renderPrepareSuccess)
     {
@@ -823,6 +813,7 @@ void PanoramaLiveStreamTask::procVideo()
                 finish = 1;
                 break;
             }
+            frame.timeStamp = timeStamp;
             procFrameBufferForPostProc.push(frame);
 
             localTimer.end();

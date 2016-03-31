@@ -8,4 +8,4 @@
 bool loadPhotoParams(const std::string& cameraParamFile, std::vector<PhotoParam>& params);
 
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24, const std::vector<int>& offsets,
-    std::vector<avp::AudioVideoReader>& readers, cv::Size& srcSize, int& validFrameCount);
+    int tryAudioIndex, std::vector<avp::AudioVideoReader>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount);

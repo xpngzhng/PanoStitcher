@@ -44,7 +44,6 @@ int maxFrameCount = 600;
 int actualWriteFrame = 0;
 avp::AudioVideoWriter2 writer;
 bool success;
-bool videoEnd = false;
 
 void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vector<std::string>& videoPath, std::vector<int>& offset)
 {
@@ -78,11 +77,8 @@ void decodeThread()
     {        
         if (audioIndex >= 0 && audioIndex < numVideos)
         {
-            if (!readers[audioIndex].read(shallowFrames[audioIndex]))
-            {
-                videoEnd = true;
+            if (!readers[audioIndex].read(shallowFrames[audioIndex]))            
                 break;
-            }
 
             if (shallowFrames[audioIndex].mediaType == avp::AUDIO)
             {
@@ -106,11 +102,8 @@ void decodeThread()
             }
         }
         if (!successRead || count >= maxFrameCount)
-        {
-            videoEnd = true;
             break;
-        }
-
+        
         StampedPinnedMemoryVector deepFrames;
         deepFrames.timeStamp = shallowFrames[0].timeStamp;
         deepFrames.frames.resize(numVideos);
@@ -191,7 +184,7 @@ int main(int argc, char* argv[])
         "{c | num_frames_skip | 100 | number of frames to skip}"
         "{d | pano_width | 2048 | pano picture width}"
         "{e | pano_height | 1024 | pano picture height}"
-        "{h | pano_video_name | panoptslibx264withaudio.mp4 | xml param file path}"
+        "{h | pano_video_name | panoptslibx264withaudiolinear.mp4 | xml param file path}"
         "{g | pano_video_num_frames | 1000 | number of frames to write}"
         "{f | audio_index | 0 | select audio from which video}";
 
@@ -286,7 +279,7 @@ int main(int argc, char* argv[])
     srcSize.width = readers[0].getVideoWidth();
     srcSize.height = readers[0].getVideoHeight();
 
-    success = render.prepare(cameraParamFile, srcSize, dstSize);
+    success = render.prepare(cameraParamFile, PanoramaRender::BlendTypeLinear, srcSize, dstSize);
     if (!success)
     {
         printf("Blender prepare failed, exit.\n");

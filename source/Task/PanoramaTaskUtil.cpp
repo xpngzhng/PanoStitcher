@@ -17,7 +17,7 @@ bool loadPhotoParams(const std::string& cameraParamFile, std::vector<PhotoParam>
 }
 
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24, const std::vector<int>& offsets,
-    std::vector<avp::AudioVideoReader>& readers, cv::Size& srcSize, int& validFrameCount)
+    int tryAudioIndex, std::vector<avp::AudioVideoReader>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)
 {
     readers.clear();
     srcSize = cv::Size();
@@ -33,11 +33,29 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
 
     readers.resize(numVideos);
 
+    if (tryAudioIndex < 0 || tryAudioIndex >= numVideos)
+    {
+        printf("Info in %s, no audio will be opened\n", __FUNCTION__);
+        audioIndex = -1;
+    }
+
     bool ok = false;
     double fps = -1;
     for (int i = 0; i < numVideos; i++)
     {
-        ok = readers[i].open(srcVideoFiles[i], false, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+        if (i == tryAudioIndex)
+        {
+            ok = readers[i].open(srcVideoFiles[i], true, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+            if (ok)
+                audioIndex = tryAudioIndex;
+            else
+            {
+                ok = readers[i].open(srcVideoFiles[i], false, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+                audioIndex = -1;
+            }
+        }
+        else
+            ok = readers[i].open(srcVideoFiles[i], false, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
         if (!ok)
             break;
 
@@ -104,6 +122,14 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
             if (!ok)
                 break;
         }
+    }
+
+    if (!ok)
+    {
+        readers.clear();
+        audioIndex = -1;
+        srcSize = cv::Size();
+        validFrameCount = 0;
     }
 
     return ok;

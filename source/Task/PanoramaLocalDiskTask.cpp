@@ -13,7 +13,7 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 }
 
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, ProgressCallbackFunction func, void* data)
 {
     clear();
@@ -47,7 +47,7 @@ bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFile
     printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
 
     bool ok = false;
-    ok = prepareSrcVideos(srcVideoFiles, true, offsets, readers, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, true, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -72,8 +72,18 @@ bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFile
     printf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", "medium"));
-    ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-        true, "h264", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
+    if (audioIndex >= 0 && audioIndex < numVideos)
+    {
+        ok = writer.open(dstVideoFile, "", true, 
+            true, "aac", readers[audioIndex].getAudioSampleType(), readers[audioIndex].getAudioChannelLayout(), 
+            readers[audioIndex].getAudioSampleRate(), 128000,
+            true, "h264", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
+    }
+    else
+    {
+        ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
+            true, "h264", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
+    }
     if (!ok)
     {
         printf("Error in %s, video writer open failed\n", __FUNCTION__);
@@ -114,6 +124,19 @@ void CPUPanoramaLocalDiskTask::run()
     blendImage.create(dstSize, CV_8UC3);
     while (true)
     {
+        ok = true;
+        if (audioIndex >= 0 && audioIndex < numVideos)
+        {
+            avp::AudioVideoFrame frame;
+            if (!readers[audioIndex].read(frame))
+                break;
+
+            if (frame.mediaType == avp::AUDIO)
+            {
+                ok = writer.write(frame);
+                continue;
+            }
+        }
         for (int i = 0; i < numVideos; i++)
         {
             avp::AudioVideoFrame frame;
@@ -227,7 +250,7 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 }
 
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, ProgressCallbackFunction func, void* data)
 {
     clear();
@@ -261,7 +284,7 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
     printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
 
     bool ok = false;
-    ok = prepareSrcVideos(srcVideoFiles, false, offsets, readers, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, false, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -333,39 +356,6 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
     return true;
 }
 
-//void CudaPanoramaLocalDiskTask::run()
-//{
-//    if (!initSuccess)
-//        return;
-//
-//    if (finish)
-//        return;
-//
-//    printf("Info in %s, write video begin\n", __FUNCTION__);
-//
-//    decodedImagesOwnedByDecodeThread = true;
-//    encodedImageOwnedByProcThread = true;
-//
-//    decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::decode, this));
-//    procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::proc, this));
-//    encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::encode, this));
-//
-//    decodeThread->join();
-//    procThread->join();
-//    encodeThread->join();
-//
-//    for (int i = 0; i < numVideos; i++)
-//        readers[i].close();
-//    writer.close();
-//
-//    if (progressCallbackFunc)
-//        progressCallbackFunc(1.0, progressCallbackData);
-//
-//    printf("Info in %s, write video finish\n", __FUNCTION__);
-//
-//    finish = true;
-//}
-
 bool CudaPanoramaLocalDiskTask::start()
 {
     if (!initSuccess)
@@ -397,13 +387,6 @@ void CudaPanoramaLocalDiskTask::waitForCompletion()
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
-
-    //for (int i = 0; i < numVideos; i++)
-    //    readers[i].close();
-    //writer.close();
-
-    //if (progressCallbackFunc)
-    //    progressCallbackFunc(1.0, progressCallbackData);
 
     if (!finish)
         printf("Info in %s, write video finish\n", __FUNCTION__);

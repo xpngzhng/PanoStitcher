@@ -29,8 +29,13 @@ private:
 class PanoramaRender
 {
 public:
+    enum BlendType 
+    {
+        BlendTypeLinear, 
+        BlendTypeMultiband
+    };
     virtual ~PanoramaRender() {};
-    virtual bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize) = 0;
+    virtual bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize) = 0;
     virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst) = 0;
 };
 
@@ -39,7 +44,7 @@ class DualGoProPanoramaRender : public PanoramaRender
 public:
     DualGoProPanoramaRender();
     ~DualGoProPanoramaRender() {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
     struct Impl;
@@ -51,7 +56,7 @@ class CPUMultiCameraPanoramaRender : public PanoramaRender
 public:
     CPUMultiCameraPanoramaRender();
     ~CPUMultiCameraPanoramaRender() {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
     struct Impl;
@@ -63,7 +68,7 @@ class CudaMultiCameraPanoramaRender : public PanoramaRender
 public:
     CudaMultiCameraPanoramaRender();
     ~CudaMultiCameraPanoramaRender() {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
     struct Impl;
@@ -76,7 +81,7 @@ class CudaMultiCameraPanoramaRender2 : public PanoramaRender
 public:
     CudaMultiCameraPanoramaRender2();
     ~CudaMultiCameraPanoramaRender2() {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
     struct Impl;

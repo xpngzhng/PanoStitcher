@@ -75,7 +75,7 @@ class PanoramaLocalDiskTask
 {
 public:
     virtual ~PanoramaLocalDiskTask() {};
-    virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+    virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, ProgressCallbackFunction func, void* data) = 0;
     virtual bool start() = 0;
@@ -89,7 +89,7 @@ class CPUPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 public:
     CPUPanoramaLocalDiskTask();
     ~CPUPanoramaLocalDiskTask();
-    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, ProgressCallbackFunction func, void* data);
     bool start();
@@ -102,6 +102,7 @@ private:
     void clear();
 
     int numVideos;
+    int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
     std::vector<cv::Mat> dstSrcMaps, dstMasks;
@@ -129,7 +130,7 @@ class CudaPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 public:
     CudaPanoramaLocalDiskTask();
     ~CudaPanoramaLocalDiskTask();
-    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, ProgressCallbackFunction func, void* data);
     bool start();
@@ -142,6 +143,7 @@ private:
     void clear();
 
     int numVideos;
+    int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
     std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
@@ -298,7 +300,7 @@ public:
     bool openAudioDevice(const avp::Device& device, int sampleRate);
     void closeAudioDevice();
 
-    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool useCuda);
+    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
     bool openLiveStream(const std::string& name,
