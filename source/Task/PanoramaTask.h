@@ -104,13 +104,6 @@ private:
     std::unique_ptr<Impl> ptrImpl;
 };
 
-// for video source
-typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
-// for synced video source
-typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
-// for audio source and proc result
-typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
-
 typedef void (*LogCallbackFunction)(const std::string& line, void* data);
 typedef void (*FrameRateCallbackFunction)(double fps, void* data);
 typedef void (*ShowVideoSourceFramesCallbackFunction)(const std::vector<avp::SharedAudioVideoFrame>& frames, void* data);
@@ -163,7 +156,10 @@ public:
     bool hasFinished() const;
 
 private:
-    std::vector<avp::AudioVideoReader> videoReaders;
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
+
+    /*std::vector<avp::AudioVideoReader> videoReaders;
     std::vector<avp::Device> videoDevices;
     cv::Size videoFrameSize;
     int videoFrameRate;
@@ -254,5 +250,5 @@ private:
     RealTimeFrameVectorQueue syncedFramesBufferForShow;
     StampedPinnedMemoryPool syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
-    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
+    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;*/
 };

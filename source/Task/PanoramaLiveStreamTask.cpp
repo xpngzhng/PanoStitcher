@@ -3,19 +3,166 @@
 #include "Image.h"
 #include "opencv2/imgproc/imgproc.hpp"
 
-PanoramaLiveStreamTask::PanoramaLiveStreamTask()
+// for video source
+typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
+// for synced video source
+typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
+// for audio source and proc result
+typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
+
+struct PanoramaLiveStreamTask::Impl
+{
+    Impl();
+    ~Impl();
+
+    bool openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success);
+    void closeVideoDevices();
+
+    bool openAudioDevice(const avp::Device& device, int sampleRate);
+    void closeAudioDevice();
+
+    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
+    void stopVideoStitch();
+
+    bool openLiveStream(const std::string& name,
+        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS);
+    void closeLiveStream();
+
+    void beginSaveToDisk(const std::string& dir,
+        int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDuration);
+    void stopSaveToDisk();
+
+    void beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data);
+    void stopShowVideoSourceFrames();
+
+    void beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data);
+    void stopShowStitchedFrame();
+
+    void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
+    void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
+    void setLogCallback(LogCallbackFunction func, void* data);
+    void initCallback();
+
+    bool getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
+    bool getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame);
+
+    bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
+    bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
+    void cancelGetVideoSourceFrames();
+    void cancelGetStitchedVideoFrame();
+
+    void initAll();
+    void closeAll();
+    bool hasFinished() const;
+
+    std::vector<avp::AudioVideoReader> videoReaders;
+    std::vector<avp::Device> videoDevices;
+    cv::Size videoFrameSize;
+    int videoFrameRate;
+    int numVideos;
+    int videoOpenSuccess;
+    int videoCheckFrameRate;
+    std::vector<std::unique_ptr<std::thread> > videoSourceThreads;
+    std::unique_ptr<std::thread> videoSinkThread;
+    int videoEndFlag;
+    int videoThreadsJoined;
+    void videoSource(int index);
+    void videoSink();
+
+    avp::AudioVideoReader audioReader;
+    avp::Device audioDevice;
+    int audioSampleRate;
+    int audioOpenSuccess;
+    std::unique_ptr<std::thread> audioThread;
+    int audioEndFlag;
+    int audioThreadJoined;
+    void audioSource();
+
+    CudaMultiCameraPanoramaRender2 render;
+    std::string renderConfigName;
+    cv::Size renderFrameSize;
+    int renderPrepareSuccess;
+    std::unique_ptr<std::thread> renderThread;
+    int renderEndFlag;
+    int renderThreadJoined;
+    void procVideo();
+
+    std::unique_ptr<std::thread> postProcThread;
+    void postProc();
+
+    avp::AudioVideoWriter streamWriter;
+    std::string streamURL;
+    cv::Size streamFrameSize;
+    int streamVideoBitRate;
+    std::string streamVideoEncodePreset;
+    int streamAudioBitRate;
+    int streamOpenSuccess;
+    std::unique_ptr<std::thread> streamThread;
+    int streamEndFlag;
+    int streamThreadJoined;
+    void streamSend();
+
+    avp::AudioVideoWriter fileWriter;
+    std::string fileWriterFormat;
+    cv::Size fileFrameSize;
+    int fileVideoBitRate;
+    std::string fileVideoEncodePreset;
+    int fileAudioBitRate;
+    int fileDuration;
+    int fileConfigSet;
+    std::unique_ptr<std::thread> fileThread;
+    int fileEndFlag;
+    int fileThreadJoined;
+    void fileSave();
+
+    std::unique_ptr<std::thread> showVideoSourceThread;
+    int showVideoSourceEndFlag;
+    int showVideoSourceThreadJoined;
+    void showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data);
+
+    std::unique_ptr<std::thread> showStitchedThread;
+    int showStitchedEndFlag;
+    int showStitchedThreadJoined;
+    void showStitched(ShowStichedFrameCallbackFunction func, void* data);
+
+    std::mutex videoSourceFramesMutex;
+    std::vector<avp::SharedAudioVideoFrame> videoSourceFrames;
+
+    std::mutex stitchedFrameMutex;
+    avp::SharedAudioVideoFrame stitchedFrame;
+
+    LogCallbackFunction logCallbackFunc;
+    void* logCallbackData;
+
+    FrameRateCallbackFunction videoFrameRateCallbackFunc;
+    void* videoFrameRateCallbackData;
+
+    FrameRateCallbackFunction stitchFrameRateCallbackFunc;
+    void* stitchFrameRateCallbackData;
+
+    int pixelType;
+    int finish;
+    std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
+    RealTimeFrameVectorQueue syncedFramesBufferForShow;
+    StampedPinnedMemoryPool syncedFramesBufferForProc;
+    SharedAudioVideoFramePool procFramePool;
+    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
+};
+
+
+PanoramaLiveStreamTask::Impl::Impl()
 {
     initAll();
     initCallback();
 }
 
-PanoramaLiveStreamTask::~PanoramaLiveStreamTask()
+PanoramaLiveStreamTask::Impl::~Impl()
 {
     closeAll();
     printf("live stream task destructore called\n");
 }
 
-bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
+bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
 {
     videoDevices = devices;
     videoFrameSize.width = width;
@@ -74,9 +221,9 @@ bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& de
     videoSourceThreads.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
-        videoSourceThreads[i].reset(new std::thread(&PanoramaLiveStreamTask::videoSource, this, i));
+        videoSourceThreads[i].reset(new std::thread(&PanoramaLiveStreamTask::Impl::videoSource, this, i));
     }
-    videoSinkThread.reset(new std::thread(&PanoramaLiveStreamTask::videoSink, this));
+    videoSinkThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::videoSink, this));
 
     if (logCallbackFunc)
         logCallbackFunc("Video sources related threads create success\n", logCallbackData);
@@ -84,7 +231,7 @@ bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& de
     return true;
 }
 
-void PanoramaLiveStreamTask::closeVideoDevices()
+void PanoramaLiveStreamTask::Impl::closeVideoDevices()
 {
     if (videoOpenSuccess && !videoThreadsJoined)
     {
@@ -105,7 +252,7 @@ void PanoramaLiveStreamTask::closeVideoDevices()
     }
 }
 
-bool PanoramaLiveStreamTask::openAudioDevice(const avp::Device& device, int sampleRate)
+bool PanoramaLiveStreamTask::Impl::openAudioDevice(const avp::Device& device, int sampleRate)
 {
     audioDevice = device;
     audioSampleRate = sampleRate;
@@ -135,7 +282,7 @@ bool PanoramaLiveStreamTask::openAudioDevice(const avp::Device& device, int samp
 
     audioEndFlag = 0;
     audioThreadJoined = 0;
-    audioThread.reset(new std::thread(&PanoramaLiveStreamTask::audioSource, this));
+    audioThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::audioSource, this));
 
     if (logCallbackFunc)
         logCallbackFunc("Audio source thread create success", logCallbackData);
@@ -143,7 +290,7 @@ bool PanoramaLiveStreamTask::openAudioDevice(const avp::Device& device, int samp
     return true;
 }
 
-void PanoramaLiveStreamTask::closeAudioDevice()
+void PanoramaLiveStreamTask::Impl::closeAudioDevice()
 {
     if (audioOpenSuccess && !audioThreadJoined)
     {
@@ -161,7 +308,7 @@ void PanoramaLiveStreamTask::closeAudioDevice()
     }
 }
 
-bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
+bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
     pixelType = avp::PixelTypeBGR32;
     renderConfigName = configFileName;
@@ -208,8 +355,8 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
 
     renderEndFlag = 0;
     renderThreadJoined = 0;
-    renderThread.reset(new std::thread(&PanoramaLiveStreamTask::procVideo, this));
-    postProcThread.reset(new std::thread(&PanoramaLiveStreamTask::postProc, this));
+    renderThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::procVideo, this));
+    postProcThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::postProc, this));
 
     if (logCallbackFunc)
         logCallbackFunc("Video stitch thread create success", logCallbackData);
@@ -217,7 +364,7 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
     return true;
 }
 
-void PanoramaLiveStreamTask::stopVideoStitch()
+void PanoramaLiveStreamTask::Impl::stopVideoStitch()
 {
     if (renderPrepareSuccess && !renderThreadJoined)
     {
@@ -236,7 +383,7 @@ void PanoramaLiveStreamTask::stopVideoStitch()
     }
 }
 
-bool PanoramaLiveStreamTask::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
+bool PanoramaLiveStreamTask::Impl::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
 {
     if (finish)
     {
@@ -259,7 +406,7 @@ bool PanoramaLiveStreamTask::getLatestVideoSourceFrames(std::vector<avp::SharedA
     return true;
 }
 
-bool PanoramaLiveStreamTask::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
+bool PanoramaLiveStreamTask::Impl::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
 {
     if (finish)
     {
@@ -274,27 +421,27 @@ bool PanoramaLiveStreamTask::getLatestStitchedFrame(avp::SharedAudioVideoFrame& 
     return true;
 }
 
-bool PanoramaLiveStreamTask::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
+bool PanoramaLiveStreamTask::Impl::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
 {
     return syncedFramesBufferForShow.pull(frames);
 }
 
-bool PanoramaLiveStreamTask::getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame)
+bool PanoramaLiveStreamTask::Impl::getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame)
 {
     return procFrameBufferForShow.pull(frame);
 }
 
-void PanoramaLiveStreamTask::cancelGetVideoSourceFrames()
+void PanoramaLiveStreamTask::Impl::cancelGetVideoSourceFrames()
 {
     syncedFramesBufferForShow.stop();
 }
 
-void PanoramaLiveStreamTask::cancelGetStitchedVideoFrame()
+void PanoramaLiveStreamTask::Impl::cancelGetStitchedVideoFrame()
 {
     procFrameBufferForShow.stop();
 }
 
-bool PanoramaLiveStreamTask::openLiveStream(const std::string& name, 
+bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
     int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS)
 {
     streamURL = name;
@@ -331,7 +478,7 @@ bool PanoramaLiveStreamTask::openLiveStream(const std::string& name,
 
     streamEndFlag = 0;
     streamThreadJoined = 0;
-    streamThread.reset(new std::thread(&PanoramaLiveStreamTask::streamSend, this));
+    streamThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::streamSend, this));
 
     if (logCallbackFunc)
         logCallbackFunc("Live stream thread create success", logCallbackData);
@@ -339,7 +486,7 @@ bool PanoramaLiveStreamTask::openLiveStream(const std::string& name,
     return true;
 }
 
-void PanoramaLiveStreamTask::closeLiveStream()
+void PanoramaLiveStreamTask::Impl::closeLiveStream()
 {
     if (streamOpenSuccess && !streamThreadJoined)
     {
@@ -358,7 +505,7 @@ void PanoramaLiveStreamTask::closeLiveStream()
     }
 }
 
-void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir, 
+void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir,
     int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
     fileWriterFormat = dir + "/temp%d.mp4";
@@ -377,10 +524,10 @@ void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir,
 
     fileEndFlag = 0;
     fileThreadJoined = 0;
-    fileThread.reset(new std::thread(&PanoramaLiveStreamTask::fileSave, this));
+    fileThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::fileSave, this));
 }
 
-void PanoramaLiveStreamTask::stopSaveToDisk()
+void PanoramaLiveStreamTask::Impl::stopSaveToDisk()
 {
     if (fileConfigSet && !fileThreadJoined)
     {
@@ -392,16 +539,16 @@ void PanoramaLiveStreamTask::stopSaveToDisk()
     }
 }
 
-void PanoramaLiveStreamTask::beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data)
 {
     showVideoSourceEndFlag = 0;
     showVideoSourceThreadJoined = 0;
-    showVideoSourceThread.reset(new std::thread(&PanoramaLiveStreamTask::showVideoSource, this, func, data));
+    showVideoSourceThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::showVideoSource, this, func, data));
     //if (logCallbackFunc)
     //    logCallbackFunc("Show video source thread create success", logCallbackData);
 }
 
-void PanoramaLiveStreamTask::stopShowVideoSourceFrames()
+void PanoramaLiveStreamTask::Impl::stopShowVideoSourceFrames()
 {
     if (showVideoSourceThread && !showVideoSourceThreadJoined)
     {
@@ -413,14 +560,14 @@ void PanoramaLiveStreamTask::stopShowVideoSourceFrames()
     }    
 }
 
-void PanoramaLiveStreamTask::beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data)
 {
     showStitchedEndFlag = 0;
     showStitchedThreadJoined = 0;
-    showStitchedThread.reset(new std::thread(&PanoramaLiveStreamTask::showStitched, this, func, data));
+    showStitchedThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::showStitched, this, func, data));
 }
 
-void PanoramaLiveStreamTask::stopShowStitchedFrame()
+void PanoramaLiveStreamTask::Impl::stopShowStitchedFrame()
 {
     if (showStitchedThread && !showStitchedThreadJoined)
     {
@@ -432,7 +579,7 @@ void PanoramaLiveStreamTask::stopShowStitchedFrame()
     }
 }
 
-void PanoramaLiveStreamTask::initAll()
+void PanoramaLiveStreamTask::Impl::initAll()
 {
     videoFrameRate = 0;
     numVideos = 0;
@@ -472,7 +619,7 @@ void PanoramaLiveStreamTask::initAll()
     finish = 0;
 }
 
-void PanoramaLiveStreamTask::closeAll()
+void PanoramaLiveStreamTask::Impl::closeAll()
 {
     closeVideoDevices();
     closeAudioDevice();
@@ -510,7 +657,7 @@ void PanoramaLiveStreamTask::closeAll()
     printf("Live stream task's all buffer cleared\n");
 }
 
-bool PanoramaLiveStreamTask::hasFinished() const
+bool PanoramaLiveStreamTask::Impl::hasFinished() const
 {
     return finish;
 }
@@ -531,7 +678,7 @@ inline void stopCompleteFrameBuffers(std::vector<CompleteFrameQueue>* ptrFrameBu
         frameBuffers[i].stop();
 }
 
-void PanoramaLiveStreamTask::videoSource(int index)
+void PanoramaLiveStreamTask::Impl::videoSource(int index)
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started, index = %d\n", __FUNCTION__, id, index);
@@ -593,7 +740,7 @@ void PanoramaLiveStreamTask::videoSource(int index)
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::videoSink()
+void PanoramaLiveStreamTask::Impl::videoSink()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -760,7 +907,7 @@ END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::procVideo()
+void PanoramaLiveStreamTask::Impl::procVideo()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -840,7 +987,7 @@ void PanoramaLiveStreamTask::procVideo()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::postProc()
+void PanoramaLiveStreamTask::Impl::postProc()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -896,7 +1043,7 @@ void PanoramaLiveStreamTask::postProc()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::audioSource()
+void PanoramaLiveStreamTask::Impl::audioSource()
 {
     if (!audioOpenSuccess)
         return;
@@ -936,7 +1083,7 @@ void PanoramaLiveStreamTask::audioSource()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::streamSend()
+void PanoramaLiveStreamTask::Impl::streamSend()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -973,7 +1120,7 @@ void PanoramaLiveStreamTask::streamSend()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::fileSave()
+void PanoramaLiveStreamTask::Impl::fileSave()
 {
     if (!fileConfigSet)
         return;
@@ -1066,7 +1213,7 @@ void PanoramaLiveStreamTask::fileSave()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data)
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -1089,7 +1236,7 @@ void PanoramaLiveStreamTask::showVideoSource(ShowVideoSourceFramesCallbackFuncti
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::showStitched(ShowStichedFrameCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::showStitched(ShowStichedFrameCallbackFunction func, void* data)
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -1112,27 +1259,174 @@ void PanoramaLiveStreamTask::showStitched(ShowStichedFrameCallbackFunction func,
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
 {
     videoFrameRateCallbackFunc = func;
     videoFrameRateCallbackData = data;
 }
 
-void PanoramaLiveStreamTask::setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data)
 {
     stitchFrameRateCallbackFunc = func;
     stitchFrameRateCallbackData = data;
 }
 
-void PanoramaLiveStreamTask::setLogCallback(LogCallbackFunction func, void* data)
+void PanoramaLiveStreamTask::Impl::setLogCallback(LogCallbackFunction func, void* data)
 {
     logCallbackFunc = func;
     logCallbackData = data;
 }
 
-void PanoramaLiveStreamTask::initCallback()
+void PanoramaLiveStreamTask::Impl::initCallback()
 {
     logCallbackFunc = 0;
     videoFrameRateCallbackFunc = 0;
     stitchFrameRateCallbackFunc = 0;
+}
+
+PanoramaLiveStreamTask::PanoramaLiveStreamTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+PanoramaLiveStreamTask::~PanoramaLiveStreamTask()
+{
+
+}
+
+bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
+{
+    return ptrImpl->openVideoDevices(devices, width, height, frameRate, success);
+}
+
+void PanoramaLiveStreamTask::closeVideoDevices()
+{
+    ptrImpl->closeVideoDevices();
+}
+
+bool PanoramaLiveStreamTask::openAudioDevice(const avp::Device& device, int sampleRate)
+{
+    return ptrImpl->openAudioDevice(device, sampleRate);
+}
+
+void PanoramaLiveStreamTask::closeAudioDevice()
+{
+    return ptrImpl->closeAudioDevice();
+}
+
+bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
+{
+    return ptrImpl->beginVideoStitch(configFileName, width, height, highQualityBlend);
+}
+
+void PanoramaLiveStreamTask::stopVideoStitch()
+{
+    ptrImpl->stopVideoStitch();
+}
+
+bool PanoramaLiveStreamTask::openLiveStream(const std::string& name,
+    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS)
+{
+    return ptrImpl->openLiveStream(name, width, height, videoBPS, videoPreset, audioBPS);
+}
+
+void PanoramaLiveStreamTask::closeLiveStream()
+{
+    ptrImpl->closeLiveStream();
+}
+
+void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir,
+    int width, int height, int videoBPS, const std::string& videoPreset, int audioBPS, int fileDuration)
+{
+    ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoPreset, audioBPS, fileDuration);
+}
+
+void PanoramaLiveStreamTask::stopSaveToDisk()
+{
+    ptrImpl->stopSaveToDisk();
+}
+
+void PanoramaLiveStreamTask::beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data)
+{
+    ptrImpl->beginShowVideoSourceFrames(func, data);
+}
+
+void PanoramaLiveStreamTask::stopShowVideoSourceFrames()
+{
+    ptrImpl->stopShowVideoSourceFrames();
+}
+
+void PanoramaLiveStreamTask::beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data)
+{
+    ptrImpl->beginShowStitchedFrame(func, data);
+}
+
+void PanoramaLiveStreamTask::stopShowStitchedFrame()
+{
+    ptrImpl->stopShowStitchedFrame();
+}
+
+void PanoramaLiveStreamTask::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
+{
+    ptrImpl->setVideoSourceFrameRateCallback(func, data);
+}
+
+void PanoramaLiveStreamTask::setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data)
+{
+    ptrImpl->setStitchFrameRateCallback(func, data);
+}
+
+void PanoramaLiveStreamTask::setLogCallback(LogCallbackFunction func, void* data)
+{
+    ptrImpl->setLogCallback(func, data);
+}
+
+void PanoramaLiveStreamTask::initCallback()
+{
+    ptrImpl->initCallback();
+}
+
+bool PanoramaLiveStreamTask::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
+{
+    return ptrImpl->getLatestVideoSourceFrames(frames);
+}
+
+bool PanoramaLiveStreamTask::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
+{
+    return ptrImpl->getLatestStitchedFrame(frame);
+}
+
+bool PanoramaLiveStreamTask::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
+{
+    return ptrImpl->getVideoSourceFrames(frames);
+}
+
+bool PanoramaLiveStreamTask::getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame)
+{
+    return ptrImpl->getStitchedVideoFrame(frame);
+}
+
+void PanoramaLiveStreamTask::cancelGetVideoSourceFrames()
+{
+    return ptrImpl->cancelGetVideoSourceFrames();
+}
+
+void PanoramaLiveStreamTask::cancelGetStitchedVideoFrame()
+{
+    return ptrImpl->cancelGetStitchedVideoFrame();
+}
+
+void PanoramaLiveStreamTask::initAll()
+{
+    ptrImpl->initAll();
+}
+
+void PanoramaLiveStreamTask::closeAll()
+{
+    ptrImpl->closeAll();
+}
+
+bool PanoramaLiveStreamTask::hasFinished() const
+{
+    return ptrImpl->hasFinished();
 }
