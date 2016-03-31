@@ -7,9 +7,9 @@
 #include "SharedAudioVideoFramePool.h"
 #include "Timer.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
 
 #include <thread>
 #include <mutex>
@@ -22,7 +22,7 @@
 
 struct StampedPinnedMemoryVector
 {
-    std::vector<cv::gpu::CudaMem> frames;
+    std::vector<cv::cuda::HostMem> frames;
     long long int timeStamp;
 };
 
@@ -111,7 +111,7 @@ void decodeThread()
         {
             srcFramesMemoryPool.get(deepFrames.frames[i]);
             cv::Mat src(shallowFrames[i].height, shallowFrames[i].width, CV_8UC4, shallowFrames[i].data, shallowFrames[i].step);
-            cv::Mat dst = deepFrames.frames[i];
+            cv::Mat dst = deepFrames.frames[i].createMatHeader();
             src.copyTo(dst);
         }
 
@@ -132,18 +132,24 @@ void gpuProcThread()
     StampedPinnedMemoryVector srcFrames;
     avp::SharedAudioVideoFrame dstFrame;
     std::vector<cv::Mat> images(numVideos);
+    ztool::Timer t, gput;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
             break;
         
+        t.start();
         dstFramesMemoryPool.get(dstFrame);
         for (int i = 0; i < numVideos; i++)
-            images[i] = srcFrames.frames[i];
+            images[i] = srcFrames.frames[i].createMatHeader();
         cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
+        gput.start();
         render.render(images, result);
+        gput.end();
         dstFrame.timeStamp = srcFrames.timeStamp;
         procFrameBuffer.push(dstFrame);
+        t.end();
+        printf("gpu time = %f, proc time = %f\n", gput.elapse(), t.elapse());
 
         count++;
     }
@@ -168,8 +174,11 @@ void encodeThread()
         timerEncode.start();
         writer.write(avp::AudioVideoFrame(deepFrame));
         timerEncode.end();
-        count++;
-        printf("frame %d finish, encode time = %f\n", count, timerEncode.elapse());
+        if (deepFrame.mediaType == avp::VIDEO)
+        {
+            //count++;
+            //printf("frame %d finish, encode time = %f\n", count, timerEncode.elapse());
+        }
         actualWriteFrame++;
     }
 
@@ -179,14 +188,14 @@ void encodeThread()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_param_file |  | camera param file path}"
-        "{b | video_path_offset_file |  | video path and offset file path}"
-        "{c | num_frames_skip | 100 | number of frames to skip}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{h | pano_video_name | panoptslibx264withaudiolinear.mp4 | xml param file path}"
-        "{g | pano_video_num_frames | 1000 | number of frames to write}"
-        "{f | audio_index | 0 | select audio from which video}";
+        "{camera_param_file      |      | camera param file path}"
+        "{video_path_offset_file |      | video path and offset file path}"
+        "{num_frames_skip        | 100  | number of frames to skip}"
+        "{pano_width             | 2048 | pano picture width}"
+        "{pano_height            | 1024 | pano picture height}"
+        "{pano_video_name        | panoptslibx264withaudiolinear.mp4 | xml param file path}"
+        "{pano_video_num_frames  | 1000 | number of frames to write}"
+        "{audio_index            | -1    | select audio from which video}";
 
     cv::CommandLineParser parser(argc, argv, keys);
     
@@ -279,7 +288,7 @@ int main(int argc, char* argv[])
     srcSize.width = readers[0].getVideoWidth();
     srcSize.height = readers[0].getVideoHeight();
 
-    success = render.prepare(cameraParamFile, PanoramaRender::BlendTypeLinear, srcSize, dstSize);
+    success = render.prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!success)
     {
         printf("Blender prepare failed, exit.\n");

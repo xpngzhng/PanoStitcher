@@ -3,9 +3,9 @@
 #include "AudioVideoProcessor.h"
 #include "Timer.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
 
 #include <thread>
 #include <mutex>
@@ -17,14 +17,14 @@
 
 int numVideos;
 std::vector<avp::AudioVideoReader> readers;
-std::vector<cv::gpu::GpuMat> dstMasksGpu;
-std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
+std::vector<cv::cuda::GpuMat> dstMasksGpu;
+std::vector<cv::cuda::GpuMat> xmapsGpu, ymapsGpu;
 CudaTilingMultibandBlendFast blender;
 //CudaTilingLinearBlend blender;
-std::vector<cv::gpu::Stream> streams;
-std::vector<cv::gpu::CudaMem> pinnedMems;
-std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
-cv::gpu::GpuMat blendImageGpu;
+std::vector<cv::cuda::Stream> streams;
+std::vector<cv::cuda::HostMem> pinnedMems;
+std::vector<cv::cuda::GpuMat> imagesGpu, reprojImagesGpu;
+cv::cuda::GpuMat blendImageGpu;
 cv::Mat blendImageCpu;
 ztool::Timer timerAll, timerTotal, timerDecode, timerUpload, timerReproject, timerBlend, timerDownload, timerEncode;
 int frameCount;
@@ -93,7 +93,7 @@ void decodeThread()
                     break;
                 }
                 cv::Mat src(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
-                cv::Mat dst(pinnedMems[i]);
+                cv::Mat dst(pinnedMems[i].createMatHeader());
                 src.copyTo(dst);
             }
             //timerDecode.end();
@@ -145,7 +145,7 @@ void gpuProcThread()
 
             //timerReproject.start();
             for (int i = 0; i < numVideos; i++)
-                streams[i].enqueueUpload(pinnedMems[i], imagesGpu[i]);
+                imagesGpu[i].upload(pinnedMems[i], streams[i]);
             for (int i = 0; i < numVideos; i++)
                 cudaReprojectTo16S(imagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
             for (int i = 0; i < numVideos; i++)
@@ -157,7 +157,7 @@ void gpuProcThread()
         cvDecodedImagesForWrite.notify_one();
 
         blender.blend(reprojImagesGpu, blendImageGpu);
-        cv::gpu::Stream::Null().waitForCompletion();
+        cv::cuda::Stream::Null().waitForCompletion();
 
         {
             std::unique_lock<std::mutex> ul(mtxEncodedImage);
@@ -220,13 +220,13 @@ void encodeThread()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_param_file |  | camera param file path}"
-        "{b | video_path_offset_file |  | video path and offset file path}"
-        "{c | num_frames_skip | 100 | number of frames to skip}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{h | pano_video_name | panoh264qsv_4k.mp4 | xml param file path}"
-        "{g | pano_video_num_frames | 1000 | number of frames to write}";
+        "{camera_param_file      |      | camera param file path}"
+        "{video_path_offset_file |      | video path and offset file path}"
+        "{num_frames_skip        | 100  | number of frames to skip}"
+        "{pano_width             | 2048 | pano picture width}"
+        "{pano_height            | 1024 | pano picture height}"
+        "{pano_video_name        | panoh264qsv_4k.mp4 | xml param file path}"
+        "{pano_video_num_frames  | 1000 | number of frames to write}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
