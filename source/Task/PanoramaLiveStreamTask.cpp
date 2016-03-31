@@ -769,7 +769,10 @@ void PanoramaLiveStreamTask::procVideo()
             break;
         //printf("show\n");
         if (!syncedFramesBufferForProc.pull(mems, timeStamp))
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
+        }
         printf("ts %lld\n", timeStamp);
         //printf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
@@ -850,7 +853,7 @@ void PanoramaLiveStreamTask::procVideo()
                 procFrameBufferForSave.push(deep);
             copyTimer.end();
             localTimer.end();
-            printf("%f, %f, %f\n", procTimer.elapse(), copyTimer.elapse(), localTimer.elapse());
+            //printf("%f, %f, %f\n", procTimer.elapse(), copyTimer.elapse(), localTimer.elapse());
         }
     }
 

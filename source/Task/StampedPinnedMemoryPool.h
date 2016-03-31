@@ -30,14 +30,27 @@ public:
     bool push(const std::vector<avp::SharedAudioVideoFrame>& frames)
     {
         std::lock_guard<std::mutex> lock(mtxBuffer);
+
+        int c = 0;
+        for (PoolType::iterator itr = pool.begin(); itr != pool.end(); ++itr)
+            c++;
+
+        if (c > maxCapacity)
+            return false;
+
         std::shared_ptr<StampedPinnedMemory> ptrMemory;
         if (currCapacity < maxCapacity)
         {
             ptrMemory.reset(new StampedPinnedMemory);
+            // There may be something wrong in the following line
+            pool.push_back(ptrMemory);
             currCapacity++;
+            size++;
+            printf("not full\n");
         }
         else
         {
+            /*
             for (PoolType::iterator itr = pool.begin(); itr != pool.end(); ++itr)
             {
                 ptrMemory = *itr;
@@ -55,15 +68,57 @@ public:
                     break;
                 }
             }
+            */
+
+            // If currCapacity == maxCapacity, we cannot allocate more memory
+            // We can only change allocated memory to put new frames
+            if (size == maxCapacity)
+            {
+                // If size == maxCapacity, erase the smallest time stamp item
+                // append the pointed memory to the end of the list
+                // newly arriving frames will be copied to it
+                ptrMemory = pool.front();
+                pool.pop_front();
+                pool.push_back(ptrMemory);
+            }
+            else
+            {
+                PoolType::iterator itr = pool.begin();
+                // Go to the maybe available memory
+                // The first item is just the size-th item (counted from zero) of the list
+                for (int i = 0; i < size; i++)
+                    ++itr;
+                PoolType::iterator itrEnd = itr;
+                bool foundAvailable = false;
+                for (; itr != pool.end(); ++itr)
+                {
+                    ptrMemory = *itr;
+                    StampedPinnedMemory& stampedMem = *ptrMemory.get();
+                    if (!stampedMem.buffer[0].refcount || (*stampedMem.buffer[0].refcount == 1))
+                    {
+                        foundAvailable = true;
+                        break;
+                    }
+                }
+                if (foundAvailable)
+                    size++;
+                // If we cannot find available memory at the tail part of the list,
+                // We should erase the smallset time stamp item
+                if (!foundAvailable)
+                {
+                    ptrMemory = pool.front();
+                    pool.pop_front();
+                    pool.insert(itrEnd, ptrMemory);
+                }
+            }
+            
             // The following case should never happen
             // since maxSize > 1 and only one thread use one item in pool
             if (!ptrMemory.get())
                 return false;
         }
-        
-        if (size < currCapacity)
-            size++;
-        pool.push_back(ptrMemory);
+
+        //pool.push_back(ptrMemory);
         StampedPinnedMemory& stampedMem = *ptrMemory.get();
         int num = frames.size();
         stampedMem.buffer.resize(num);
@@ -75,6 +130,10 @@ public:
             src.copyTo(dst);
         }
         stampedMem.timeStamp = frames[0].timeStamp;
+
+        for (PoolType::iterator itr = pool.begin(); itr != pool.end(); ++itr)
+            printf("%lld ", (*itr)->timeStamp);
+        printf("\n");
         
         return true;
     }
@@ -89,10 +148,15 @@ public:
         }
 
         std::lock_guard<std::mutex> lock(mtxBuffer);
-        StampedPinnedMemory& stampedMem = *(*pool.begin()).get();
+        std::shared_ptr<StampedPinnedMemory> ptrMemory = *pool.begin();
+        pool.erase(pool.begin());
+        // Output memory is pushed to the end of the list
+        pool.push_back(ptrMemory);
+        StampedPinnedMemory& stampedMem = *ptrMemory.get();
         mems = stampedMem.buffer;
         timeStamp = stampedMem.timeStamp;
         size--;
+        printf("pull\n");
 
         return true;
     }
