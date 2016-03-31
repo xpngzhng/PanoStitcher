@@ -1,6 +1,6 @@
 #include "PanoramaTask.h"
 #include "PanoramaTaskUtil.h"
-#include "StampedFrameQueue.h"
+#include "ConcurrentQueue.h"
 #include "ZBlend.h"
 #include "ZReproject.h"
 #include "RicohUtil.h"

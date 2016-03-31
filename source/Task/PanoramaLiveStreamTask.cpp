@@ -1,6 +1,6 @@
 #include "PanoramaTask.h"
-#include "StampedFrameQueue.h"
-#include "StampedPinnedMemoryPool.h"
+#include "ConcurrentQueue.h"
+#include "PinnedMemoryFrameQueue.h"
 #include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
 #include "Timer.h"

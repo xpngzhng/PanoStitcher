@@ -19,14 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTask.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTaskUtil.h" />
+    <ClInclude Include="..\..\source\Task\PinnedMemoryFrameQueue.h" />
     <ClInclude Include="..\..\source\Task\PinnedMemoryPool.h" />
     <ClInclude Include="..\..\source\Task\RicohUtil.h" />
     <ClInclude Include="..\..\source\Task\SharedAudioVideoFramePool.h" />
-    <ClInclude Include="..\..\source\Task\StampedFrameQueue.h" />
-    <ClInclude Include="..\..\source\Task\StampedPinnedMemoryPool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask.cpp" />
