@@ -33,6 +33,7 @@
     <ClCompile Include="..\..\source\Warp\PhotoParam.cpp" />
     <ClCompile Include="..\..\source\Warp\Remap.cpp" />
     <ClCompile Include="..\..\source\Warp\RotateImage.cpp" />
+    <ClCompile Include="..\..\source\Warp\TestZReproject.cpp" />
     <ClCompile Include="..\..\source\Warp\ZReproject.cpp" />
   </ItemGroup>
   <ItemGroup>

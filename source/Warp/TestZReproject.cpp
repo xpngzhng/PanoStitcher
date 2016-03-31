@@ -29,7 +29,7 @@ int main()
     //    loadPhotoParamFromXML("left.xml", params);
     //}
 
-    cv::Size dstSize = cv::Size(1400, 700);
+    cv::Size dstSize = cv::Size(100, 50);
 
     {
         std::vector<std::string> paths;
@@ -45,9 +45,30 @@ int main()
         std::vector<PhotoParam> params;
         //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
         //loadPhotoParamFromXML("F:\\panoimage\\outdoor\\outdoor.xml", params);
-        loadPhotoParamFromXML("F:\\panoimage\\circular\\param.xml", params);
-        rotatePhotoParamInXML("F:\\panoimage\\circular\\param.xml", "F:\\panoimage\\circular\\new.xml", 1.57, 0.0, 0.0);
+        //loadPhotoParamFromXML("F:\\panoimage\\circular\\param.xml", params);
+        loadPhotoParamFromXML("E:\\Projects\\Reprojecting\\Reproject\\stitchparam\\zhanxiang.xml", params);
+        //rotatePhotoParamInXML("F:\\panoimage\\circular\\param.xml", "F:\\panoimage\\circular\\new.xml", 1.57, 0.0, 0.0);
         //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+
+        Remap remap, remapInverse;
+        remap.init(params[0], dstSize.width, dstSize.height);
+        remapInverse.initInverse(params[0], dstSize.width, dstSize.height);
+        for (int i = 0; i < dstSize.height; i++)
+        {
+            for (int j = 0; j < dstSize.width; j++)
+            {
+                double x, y;
+                remap.remapImage(x, y, j, i);
+                double ii, jj;
+                remapInverse.inverseRemapImage(x, y, jj, ii);
+                if (abs(i - ii) > 0.01 || abs(j - jj) > 0.01)
+                {
+                    printf("(%d, %d) (%f,%f) (%f, %f)\n", j, i, x, y, jj, ii);
+                }
+            }
+        }
+        system("pause");
+        return 0;
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
