@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AudioVideoProcessor.h"
-#include "opencv2/gpu/gpu.hpp"
+#include "opencv2/core/cuda.hpp"
 #include <vector>
 #include <list>
 #include <memory>
@@ -69,7 +69,7 @@ public:
             {
                 mem.buffer[i].create(frames[i].height, frames[i].width, CV_8UC4);
                 cv::Mat src(frames[i].height, frames[i].width, CV_8UC4, frames[i].data, frames[i].step);
-                cv::Mat dst = mem.buffer[i];
+                cv::Mat dst = mem.buffer[i].createMatHeader();
                 src.copyTo(dst);
             }
             mem.timeStamp = frames[0].timeStamp;
@@ -85,14 +85,14 @@ public:
         return true;
     }
 
-    bool pull(std::vector<cv::gpu::CudaMem>& mems, long long int& timeStamp)
+    bool pull(std::vector<cv::cuda::HostMem>& mems, long long int& timeStamp)
     {
         std::unique_lock<std::mutex> lock(mtxBuffer);
         cvNonEmpty.wait(lock, [this] {return !indexes.empty() || pass; });
 
         if (pass)
         {
-            mems = std::vector<cv::gpu::CudaMem>();
+            mems = std::vector<cv::cuda::HostMem>();
             timeStamp = -1LL;
             return false;
         }
@@ -122,7 +122,7 @@ private:
     struct StampedPinnedMemory
     {
         StampedPinnedMemory() : timeStamp(-1LL), waiting(0) {}
-        std::vector<cv::gpu::CudaMem> buffer;
+        std::vector<cv::cuda::HostMem> buffer;
         long long int timeStamp;
         int waiting;
     };

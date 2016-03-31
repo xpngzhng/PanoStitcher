@@ -503,7 +503,7 @@ void CudaPanoramaLocalDiskTask::decode()
         {
             srcFramesMemoryPool.get(deepFrames.frames[i]);
             cv::Mat src(shallowFrames[i].height, shallowFrames[i].width, CV_8UC4, shallowFrames[i].data, shallowFrames[i].step);
-            cv::Mat dst = deepFrames.frames[i];
+            cv::Mat dst = deepFrames.frames[i].createMatHeader();
             src.copyTo(dst);
         }
 
@@ -539,7 +539,7 @@ void CudaPanoramaLocalDiskTask::proc()
 
         dstFramesMemoryPool.get(dstFrame);
         for (int i = 0; i < numVideos; i++)
-            images[i] = srcFrames.frames[i];
+            images[i] = srcFrames.frames[i].createMatHeader();
         cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
         render.render(images, result);
         dstFrame.timeStamp = srcFrames.timeStamp;

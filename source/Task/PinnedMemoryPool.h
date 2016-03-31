@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opencv2/gpu/gpu.hpp"
+#include "opencv2/core/cuda.hpp"
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -19,7 +19,7 @@ public:
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        cv::gpu::CudaMem test;
+        cv::cuda::HostMem test;
         try
         {
             test.create(rows_, cols_, type_);
@@ -45,12 +45,12 @@ public:
         pool.clear();
     }
 
-    bool get(cv::gpu::CudaMem& mem)
+    bool get(cv::cuda::HostMem& mem)
     {
         std::lock_guard<std::mutex> lock(mtx);
         if (!hasInit)
         {
-            mem = cv::gpu::CudaMem();
+            mem = cv::cuda::HostMem();
             return false;
         }
 
@@ -70,10 +70,10 @@ public:
             return true;
         }
 
-        cv::gpu::CudaMem newMem(rows, cols, type);
+        cv::cuda::HostMem newMem(rows, cols, type);
         if (!newMem.data)
         {
-            mem = cv::gpu::CudaMem();
+            mem = cv::cuda::HostMem();
             return false;
         }
 
@@ -83,7 +83,7 @@ public:
     }
 private:
     int rows, cols, type;
-    std::vector<cv::gpu::CudaMem> pool;
+    std::vector<cv::cuda::HostMem> pool;
     std::mutex mtx;
     int hasInit;
 };

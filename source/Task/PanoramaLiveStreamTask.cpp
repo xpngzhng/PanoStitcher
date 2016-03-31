@@ -765,7 +765,7 @@ void PanoramaLiveStreamTask::procVideo()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    std::vector<cv::gpu::CudaMem> mems;
+    std::vector<cv::cuda::HostMem> mems;
     long long int timeStamp;
     std::vector<cv::Mat> src;
     avp::SharedAudioVideoFrame frame;
@@ -814,7 +814,7 @@ void PanoramaLiveStreamTask::procVideo()
 
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
-                src[i] = mems[i];
+                src[i] = mems[i].createMatHeader();
             //frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
             procFramePool.get(frame);
             result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);

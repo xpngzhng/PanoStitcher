@@ -39,14 +39,14 @@ static void cancelTask(PanoramaLocalDiskTask* task)
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_param_file |  | camera param file path}"
-        "{b | video_path_offset_file |  | video path and offset file path}"
-        "{c | num_frames_skip | 100 | number of frames to skip}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{f | pano_video_name | panocpu.mp4 | xml param file path}"
-        "{g | pano_video_num_frames | 1000 | number of frames to write}"
-        "{h | use_cuda | false | use gpu to accelerate computation}";
+        "{camera_param_file      |             | camera param file path}"
+        "{video_path_offset_file |             | video path and offset file path}"
+        "{num_frames_skip        | 100         | number of frames to skip}"
+        "{pano_width             | 2048        | pano picture width}"
+        "{pano_height            | 1024        | pano picture height}"
+        "{pano_video_name        | panocpu.mp4 | xml param file path}"
+        "{pano_video_num_frames  | 1000        | number of frames to write}"
+        "{use_cuda               | false       | use gpu to accelerate computation}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 

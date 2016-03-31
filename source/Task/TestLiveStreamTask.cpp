@@ -138,26 +138,26 @@ void showVideoResult()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_model | dualgopro | camera model}"
-        "{b | camera_param_path | dualgopro.pts | camera parameter file path, may be xml file path or ptgui pts file path}"
-        "{c | num_cameras | 2 | number of cameras}"
-        "{d | camera_width | 1920 | camera picture width}"
-        "{e | camera_height | 1080 | camera picture height}"
-        "{f | frames_per_second | 30 | camera frame rate}"
-        "{g | pano_stream_frame_width | 1440 | pano video live stream picture width}"
-        "{h | pano_stream_frame_height | 720 | pano video live stream picture height}"
-        "{i | pano_stream_bits_per_second | 1000000 | pano video live stream bits per second}"
-        "{j | pano_stream_encode_preset | veryfast | pano video live stream x264 encode preset}"
-        "{k | pano_stream_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
-        "{l | pano_save_file | false | whether to save audio video to local hard disk}"
-        "{m | pano_file_duration | 60 | each local pano audio video file duration in seconds}"
-        "{g | pano_file_frame_width | 1440 | pano video local file picture width}"
-        "{h | pano_file_frame_height | 720 | pano video local file picture height}"
-        "{n | pano_file_bits_per_second | 1000000 | pano video local file bits per second}"
-        "{o | pano_file_encode_preset | veryfast | pano video local file x264 encode preset}"
-        "{p | enable_audio | false | enable audio or not}"
-        "{q | enable_interactive_select_devices | false | enable interactice select devices}"
-        "{r | enable_cuda | false | enable cuda reproject and blend to render panorama image}";
+        "{camera_model                | dualgopro     | camera model}"
+        "{camera_param_path           | dualgopro.pts | camera parameter file path, may be xml file path or ptgui pts file path}"
+        "{num_cameras                 | 2             | number of cameras}"
+        "{camera_width                | 1920          | camera picture width}"
+        "{camera_height               | 1080          | camera picture height}"
+        "{frames_per_second           | 30            | camera frame rate}"
+        "{pano_stream_frame_width     | 1440          | pano video live stream picture width}"
+        "{pano_stream_frame_height    | 720           | pano video live stream picture height}"
+        "{pano_stream_bits_per_second | 1000000       | pano video live stream bits per second}"
+        "{pano_stream_encode_preset   | veryfast      | pano video live stream x264 encode preset}"
+        "{pano_stream_url             | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
+        "{pano_save_file              | false         | whether to save audio video to local hard disk}"
+        "{pano_file_duration          | 60            | each local pano audio video file duration in seconds}"
+        "{pano_file_frame_width       | 1440          | pano video local file picture width}"
+        "{pano_file_frame_height      | 720           | pano video local file picture height}"
+        "{pano_file_bits_per_second   | 1000000       | pano video local file bits per second}"
+        "{pano_file_encode_preset     | veryfast      | pano video local file x264 encode preset}"
+        "{enable_audio                | false         | enable audio or not}"
+        "{enable_interactive_select_devices | false   | enable interactice select devices}"
+        "{enable_cuda                 | false         | enable cuda reproject and blend to render panorama image}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 

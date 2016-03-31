@@ -2,7 +2,7 @@
 
 #include "AudioVideoProcessor.h"
 #include "ZReproject.h"
-#include "opencv2/core/core.hpp"
+#include "opencv2/core.hpp"
 #include <vector>
 
 bool loadPhotoParams(const std::string& cameraParamFile, std::vector<PhotoParam>& params);

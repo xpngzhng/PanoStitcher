@@ -1,7 +1,7 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
 
 static const int UNIT_SHIFT = 10;
 static const int UNIT = 1 << UNIT_SHIFT;
@@ -712,14 +712,14 @@ struct CudaMultiCameraPanoramaRender::Impl
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 
     cv::Size srcFullSize;
-    std::vector<cv::gpu::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
-    std::vector<cv::gpu::CudaMem> srcMems;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::HostMem> srcMems;
     std::vector<cv::Mat> srcImages;
-    std::vector<cv::gpu::GpuMat> srcImagesGPU;
-    std::vector<cv::gpu::GpuMat> reprojImagesGPU;
-    cv::gpu::GpuMat blendImageGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    cv::cuda::GpuMat blendImageGPU;
     cv::Mat blendImage;
-    std::vector<cv::gpu::Stream> streams;
+    std::vector<cv::cuda::Stream> streams;
     CudaTilingMultibandBlendFast blender;
     int numImages;
     int success;
@@ -765,7 +765,7 @@ bool CudaMultiCameraPanoramaRender::Impl::prepare(const std::string& path, const
     for (int i = 0; i < numImages; i++)
     {
         srcMems[i].create(srcFullSize, CV_8UC4);
-        srcImages[i] = srcMems[i];
+        srcImages[i] = srcMems[i].createMatHeader();
     }
 
     streams.resize(numImages);
@@ -805,7 +805,7 @@ bool CudaMultiCameraPanoramaRender::Impl::render(const std::vector<cv::Mat>& src
     srcImagesGPU.resize(numImages);
     reprojImagesGPU.resize(numImages);
     for (int i = 0; i < numImages; i++)
-        streams[i].enqueueUpload(srcImages[i], srcImagesGPU[i]);
+        srcImagesGPU[i].upload(srcImages[i], streams[i]);    
     for (int i = 0; i < numImages; i++)
         cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
     for (int i = 0; i < numImages; i++)
@@ -838,12 +838,12 @@ struct CudaMultiCameraPanoramaRender2::Impl
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 
     cv::Size srcFullSize;
-    std::vector<cv::gpu::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
-    std::vector<cv::gpu::GpuMat> srcImagesGPU;
-    std::vector<cv::gpu::GpuMat> reprojImagesGPU;
-    cv::gpu::GpuMat blendImageGPU;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    cv::cuda::GpuMat blendImageGPU;
     cv::Mat blendImage;
-    std::vector<cv::gpu::Stream> streams;
+    std::vector<cv::cuda::Stream> streams;
     int blendType;
     CudaTilingMultibandBlendFast mbBlender;
     CudaTilingLinearBlend lBlender;
@@ -927,7 +927,7 @@ bool CudaMultiCameraPanoramaRender2::Impl::render(const std::vector<cv::Mat>& sr
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
         for (int i = 0; i < numImages; i++)
-            streams[i].enqueueUpload(src[i], srcImagesGPU[i]);
+            srcImagesGPU[i].upload(src[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
@@ -940,7 +940,7 @@ bool CudaMultiCameraPanoramaRender2::Impl::render(const std::vector<cv::Mat>& sr
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
         for (int i = 0; i < numImages; i++)
-            streams[i].enqueueUpload(src[i], srcImagesGPU[i]);
+            srcImagesGPU[i].upload(src[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
