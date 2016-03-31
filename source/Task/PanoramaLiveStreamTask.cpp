@@ -96,7 +96,7 @@ struct PanoramaLiveStreamTask::Impl
     std::unique_ptr<std::thread> postProcThread;
     void postProc();
 
-    avp::AudioVideoWriter streamWriter;
+    avp::AudioVideoWriter2 streamWriter;
     std::string streamURL;
     cv::Size streamFrameSize;
     int streamVideoBitRate;
@@ -108,7 +108,7 @@ struct PanoramaLiveStreamTask::Impl
     int streamThreadJoined;
     void streamSend();
 
-    avp::AudioVideoWriter fileWriter;
+    avp::AudioVideoWriter2 fileWriter;
     std::string fileWriterFormat;
     cv::Size fileFrameSize;
     int fileVideoBitRate;

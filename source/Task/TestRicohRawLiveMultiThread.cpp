@@ -2,12 +2,11 @@
 #include "AudioVideoProcessor.h"
 #include "Timer.h"
 #include "StampedFrameQueue.h"
-#include "StringUtil.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 #include <thread>
 #include <fstream>
@@ -18,14 +17,10 @@ cv::Size srcSize(1920, 1080);
 RicohPanoramaRender render;
 
 int frameCount = 0;
-avp::BGRImage rawImage;
-cv::Mat blendImage;
-
 ztool::Timer timerAll, timerTotal, timerDecode, timerReproject, timerBlend, timerEncode;
 
-avp::VideoReader reader;
-//avp::VideoWriter writer;
-avp::AudioVideoSender writer;
+avp::AudioVideoReader reader;
+avp::AudioVideoWriter writer;
 
 StampedFrameQueue displayQueue(36), writeQueue(36);
 
@@ -33,7 +28,7 @@ bool end = false;
 
 void read()
 {
-
+    avp::AudioVideoFrame rawImage;
     while (!end)
     {
         /*printf("currCount = %d\n", frameCount++);
@@ -55,9 +50,11 @@ void read()
         cv::Mat shallow(rawImage.height, rawImage.width, CV_8UC3, rawImage.data, rawImage.step);
         if (shallow.size() == srcSize)
         {
-            cv::Mat deep = shallow.clone();
-            displayQueue.push(deep);
-            writeQueue.push(deep);
+            StampedFrame f;
+            f.frame = shallow.clone();
+            f.timeStamp = rawImage.timeStamp;
+            displayQueue.push(f);
+            writeQueue.push(f);
         }            
         else
         {
@@ -97,7 +94,8 @@ void write()
         writeQueue.pull(frame);
         if (frame.frame.data)
         {
-            avp::BGRImage image(frame.frame.data, frame.frame.cols, frame.frame.rows, frame.frame.step);
+            avp::AudioVideoFrame image = avp::videoFrame(frame.frame.data, frame.frame.step, 
+                avp::PixelTypeBGR24, frame.frame.cols, frame.frame.rows, frame.timeStamp);
             bool ok = writer.write(image);
             if (!ok)
                 printf("Failed to write video frame, check network connection.\n");
@@ -109,13 +107,13 @@ void write()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_width | 1920 | camera picture width}"
-        "{b | camera_height | 1080 | camera picture height}"
-        "{c | frames_per_second | 30 | camera frame rate}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{f | pano_bits_per_second | 1000000 | pano live stream bits per second}"
-        "{g | pano_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}";
+        "{camera_width         | 1920    | camera picture width}"
+        "{camera_height        | 1080    | camera picture height}"
+        "{frames_per_second    | 30      | camera frame rate}"
+        "{pano_width           | 2048    | pano picture width}"
+        "{pano_height          | 1024    | pano picture height}"
+        "{pano_bits_per_second | 1000000 | pano live stream bits per second}"
+        "{pano_url             | rtsp://127.0.0.1/test.sdp | pano live stream address}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
@@ -150,7 +148,7 @@ int main(int argc, char* argv[])
     std::string videoSizeStr = parser.get<std::string>("camera_width") + "x" + parser.get<std::string>("camera_height");
     opts.push_back(std::make_pair("framerate", frameRateStr));
     opts.push_back(std::make_pair("video_size", videoSizeStr));
-    ok = reader.openDirectShowDevice("video=" + devices[deviceIndex].shortName, avp::PixelTypeBGR24, opts);
+    ok = reader.open("video=" + devices[deviceIndex].shortName, false, true, avp::PixelTypeBGR24, "dshow", opts);
     if (!ok)
     {
         printf("Could not open DirectShow video device with framerate = %s and video_size = %s\n",
@@ -173,8 +171,8 @@ int main(int argc, char* argv[])
     std::string url = parser.get<std::string>("pano_url");
     int frameRate = parser.get<int>("frames_per_second");
     int bitRate = parser.get<int>("pano_bits_per_second");
-    ok = writer.open(url, avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, bitRate, avp::EncodeSpeedFast);
-    //ok = writer.open("ricohlive.mp4", avp::PixelTypeBGR24, dstSize.width, dstSize.height, 30, 0, avp::EncodeSpeedUltraFast);
+    ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
+        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000);
     if (!ok)
     {
         printf("could not open url %s\n", url.c_str());
