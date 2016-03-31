@@ -82,46 +82,10 @@ public:
     void waitForCompletion();
     int getProgress() const;
     void cancel();
-
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
-
-    /*void run();
-    void clear();
-
-    int numVideos;
-    int audioIndex;
-    cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
-    std::vector<cv::Mat> dstSrcMaps, dstMasks;
-    TilingMultibandBlendFastParallel blender;
-    std::vector<cv::Mat> reprojImages;
-    cv::Mat blendImage;
-    avp::AudioVideoWriter2 writer;
-    bool endFlag;
-
-    std::atomic<int> finishPercent;
-
-    int validFrameCount;
-
-    ProgressCallbackFunction progressCallbackFunc;
-    void* progressCallbackData;
-
-    std::unique_ptr<std::thread> thread;
-
-    bool initSuccess;
-    bool finish;*/
 };
-
-//struct StampedPinnedMemoryVector
-//{
-//    std::vector<cv::cuda::HostMem> frames;
-//    long long int timeStamp;
-//};
-//
-//typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
-//typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 
 class CudaPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 {
@@ -135,46 +99,9 @@ public:
     void waitForCompletion();
     int getProgress() const;
     void cancel();
-
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
-
-    /*void clear();
-
-    int numVideos;
-    int audioIndex;
-    cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
-    CudaMultiCameraPanoramaRender2 render;
-    PinnedMemoryPool srcFramesMemoryPool;
-    SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
-    FrameVectorBuffer decodeFramesBuffer;
-    FrameBuffer procFrameBuffer;
-    cv::Mat blendImageCpu;
-    avp::AudioVideoWriter2 writer;
-
-    int decodeCount;
-    int procCount;
-    int encodeCount;
-    std::atomic<int> finishPercent;
-
-    int validFrameCount;
-
-    ProgressCallbackFunction progressCallbackFunc;
-    void* progressCallbackData;
-
-    void decode();
-    void proc();
-    void encode();
-
-    std::unique_ptr<std::thread> decodeThread;
-    std::unique_ptr<std::thread> procThread;
-    std::unique_ptr<std::thread> encodeThread;
-
-    bool initSuccess;
-    bool finish;
-    bool isCanceled;*/
 };
 
 // for video source
