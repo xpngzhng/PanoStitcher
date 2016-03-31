@@ -2,6 +2,7 @@
 
 #include "AudioVideoProcessor.h"
 #include "StampedFrameQueue.h"
+#include "PinnedMemoryPool.h"
 #include "StampedPinnedMemoryPool.h"
 #include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
@@ -125,6 +126,15 @@ private:
     bool finish;
 };
 
+struct StampedPinnedMemoryVector
+{
+    std::vector<cv::gpu::CudaMem> frames;
+    long long int timeStamp;
+};
+
+typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
+typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
+
 class CudaPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 {
 public:
@@ -139,19 +149,23 @@ public:
     void cancel();
 
 private:
-    //void run();
     void clear();
 
     int numVideos;
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
-    std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
-    CudaTilingMultibandBlendFast blender;
-    std::vector<cv::gpu::Stream> streams;
-    std::vector<cv::gpu::CudaMem> pinnedMems;
-    std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
-    cv::gpu::GpuMat blendImageGpu;
+    CudaMultiCameraPanoramaRender2 render;
+    PinnedMemoryPool srcFramesMemoryPool;
+    SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
+    FrameVectorBuffer decodeFramesBuffer;
+    FrameBuffer procFrameBuffer;
+    //std::vector<cv::gpu::GpuMat> xmapsGpu, ymapsGpu;
+    //CudaTilingMultibandBlendFast blender;
+    //std::vector<cv::gpu::Stream> streams;
+    //std::vector<cv::gpu::CudaMem> pinnedMems;
+    //std::vector<cv::gpu::GpuMat> imagesGpu, reprojImagesGpu;
+    //cv::gpu::GpuMat blendImageGpu;
     cv::Mat blendImageCpu;
     avp::AudioVideoWriter2 writer;
 
@@ -162,15 +176,15 @@ private:
 
     int validFrameCount;
 
-    std::mutex mtxDecodedImages;
-    std::condition_variable cvDecodedImagesForWrite, cvDecodedImagesForRead;
-    bool decodedImagesOwnedByDecodeThread;
-    bool videoEnd;
+    //std::mutex mtxDecodedImages;
+    //std::condition_variable cvDecodedImagesForWrite, cvDecodedImagesForRead;
+    //bool decodedImagesOwnedByDecodeThread;
+    //bool videoEnd;
 
-    std::mutex mtxEncodedImage;
-    std::condition_variable cvEncodedImageForWrite, cvEncodedImageForRead;
-    bool encodedImageOwnedByProcThread;
-    bool procEnd;
+    //std::mutex mtxEncodedImage;
+    //std::condition_variable cvEncodedImageForWrite, cvEncodedImageForRead;
+    //bool encodedImageOwnedByProcThread;
+    //bool procEnd;
 
     ProgressCallbackFunction progressCallbackFunc;
     void* progressCallbackData;

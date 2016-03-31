@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
         "{c | num_frames_skip | 100 | number of frames to skip}"
         "{d | pano_width | 2048 | pano picture width}"
         "{e | pano_height | 1024 | pano picture height}"
-        "{f | pano_video_name | panocpuh264qsv4k.mp4 | xml param file path}"
+        "{f | pano_video_name | panocpu.mp4 | xml param file path}"
         "{g | pano_video_num_frames | 1000 | number of frames to write}"
         "{h | use_cuda | false | use gpu to accelerate computation}";
 
@@ -94,8 +94,8 @@ int main(int argc, char* argv[])
     else
         task.reset(new CPUPanoramaLocalDiskTask);
     
-    bool ok = task->init(srcVideoNames, offset, cameraParamFile, panoVideoName,
-        dstSize.width, dstSize.height, 15000000, displayProgress, 0);
+    bool ok = task->init(srcVideoNames, offset, 0, cameraParamFile, panoVideoName,
+        dstSize.width, dstSize.height, 48000000, displayProgress, 0);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
