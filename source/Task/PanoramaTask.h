@@ -84,7 +84,10 @@ public:
     void cancel();
 
 private:
-    void run();
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
+
+    /*void run();
     void clear();
 
     int numVideos;
@@ -108,17 +111,17 @@ private:
     std::unique_ptr<std::thread> thread;
 
     bool initSuccess;
-    bool finish;
+    bool finish;*/
 };
 
-struct StampedPinnedMemoryVector
-{
-    std::vector<cv::cuda::HostMem> frames;
-    long long int timeStamp;
-};
-
-typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
-typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
+//struct StampedPinnedMemoryVector
+//{
+//    std::vector<cv::cuda::HostMem> frames;
+//    long long int timeStamp;
+//};
+//
+//typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
+//typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 
 class CudaPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 {
@@ -134,7 +137,10 @@ public:
     void cancel();
 
 private:
-    void clear();
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
+
+    /*void clear();
 
     int numVideos;
     int audioIndex;
@@ -168,7 +174,7 @@ private:
 
     bool initSuccess;
     bool finish;
-    bool isCanceled;
+    bool isCanceled;*/
 };
 
 // for video source

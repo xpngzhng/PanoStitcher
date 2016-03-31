@@ -3,17 +3,56 @@
 #include "ZReproject.h"
 #include "Timer.h"
 
-CPUPanoramaLocalDiskTask::CPUPanoramaLocalDiskTask()
+struct CPUPanoramaLocalDiskTask::Impl
+{
+    Impl();
+    ~Impl();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+        const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+    bool start();
+    void waitForCompletion();
+    int getProgress() const;
+    void cancel();
+
+    void run();
+    void clear();
+
+    int numVideos;
+    int audioIndex;
+    cv::Size srcSize, dstSize;
+    std::vector<avp::AudioVideoReader> readers;
+    std::vector<cv::Mat> dstSrcMaps, dstMasks;
+    TilingMultibandBlendFastParallel blender;
+    std::vector<cv::Mat> reprojImages;
+    cv::Mat blendImage;
+    avp::AudioVideoWriter2 writer;
+    bool endFlag;
+
+    std::atomic<int> finishPercent;
+
+    int validFrameCount;
+
+    ProgressCallbackFunction progressCallbackFunc;
+    void* progressCallbackData;
+
+    std::unique_ptr<std::thread> thread;
+
+    bool initSuccess;
+    bool finish;
+};
+
+CPUPanoramaLocalDiskTask::Impl::Impl()
 {
     clear();
 }
 
-CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
+CPUPanoramaLocalDiskTask::Impl::~Impl()
 {
     clear();
 }
 
-bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, ProgressCallbackFunction func, void* data)
 {
@@ -102,7 +141,7 @@ bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFile
     return true;
 }
 
-void CPUPanoramaLocalDiskTask::run()
+void CPUPanoramaLocalDiskTask::Impl::run()
 {
     if (!initSuccess)
         return;
@@ -206,7 +245,7 @@ void CPUPanoramaLocalDiskTask::run()
     finish = true;
 }
 
-bool CPUPanoramaLocalDiskTask::start()
+bool CPUPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
         return false;
@@ -214,28 +253,28 @@ bool CPUPanoramaLocalDiskTask::start()
     if (finish)
         return false;
 
-    thread.reset(new std::thread(&CPUPanoramaLocalDiskTask::run, this));
+    thread.reset(new std::thread(&CPUPanoramaLocalDiskTask::Impl::run, this));
     return true;
 }
 
-void CPUPanoramaLocalDiskTask::waitForCompletion()
+void CPUPanoramaLocalDiskTask::Impl::waitForCompletion()
 {
     if (thread && thread->joinable())
         thread->join();
     thread.reset(0);
 }
 
-int CPUPanoramaLocalDiskTask::getProgress() const
+int CPUPanoramaLocalDiskTask::Impl::getProgress() const
 {
     return finishPercent.load();
 }
 
-void CPUPanoramaLocalDiskTask::cancel()
+void CPUPanoramaLocalDiskTask::Impl::cancel()
 {
     endFlag = true;
 }
 
-void CPUPanoramaLocalDiskTask::clear()
+void CPUPanoramaLocalDiskTask::Impl::clear()
 {
     numVideos = 0;
     srcSize = cv::Size();
@@ -262,17 +301,113 @@ void CPUPanoramaLocalDiskTask::clear()
     finish = true;
 }
 
-CudaPanoramaLocalDiskTask::CudaPanoramaLocalDiskTask()
+CPUPanoramaLocalDiskTask::CPUPanoramaLocalDiskTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
+{
+
+}
+
+bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+    const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+{
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
+        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, func, data);
+}
+
+bool CPUPanoramaLocalDiskTask::start()
+{
+    return ptrImpl->start();
+}
+
+void CPUPanoramaLocalDiskTask::waitForCompletion()
+{
+    ptrImpl->waitForCompletion();
+}
+
+int CPUPanoramaLocalDiskTask::getProgress() const
+{
+    return ptrImpl->getProgress();
+}
+
+void CPUPanoramaLocalDiskTask::cancel()
+{
+    ptrImpl->cancel();
+}
+
+struct StampedPinnedMemoryVector
+{
+    std::vector<cv::cuda::HostMem> frames;
+    long long int timeStamp;
+};
+
+typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
+typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
+
+struct CudaPanoramaLocalDiskTask::Impl
+{
+    Impl();
+    ~Impl();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+        const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+        int dstVideoBitRate, ProgressCallbackFunction func, void* data);
+    bool start();
+    void waitForCompletion();
+    int getProgress() const;
+    void cancel();
+
+    void clear();
+
+    int numVideos;
+    int audioIndex;
+    cv::Size srcSize, dstSize;
+    std::vector<avp::AudioVideoReader> readers;
+    CudaMultiCameraPanoramaRender2 render;
+    PinnedMemoryPool srcFramesMemoryPool;
+    SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
+    FrameVectorBuffer decodeFramesBuffer;
+    FrameBuffer procFrameBuffer;
+    cv::Mat blendImageCpu;
+    avp::AudioVideoWriter2 writer;
+
+    int decodeCount;
+    int procCount;
+    int encodeCount;
+    std::atomic<int> finishPercent;
+
+    int validFrameCount;
+
+    ProgressCallbackFunction progressCallbackFunc;
+    void* progressCallbackData;
+
+    void decode();
+    void proc();
+    void encode();
+
+    std::unique_ptr<std::thread> decodeThread;
+    std::unique_ptr<std::thread> procThread;
+    std::unique_ptr<std::thread> encodeThread;
+
+    bool initSuccess;
+    bool finish;
+    bool isCanceled;
+};
+
+CudaPanoramaLocalDiskTask::Impl::Impl()
 {
     clear();
 }
 
-CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
+CudaPanoramaLocalDiskTask::Impl::~Impl()
 {
     clear();
 }
 
-bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, ProgressCallbackFunction func, void* data)
 {
@@ -371,7 +506,7 @@ bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFil
     return true;
 }
 
-bool CudaPanoramaLocalDiskTask::start()
+bool CudaPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
         return false;
@@ -381,14 +516,14 @@ bool CudaPanoramaLocalDiskTask::start()
 
     printf("Info in %s, write video begin\n", __FUNCTION__);
 
-    decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::decode, this));
-    procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::proc, this));
-    encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::encode, this));
+    decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::decode, this));
+    procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::proc, this));
+    encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::encode, this));
 
     return true;
 }
 
-void CudaPanoramaLocalDiskTask::waitForCompletion()
+void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
 {
     if (decodeThread && decodeThread->joinable())
         decodeThread->join();
@@ -406,12 +541,12 @@ void CudaPanoramaLocalDiskTask::waitForCompletion()
     finish = true;
 }
 
-int CudaPanoramaLocalDiskTask::getProgress() const
+int CudaPanoramaLocalDiskTask::Impl::getProgress() const
 {
     return finishPercent.load();
 }
 
-void CudaPanoramaLocalDiskTask::clear()
+void CudaPanoramaLocalDiskTask::Impl::clear()
 {
     numVideos = 0;
     srcSize = cv::Size();
@@ -451,12 +586,12 @@ void CudaPanoramaLocalDiskTask::clear()
     isCanceled = false;
 }
 
-void CudaPanoramaLocalDiskTask::cancel()
+void CudaPanoramaLocalDiskTask::Impl::cancel()
 {
     isCanceled = true;
 }
 
-void CudaPanoramaLocalDiskTask::decode()
+void CudaPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -523,7 +658,7 @@ void CudaPanoramaLocalDiskTask::decode()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void CudaPanoramaLocalDiskTask::proc()
+void CudaPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -557,7 +692,7 @@ void CudaPanoramaLocalDiskTask::proc()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void CudaPanoramaLocalDiskTask::encode()
+void CudaPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
@@ -598,4 +733,42 @@ void CudaPanoramaLocalDiskTask::encode()
 
     printf("total encode %d\n", encodeCount);
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+CudaPanoramaLocalDiskTask::CudaPanoramaLocalDiskTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
+{
+
+}
+
+bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+    const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int dstVideoBitRate, ProgressCallbackFunction func, void* data)
+{
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
+        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, func, data);
+}
+
+bool CudaPanoramaLocalDiskTask::start()
+{
+    return ptrImpl->start();
+}
+
+void CudaPanoramaLocalDiskTask::waitForCompletion()
+{
+    ptrImpl->waitForCompletion();
+}
+
+int CudaPanoramaLocalDiskTask::getProgress() const
+{
+    return ptrImpl->getProgress();
+}
+
+void CudaPanoramaLocalDiskTask::cancel()
+{
+    ptrImpl->cancel();
 }
