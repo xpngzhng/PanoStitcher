@@ -491,12 +491,12 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     {
         ok = writer.open(dstVideoFile, "", true, true, "aac", readers[audioIndex].getAudioSampleType(),
             readers[audioIndex].getAudioChannelLayout(), readers[audioIndex].getAudioSampleRate(), 128000,
-            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
     }
     else
     {
         ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), 48000000, options);
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFps(), dstVideoBitRate, options);
     }
     if (!ok)
     {
