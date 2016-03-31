@@ -15,8 +15,6 @@
 #include <sstream>
 #include <string>
 
-#define ENABLE_CALC_TIME 0
-
 int numVideos;
 std::vector<avp::AudioVideoReader> readers;
 std::vector<cv::gpu::GpuMat> dstMasksGpu;
@@ -137,23 +135,11 @@ void decodeThread()
 
 void gpuProcThread()
 {
-#if ENABLE_CALC_TIME
-    ztool::Timer timer, timerWR, timerWW;
-#endif
     while (true)
     {
-#if ENABLE_CALC_TIME
-        timer.start();
-#endif
         {
-#if ENABLE_CALC_TIME
-            timerWR.start();
-#endif
             std::unique_lock<std::mutex> ul(mtxDecodedImages);
             cvDecodedImagesForRead.wait(ul, []{return !decodedImagesOwnedByDecodeThread;});
-#if ENABLE_CALC_TIME
-            timerWR.end();
-#endif
             if (videoEnd)
                 break;
 
@@ -170,25 +156,12 @@ void gpuProcThread()
         }
         cvDecodedImagesForWrite.notify_one();
 
-#if ENABLE_CALC_TIME
-        timerBlend.start();
-#endif
         blender.blend(reprojImagesGpu, blendImageGpu);
         cv::gpu::Stream::Null().waitForCompletion();
 
-#if ENABLE_CALC_TIME
-        timerBlend.end();
-#endif
-
         {
-#if ENABLE_CALC_TIME
-            timerWW.start();
-#endif
             std::unique_lock<std::mutex> ul(mtxEncodedImage);
             cvEncodedImageForWrite.wait(ul, []{return encodedImageOwnedByProcThread;});
-#if ENABLE_CALC_TIME
-            timerWW.end();
-#endif
 
             blendImageGpu.download(blendImageCpu);
             encodedImageOwnedByProcThread = false;
@@ -196,11 +169,6 @@ void gpuProcThread()
         cvEncodedImageForRead.notify_one();
         procCount++;
         //printf("proc count = %d\n", procCount);
-#if ENABLE_CALC_TIME
-        timer.end();
-        printf("p wr %f, r %f, b %f, ww %f, %f\n", 
-            timerWR.elapse(), timerReproject.elapse(), timerBlend.elapse(), timerWW.elapse(), timer.elapse());
-#endif
     }
 
     {
@@ -224,24 +192,13 @@ void gpuProcThread()
 
 void encodeThread()
 {
-    //cv::Mat smallImage;
-#if ENABLE_CALC_TIME
-    ztool::Timer timer;
-#endif
     while (true)
     {
-#if ENABLE_CALC_TIME
-        timer.start();
-#endif
         {
             std::unique_lock<std::mutex> ul(mtxEncodedImage);
             cvEncodedImageForRead.wait(ul, []{return !encodedImageOwnedByProcThread;});
             if (procEnd)
                 break;
-
-            //cv::resize(blendImageCpu, smallImage, cv::Size(), 0.25, 0.25, cv::INTER_NEAREST);
-            //cv::imshow("preview", smallImage);
-            //cv::waitKey(1);
 
             timerEncode.start();
             avp::AudioVideoFrame frame = avp::videoFrame(blendImageCpu.data, blendImageCpu.step, avp::PixelTypeBGR32, blendImageCpu.cols, blendImageCpu.rows, -1LL);
@@ -256,78 +213,12 @@ void encodeThread()
             encodedImageOwnedByProcThread = true;
         }
         cvEncodedImageForWrite.notify_one();
-#if ENABLE_CALC_TIME
-        timer.end();
-        printf("e %f, %f\n", timerEncode.elapse(), timer.elapse());
-#endif
     }
     printf("encode thread end, %d\n", encodeCount);
 }
 
 int main(int argc, char* argv[])
 {
-    //cv::Mat src(2048, 4096, CV_8UC4);
-    //ztool::Timer timer;
-    //for (int i = 0; i < 100; i++)
-    //{
-    //    cv::Mat dst;
-    //    src.copyTo(dst);
-    //}
-    //timer.end();
-    //printf("time = %f\n", timer.elapse());
-    //return 0;
-
-    //cv::Size dstSize = cv::Size(2048, 1024);
-    //cv::Size srcSize = cv::Size(1280, 960);
-
-    //ReprojectParam pi;
-    //pi.LoadConfig("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml");
-    //pi.SetPanoSize(dstSize);
-
-    //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
-    //numVideos = srcVideoNames.size();
-
-    //int offset[] = { 563, 0, 268, 651, 91, 412 };
-    //int numSkip = /*200*//*1*/2100;
-
-    //ReprojectParam pi;
-    //pi.LoadConfig("F:\\panovideo\\test\\test1\\test_test1_cam_param.xml");
-    //pi.SetPanoSize(dstSize);
-
-    //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0094.mp4");
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0096.mp4");
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0103.mp4");
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0124.mp4");
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0136.mp4");
-    //srcVideoNames.push_back("F:\\panovideo\\test\\test1\\YDXJ0535.mp4");
-    //numVideos = srcVideoNames.size();
-
-    //int offset[] = { 0, 198, 246, 283, 144, 373 };
-    //int numSkip = 200/*1*//*2100*/;
-
-    //ReprojectParam pi;
-    //pi.LoadConfig("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml");
-    //pi.SetPanoSize(frameSize);
-
-    //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
-    //numVideos = srcVideoNames.size();
-
-    //int offset[] = {554, 0, 436, 1064, 164, 785};
-    //int numSkip = 3000;
-
     const char* keys =
         "{a | camera_param_file |  | camera param file path}"
         "{b | video_path_offset_file |  | video path and offset file path}"
@@ -342,7 +233,6 @@ int main(int argc, char* argv[])
     cv::Size srcSize, dstSize;
     std::vector<std::string> srcVideoNames;
     std::vector<int> offset;
-    //ReprojectParam pi;
     int numSkip = 1500;
     std::string cameraParamFile, videoPathAndOffsetFile;
     std::string panoVideoName;
@@ -355,9 +245,6 @@ int main(int argc, char* argv[])
     }
     std::string::size_type pos = cameraParamFile.find_last_of(".");
     std::string ext = cameraParamFile.substr(pos + 1);
-    //pi.LoadConfig(cameraParamFile);
-    //pi.rotateCamera(0, -35.264 / 180 * 3.1415926536, -3.1415926536 / 4);
-    //pi.rotateCamera(0, 3.1415926536 / 2 * 0.65, 0);
 
     std::vector<PhotoParam> params;
     if (ext == "pts")
@@ -367,7 +254,6 @@ int main(int argc, char* argv[])
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
-    //pi.SetPanoSize(dstSize);
 
     videoPathAndOffsetFile = parser.get<std::string>("video_path_offset_file");
     if (videoPathAndOffsetFile.empty())
@@ -435,12 +321,6 @@ int main(int argc, char* argv[])
     map32F.release();
     map64F[0].release();
     map64F[1].release();
-
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    cv::imshow("mask", dstMasks[i]);
-    //    cv::waitKey(0);
-    //}    
 
     success = blender.prepare(dstMasks, 16, 2);
     //success = blender.prepare(dstMasks, 50);
