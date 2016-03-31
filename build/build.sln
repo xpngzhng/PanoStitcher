@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Blend", "Blend\Blend.vcxproj", "{59B9EFB5-3165-416D-8F9F-CEA106DB6633}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Warp", "Warp\Warp.vcxproj", "{2082B669-CFE3-4FA6-9385-38BE77B69516}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PanoVideoEngine", "PanoVideoEngine\PanoVideoEngine.vcxproj", "{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Debug|Win32.ActiveCfg = Debug|Win32
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Debug|Win32.Build.0 = Debug|Win32
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Debug|x64.ActiveCfg = Debug|x64
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Debug|x64.Build.0 = Debug|x64
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Release|Win32.ActiveCfg = Release|Win32
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Release|Win32.Build.0 = Release|Win32
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Release|x64.ActiveCfg = Release|x64
+		{59B9EFB5-3165-416D-8F9F-CEA106DB6633}.Release|x64.Build.0 = Release|x64
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Debug|Win32.Build.0 = Debug|Win32
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Debug|x64.ActiveCfg = Debug|x64
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Debug|x64.Build.0 = Debug|x64
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Release|Win32.ActiveCfg = Release|Win32
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Release|Win32.Build.0 = Release|Win32
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Release|x64.ActiveCfg = Release|x64
+		{2082B669-CFE3-4FA6-9385-38BE77B69516}.Release|x64.Build.0 = Release|x64
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Debug|Win32.Build.0 = Debug|Win32
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Debug|x64.ActiveCfg = Debug|x64
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Debug|x64.Build.0 = Debug|x64
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Release|Win32.ActiveCfg = Release|Win32
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Release|Win32.Build.0 = Release|Win32
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Release|x64.ActiveCfg = Release|x64
+		{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
