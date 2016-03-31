@@ -134,11 +134,19 @@ void CPUPanoramaLocalDiskTask::run()
             if (frame.mediaType == avp::AUDIO)
             {
                 ok = writer.write(frame);
+                if (!ok)
+                {
+                    printf("write fail\n");
+                    break;
+                }
                 continue;
             }
         }
         for (int i = 0; i < numVideos; i++)
         {
+            if (i == audioIndex)
+                continue;
+
             avp::AudioVideoFrame frame;
             if (!readers[i].read(frame))
             {

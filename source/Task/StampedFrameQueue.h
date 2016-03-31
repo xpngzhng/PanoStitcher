@@ -165,10 +165,15 @@ private:
 template <typename ItemType>
 class RealTimeQueue
 {
-    enum { DEFAULT_QUEUE_SIZE = 24, MAX_QUEUE_SIZE = 36 };
+    enum { DEFAULT_QUEUE_SIZE = 16, MAX_QUEUE_SIZE = 64 };
 public:
     RealTimeQueue(int maxSize_ = DEFAULT_QUEUE_SIZE) :
         maxSize(maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_)) {};
+    void setMaxSize(int maxSize_)
+    {
+        std::lock_guard<std::mutex> lock(mtxQueue);
+        maxSize = maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_);
+    }
     bool push(const ItemType& item)
     {
         bool ret = true;
@@ -179,7 +184,6 @@ public:
             {
                 queue.pop_back();
             }
-            ret = false;
         }
         queue.push_front(item);
         return ret;
@@ -218,11 +222,16 @@ private:
 template <typename ItemType>
 class ForceWaitRealTimeQueue
 {
-    enum { DEFAULT_QUEUE_SIZE = 24, MAX_QUEUE_SIZE = 36 };
+    enum { DEFAULT_QUEUE_SIZE = 16, MAX_QUEUE_SIZE = 64 };
 public:
     ForceWaitRealTimeQueue(int maxSize_ = DEFAULT_QUEUE_SIZE) :
         maxSize(maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_)),
         pass(0) {};
+    void setMaxSize(int maxSize_)
+    {
+        std::lock_guard<std::mutex> lock(mtxQueue);
+        maxSize = maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_);
+    }
     bool push(const ItemType& item)
     {
         bool ret = true;
@@ -234,7 +243,6 @@ public:
                 {
                     queue.pop_back();
                 }
-                ret = false;
             }
             queue.push_front(item);
         }
@@ -350,10 +358,15 @@ private:
 template<typename ItemType>
 class BoundedCompleteQueue
 {
-    enum { DEFAULT_QUEUE_SIZE = 24, MAX_QUEUE_SIZE = 1024 };
+    enum { DEFAULT_QUEUE_SIZE = 16, MAX_QUEUE_SIZE = 64 };
 public:
     BoundedCompleteQueue(int maxSize_ = DEFAULT_QUEUE_SIZE) :
         maxSize(maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_)), pass(0) {};
+    void setMaxSize(int maxSize_)
+    {
+        std::lock_guard<std::mutex> lock(mtxQueue);
+        maxSize = maxSize_ <= 0 ? DEFAULT_QUEUE_SIZE : (maxSize_ > MAX_QUEUE_SIZE ? MAX_QUEUE_SIZE : maxSize_);
+    }
     bool push(const ItemType& item)
     {
         std::unique_lock<std::mutex> lock(mtxQueue);

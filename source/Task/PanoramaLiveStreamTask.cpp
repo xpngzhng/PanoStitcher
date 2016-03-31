@@ -64,6 +64,8 @@ bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& de
         logCallbackFunc("Video sources open success", logCallbackData);
 
     ptrFrameBuffers.reset(new std::vector<CompleteFrameQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrFrameBuffers)[i].setMaxSize(36);
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
 

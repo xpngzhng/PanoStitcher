@@ -277,7 +277,7 @@ private:
 };
 
 // for video source
-typedef CompleteQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
+typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
 // for synced video source
 typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
 // for audio source and proc result
