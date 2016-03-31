@@ -261,6 +261,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtxQueue);
         queue.clear();
+        pass = 0;
     }
     int size()
     {
@@ -322,6 +323,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtxQueue);
         queue.clear();
+        pass = 0;
     }
     int size()
     {
@@ -386,6 +388,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtxQueue);
         queue.clear();
+        pass = 0;
     }
     int size()
     {
