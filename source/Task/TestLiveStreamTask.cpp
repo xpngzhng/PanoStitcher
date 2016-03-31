@@ -361,7 +361,7 @@ int main(int argc, char* argv[])
 
     if (saveFile)
     {
-        task.beginSaveToDisk("", fileFrameSize.width, fileFrameSize.height, 
+        task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height, 
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 

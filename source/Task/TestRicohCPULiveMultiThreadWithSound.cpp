@@ -1,12 +1,12 @@
 #include "RicohUtil.h"
 #include "AudioVideoProcessor.h"
 #include "Timer.h"
-#include "StampedFrameQueue.h"
+#include "ConcurrentQueue.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 #include <thread>
 #include <fstream>
@@ -55,7 +55,7 @@ void read()
             cv::waitKey(1);
         }*/
         origQueue.push(shallowFrame);
-        printf("orig queue size = %d\n", origQueue.size());
+        //printf("orig queue size = %d\n", origQueue.size());
     }
 }
 
@@ -81,7 +81,7 @@ void proc()
             {
                 writeQueue.push(sharedFrame);
             }
-            printf("write queue size = %d\n", writeQueue.size());
+            //printf("write queue size = %d\n", writeQueue.size());
         }
     }
 }
@@ -125,15 +125,15 @@ void write()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_width | 1920 | camera picture width}"
-        "{b | camera_height | 1080 | camera picture height}"
-        "{c | frames_per_second | 30 | camera frame rate}"
-        "{d | pano_width | 2048 | pano picture width}"
-        "{e | pano_height | 1024 | pano picture height}"
-        "{f | pano_bits_per_second | 1000000 | pano live stream bits per second}"
-        "{k | pano_encode_preset | veryfast | pano video x264 encode preset}"
-        "{g | pano_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
-        "{h | xml_path | paramricoh.xml | xml param file path}";
+        "{camera_width | 1920 | camera picture width}"
+        "{camera_height | 1080 | camera picture height}"
+        "{frames_per_second | 30 | camera frame rate}"
+        "{pano_width | 2048 | pano picture width}"
+        "{pano_height | 1024 | pano picture height}"
+        "{pano_bits_per_second | 1000000 | pano live stream bits per second}"
+        "{pano_encode_preset | veryfast | pano video x264 encode preset}"
+        "{pano_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
+        "{xml_path | paramricoh.xml | xml param file path}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 

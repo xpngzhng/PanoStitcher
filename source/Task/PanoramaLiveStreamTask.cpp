@@ -465,6 +465,8 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
 
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", streamVideoEncodePreset));
+    if (streamURL.substr(0, 4) == "rtmp")
+        writerOpts.push_back(std::make_pair("ar", "44100"));
     streamOpenSuccess = streamWriter.open(streamURL, streamURL.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), streamAudioBitRate,
@@ -1108,6 +1110,7 @@ void PanoramaLiveStreamTask::Impl::streamSend()
         if (frame.data)
         {
             avp::AudioVideoFrame shallow;
+            printf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
             if (frame.mediaType == avp::VIDEO && streamFrameSize != renderFrameSize)
             {
                 cv::Mat srcMat(renderFrameSize, pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);
