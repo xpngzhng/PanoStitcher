@@ -197,6 +197,8 @@ bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName,
     if (logCallbackFunc)
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
+    syncedFramesBufferForProc.resume();
+    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     if (!audioOpenSuccess)
     {
@@ -280,6 +282,16 @@ bool PanoramaLiveStreamTask::getVideoSourceFrames(std::vector<avp::SharedAudioVi
 bool PanoramaLiveStreamTask::getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame)
 {
     return procFrameBufferForShow.pull(frame);
+}
+
+void PanoramaLiveStreamTask::cancelGetVideoSourceFrames()
+{
+    syncedFramesBufferForShow.stop();
+}
+
+void PanoramaLiveStreamTask::cancelGetStitchedVideoFrame()
+{
+    procFrameBufferForShow.stop();
 }
 
 bool PanoramaLiveStreamTask::openLiveStream(const std::string& name, 

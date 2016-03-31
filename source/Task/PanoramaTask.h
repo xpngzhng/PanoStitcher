@@ -325,6 +325,8 @@ public:
 
     bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
     bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
+    void cancelGetVideoSourceFrames();
+    void cancelGetStitchedVideoFrame();
 
     void initAll();
     void closeAll();
