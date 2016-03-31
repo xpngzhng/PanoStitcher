@@ -8,12 +8,12 @@
 #include <mutex>
 #include <condition_variable>
 
-class StampedPinnedMemoryPool
+class BoundedPinnedMemoryFrameQueue
 {
 public:
     enum { DEFAULT_SIZE = 4, MAX_SIZE = 16 };
 
-    StampedPinnedMemoryPool(int size = DEFAULT_SIZE) :
+    BoundedPinnedMemoryFrameQueue(int size = DEFAULT_SIZE) :
         maxCapacity((size < DEFAULT_SIZE || size > MAX_SIZE) ? DEFAULT_SIZE : size),
         currCapacity(0), 
         pass(0)

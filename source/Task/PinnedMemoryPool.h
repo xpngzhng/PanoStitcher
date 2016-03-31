@@ -2,7 +2,6 @@
 
 #include "opencv2/core/cuda.hpp"
 #include <vector>
-#include <memory>
 #include <mutex>
 
 class PinnedMemoryPool

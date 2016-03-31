@@ -127,11 +127,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
 copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
-copy "$(SolutionDir)..\source\Task\RicohUtil.h" ..\include
-copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
-copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
-copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
-copy "$(SolutionDir)..\source\Task\PinnedMemoryPool.h" ..\include
 copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>
@@ -180,11 +175,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
 copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
-copy "$(SolutionDir)..\source\Task\RicohUtil.h" ..\include
-copy "$(SolutionDir)..\source\Task\StampedFrameQueue.h" ..\include
-copy "$(SolutionDir)..\source\Task\StampedPinnedMemoryPool.h" ..\include
-copy "$(SolutionDir)..\source\Task\SharedAudioVideoFramePool.h" ..\include
-copy "$(SolutionDir)..\source\Task\PinnedMemoryPool.h" ..\include
 copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>

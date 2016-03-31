@@ -1,6 +1,5 @@
 #include "PanoramaTask.h"
 #include "StampedFrameQueue.h"
-#include "PinnedMemoryPool.h"
 #include "StampedPinnedMemoryPool.h"
 #include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
@@ -152,7 +151,7 @@ struct PanoramaLiveStreamTask::Impl
     int finish;
     std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
     RealTimeFrameVectorQueue syncedFramesBufferForShow;
-    StampedPinnedMemoryPool syncedFramesBufferForProc;
+    BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
     RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
 };
