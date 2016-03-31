@@ -22,7 +22,7 @@
 
 struct StampedPinnedMemoryVector
 {
-    std::vector<cv::gpu::CudaMem> mems;
+    std::vector<cv::gpu::CudaMem> frames;
     long long int timeStamp;
 };
 
@@ -92,12 +92,12 @@ void decodeThread()
 
         StampedPinnedMemoryVector deepFrames;
         deepFrames.timeStamp = shallowFrames[0].timeStamp;
-        deepFrames.mems.resize(numVideos);
+        deepFrames.frames.resize(numVideos);
         for (int i = 0; i < numVideos; i++)
         {
-            srcFramesMemoryPool.get(deepFrames.mems[i]);
+            srcFramesMemoryPool.get(deepFrames.frames[i]);
             cv::Mat src(shallowFrames[i].height, shallowFrames[i].width, CV_8UC4, shallowFrames[i].data, shallowFrames[i].step);
-            cv::Mat dst = deepFrames.mems[i];
+            cv::Mat dst = deepFrames.frames[i];
             src.copyTo(dst);
         }
 
@@ -115,23 +115,21 @@ void decodeThread()
 void gpuProcThread()
 {
     int count = 0;
-    StampedPinnedMemoryVector deepFrames;
-    cv::gpu::GpuMat blendImageGpu;
-
+    StampedPinnedMemoryVector srcFrames;
+    avp::SharedAudioVideoFrame dstFrame;
+    std::vector<cv::Mat> images(numVideos);
     while (true)
     {
-        if (!decodeFramesBuffer.pull(deepFrames))
+        if (!decodeFramesBuffer.pull(srcFrames))
             break;
-
-        avp::SharedAudioVideoFrame deepFrame;
-        dstFramesMemoryPool.get(deepFrame);
-        cv::Mat blendImageCpu(dstSize, CV_8UC4, deepFrame.data, deepFrame.step);
         
-        std::vector<cv::Mat> images(numVideos);
+        dstFramesMemoryPool.get(dstFrame);
         for (int i = 0; i < numVideos; i++)
-            images[i] = deepFrames.mems[i];
-        render.render(images, blendImageCpu);
-        procFrameBuffer.push(deepFrame);
+            images[i] = srcFrames.frames[i];
+        cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
+        render.render(images, result);
+        dstFrame.timeStamp = srcFrames.timeStamp;
+        procFrameBuffer.push(dstFrame);
 
         count++;
     }
@@ -148,16 +146,10 @@ void encodeThread()
     int count = 0;
     actualWriteFrame = 0;
     avp::SharedAudioVideoFrame deepFrame;
-    cv::Mat smallImage;
     while (true)
     {
         if (!procFrameBuffer.pull(deepFrame))
             break;
-
-        //cv::Mat blendImage(deepFrame.height, deepFrame.width, CV_8UC4, deepFrame.data, deepFrame.step);
-        //cv::resize(blendImage, smallImage, cv::Size(), 0.25, 0.25, cv::INTER_NEAREST);
-        //cv::imshow("preview", smallImage);
-        //cv::waitKey(1);
 
         timerEncode.start();
         writer.write(avp::AudioVideoFrame(deepFrame));
