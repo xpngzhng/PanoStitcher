@@ -773,3 +773,91 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
     
     return true;
 }
+
+bool CudaMultiCameraPanoramaRender3::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    srcFullSize = srcSize;
+
+    std::string::size_type length = path.length();
+    std::string fileExt = path.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path, params);
+        else 
+            loadPhotoParamFromXML(path, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, dstSrcMaps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+
+    if (!adjuster.prepare(masks, 50))
+        return false;
+
+    if (!blender.prepare(masks, 50))
+        return false;
+
+    cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+    streams.resize(numImages);
+
+    success = 1;
+    return true;
+}
+
+bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcFullSize)
+            return false;
+        if (src[i].type() != CV_8UC4)
+            return false;
+    }
+
+    srcImagesGPU.resize(numImages);
+    reprojImagesGPU.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        srcImagesGPU[i].upload(src[i], streams[i]);
+    for (int i = 0; i < numImages; i++)
+        cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+    for (int i = 0; i < numImages; i++)
+        streams[i].waitForCompletion();
+    if (luts.empty())
+    {
+        cv::Mat imageC4;
+        std::vector<cv::Mat> imagesC3(numImages);
+        int fromTo[] = { 0, 0, 1, 1, 2, 2 };
+        for (int i = 0; i < numImages; i++)
+        {
+            reprojImagesGPU[i].download(imageC4);
+            imagesC3[i].create(reprojImagesGPU[i].size(), CV_8UC3);
+            cv::mixChannels(&imageC4, 1, &imagesC3[i], 1, fromTo, 3);
+        }
+        adjuster.calcGain(imagesC3, luts);
+    }
+    for (int i = 0; i < numImages; i++)
+        cudaTransform(reprojImagesGPU[i], reprojImagesGPU[i], luts[i]);
+    blender.blend(reprojImagesGPU, blendImageGPU);
+    blendImageGPU.download(dst);
+
+    return true;
+}

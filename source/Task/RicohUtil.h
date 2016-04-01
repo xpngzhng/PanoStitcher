@@ -122,3 +122,25 @@ private:
     int numImages;
     int success;
 };
+
+class CudaMultiCameraPanoramaRender3 : public PanoramaRender
+{
+public:
+    CudaMultiCameraPanoramaRender3() : success(0) {};
+    ~CudaMultiCameraPanoramaRender3() {};
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+private:
+    cv::Size srcFullSize;
+    std::vector<std::vector<unsigned char> > luts;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    cv::cuda::GpuMat blendImageGPU;
+    cv::Mat blendImage;
+    std::vector<cv::cuda::Stream> streams;
+    MultibandBlendGainAdjust adjuster;
+    CudaTilingLinearBlend blender;
+    int numImages;
+    int success;
+};
