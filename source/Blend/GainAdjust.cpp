@@ -2,8 +2,9 @@
 #include "ZBlendAlgo.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
+#include <algorithm>
 
-#define ENABLE_MAIN 1
+#define ENABLE_MAIN 0
 
 static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
@@ -271,9 +272,9 @@ void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char
             {
                 if (*(ptrMask++))
                 {
-                    *(ptrDst++) = ptrLUT[*(ptrSrc++)];
-                    *(ptrDst++) = ptrLUT[*(ptrSrc++)];
-                    *(ptrDst++) = ptrLUT[*(ptrSrc++)];
+                    *(ptrDst++) = ptrLUT[ptrSrc[j * 3]];
+                    *(ptrDst++) = ptrLUT[ptrSrc[j * 3 + 1]];
+                    *(ptrDst++) = ptrLUT[ptrSrc[j * 3 + 2]];
                 }
                 else
                 {
@@ -471,32 +472,78 @@ void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     histSpecification(srcAccumHist, dstAccumHist, lutSrcToDst);
 }
 
+void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
+{
+    double alpha = 4.0 * (1.0 - minScale) / (size.width * size.width + size.height * size.height);
+    scale.create(size, CV_64FC1);
+    int halfHeight = size.height / 2, halfWidth = size.width / 2;
+    for (int i = 0; i < size.height; i++)
+    {
+        double* ptr = scale.ptr<double>(i);
+        for (int j = 0; j < size.width; j++)
+        {
+            int sqrDiff = (i - halfHeight / 2) * (i - halfHeight / 2) + (j - halfWidth) * (j - halfWidth);
+            ptr[j] = 1.0 / (1 - alpha * sqrDiff);
+        }
+    }
+}
+
+inline int clamp0255(int val)
+{
+    return val < 0 ? 0 : (val > 255 ? 255 : val);
+}
+
+void mulScale(cv::Mat& image, const cv::Mat& scale)
+{
+    CV_Assert(image.data && image.type() == CV_8UC3 &&
+        scale.data && scale.type() == CV_64FC1 && image.size() == scale.size());
+    int rows = image.rows, cols = image.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        const double* ptrScale = scale.ptr<double>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            ptrImage[j * 3] = clamp0255(ptrImage[j * 3] * ptrScale[j] + 0.5);
+            ptrImage[j * 3 + 1] = clamp0255(ptrImage[j * 3 + 1] * ptrScale[j] + 0.5);
+            ptrImage[j * 3 + 2] = clamp0255(ptrImage[j * 3 + 2] * ptrScale[j] + 0.5);
+        }
+    }
+}
+
 #if ENABLE_MAIN
 
 int main()
 {
     std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");    
     std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\newmask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\newmask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\newmask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\newmask3.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages), grayImages(numImages);
@@ -505,17 +552,116 @@ int main()
     {
         images[k] = cv::imread(imagePaths[k]);
         masks[k] = cv::imread(maskPaths[k], -1);
+    }
+
+    cv::Mat scaleImage;
+    calcScale(images[0].size(), 0.7, scaleImage);
+    for (int k = 0; k < numImages; k++)
+    {
+        mulScale(images[k], scaleImage);
         cv::cvtColor(images[k], grayImages[k], CV_BGR2GRAY);
     }
 
-    std::vector<unsigned char> lut;
-    calcHistSpecLUT(grayImages[4], masks[4], grayImages[0], masks[0], lut);
+    //std::vector<unsigned char> lut;
+    //calcHistSpecLUT(grayImages[4], masks[4], grayImages[0], masks[0], lut);
 
+    //cv::Mat result;
+    //transform(images[4], result, lut);
+    //cv::imshow("old", images[4]);
+    //cv::imshow("new", result);
+    //cv::waitKey(0);
+
+    int maxGrayMeanIndex = 0;
+    double maxGrayMean = cv::mean(grayImages[0], masks[0])[0];
+    for (int i = 1; i < numImages; i++)
+    {
+        double currMean = cv::mean(grayImages[i], masks[i])[0];
+        if (currMean > maxGrayMean)
+        {
+            maxGrayMeanIndex = i;
+            maxGrayMean = currMean;
+        }
+    }
+    printf("max gray index = %d\n", maxGrayMeanIndex);
+
+    std::vector<std::vector<unsigned char> > luts(numImages);
+
+    std::vector<int> workIndexes, adoptIndexes, remainIndexes;
+    std::vector<cv::Mat> workImages;
+    cv::Mat refImage, refGrayImage, refMask;
+    for (int i = 0; i < numImages; i++)
+    {
+        if (i == maxGrayMeanIndex)
+        {
+            refImage = images[i].clone();
+            refGrayImage = grayImages[i].clone();
+            refMask = masks[i].clone();
+            refImage.setTo(0, ~refMask);
+            refGrayImage.setTo(0, ~refMask);
+        }
+        else
+        {
+            workIndexes.push_back(i);
+            workImages.push_back(grayImages[i]);
+        }
+    }
+    while (true)
+    {
+        adoptIndexes.clear();
+        remainIndexes.clear();
+        for (int i = 0; i < workIndexes.size(); i++)
+        {
+            if (cv::countNonZero(refMask & masks[workIndexes[i]]))
+            {
+                adoptIndexes.push_back(workIndexes[i]);
+                calcHistSpecLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
+                transform(images[workIndexes[i]], images[workIndexes[i]], luts[workIndexes[i]], masks[workIndexes[i]]);
+            }
+            else
+                remainIndexes.push_back(workIndexes[i]);
+        }
+        if (remainIndexes.empty())
+            break;
+
+        std::vector<cv::Mat> srcImages, srcMasks;
+        srcImages.push_back(refImage);
+        srcMasks.push_back(refMask);
+        for (int i = 0; i < adoptIndexes.size(); i++)
+        {
+            srcImages.push_back(images[adoptIndexes[i]]);
+            srcMasks.push_back(masks[adoptIndexes[i]]);
+        }
+
+        for (int i = 0; i < srcImages.size(); i++)
+        {
+            cv::imshow("src", srcImages[i]);
+            cv::waitKey(0);
+        }
+
+        TilingMultibandBlendFast blender;
+        blender.prepare(srcMasks, 20, 2);
+        blender.blend(srcImages, refImage);
+        for (int i = 0; i < adoptIndexes.size(); i++)
+            refMask |= masks[adoptIndexes[i]];
+        refImage.setTo(0, ~refMask);
+        cv::cvtColor(refImage, refGrayImage, CV_BGR2GRAY);
+        cv::imshow("ref image", refImage);
+        cv::imshow("ref mask", refMask);
+        cv::waitKey(0);
+            
+        workIndexes = remainIndexes;
+        workImages.clear();
+        for (int i = 0; i < workIndexes.size(); i++)
+            workImages.push_back(images[workIndexes[i]]);
+    }
+
+    TilingLinearBlend blender;
+    blender.prepare(masks, 100);
     cv::Mat result;
-    transform(images[4], result, lut);
-    cv::imshow("old", images[4]);
-    cv::imshow("new", result);
+    blender.blend(images, result);
+    cv::imshow("result", result);
     cv::waitKey(0);
+
     return 0;
 }
 
