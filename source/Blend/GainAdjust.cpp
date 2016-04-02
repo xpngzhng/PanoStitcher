@@ -409,7 +409,7 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
     return true;
 }
 
-void calcAccumHist(const cv::Mat& image, const cv::Mat& mask, std::vector<double>& hist)
+static void calcAccumHist(const cv::Mat& image, const cv::Mat& mask, std::vector<double>& hist)
 {
     CV_Assert(image.data && image.type() == CV_8UC1 && 
         mask.data && mask.type() == CV_8UC1 && image.size() == mask.size());
@@ -435,7 +435,7 @@ void calcAccumHist(const cv::Mat& image, const cv::Mat& mask, std::vector<double
         hist[i] = tempHist[i] * scale;
 }
 
-void histSpecification(std::vector<double>& src, std::vector<double>& dst, std::vector<unsigned char>& lut)
+static void histSpecification(std::vector<double>& src, std::vector<double>& dst, std::vector<unsigned char>& lut)
 {
     CV_Assert(src.size() == 256 && dst.size() == 256);
 
@@ -458,7 +458,7 @@ void histSpecification(std::vector<double>& src, std::vector<double>& dst, std::
     }
 }
 
-void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
+static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     const cv::Mat& dst, const cv::Mat& dstMask, std::vector<unsigned char>& lutSrcToDst)
 {
     CV_Assert(src.data && src.type() == CV_8UC1 && srcMask.data && srcMask.type() == CV_8UC1 &&
@@ -472,7 +472,7 @@ void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     histSpecification(srcAccumHist, dstAccumHist, lutSrcToDst);
 }
 
-void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
+static void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
 {
     double alpha = 4.0 * (1.0 - minScale) / (size.width * size.width + size.height * size.height);
     scale.create(size, CV_64FC1);
@@ -493,7 +493,7 @@ inline int clamp0255(int val)
     return val < 0 ? 0 : (val > 255 ? 255 : val);
 }
 
-void mulScale(cv::Mat& image, const cv::Mat& scale)
+static void mulScale(cv::Mat& image, const cv::Mat& scale)
 {
     CV_Assert(image.data && image.type() == CV_8UC3 &&
         scale.data && scale.type() == CV_64FC1 && image.size() == scale.size());
