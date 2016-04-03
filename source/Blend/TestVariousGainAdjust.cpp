@@ -4,6 +4,8 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <iostream>
+#include <thread>
+#include <memory>
 
 static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
@@ -112,7 +114,7 @@ static void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
         double* ptr = scale.ptr<double>(i);
         for (int j = 0; j < size.width; j++)
         {
-            int sqrDiff = (i - halfHeight / 2) * (i - halfHeight / 2) + (j - halfWidth) * (j - halfWidth);
+            int sqrDiff = (i - halfHeight) * (i - halfHeight) + (j - halfWidth) * (j - halfWidth);
             ptr[j] = 1.0 / (1 - alpha * sqrDiff);
         }
     }
@@ -288,6 +290,7 @@ struct MaskIntersection
 {
     int i, j;
     cv::Mat mask;
+    int numNonZero;
 };
 
 void calcMaskIntersections(const std::vector<cv::Mat>& masks, std::vector<MaskIntersection>& intersects)
@@ -309,13 +312,15 @@ void calcMaskIntersections(const std::vector<cv::Mat>& masks, std::vector<MaskIn
         for (int j = i + 1; j < size; j++)
         {
             cv::Mat mask = masks[i] & masks[j];
-            if (cv::countNonZero(mask))
+            int numNonZero = cv::countNonZero(mask);
+            if (numNonZero)
             {
                 intersects.push_back(MaskIntersection());
                 MaskIntersection& intersect = intersects.back();
                 intersect.i = i;
                 intersect.j = j;
                 intersect.mask = mask;
+                intersect.numNonZero = numNonZero;
             }
             
         }
@@ -330,6 +335,7 @@ double calcSqrDiff(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& 
 
     double val = 0;
     int rows = image1.rows, cols = image1.cols;
+    int minDiff = -1, maxDiff = -1;
     for (int i = 0; i < rows; i++)
     {
         const unsigned char* ptr1 = image1.ptr<unsigned char>(i);
@@ -341,16 +347,23 @@ double calcSqrDiff(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& 
             {
                 int diff = ptr1[j] - ptr2[j];
                 val += diff * diff;
+                if (diff < 0)
+                    diff = -diff;
+                if (minDiff < 0 || minDiff > diff)
+                    minDiff = diff;
+                if (maxDiff < 0 || maxDiff < diff)
+                    maxDiff = diff;
             }
         }
     }
+    printf("min diff = %d, maxDiff = %d\n");
 
     return val;
 }
 
 struct ScalesAndError
 {
-    ScalesAndError() : error(0) {}
+    ScalesAndError() : error(0), errorB(0), errorG(0), errorR(0) {}
     std::vector<double> scales;
     double error;
     double errorB, errorG, errorR;
@@ -409,13 +422,13 @@ void mulScales(const std::vector<cv::Mat>& src, const std::vector<cv::Mat>& scal
     }
 }
 
-double calcTotalError(const std::vector<cv::Mat>& images, std::vector<MaskIntersection>& intersects)
+double calcTotalError(const std::vector<cv::Mat>& images, const std::vector<MaskIntersection>& intersects)
 {
     int numInts = intersects.size();
     double val = 0;
     for (int i = 0; i < numInts; i++)
     {
-        MaskIntersection& currInt = intersects[i];
+        const MaskIntersection& currInt = intersects[i];
         val += calcSqrDiff(images[currInt.i], images[currInt.j], currInt.mask);
     }
     return val;
@@ -441,24 +454,24 @@ void calcErrors(const std::vector<cv::Mat>& origImages, const std::vector<cv::Ma
             cv::cvtColor(reprojImages[j], grayImages[j], CV_BGR2GRAY);        
         info.error = calcTotalError(grayImages, intersects);
 
-        bgrImages.resize(numImages);
-        for (int j = 0; j < numImages; j++)
-        {
-            bgrImages[j].resize(3);
-            cv::split(reprojImages[j], bgrImages[j]);
-        }        
-        bImages.resize(numImages);
-        gImages.resize(numImages);
-        rImages.resize(numImages);
-        for (int j = 0; j < numImages; j++)
-        {
-            bImages[j] = bgrImages[j][0];
-            gImages[j] = bgrImages[j][1];
-            rImages[j] = bgrImages[j][2];
-        }
-        info.errorB = calcTotalError(bImages, intersects);
-        info.errorG = calcTotalError(gImages, intersects);
-        info.errorR = calcTotalError(rImages, intersects);
+        //bgrImages.resize(numImages);
+        //for (int j = 0; j < numImages; j++)
+        //{
+        //    bgrImages[j].resize(3);
+        //    cv::split(reprojImages[j], bgrImages[j]);
+        //}        
+        //bImages.resize(numImages);
+        //gImages.resize(numImages);
+        //rImages.resize(numImages);
+        //for (int j = 0; j < numImages; j++)
+        //{
+        //    bImages[j] = bgrImages[j][0];
+        //    gImages[j] = bgrImages[j][1];
+        //    rImages[j] = bgrImages[j][2];
+        //}
+        //info.errorB = calcTotalError(bImages, intersects);
+        //info.errorG = calcTotalError(gImages, intersects);
+        //info.errorR = calcTotalError(rImages, intersects);
 
         if (i % 100 == 0)
         {
@@ -474,126 +487,6 @@ void enumErrors(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     calcMaskIntersections(masks, intersects);
     getScalesAndErrorVector(minScale, maxScale, numSteps, images.size(), infos);
     calcErrors(images, maps, intersects, infos);
-}
-
-int main()
-{
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-
-    int numImages = imagePaths.size();
-    std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages), grayImages(numImages);
-
-    for (int i = 0; i < numImages; i++)
-        origImages[i] = cv::imread(imagePaths[i]);
-
-    std::vector<PhotoParam> params;
-    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
-
-    std::vector<ScalesAndError> infos;
-    enumErrors(origImages, maps, masks, 0.5, 1.5, 10, infos);
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.error < rhs.error; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.error);
-    }
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[infos.size() - 1 - i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.error);
-    }
-    printf("\n");
-
-    std::vector<cv::Mat> scaleImages, scaledImages;
-    getScales(infos[0].scales, origImages[0].size(), scaleImages);
-    mulScales(origImages, scaleImages, scaledImages);
-    reprojectParallel(scaledImages, images, maps);
-
-    TilingLinearBlend blender;
-    cv::Mat result;
-    blender.prepare(masks, 100);
-    blender.blend(images, result);
-    cv::imshow("result", result);
-    cv::waitKey(0);
-
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorB < rhs.errorB; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorB);
-    }
-    printf("\n");
-    std::vector<double> scalesB = infos[0].scales;
-
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorG < rhs.errorG; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorG);
-    }
-    printf("\n");
-    std::vector<double> scalesG = infos[0].scales;
-
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorR < rhs.errorR; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorR);
-    }
-    printf("\n");
-    std::vector<double> scalesR = infos[0].scales;
-
-    std::vector<std::vector<cv::Mat> > bgrImages(numImages);
-    std::vector<cv::Mat> bImages(numImages), gImages(numImages), rImages(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::split(origImages[i], bgrImages[i]);
-        bImages[i] = bgrImages[i][0];
-        gImages[i] = bgrImages[i][1];
-        rImages[i] = bgrImages[i][2];
-    }
-    getScales(scalesB, origImages[0].size(), scaleImages);
-    mulScales(bImages, scaleImages, bImages);
-    mulScales(gImages, scaleImages, gImages);
-    mulScales(rImages, scaleImages, rImages);
-    for (int i = 0; i < numImages; i++)
-        cv::merge(bgrImages[i], scaledImages[i]);
-    reprojectParallel(scaledImages, images, maps);
-
-    return 0;
 }
 
 void calcSqrDistToCenterImage(const cv::Size& size, cv::Mat& image)
@@ -650,6 +543,273 @@ void reproject64FC1(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
     }
 }
 
+void rescaleImage(const cv::Mat& src, const cv::Mat& mask, const cv::Mat& dist, double scale, cv::Mat& dst)
+{
+    CV_Assert(src.data && (src.type() == CV_8UC1 || src.type() == CV_8UC3) &&
+        mask.data && mask.type() == CV_8UC1 && dist.data && dist.type() == CV_64FC1 &&
+        src.size() == mask.size() && src.size() == dist.size());
+
+    double alpha = 1.0 - scale;
+    int rows = src.rows, cols = src.cols;
+    dst.create(rows, cols, src.type());
+    if (src.type() == CV_8UC1)
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            const double* ptrDist = dist.ptr<double>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (ptrMask[j])
+                    ptrDst[j] = clamp0255(double(ptrSrc[j]) / (1.0 - alpha * ptrDist[j]));
+                else
+                    ptrDst[j] = ptrSrc[j];
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            const double* ptrDist = dist.ptr<double>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (ptrMask[j])
+                {
+                    ptrDst[j * 3] = clamp0255(double(ptrSrc[j * 3]) / (1.0 - alpha * ptrDist[j]));
+                    ptrDst[j * 3 + 1] = clamp0255(double(ptrSrc[j * 3 + 1]) / (1.0 - alpha * ptrDist[j]));
+                    ptrDst[j * 3 + 2] = clamp0255(double(ptrSrc[j * 3 + 2]) / (1.0 - alpha * ptrDist[j]));
+                }                    
+                else
+                {
+                    ptrDst[j * 3] = ptrSrc[j * 3];
+                    ptrDst[j * 3 + 1] = ptrSrc[j * 3 + 1];
+                    ptrDst[j * 3 + 2] = ptrSrc[j * 3 + 2];
+                }
+            }
+        }
+    }
+}
+
+void rescaleImages(const std::vector<cv::Mat>& srcs, const std::vector<cv::Mat>& masks,
+    const std::vector<cv::Mat>& dists, const std::vector<double>& scales, std::vector<cv::Mat>& dsts)
+{
+    int size = srcs.size();
+    dsts.resize(size);
+    for (int i = 0; i < size; i++)
+        rescaleImage(srcs[i], masks[i], dists[i], scales[i], dsts[i]);
+}
+
+void calcErrors(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& dists,
+    const const std::vector<MaskIntersection>& intersects, std::vector<ScalesAndError>& infos)
+{
+    int numInfos = infos.size();
+    int numImages = images.size();
+    std::vector<cv::Mat> scaledImages;
+    for (int i = 0; i < numInfos; i++)
+    {
+        ScalesAndError& info = infos[i];
+        rescaleImages(images, masks, dists, info.scales, scaledImages);
+        info.error = calcTotalError(scaledImages, intersects);
+
+        if (i % 100 == 0)
+        {
+            printf("%d/%d, %f%% finish\n", i, numInfos, double(i) / numInfos);
+        }
+    }
+}
+
+void calcErrorsPartial(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& dists,
+    const std::vector<MaskIntersection>& intersects, std::vector<ScalesAndError>& infos, int beg, int end)
+{
+    size_t id = std::this_thread::get_id().hash();
+    end = end > infos.size() ? infos.size() : end;
+    std::vector<cv::Mat> scaledImages;
+    int count = 0;
+    int totalCount = end - beg;
+    for (int i = beg; i < end; i++)
+    {
+        ScalesAndError& info = infos[i];
+        rescaleImages(images, masks, dists, info.scales, scaledImages);
+        info.error = calcTotalError(scaledImages, intersects);
+        count++;
+        if (count % 100 == 0)
+        {
+            printf("[%16X] %d/%d, %f%% finish\n", id, count, totalCount, double(count) / totalCount * 100);
+        }
+    }
+}
+
+void calcErrorsParallel(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& dists,
+    const const std::vector<MaskIntersection>& intersects, std::vector<ScalesAndError>& infos)
+{
+    int numCPUs = cv::getNumberOfCPUs();
+    if (numCPUs > 1)
+        numCPUs -= 1;
+    int size = infos.size();
+    int grain = (size + numCPUs - 1) / numCPUs;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numCPUs; i++)
+    {
+        threads.emplace_back(std::thread(calcErrorsPartial, std::ref(images), std::ref(masks),
+            std::ref(dists), std::ref(intersects), std::ref(infos), i * grain, (i + 1) * grain));
+    }
+    for (int i = 0; i < numCPUs; i++)
+        threads[i].join();
+}
+
+void listErrors(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& dists,
+    double minScale, double maxScale, int numSteps, std::vector<ScalesAndError>& infos)
+{
+    std::vector<MaskIntersection> intersects;
+    calcMaskIntersections(masks, intersects);
+    getScalesAndErrorVector(minScale, maxScale, numSteps, images.size(), infos);
+    calcErrorsParallel(images, masks, dists, intersects, infos);
+}
+
+int main()
+{
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages), grayImages(numImages);
+
+    for (int i = 0; i < numImages; i++)
+        origImages[i] = cv::imread(imagePaths[i]);
+
+    std::vector<PhotoParam> params;
+    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
+
+    reprojectParallel(origImages, images, maps);
+    for (int i = 0; i < numImages; i++)
+        cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
+
+    cv::Mat origDist;
+    calcSqrDistToCenterImage(origImages[0].size(), origDist);
+    std::vector<cv::Mat> dists(numImages);
+    for (int i = 0; i < numImages; i++)
+        reproject64FC1(origDist, dists[i], maps[i]);
+
+    //std::vector<cv::Mat> eMasks;
+    //getExtendedMasks(masks, 100, eMasks);
+
+    std::vector<ScalesAndError> infos;
+    //enumErrors(origImages, maps, masks, 0.5, 1.5, 10, infos);
+    listErrors(grayImages, masks, dists, 0.9, 1.0, 2, infos);
+    std::sort(infos.begin(), infos.end(),
+        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.error < rhs.error; });
+    printf("result\n");
+    for (int i = 0; i < 10; i++)
+    {
+        ScalesAndError& info = infos[i];
+        for (int j = 0; j < info.scales.size(); j++)
+            printf("%8.4f ", info.scales[j]);
+        printf("Error: %f\n", info.error);
+    }
+    printf("result\n");
+    for (int i = 0; i < 10; i++)
+    {
+        ScalesAndError& info = infos[infos.size() - 1 - i];
+        for (int j = 0; j < info.scales.size(); j++)
+            printf("%8.4f ", info.scales[j]);
+        printf("Error: %f\n", info.error);
+    }
+    printf("\n");
+
+    //std::vector<cv::Mat> scaleImages, scaledImages;
+    //getScales(infos[0].scales, origImages[0].size(), scaleImages);
+    //mulScales(origImages, scaleImages, scaledImages);
+    //reprojectParallel(scaledImages, images, maps);
+
+    rescaleImages(images, masks, dists, infos[0].scales, images);
+
+    TilingLinearBlend blender;
+    cv::Mat result;
+    blender.prepare(masks, 100);
+    blender.blend(images, result);
+    cv::imshow("result", result);
+    cv::waitKey(0);
+
+    /*
+    std::sort(infos.begin(), infos.end(),
+        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorB < rhs.errorB; });
+    printf("result\n");
+    for (int i = 0; i < 10; i++)
+    {
+        ScalesAndError& info = infos[i];
+        for (int j = 0; j < info.scales.size(); j++)
+            printf("%8.4f ", info.scales[j]);
+        printf("Error: %f\n", info.errorB);
+    }
+    printf("\n");
+    std::vector<double> scalesB = infos[0].scales;
+
+    std::sort(infos.begin(), infos.end(),
+        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorG < rhs.errorG; });
+    printf("result\n");
+    for (int i = 0; i < 10; i++)
+    {
+        ScalesAndError& info = infos[i];
+        for (int j = 0; j < info.scales.size(); j++)
+            printf("%8.4f ", info.scales[j]);
+        printf("Error: %f\n", info.errorG);
+    }
+    printf("\n");
+    std::vector<double> scalesG = infos[0].scales;
+
+    std::sort(infos.begin(), infos.end(),
+        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorR < rhs.errorR; });
+    printf("result\n");
+    for (int i = 0; i < 10; i++)
+    {
+        ScalesAndError& info = infos[i];
+        for (int j = 0; j < info.scales.size(); j++)
+            printf("%8.4f ", info.scales[j]);
+        printf("Error: %f\n", info.errorR);
+    }
+    printf("\n");
+    std::vector<double> scalesR = infos[0].scales;
+
+    std::vector<std::vector<cv::Mat> > bgrImages(numImages);
+    std::vector<cv::Mat> bImages(numImages), gImages(numImages), rImages(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::split(origImages[i], bgrImages[i]);
+        bImages[i] = bgrImages[i][0];
+        gImages[i] = bgrImages[i][1];
+        rImages[i] = bgrImages[i][2];
+    }
+    getScales(scalesB, origImages[0].size(), scaleImages);
+    mulScales(bImages, scaleImages, bImages);
+    mulScales(gImages, scaleImages, gImages);
+    mulScales(rImages, scaleImages, rImages);
+    for (int i = 0; i < numImages; i++)
+        cv::merge(bgrImages[i], scaledImages[i]);
+    reprojectParallel(scaledImages, images, maps);
+    */
+
+    return 0;
+}
+
 void getQuadSystemVals(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& dist1, const cv::Mat& dist2,
     const cv::Mat& mask, double& A1, double& A2, double& A12, double& A21, double& B1, double& B2)
 {
@@ -698,8 +858,8 @@ void getQuadSystem(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     for (int i = 0; i < numInts; i++)
     {
         const MaskIntersection& mi = intersects[i];
-        cv::imshow("i mask", mi.mask);
-        cv::waitKey(0);
+        //cv::imshow("i mask", mi.mask);
+        //cv::waitKey(0);
         double ai, aj, aij, aji, bi, bj;
         getQuadSystemVals(images[mi.i], images[mi.j], dists[mi.i], dists[mi.j], mi.mask,
             ai, aj, aij, aji, bi, bj);
@@ -753,19 +913,19 @@ static void calcParabollaScale(const cv::Size& size, double alpha, cv::Mat& scal
 
 int main3()
 {
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-
     //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages), grayImages(numImages);
@@ -774,8 +934,8 @@ int main3()
         origImages[i] = cv::imread(imagePaths[i]);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
     reprojectParallel(origImages, images, maps);
     for (int i = 0; i < numImages; i++)
@@ -791,6 +951,8 @@ int main3()
     {
         show64FC1("dist", dists[i]);
         cv::imshow("gray", grayImages[i]);
+        cv::imshow("color", images[i]);
+        cv::imshow("mask", masks[i]);
         cv::waitKey(0);
     }
 
@@ -799,6 +961,15 @@ int main3()
     for (int i = 0; i < numImages; i++)
         printf("%f ", scales[i]);
     printf("\n");
+
+    rescaleImages(images, masks, dists, scales, images);
+
+    TilingLinearBlend blender;
+    blender.prepare(masks, 100);
+    cv::Mat result;
+    blender.blend(images, result);
+    cv::imshow("result", result);
+    cv::waitKey(0);
 
     return 0;
 }
