@@ -90,6 +90,18 @@ static void histSpecification(std::vector<double>& src, std::vector<double>& dst
     }
 }
 
+inline int clamp0255(int val)
+{
+    return val < 0 ? 0 : (val > 255 ? 255 : val);
+}
+
+static void lineParamToLUT(double k, double b, std::vector<unsigned char>& lut)
+{
+    lut.resize(256);
+    for (int i = 0; i < 256; i++)
+        lut[i] = clamp0255(k * i + b);
+}
+
 static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     const cv::Mat& dst, const cv::Mat& dstMask, std::vector<unsigned char>& lutSrcToDst)
 {
@@ -98,10 +110,33 @@ static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
         src.size() == srcMask.size() && dst.size() == dstMask.size() && src.size() == dst.size());
 
     cv::Mat intersect = srcMask & dstMask;
+    //cv::imshow("intersect", intersect);
+    //cv::imshow("src i", src & intersect);
+    //cv::imshow("dst i", dst & intersect);
+    //cv::waitKey(0);
+    cv::Mat blurSrc, blurDst;
+    cv::blur(src, blurSrc, cv::Size(9, 9));
+    cv::blur(dst, blurDst, cv::Size(9, 9));
+    cv::Mat diffSmall = (((blurSrc - blurDst) < 45) & ((blurDst - blurSrc) < 45));
+    //cv::imshow("diff small", diffSmall);
+    //cv::waitKey(0);
+    intersect &= diffSmall;
     std::vector<double> srcAccumHist, dstAccumHist;
     calcAccumHist(src, intersect, srcAccumHist);
     calcAccumHist(dst, intersect, dstAccumHist);
-    histSpecification(srcAccumHist, dstAccumHist, lutSrcToDst);
+    std::vector<unsigned char> lut;
+    histSpecification(srcAccumHist, dstAccumHist, lut);
+    std::vector<cv::Point2f> pts(256);
+    for (int i = 0; i < 256; i++)
+    {
+        pts[i].x = i;
+        pts[i].y = lut[i];
+    }
+    cv::Vec4f param;
+    cv::fitLine(pts, param, cv::DIST_L2, 0, 0, 0);
+    double k = atan2(param[1], param[0]);
+    double b = param[3] - k * param[2];
+    lineParamToLUT(k, b, lutSrcToDst);
 }
 
 static void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
@@ -118,11 +153,6 @@ static void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
             ptr[j] = 1.0 / (1 - alpha * sqrDiff);
         }
     }
-}
-
-inline int clamp0255(int val)
-{
-    return val < 0 ? 0 : (val > 255 ? 255 : val);
 }
 
 static void mulScale(cv::Mat& image, const cv::Mat& scale)
@@ -156,7 +186,17 @@ static void mulScale(cv::Mat& image, const cv::Mat& scale)
     }
 }
 
-int main1()
+static void showLUT(const std::string& winName, const std::vector<unsigned char>& lut)
+{
+    cv::Mat image = cv::Mat::zeros(256, 256, CV_8UC1);
+    for (int i = 0; i < 255; i++)
+    {
+        cv::line(image, cv::Point(i, 255 - lut[i]), cv::Point(i + 1, 255 - lut[i + 1]), cv::Scalar(255));
+    }
+    cv::imshow(winName, image);
+}
+
+int main()
 {
     std::vector<std::string> imagePaths;
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
@@ -176,11 +216,11 @@ int main1()
     //    mulScale(origImages[k], scaleImage);
     mulScale(origImages[2], scaleImage);
 
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::imshow("orig image", origImages[i]);
-        cv::waitKey(0);
-    }
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    cv::imshow("orig image", origImages[i]);
+    //    cv::waitKey(0);
+    //}
 
     std::vector<PhotoParam> params;
     loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
@@ -206,6 +246,13 @@ int main1()
     printf("max gray index = %d\n", maxGrayMeanIndex);
 
     std::vector<std::vector<unsigned char> > luts(numImages);
+
+    //calcHistSpecLUT(grayImages[2], masks[2], grayImages[1], masks[1], luts[0]);
+    //calcHistSpecLUT(grayImages[2], masks[2], grayImages[3], masks[3], luts[1]);
+    //showLUT("lut0", luts[0]);
+    //showLUT("lut1", luts[1]);
+    //cv::waitKey(0);
+    //return 0;
 
     std::vector<int> workIndexes, adoptIndexes, remainIndexes;
     std::vector<cv::Mat> workImages;
@@ -237,6 +284,9 @@ int main1()
                 adoptIndexes.push_back(workIndexes[i]);
                 calcHistSpecLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
                 transform(images[workIndexes[i]], images[workIndexes[i]], luts[workIndexes[i]], masks[workIndexes[i]]);
+                printf("lut index = %d\n", workIndexes[i]);
+                showLUT("lut", luts[workIndexes[i]]);
+                cv::waitKey(0);
             }
             else
                 remainIndexes.push_back(workIndexes[i]);
@@ -259,12 +309,17 @@ int main1()
             cv::waitKey(0);
         }
 
-        TilingMultibandBlendFast blender;
-        blender.prepare(srcMasks, 20, 2);
-        blender.blend(srcImages, refImage);
+        //TilingMultibandBlendFast blender;
+        //blender.prepare(srcMasks, 20, 2);
+        //blender.blend(srcImages, refImage);
+        //for (int i = 0; i < adoptIndexes.size(); i++)
+        //    refMask |= masks[adoptIndexes[i]];
+        //refImage.setTo(0, ~refMask);
         for (int i = 0; i < adoptIndexes.size(); i++)
+        {
+            images[adoptIndexes[i]].copyTo(refImage, masks[adoptIndexes[i]]);
             refMask |= masks[adoptIndexes[i]];
-        refImage.setTo(0, ~refMask);
+        }
         cv::cvtColor(refImage, refGrayImage, CV_BGR2GRAY);
         cv::imshow("ref image", refImage);
         cv::imshow("ref mask", refMask);
@@ -501,7 +556,7 @@ void calcSqrDistToCenterImage(const cv::Size& size, cv::Mat& image)
         for (int j = 0; j < cols; j++)
         {
             double diffx = j - cx, diffy = i - cy;
-            ptr[j] = (diffx * diffx + diffy + diffy) * scale;
+            ptr[j] = (diffx * diffx + diffy * diffy) * scale;
         }
     }
 }
@@ -672,7 +727,7 @@ void listErrors(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     calcErrorsParallel(images, masks, dists, intersects, infos);
 }
 
-int main()
+int main2()
 {
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
@@ -749,67 +804,10 @@ int main()
     cv::imshow("result", result);
     cv::waitKey(0);
 
-    /*
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorB < rhs.errorB; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorB);
-    }
-    printf("\n");
-    std::vector<double> scalesB = infos[0].scales;
-
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorG < rhs.errorG; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorG);
-    }
-    printf("\n");
-    std::vector<double> scalesG = infos[0].scales;
-
-    std::sort(infos.begin(), infos.end(),
-        [](const ScalesAndError& lhs, const ScalesAndError& rhs){return lhs.errorR < rhs.errorR; });
-    printf("result\n");
-    for (int i = 0; i < 10; i++)
-    {
-        ScalesAndError& info = infos[i];
-        for (int j = 0; j < info.scales.size(); j++)
-            printf("%8.4f ", info.scales[j]);
-        printf("Error: %f\n", info.errorR);
-    }
-    printf("\n");
-    std::vector<double> scalesR = infos[0].scales;
-
-    std::vector<std::vector<cv::Mat> > bgrImages(numImages);
-    std::vector<cv::Mat> bImages(numImages), gImages(numImages), rImages(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::split(origImages[i], bgrImages[i]);
-        bImages[i] = bgrImages[i][0];
-        gImages[i] = bgrImages[i][1];
-        rImages[i] = bgrImages[i][2];
-    }
-    getScales(scalesB, origImages[0].size(), scaleImages);
-    mulScales(bImages, scaleImages, bImages);
-    mulScales(gImages, scaleImages, gImages);
-    mulScales(rImages, scaleImages, rImages);
-    for (int i = 0; i < numImages; i++)
-        cv::merge(bgrImages[i], scaledImages[i]);
-    reprojectParallel(scaledImages, images, maps);
-    */
-
     return 0;
 }
 
+// Minimize mutual difference
 void getQuadSystemVals(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& dist1, const cv::Mat& dist2,
     const cv::Mat& mask, double& A1, double& A2, double& A12, double& A21, double& B1, double& B2)
 {
@@ -826,11 +824,12 @@ void getQuadSystemVals(const cv::Mat& image1, const cv::Mat& image2, const cv::M
         {
             if (ptrMask[j])
             {
-                a1 += ptrDist1[j] * ptrDist1[j] * double(ptrImage1[j]) * double(ptrImage1[j]);
-                a2 += ptrDist2[j] * ptrDist2[j] * double(ptrImage2[j]) * double(ptrImage2[j]);
-                a12 += -2 * ptrDist1[j] * ptrDist2[j] * double(ptrImage1[j]) * double(ptrImage2[j]);
-                b1 += 2 * (double(ptrImage1[j]) - double(ptrImage2[j])) * double(ptrImage1[j]) * ptrDist1[j];
-                b2 += -2 * (double(ptrImage1[j]) - double(ptrImage2[j])) * double(ptrImage2[j]) * ptrDist2[j];
+                double lambda = 1.0 - 0.5 * sqrt(ptrDist1[j] * ptrDist2[j]);
+                a1 += lambda * ptrDist1[j] * ptrDist1[j] * double(ptrImage1[j]) * double(ptrImage1[j]);
+                a2 += lambda * ptrDist2[j] * ptrDist2[j] * double(ptrImage2[j]) * double(ptrImage2[j]);
+                a12 += lambda * -2 * ptrDist1[j] * ptrDist2[j] * double(ptrImage1[j]) * double(ptrImage2[j]);
+                b1 += lambda * 2 * (double(ptrImage1[j]) - double(ptrImage2[j])) * double(ptrImage1[j]) * ptrDist1[j];
+                b2 += lambda * -2 * (double(ptrImage1[j]) - double(ptrImage2[j])) * double(ptrImage2[j]) * ptrDist2[j];
             }
         }
     }
@@ -842,9 +841,10 @@ void getQuadSystemVals(const cv::Mat& image1, const cv::Mat& image2, const cv::M
     B2 = b2;
 }
 
+// Mininize mutual difference
 // y = x^T A x + B^T x
 void getQuadSystem(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& dists,
-    const std::vector<cv::Mat>& masks, cv::Mat& A, cv::Mat& B)
+    const std::vector<MaskIntersection>& intersects, cv::Mat& A, cv::Mat& B)
 {
     int size = images.size();
     A.create(size, size, CV_64FC1);
@@ -852,8 +852,6 @@ void getQuadSystem(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     A.setTo(0);
     B.setTo(0);
 
-    std::vector<MaskIntersection> intersects;
-    calcMaskIntersections(masks, intersects);
     int numInts = intersects.size();
     for (int i = 0; i < numInts; i++)
     {
@@ -877,10 +875,97 @@ void solveScales(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>&
 {
     int size = images.size();
     cv::Mat A, B, X;
-    getQuadSystem(images, dists, masks, A, B);
+    std::vector<MaskIntersection> intersects;
+    calcMaskIntersections(masks, intersects);
+    getQuadSystem(images, dists, intersects, A, B);
     B *= -0.5;
     std::cout << A << std::endl;
     std::cout << B << std::endl;
+    cv::solve(A, B, X);
+    scales.resize(size);
+    for (int i = 0; i < size; i++)
+        scales[i] = X.at<double>(i);
+}
+
+void getQuadSystemVals(const cv::Mat& image, const cv::Mat& dist, const cv::Mat& mask, 
+    double expectMean, double& A, double& B)
+{
+    double a = 0, b = 0;
+    int rows = mask.rows, cols = mask.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        const double* ptrDist = dist.ptr<double>(i);
+        const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (ptrMask[j])
+            {
+                a += double(ptrImage[j]) * double(ptrImage[j]) * ptrDist[j] * ptrDist[j];
+                b += 2 * (ptrImage[j] - expectMean) * ptrImage[j] * ptrDist[j];
+            }
+        }
+    }
+    A = a;
+    B = b;
+}
+
+void getQuadSystem(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& dists,
+    const std::vector<cv::Mat>& masks, double expectMean, cv::Mat& A, cv::Mat& B)
+{
+    int size = images.size();
+    A.create(size, size, CV_64FC1);
+    B.create(size, 1, CV_64FC1);
+    A.setTo(0);
+    B.setTo(0);
+    for (int i = 0; i < size; i++)
+    {
+        double a, b;
+        getQuadSystemVals(images[i], dists[i], masks[i], expectMean, a, b);
+        A.at<double>(i, i) += a;
+        B.at<double>(i) += b;
+    }
+}
+
+void solveScales2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& dists,
+    const std::vector<cv::Mat>& masks, std::vector<double>& scales)
+{
+    int size = images.size();
+    cv::Mat A1, B1, A2, B2, A, B, X;
+
+    std::vector<MaskIntersection> intersects;
+    calcMaskIntersections(masks, intersects);
+
+    getQuadSystem(images, dists, intersects, A1, B1);
+    B1 *= -0.5;
+    int count1 = 0;
+    for (int i = 0, numInts = intersects.size(); i < numInts; i++)
+        count1 += intersects[i].numNonZero;
+
+    int maxMeanIndex = 0;
+    double maxMean = cv::mean(images[0], masks[0])[0];
+    for (int i = 1; i < size; i++)
+    {
+        double currMean = cv::mean(images[i], masks[i])[0];
+        if (currMean > maxMean)
+        {
+            maxMean = currMean;
+            maxMeanIndex = i;
+        }
+    }
+
+    getQuadSystem(images, dists, masks, maxMean, A2, B2);
+    B2 *= -0.5;
+    int count2 = 0;
+    for (int i = 0; i < size; i++)
+        count2 += cv::countNonZero(masks[i]);
+
+    double scale1 = 1.0 / count1, scale2 = 1.0 / count2;
+    A = scale1 * A1 + scale2 * A2;
+    B = scale1 * B1 + scale2 * B2;
+    std::cout << A << "\n";
+    std::cout << B << "\n";
+
     cv::solve(A, B, X);
     scales.resize(size);
     for (int i = 0; i < size; i++)
@@ -911,21 +996,82 @@ static void calcParabollaScale(const cv::Size& size, double alpha, cv::Mat& scal
     }
 }
 
+void rescaleImage2(const cv::Mat& src, const cv::Mat& mask, const cv::Mat& dist, double scale, cv::Mat& dst)
+{
+    CV_Assert(src.data && (src.type() == CV_8UC1 || src.type() == CV_8UC3) &&
+        mask.data && mask.type() == CV_8UC1 && dist.data && dist.type() == CV_64FC1 &&
+        src.size() == mask.size() && src.size() == dist.size());
+
+    int rows = src.rows, cols = src.cols;
+    dst.create(rows, cols, src.type());
+    if (src.type() == CV_8UC1)
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            const double* ptrDist = dist.ptr<double>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (ptrMask[j])
+                    ptrDst[j] = clamp0255(double(ptrSrc[j]) * (1.0 + scale * ptrDist[j]));
+                else
+                    ptrDst[j] = ptrSrc[j];
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            const double* ptrDist = dist.ptr<double>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (ptrMask[j])
+                {
+                    ptrDst[j * 3] = clamp0255(double(ptrSrc[j * 3]) * (1.0 + scale * ptrDist[j]));
+                    ptrDst[j * 3 + 1] = clamp0255(double(ptrSrc[j * 3 + 1]) * (1.0 + scale * ptrDist[j]));
+                    ptrDst[j * 3 + 2] = clamp0255(double(ptrSrc[j * 3 + 2]) * (1.0 + scale * ptrDist[j]));
+                }
+                else
+                {
+                    ptrDst[j * 3] = ptrSrc[j * 3];
+                    ptrDst[j * 3 + 1] = ptrSrc[j * 3 + 1];
+                    ptrDst[j * 3 + 2] = ptrSrc[j * 3 + 2];
+                }
+            }
+        }
+    }
+}
+
+void rescaleImages2(const std::vector<cv::Mat>& srcs, const std::vector<cv::Mat>& masks,
+    const std::vector<cv::Mat>& dists, const std::vector<double>& scales, std::vector<cv::Mat>& dsts)
+{
+    int size = srcs.size();
+    dsts.resize(size);
+    for (int i = 0; i < size; i++)
+        rescaleImage2(srcs[i], masks[i], dists[i], scales[i], dsts[i]);
+}
+
 int main3()
 {
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages), grayImages(numImages);
@@ -934,8 +1080,8 @@ int main3()
         origImages[i] = cv::imread(imagePaths[i]);
 
     std::vector<PhotoParam> params;
-    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
     reprojectParallel(origImages, images, maps);
     for (int i = 0; i < numImages; i++)
@@ -947,22 +1093,27 @@ int main3()
     for (int i = 0; i < numImages; i++)
         reproject64FC1(origDist, dists[i], maps[i]);
 
-    for (int i = 0; i < numImages; i++)
-    {
-        show64FC1("dist", dists[i]);
-        cv::imshow("gray", grayImages[i]);
-        cv::imshow("color", images[i]);
-        cv::imshow("mask", masks[i]);
-        cv::waitKey(0);
-    }
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    show64FC1("dist", dists[i]);
+    //    cv::imshow("gray", grayImages[i]);
+    //    cv::imshow("color", images[i]);
+    //    cv::imshow("mask", masks[i]);
+    //    cv::waitKey(0);
+    //}
 
     std::vector<double> scales;
-    solveScales(grayImages, dists, masks, scales);
+    solveScales2(grayImages, dists, masks, scales);
     for (int i = 0; i < numImages; i++)
         printf("%f ", scales[i]);
     printf("\n");
 
-    rescaleImages(images, masks, dists, scales, images);
+    rescaleImages2(images, masks, dists, scales, images);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::imshow("image", images[i]);
+        cv::waitKey(0);
+    }
 
     TilingLinearBlend blender;
     blender.prepare(masks, 100);
