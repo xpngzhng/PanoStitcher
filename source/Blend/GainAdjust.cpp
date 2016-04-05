@@ -165,7 +165,7 @@ static int updateNumIters(double p, double ep, int modelPoints, int maxIters)
     maxIters : cvRound(num / denom);
 }
 
-static int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, cv::Point2d& dir)
+int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, cv::Point2d& dir)
 {
     CV_Assert(points.size() > 3);
     int size = points.size();
@@ -210,7 +210,7 @@ static int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, c
     return numMaxInliers;
 }
 
-static void calcHist2D(const std::vector<cv::Point>& points, cv::Mat& hist)
+void calcHist2D(const std::vector<cv::Point>& points, cv::Mat& hist)
 {
     hist.create(256, 256, CV_32SC1);
     hist.setTo(0);
@@ -226,7 +226,7 @@ static void calcHist2D(const std::vector<cv::Point>& points, cv::Mat& hist)
     }
 }
 
-static void normalizeAndConvert(const cv::Mat& hist, cv::Mat& image)
+void normalizeAndConvert(const cv::Mat& hist, cv::Mat& image)
 {
     image.create(256, 256, CV_8UC1);
     double minVal, maxVal;

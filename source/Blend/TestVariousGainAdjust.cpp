@@ -102,6 +102,16 @@ static void lineParamToLUT(double k, double b, std::vector<unsigned char>& lut)
         lut[i] = clamp0255(k * i + b);
 }
 
+static void showLUT(const std::string& winName, const std::vector<unsigned char>& lut)
+{
+    cv::Mat image = cv::Mat::zeros(256, 256, CV_8UC1);
+    for (int i = 0; i < 255; i++)
+    {
+        cv::line(image, cv::Point(i, 255 - lut[i]), cv::Point(i + 1, 255 - lut[i + 1]), cv::Scalar(255));
+    }
+    cv::imshow(winName, image);
+}
+
 static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     const cv::Mat& dst, const cv::Mat& dstMask, std::vector<unsigned char>& lutSrcToDst)
 {
@@ -126,6 +136,8 @@ static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
     calcAccumHist(dst, intersect, dstAccumHist);
     std::vector<unsigned char> lut;
     histSpecification(srcAccumHist, dstAccumHist, lut);
+    showLUT("raw lut", lut);
+    cv::waitKey(0);
     std::vector<cv::Point2f> pts(256);
     for (int i = 0; i < 256; i++)
     {
@@ -133,10 +145,63 @@ static void calcHistSpecLUT(const cv::Mat& src, const cv::Mat& srcMask,
         pts[i].y = lut[i];
     }
     cv::Vec4f param;
-    cv::fitLine(pts, param, cv::DIST_L2, 0, 0, 0);
-    double k = atan2(param[1], param[0]);
+    cv::fitLine(pts, param, cv::DIST_L2, 0, 0.01, 0.01);
+    printf("fit line out: %f %f %f %f\n", param[0], param[1], param[2], param[3]);
+    double k = param[1] / param[0];
     double b = param[3] - k * param[2];
+    printf("line param: %f, %f\n", k, b);
     lineParamToLUT(k, b, lutSrcToDst);
+}
+
+int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, cv::Point2d& dir);
+void calcHist2D(const std::vector<cv::Point>& points, cv::Mat& hist);
+void normalizeAndConvert(const cv::Mat& hist, cv::Mat& image);
+
+static void calcLUT(const cv::Mat& src, const cv::Mat& srcMask,
+    const cv::Mat& dst, const cv::Mat& dstMask, std::vector<unsigned char>& lutSrcToDst)
+{
+    CV_Assert(src.data && src.type() == CV_8UC1 && srcMask.data && srcMask.type() == CV_8UC1 &&
+        dst.data && dst.type() == CV_8UC1 && dstMask.data && dstMask.type() == CV_8UC1 &&
+        src.size() == srcMask.size() && dst.size() == dstMask.size() && src.size() == dst.size());
+
+    cv::Mat intersect = srcMask & dstMask;
+    //cv::imshow("intersect", intersect);
+    //cv::imshow("src i", src & intersect);
+    //cv::imshow("dst i", dst & intersect);
+    //cv::waitKey(0);
+    cv::Mat blurSrc, blurDst;
+    cv::blur(src, blurSrc, cv::Size(9, 9));
+    cv::blur(dst, blurDst, cv::Size(9, 9));
+    cv::Mat diffSmall = (((blurSrc - blurDst) < 45) & ((blurDst - blurSrc) < 45));
+    //cv::imshow("diff small", diffSmall);
+    //cv::waitKey(0);
+    intersect &= diffSmall;
+
+    int rows = src.rows, cols = src.cols;
+    std::vector<cv::Point> pts;
+    pts.reserve(cv::countNonZero(intersect));
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+        const unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+        const unsigned char* ptrIts = intersect.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (ptrIts[j])
+                pts.push_back(cv::Point(ptrSrc[j], ptrDst[j]));
+        }
+    }
+    cv::Point2d p, dir;
+    getLineRANSAC(pts, p, dir);
+    double k = dir.y / dir.x;
+    double b = p.y - k * p.x;
+    lineParamToLUT(k, b, lutSrcToDst);
+
+    cv::Mat hist2D, histShow;
+    calcHist2D(pts, hist2D);
+    normalizeAndConvert(hist2D, histShow);
+    cv::imshow("hist", histShow);
+    cv::waitKey(0);
 }
 
 static void calcScale(const cv::Size& size, double minScale, cv::Mat& scale)
@@ -186,17 +251,7 @@ static void mulScale(cv::Mat& image, const cv::Mat& scale)
     }
 }
 
-static void showLUT(const std::string& winName, const std::vector<unsigned char>& lut)
-{
-    cv::Mat image = cv::Mat::zeros(256, 256, CV_8UC1);
-    for (int i = 0; i < 255; i++)
-    {
-        cv::line(image, cv::Point(i, 255 - lut[i]), cv::Point(i + 1, 255 - lut[i + 1]), cv::Scalar(255));
-    }
-    cv::imshow(winName, image);
-}
-
-int main()
+int main1()
 {
     std::vector<std::string> imagePaths;
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
@@ -205,7 +260,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
 
     int numImages = imagePaths.size();
-    std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages), grayImages(numImages);
+    std::vector<cv::Mat> origImages(numImages), origReprojImages(numImages), images(numImages), grayImages(numImages);
+    std::vector<cv::Mat> maps(numImages), origMasks(numImages), masks(numImages);
 
     for (int i = 0; i < numImages; i++)
         origImages[i] = cv::imread(imagePaths[i]);
@@ -224,13 +280,17 @@ int main()
 
     std::vector<PhotoParam> params;
     loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
-    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
-    reprojectParallel(origImages, images, maps);
+    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, origMasks);
+    reprojectParallel(origImages, origReprojImages, maps);
 
-    getExtendedMasks(masks, 100, masks);
+    getExtendedMasks(origMasks, 100, masks);
 
     for (int i = 0; i < numImages; i++)
+    {
+        origReprojImages[i].copyTo(images[i]);
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
+    }
+        
 
     int maxGrayMeanIndex = 0;
     double maxGrayMean = cv::mean(grayImages[0], masks[0])[0];
@@ -283,6 +343,7 @@ int main()
             {
                 adoptIndexes.push_back(workIndexes[i]);
                 calcHistSpecLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
+                //calcLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
                 transform(images[workIndexes[i]], images[workIndexes[i]], luts[workIndexes[i]], masks[workIndexes[i]]);
                 printf("lut index = %d\n", workIndexes[i]);
                 showLUT("lut", luts[workIndexes[i]]);
@@ -332,9 +393,9 @@ int main()
     }
 
     TilingLinearBlend blender;
-    blender.prepare(masks, 100);
+    blender.prepare(origMasks, 100);
     cv::Mat result;
-    blender.blend(images, result);
+    blender.blend(origReprojImages, result);
     cv::imshow("result", result);
     cv::waitKey(0);
 
@@ -1121,6 +1182,105 @@ int main3()
     blender.blend(images, result);
     cv::imshow("result", result);
     cv::waitKey(0);
+
+    return 0;
+}
+
+inline void cvtPDirToKH(const cv::Point2d& p, const cv::Point2d& dir, double& k, double& h)
+{
+    k = dir.y / dir.x;
+    h = p.y - k * p.x;
+}
+
+static void iterativeGainAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
+{
+    std::vector<cv::Mat> extendedMasks;
+    getExtendedMasks(masks, 50, extendedMasks);
+
+    TilingMultibandBlendFast blender;
+    blender.prepare(masks, 20, 2);
+
+    cv::Mat blendImage;
+    int numImages = images.size();
+    std::vector<double> kvals(numImages), hvals(numImages);
+
+    blender.blend(images, blendImage);
+
+    for (int k = 0; k < numImages; k++)
+    {
+        const cv::Mat& image = images[k];
+        const cv::Mat& mask = extendedMasks[k];
+
+        int count = cv::countNonZero(mask);
+        std::vector<cv::Point> valPairs(count);
+        int rows = mask.rows, cols = mask.cols;
+        cv::Mat blendGray, imageGray;
+        cv::cvtColor(blendImage, blendGray, CV_BGR2GRAY);
+        cv::cvtColor(image, imageGray, CV_BGR2GRAY);
+        int index = 0;
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrBlend = blendGray.ptr<unsigned char>(i);
+            const unsigned char* ptrImage = imageGray.ptr<unsigned char>(i);
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (ptrMask[j])
+                    valPairs[index++] = cv::Point(ptrImage[j], ptrBlend[j]);
+            }
+        }
+        cv::Point2d p, dir;
+        getLineRANSAC(valPairs, p, dir);
+
+        //cv::Mat hist2D, histShow;
+        //calcHist2D(valPairs, hist2D);
+        //normalizeAndConvert(hist2D, histShow);
+        //cv::imshow("hist", histShow);
+        //cv::imwrite("hist.bmp", histShow);
+
+        //double r = 500;
+        //cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
+        //cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
+        //cv::line(lineShow, p0, p1, cv::Scalar(255));
+        //cv::imshow("line", lineShow);
+        //cv::waitKey(0);
+
+        cvtPDirToKH(p, dir, kvals[k], hvals[k]);
+
+        printf("[%d] k = %f, b = %f\n", k, kvals[k], hvals[k]);
+    }
+}
+
+int main()
+{
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> origImages(numImages), images(numImages), maps(numImages), masks(numImages);
+
+    for (int i = 0; i < numImages; i++)
+        origImages[i] = cv::imread(imagePaths[i]);
+
+    std::vector<PhotoParam> params;
+    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, masks);
+    reprojectParallel(origImages, images, maps);
+
+    std::vector<cv::Mat> results;
+    iterativeGainAdjust(images, masks, results);
 
     return 0;
 }
