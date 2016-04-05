@@ -430,7 +430,8 @@ bool PanoramaLiveStreamTask::Impl::getLatestStitchedFrame(avp::SharedAudioVideoF
 
 bool PanoramaLiveStreamTask::Impl::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
 {
-    std::vector<avp::SharedAudioVideoFrame> tempFrames;
+    return syncedFramesBufferForShow.pull(frames);
+    /*std::vector<avp::SharedAudioVideoFrame> tempFrames;
     bool ok = syncedFramesBufferForShow.pull(tempFrames);
     if (ok)
     {
@@ -439,16 +440,17 @@ bool PanoramaLiveStreamTask::Impl::getVideoSourceFrames(std::vector<avp::SharedA
         for (int i = 0; i < size; i++)
             avp::copy(tempFrames[i], frames[i]);
     }
-    return ok;
+    return ok;*/
 }
 
 bool PanoramaLiveStreamTask::Impl::getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame)
 {
-    avp::SharedAudioVideoFrame tempFrame;
+    return procFrameBufferForShow.pull(frame);
+    /*avp::SharedAudioVideoFrame tempFrame;
     bool ok = procFrameBufferForShow.pull(tempFrame);
     if (ok)
         avp::copy(tempFrame, frame);
-    return ok;
+    return ok;*/
 }
 
 void PanoramaLiveStreamTask::Impl::cancelGetVideoSourceFrames()
