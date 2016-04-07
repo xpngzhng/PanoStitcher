@@ -251,7 +251,7 @@ int main()
     printf("%f\n", timer.elapse());*/
 
     timer.start();
-    funcParallel(images, masks, 500);
+    funcParallel(images, masks, 10000);
     timer.end();
     printf("%f\n", timer.elapse());
 

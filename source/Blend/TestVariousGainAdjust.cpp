@@ -41,6 +41,25 @@ static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std:
         extendedMasks[i] = (blurMasks[i] != 0);
 }
 
+static void calcHist(const cv::Mat& image, const cv::Mat& mask, std::vector<int>& hist)
+{
+    CV_Assert(image.data && image.type() == CV_8UC1 &&
+        mask.data && mask.type() == CV_8UC1 && image.size() == mask.size());
+
+    hist.resize(256, 0);
+    int rows = image.rows, cols = image.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptr = image.ptr<unsigned char>(i);
+        const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (ptrMask[j])
+                hist[ptr[j]] += 1;
+        }
+    }
+}
+
 static void calcAccumHist(const cv::Mat& image, const cv::Mat& mask, std::vector<double>& hist)
 {
     CV_Assert(image.data && image.type() == CV_8UC1 &&
@@ -172,6 +191,25 @@ int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, cv::Poin
 void calcHist2D(const std::vector<cv::Point>& points, cv::Mat& hist);
 void normalizeAndConvert(const cv::Mat& hist, cv::Mat& image);
 
+static void logNormalizeAndConvert(const cv::Mat& hist, cv::Mat& result)
+{
+    cv::Mat image(256, 256, CV_8UC1);
+    double minVal, maxVal;
+    cv::minMaxLoc(hist, &minVal, &maxVal);
+    double scale = 255.0 / (log(1 + maxVal) - log(1 + minVal));
+    double logMinVal = log(1 + minVal);
+    for (int i = 0; i < 256; i++)
+    {
+        const int* ptrHist = hist.ptr<int>(i);
+        unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        for (int j = 0; j < 256; j++)
+        {
+            ptrImage[j] = (log(1 + ptrHist[j]) - logMinVal) * scale + 0.5;
+        }
+    }
+    cv::flip(image, result, 0);
+}
+
 static void calcLUT(const cv::Mat& src, const cv::Mat& srcMask,
     const cv::Mat& dst, const cv::Mat& dstMask, std::vector<unsigned char>& lutSrcToDst)
 {
@@ -214,7 +252,7 @@ static void calcLUT(const cv::Mat& src, const cv::Mat& srcMask,
 
     cv::Mat hist2D, histShow;
     calcHist2D(pts, hist2D);
-    normalizeAndConvert(hist2D, histShow);
+    logNormalizeAndConvert(hist2D, histShow);
     cv::imshow("hist", histShow);
     cv::waitKey(0);
 }
@@ -304,7 +342,7 @@ int main()
     std::vector<PhotoParam> params;
     loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
     //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(1600, 800), maps, origMasks);
+    getReprojectMapsAndMasks(params, origImages[0].size(), cv::Size(2048, 1024), maps, origMasks);
     reprojectParallel(origImages, origReprojImages, maps);
 
     //getExtendedMasks(origMasks, 100, masks);
@@ -373,12 +411,22 @@ int main()
             {
                 adoptIndexes.push_back(workIndexes[i]);
                 calcHistSpecLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
-                //calcLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, luts[workIndexes[i]]);
+                std::vector<unsigned char> localLUT;
+                calcLUT(grayImages[workIndexes[i]], masks[workIndexes[i]], refGrayImage, refMask, localLUT);
                 transform(images[workIndexes[i]], images[workIndexes[i]], luts[workIndexes[i]], masks[workIndexes[i]]);
                 printf("lut index = %d\n", workIndexes[i]);
+                for (int j = 0; j < 256; j++)
+                {
+                    printf("%3d ", luts[workIndexes[i]][j]);
+                    if (j % 16 == 15)
+                        printf("\n");
+                }
                 showLUT("lut", luts[workIndexes[i]]);
                 cv::imshow("transformed image", images[workIndexes[i]]);
                 cv::waitKey(0);
+                /*char buf[256];
+                sprintf(buf, "adjust%d.bmp", workIndexes[i]);
+                cv::imwrite(buf, images[workIndexes[i]]);*/
             }
             else
                 remainIndexes.push_back(workIndexes[i]);
