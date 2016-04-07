@@ -530,7 +530,7 @@ void PanoramaLiveStreamTask::Impl::closeLiveStream()
 void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
-    fileWriterFormat = dir + "/temp%d.mp4";
+    fileWriterFormat = dir.empty() ? "temp%d.mp4" : dir + "/temp%d.mp4";
     fileFrameSize.width = width;
     fileFrameSize.height = height;
     fileVideoBitRate = videoBPS;
@@ -1123,7 +1123,7 @@ void PanoramaLiveStreamTask::Impl::streamSend()
         if (frame.data)
         {
             avp::AudioVideoFrame shallow;
-            printf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
+            //printf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
             if (frame.mediaType == avp::VIDEO && streamFrameSize != renderFrameSize)
             {
                 cv::Mat srcMat(renderFrameSize, pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);

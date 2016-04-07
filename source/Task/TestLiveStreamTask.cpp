@@ -9,6 +9,7 @@ cv::Size srcSize(1920, 1080);
 
 int frameRate;
 int audioBitRate = 96000;
+cv::Size stitchFrameSize(1440, 720);
 
 cv::Size streamFrameSize(1440, 720);
 int streamBitRate;
@@ -30,7 +31,7 @@ int numCameras;
 int audioOpened;
 int waitTime = 30;
 
-int enableCuda = 0;
+bool highQualityBlend = true;
 
 PanoramaLiveStreamTask task;
 
@@ -147,12 +148,14 @@ int main(int argc, char* argv[])
         "{camera_width                | 1920          | camera picture width}"
         "{camera_height               | 1080          | camera picture height}"
         "{frames_per_second           | 30            | camera frame rate}"
+        "{pano_stitch_frame_width     | 1440          | pano video picture width}"
+        "{pano_stitch_frame_height    | 720           | pano video picture height}"
         "{pano_stream_frame_width     | 1440          | pano video live stream picture width}"
         "{pano_stream_frame_height    | 720           | pano video live stream picture height}"
         "{pano_stream_bits_per_second | 1000000       | pano video live stream bits per second}"
         "{pano_stream_encoder         | h264          | pano video live stream encoder}"
         "{pano_stream_encode_preset   | veryfast      | pano video live stream encode preset}"
-        "{pano_stream_url             | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
+        "{pano_stream_url             | rtsp://127.0.0.1/test.sdp | pano live stream address}"
         "{pano_save_file              | false         | whether to save audio video to local hard disk}"
         "{pano_file_duration          | 60            | each local pano audio video file duration in seconds}"
         "{pano_file_frame_width       | 1440          | pano video local file picture width}"
@@ -162,7 +165,7 @@ int main(int argc, char* argv[])
         "{pano_file_encode_preset     | veryfast      | pano video local file encode preset}"
         "{enable_audio                | false         | enable audio or not}"
         "{enable_interactive_select_devices | false   | enable interactice select devices}"
-        "{enable_cuda                 | false         | enable cuda reproject and blend to render panorama image}";
+        "{high_quality_blend          | true         | use multiband blend}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
@@ -180,38 +183,14 @@ int main(int argc, char* argv[])
     srcSize.width = parser.get<int>("camera_width");
     srcSize.height = parser.get<int>("camera_height");
 
-    saveFile = parser.get<bool>("pano_save_file");
-    fileDuration = parser.get<int>("pano_file_duration");
-    fileBitRate = parser.get<int>("pano_file_bits_per_second");
-    fileEncoder = parser.get<std::string>("pano_file_encoder");
-    if (fileEncoder != "h264_qsv")
-        fileEncoder = "h264";
-    fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
-    if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
-        fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||
-        fileEncodePreset != "fast" || fileEncodePreset != "medium" || fileEncodePreset != "slow" ||
-        fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
-        fileEncodePreset = "veryfast";
-
-    fileFrameSize.width = parser.get<int>("pano_file_frame_width");
-    fileFrameSize.height = parser.get<int>("pano_file_frame_height");
-    if (fileFrameSize.width <= 0 || fileFrameSize.height <= 0 ||
-        (fileFrameSize.width & 1) || (fileFrameSize.height & 1) ||
-        (fileFrameSize.width != fileFrameSize.height * 2))
+    stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
+    stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
+    if (stitchFrameSize.width <= 0 || stitchFrameSize.height <= 0 ||
+        (stitchFrameSize.width & 1) || (stitchFrameSize.height & 1) ||
+        (stitchFrameSize.width != stitchFrameSize.height * 2))
     {
-        printf("pano_file_frame_width and pano_file_frame_height should be positive even numbers, "
-            "and pano_file_frame_width should be two times of pano_file_frame_height\n");
-        return 0;
-    }
-
-    streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
-    streamFrameSize.height = parser.get<int>("pano_stream_frame_height");
-    if (streamFrameSize.width <= 0 || streamFrameSize.height <= 0 ||
-        (streamFrameSize.width & 1) || (streamFrameSize.height & 1) ||
-        (streamFrameSize.width != streamFrameSize.height * 2))
-    {
-        printf("pano_stream_frame_width and pano_stream_frame_height should be positive even numbers, "
-            "and pano_stream_frame_width should be two times of pano_stream_frame_height\n");
+        printf("pano_stitch_frame_width and pano_stitch_frame_height should be positive even numbers, "
+            "and pano_stitch_frame_width should be two times of pano_stitch_frame_height\n");
         return 0;
     }
     
@@ -302,7 +281,7 @@ int main(int argc, char* argv[])
     opts.push_back(std::make_pair("framerate", frameRateStr));
     opts.push_back(std::make_pair("video_size", videoSizeStr));
 
-    enableCuda = parser.get<bool>("enable_cuda");
+    highQualityBlend = parser.get<bool>("high_quality_blend");
     std::vector<avp::Device> newVideoDevices(numCameras);
     for (int i = 0; i < numCameras; i++)
         newVideoDevices[i] = videoDevices[videoIndexes[i]];
@@ -323,9 +302,7 @@ int main(int argc, char* argv[])
     }
 
     cameraParamPath = parser.get<std::string>("camera_param_path");
-    bool equalStreamAndFile = streamFrameSize == fileFrameSize;
-    ok = task.beginVideoStitch(cameraParamPath, saveFile ? fileFrameSize.width : streamFrameSize.width,
-        saveFile ? fileFrameSize.height : streamFrameSize.height, enableCuda);
+    ok = task.beginVideoStitch(cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
     if (!ok)
     {
         printf("Could not prepare for panorama render\n");
@@ -334,18 +311,30 @@ int main(int argc, char* argv[])
     //printf("pass render prepare\n");
 
     streamURL = parser.get<std::string>("pano_stream_url");
-    streamBitRate = parser.get<int>("pano_stream_bits_per_second");
-    streamEncoder = parser.get<std::string>("pano_stream_encoder");
-    if (streamEncoder != "h264_qsv")
-        streamEncoder = "h264";
-    streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
-    if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
-        streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
-        streamEncodePreset != "fast" || streamEncodePreset != "medium" || streamEncodePreset != "slow" ||
-        streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
-        streamEncodePreset = "veryfast";
     if (streamURL.size() && streamURL != "null")
     {
+        streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
+        streamFrameSize.height = parser.get<int>("pano_stream_frame_height");
+        if (streamFrameSize.width <= 0 || streamFrameSize.height <= 0 ||
+            (streamFrameSize.width & 1) || (streamFrameSize.height & 1) ||
+            (streamFrameSize.width != streamFrameSize.height * 2))
+        {
+            printf("pano_stream_frame_width and pano_stream_frame_height should be positive even numbers, "
+                "and pano_stream_frame_width should be two times of pano_stream_frame_height\n");
+            return 0;
+        }
+
+        streamBitRate = parser.get<int>("pano_stream_bits_per_second");
+        streamEncoder = parser.get<std::string>("pano_stream_encoder");
+        if (streamEncoder != "h264_qsv")
+            streamEncoder = "h264";
+        streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
+        if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
+            streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
+            streamEncodePreset != "fast" || streamEncodePreset != "medium" || streamEncodePreset != "slow" ||
+            streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
+            streamEncodePreset = "veryfast";
+
         ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, 
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
@@ -359,8 +348,32 @@ int main(int argc, char* argv[])
         printf("pano_stream_url empty, no live stream\n");
     }
 
+    saveFile = parser.get<bool>("pano_save_file");
     if (saveFile)
     {
+        fileFrameSize.width = parser.get<int>("pano_file_frame_width");
+        fileFrameSize.height = parser.get<int>("pano_file_frame_height");
+        if (fileFrameSize.width <= 0 || fileFrameSize.height <= 0 ||
+            (fileFrameSize.width & 1) || (fileFrameSize.height & 1) ||
+            (fileFrameSize.width != fileFrameSize.height * 2))
+        {
+            printf("pano_file_frame_width and pano_file_frame_height should be positive even numbers, "
+                "and pano_file_frame_width should be two times of pano_file_frame_height\n");
+            return 0;
+        }
+
+        fileDuration = parser.get<int>("pano_file_duration");
+        fileBitRate = parser.get<int>("pano_file_bits_per_second");
+        fileEncoder = parser.get<std::string>("pano_file_encoder");
+        if (fileEncoder != "h264_qsv")
+            fileEncoder = "h264";
+        fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
+        if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
+            fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||
+            fileEncodePreset != "fast" || fileEncodePreset != "medium" || fileEncodePreset != "slow" ||
+            fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
+            fileEncodePreset = "veryfast";
+
         task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height, 
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
