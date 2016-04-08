@@ -100,7 +100,7 @@ void showVideoSources()
                 sprintf(winName, "source %d", i);
                 cv::imshow(winName, show);
             }            
-            int key = cv::waitKey(waitTime);
+            int key = cv::waitKey(waitTime / 2);
             if (key == 'q')
             {
                 task.closeAll();
@@ -127,7 +127,7 @@ void showVideoResult()
         {
             cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);
             cv::imshow("result", show);
-            int key = cv::waitKey(waitTime);
+            int key = cv::waitKey(waitTime / 2);
             if (key == 'q')
             {
                 task.closeAll();

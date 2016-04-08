@@ -10,11 +10,20 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 // for video source
-typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
+//typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
 // for synced video source
-typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
+//typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > RealTimeFrameVectorQueue;
 // for audio source and proc result
-typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
+//typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
+
+// for individual video and audio sources and proc result
+typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> ForceWaitFrameQueue;
+// for synced video source frames
+typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForceWaitFrameVectorQueue;
+// for video frame for show
+typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
+// for video frames for show
+typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
 
 struct PanoramaLiveStreamTask::Impl
 {
@@ -149,11 +158,13 @@ struct PanoramaLiveStreamTask::Impl
 
     int pixelType;
     int finish;
-    std::unique_ptr<std::vector<CompleteFrameQueue> > ptrFrameBuffers;
-    RealTimeFrameVectorQueue syncedFramesBufferForShow;
+    std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
+    ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
-    RealTimeFrameQueue procFrameBufferForPostProc, procFrameBufferForShow, procFrameBufferForSend, procFrameBufferForSave;
+    ForceWaitFrameQueue procFrameBufferForPostProc;
+    ForShowFrameQueue procFrameBufferForShow;
+    ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 };
 
 
@@ -217,7 +228,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Devic
     if (logCallbackFunc)
         logCallbackFunc("Video sources open success", logCallbackData);
 
-    ptrFrameBuffers.reset(new std::vector<CompleteFrameQueue>(numVideos));
+    ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     syncedFramesBufferForShow.clear();
@@ -455,12 +466,12 @@ bool PanoramaLiveStreamTask::Impl::getStitchedVideoFrame(avp::SharedAudioVideoFr
 
 void PanoramaLiveStreamTask::Impl::cancelGetVideoSourceFrames()
 {
-    syncedFramesBufferForShow.stop();
+    //syncedFramesBufferForShow.stop();
 }
 
 void PanoramaLiveStreamTask::Impl::cancelGetStitchedVideoFrame()
 {
-    procFrameBufferForShow.stop();
+    //procFrameBufferForShow.stop();
 }
 
 bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
@@ -578,7 +589,7 @@ void PanoramaLiveStreamTask::Impl::stopShowVideoSourceFrames()
     if (showVideoSourceThread && !showVideoSourceThreadJoined)
     {
         showVideoSourceEndFlag = 1;
-        syncedFramesBufferForShow.stop();
+        //syncedFramesBufferForShow.stop();
         showVideoSourceThread->join();
         showVideoSourceThread.reset(0);
         showVideoSourceThreadJoined = 1;
@@ -597,7 +608,7 @@ void PanoramaLiveStreamTask::Impl::stopShowStitchedFrame()
     if (showStitchedThread && !showStitchedThreadJoined)
     {
         showStitchedEndFlag = 1;
-        procFrameBufferForShow.stop();
+        //procFrameBufferForShow.stop();
         showStitchedThread->join();
         showStitchedThread.reset(0);
         showStitchedThreadJoined = 1;
@@ -695,9 +706,9 @@ bool PanoramaLiveStreamTask::Impl::hasFinished() const
 // measured in seconds.
 const static int syncInterval = 60;
 
-inline void stopCompleteFrameBuffers(std::vector<CompleteFrameQueue>* ptrFrameBuffers)
+inline void stopCompleteFrameBuffers(std::vector<ForceWaitFrameQueue>* ptrFrameBuffers)
 {
-    std::vector<CompleteFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     int numBuffers = frameBuffers.size();
     for (int i = 0; i < numBuffers; i++)
         frameBuffers[i].stop();
@@ -708,8 +719,8 @@ void PanoramaLiveStreamTask::Impl::videoSource(int index)
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started, index = %d\n", __FUNCTION__, id, index);
 
-    std::vector<CompleteFrameQueue>& frameBuffers = *ptrFrameBuffers;
-    CompleteFrameQueue& buffer = frameBuffers[index];
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    ForceWaitFrameQueue& buffer = frameBuffers[index];
     avp::AudioVideoReader& reader = videoReaders[index];
 
     long long int count = 0, beginCheckCount = videoFrameRate * 5;
@@ -771,7 +782,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     std::this_thread::sleep_for(std::chrono::microseconds(100));
-    std::vector<CompleteFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
 
     if (finish || videoEndFlag)
     {
@@ -925,7 +936,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         }
     }
 
-    syncedFramesBufferForShow.stop();
+    //syncedFramesBufferForShow.stop();
     syncedFramesBufferForProc.stop();
 
 END:
@@ -1061,7 +1072,7 @@ void PanoramaLiveStreamTask::Impl::postProc()
         //printf("%f\n", timer.elapse());
     }
 
-    procFrameBufferForShow.stop();
+    //procFrameBufferForShow.stop();
     procFrameBufferForSend.stop();
     procFrameBufferForSave.stop();
 
