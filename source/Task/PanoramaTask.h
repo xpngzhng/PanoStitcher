@@ -115,8 +115,6 @@ private:
 
 typedef void (*LogCallbackFunction)(const std::string& line, void* data);
 typedef void (*FrameRateCallbackFunction)(double fps, void* data);
-typedef void (*ShowVideoSourceFramesCallbackFunction)(const std::vector<avp::SharedAudioVideoFrame>& frames, void* data);
-typedef void (*ShowStichedFrameCallbackFunction)(const avp::SharedAudioVideoFrame& frame, void* data);
 
 class PanoramaLiveStreamTask
 {
@@ -141,19 +139,10 @@ public:
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
-    void beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data);
-    void stopShowVideoSourceFrames();
-
-    void beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data);
-    void stopShowStitchedFrame();
-
     void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
     void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
     void setLogCallback(LogCallbackFunction func, void* data);
     void initCallback();
-
-    bool getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
-    bool getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame);
 
     bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
     bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);

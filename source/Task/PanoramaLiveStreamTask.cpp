@@ -47,12 +47,6 @@ struct PanoramaLiveStreamTask::Impl
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
-    void beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data);
-    void stopShowVideoSourceFrames();
-
-    void beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data);
-    void stopShowStitchedFrame();
-
     void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
     void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
     void setLogCallback(LogCallbackFunction func, void* data);
@@ -130,16 +124,6 @@ struct PanoramaLiveStreamTask::Impl
     int fileEndFlag;
     int fileThreadJoined;
     void fileSave();
-
-    std::unique_ptr<std::thread> showVideoSourceThread;
-    int showVideoSourceEndFlag;
-    int showVideoSourceThreadJoined;
-    void showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data);
-
-    std::unique_ptr<std::thread> showStitchedThread;
-    int showStitchedEndFlag;
-    int showStitchedThreadJoined;
-    void showStitched(ShowStichedFrameCallbackFunction func, void* data);
 
     std::mutex videoSourceFramesMutex;
     std::vector<avp::SharedAudioVideoFrame> videoSourceFrames;
@@ -575,46 +559,6 @@ void PanoramaLiveStreamTask::Impl::stopSaveToDisk()
     }
 }
 
-void PanoramaLiveStreamTask::Impl::beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data)
-{
-    showVideoSourceEndFlag = 0;
-    showVideoSourceThreadJoined = 0;
-    showVideoSourceThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::showVideoSource, this, func, data));
-    //if (logCallbackFunc)
-    //    logCallbackFunc("Show video source thread create success", logCallbackData);
-}
-
-void PanoramaLiveStreamTask::Impl::stopShowVideoSourceFrames()
-{
-    if (showVideoSourceThread && !showVideoSourceThreadJoined)
-    {
-        showVideoSourceEndFlag = 1;
-        //syncedFramesBufferForShow.stop();
-        showVideoSourceThread->join();
-        showVideoSourceThread.reset(0);
-        showVideoSourceThreadJoined = 1;
-    }    
-}
-
-void PanoramaLiveStreamTask::Impl::beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data)
-{
-    showStitchedEndFlag = 0;
-    showStitchedThreadJoined = 0;
-    showStitchedThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::showStitched, this, func, data));
-}
-
-void PanoramaLiveStreamTask::Impl::stopShowStitchedFrame()
-{
-    if (showStitchedThread && !showStitchedThreadJoined)
-    {
-        showStitchedEndFlag = 1;
-        //procFrameBufferForShow.stop();
-        showStitchedThread->join();
-        showStitchedThread.reset(0);
-        showStitchedThreadJoined = 1;
-    }
-}
-
 void PanoramaLiveStreamTask::Impl::initAll()
 {
     videoFrameRate = 0;
@@ -646,12 +590,6 @@ void PanoramaLiveStreamTask::Impl::initAll()
     fileEndFlag = 0;
     fileThreadJoined = 0;
 
-    showVideoSourceEndFlag = 0;
-    showVideoSourceThreadJoined = 0;
-
-    showStitchedEndFlag = 0;
-    showStitchedThreadJoined = 0;
-
     finish = 0;
 }
 
@@ -662,8 +600,6 @@ void PanoramaLiveStreamTask::Impl::closeAll()
     stopVideoStitch();
     closeLiveStream();
     stopSaveToDisk();
-    stopShowVideoSourceFrames();
-    stopShowStitchedFrame();
 
     printf("Live stream task's all threads closed\n");
 
@@ -1250,52 +1186,6 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask::Impl::showVideoSource(ShowVideoSourceFramesCallbackFunction func, void* data)
-{
-    size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
-
-    int waitTime = (videoFrameRate ? std::max(int(1000.0 / videoFrameRate + 0.5) - 2, 5) : 10);
-    std::vector<avp::SharedAudioVideoFrame> frames;
-    while (true)
-    {
-        if (finish || showVideoSourceEndFlag)
-            break;
-
-        if (func && data)
-        {
-            if (syncedFramesBufferForShow.pull(frames))
-                func(frames, data);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
-    }
-
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
-}
-
-void PanoramaLiveStreamTask::Impl::showStitched(ShowStichedFrameCallbackFunction func, void* data)
-{
-    size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
-
-    int waitTime = (videoFrameRate ? std::max(int(1000.0 / videoFrameRate + 0.5) - 2, 5) : 10);
-    avp::SharedAudioVideoFrame frame;
-    while (true)
-    {
-        if (finish || showStitchedEndFlag)
-            break;
-
-        if (func && data)
-        {
-            if (procFrameBufferForShow.pull(frame))
-                func(frame, data);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
-    }
-
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
-}
-
 void PanoramaLiveStreamTask::Impl::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
 {
     videoFrameRateCallbackFunc = func;
@@ -1383,26 +1273,6 @@ void PanoramaLiveStreamTask::stopSaveToDisk()
     ptrImpl->stopSaveToDisk();
 }
 
-void PanoramaLiveStreamTask::beginShowVideoSourceFrames(ShowVideoSourceFramesCallbackFunction func, void* data)
-{
-    ptrImpl->beginShowVideoSourceFrames(func, data);
-}
-
-void PanoramaLiveStreamTask::stopShowVideoSourceFrames()
-{
-    ptrImpl->stopShowVideoSourceFrames();
-}
-
-void PanoramaLiveStreamTask::beginShowStitchedFrame(ShowStichedFrameCallbackFunction func, void* data)
-{
-    ptrImpl->beginShowStitchedFrame(func, data);
-}
-
-void PanoramaLiveStreamTask::stopShowStitchedFrame()
-{
-    ptrImpl->stopShowStitchedFrame();
-}
-
 void PanoramaLiveStreamTask::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
 {
     ptrImpl->setVideoSourceFrameRateCallback(func, data);
@@ -1421,16 +1291,6 @@ void PanoramaLiveStreamTask::setLogCallback(LogCallbackFunction func, void* data
 void PanoramaLiveStreamTask::initCallback()
 {
     ptrImpl->initCallback();
-}
-
-bool PanoramaLiveStreamTask::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
-{
-    return ptrImpl->getLatestVideoSourceFrames(frames);
-}
-
-bool PanoramaLiveStreamTask::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
-{
-    return ptrImpl->getLatestStitchedFrame(frame);
 }
 
 bool PanoramaLiveStreamTask::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
