@@ -6,6 +6,7 @@
 #include <iostream>
 #include <thread>
 #include <memory>
+#include <algorithm>
 
 static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
@@ -106,6 +107,38 @@ static void histSpecification(std::vector<double>& src, std::vector<double>& dst
             }
         }
         lut[i] = index;
+    }
+}
+
+static void calcMaxGrad(const cv::Mat& image, const cv::Mat& mask, std::vector<int>& maxGrad)
+{
+    CV_Assert(image.data && image.type() == CV_8UC1 &&
+        mask.data && mask.type() == CV_8UC1 && image.size() == mask.size());
+
+    maxGrad.resize(256, 0);
+    int rows = image.rows, cols = image.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptr = image.ptr<unsigned char>(i);
+        const unsigned char* ptrTop = image.ptr<unsigned char>(i > 0 ? i - 1 : 0);
+        const unsigned char* ptrBot = image.ptr<unsigned char>(i < rows - 1 ? i + 1 : rows - 1);
+        const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (ptrMask[j])
+            {
+                int currVal = ptr[j];
+                int topVal = ptrTop[j];
+                int botVal = ptrBot[j];
+                int leftVal = ptr[j > 0 ? j - 1 : 0];
+                int rightVal = ptr[j < cols - 1 ? j + 1 : cols - 1];
+                int diff = abs(currVal - topVal);
+                diff = std::max(diff, abs(currVal - botVal));
+                diff = std::max(diff, abs(currVal - leftVal));
+                diff = std::max(diff, abs(currVal - rightVal));
+                maxGrad[currVal] = std::max(diff, maxGrad[currVal]);
+            }
+        }
     }
 }
 
@@ -422,6 +455,14 @@ int main()
                         printf("\n");
                 }
                 showLUT("lut", luts[workIndexes[i]]);
+                std::vector<int> maxGrad;
+                calcMaxGrad(grayImages[workIndexes[i]], masks[workIndexes[i]], maxGrad);
+                for (int j = 0; j < 256; j++)
+                {
+                    printf("%3d ", maxGrad[j]);
+                    if (j % 16 == 15)
+                        printf("\n");
+                }
                 cv::imshow("transformed image", images[workIndexes[i]]);
                 cv::waitKey(0);
                 /*char buf[256];
