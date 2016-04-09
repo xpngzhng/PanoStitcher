@@ -111,7 +111,6 @@ struct PanoramaLiveStreamTask::Impl
     int streamThreadJoined;
     void streamSend();
 
-    avp::AudioVideoWriter2 fileWriter;
     std::string fileWriterFormat;
     cv::Size fileFrameSize;
     int fileVideoBitRate;
@@ -533,7 +532,7 @@ void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
     fileVideoEncodePreset = videoPreset;
     fileAudioBitRate = audioBPS;
     fileDuration = fileDurationInSeconds;
-    if (fileVideoEncoder != "h264" || fileVideoEncoder != "h264_qsv")
+    if (fileVideoEncoder != "h264" && fileVideoEncoder != "h264_qsv")
         fileVideoEncoder = "h264";
     if (fileVideoEncodePreset != "ultrafast" || fileVideoEncodePreset != "superfast" ||
         fileVideoEncodePreset != "veryfast" || fileVideoEncodePreset != "faster" ||
@@ -1105,7 +1104,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     int count = 0;
     cv::Mat dstMat;
     avp::SharedAudioVideoFrame frame;
-    avp::AudioVideoWriter writer;
+    avp::AudioVideoWriter2 writer;
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", fileVideoEncodePreset));
     sprintf(buf, fileWriterFormat.c_str()/*"temp%d.mp4"*/, count++);
