@@ -345,14 +345,11 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     if (logCallbackFunc)
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
-    syncedFramesBufferForProc.resume();
+    syncedFramesBufferForProc.clear();
     procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
-    if (!audioOpenSuccess)
-    {
-        procFrameBufferForSave.clear();
-        procFrameBufferForSend.clear();
-    }
+    procFrameBufferForSave.clear();
+    procFrameBufferForSend.clear();
 
     renderEndFlag = 0;
     renderThreadJoined = 0;
@@ -492,6 +489,7 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
     if (logCallbackFunc)
         logCallbackFunc("Live stream open success", logCallbackData);
 
+    procFrameBufferForSend.resume();
     streamEndFlag = 0;
     streamThreadJoined = 0;
     streamThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::streamSend, this));
@@ -541,6 +539,7 @@ void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
 
+    procFrameBufferForSave.resume();
     fileEndFlag = 0;
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::fileSave, this));
