@@ -915,17 +915,17 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             else
             {
                 count++;
-                if (count == roundedFrameRate)
+                timer.end();
+                double elapse = timer.elapse();
+                if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
                 {
-                    printf("%d ", count);
-                    timer.end();
-                    double elapse = timer.elapse();
-                    printf(" %f, %f\n", elapse, count / elapse);
+                    double r = count / elapse; 
+                    printf("%d  %f, %f\n", count, elapse, r);
                     timer.start();
                     count = 0;
 
                     if (stitchFrameRateCallbackFunc)
-                        stitchFrameRateCallbackFunc(roundedFrameRate / elapse, stitchFrameRateCallbackData);
+                        stitchFrameRateCallbackFunc(r, stitchFrameRateCallbackData);
                 }
             }
 
