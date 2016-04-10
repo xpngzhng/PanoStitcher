@@ -26,6 +26,11 @@ public:
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
+
+    bool getMasks(std::vector<cv::Mat>& masks);
+    bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
+    bool readNextAndReprojectForOne(int index, cv::Mat& image);
+    bool readPrevAndReprojectForOne(int index, cv::Mat& image);
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
