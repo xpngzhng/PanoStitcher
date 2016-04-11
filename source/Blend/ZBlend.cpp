@@ -946,6 +946,13 @@ void serialBlend(const BlendConfig& config, const cv::Mat& image, const cv::Mat&
             image.copyTo(blendImage, mask);
             blendMask |= mask;
         }
+        else if (cfg.blendMode == BlendConfig::BLEND_LINEAR)
+        {
+            cv::Mat result;
+            linearBlend(blendImage, image, blendMask, mask, blendMask, mask, cfg.radiusForLinear, result);
+            blendMask |= mask;
+            result.copyTo(blendImage, blendMask);
+        }
         else if (cfg.blendMode == BlendConfig::BLEND_MULTIBAND)
         {
             cv::Mat result;

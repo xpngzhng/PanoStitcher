@@ -55,7 +55,12 @@ cv::Rect getNonZeroBoundingRect(const cv::Mat& mask)
         }
     }
 
-    return cv::Rect(left, top, right - left, bottom - top);
+    if (left >= 0 && left <= cols && right >= 0 && right <= cols 
+        && top >= 0 && top <= rows && bottom >= 0 && bottom <= rows &&
+        left < right && top < bottom)
+        return cv::Rect(left, top, right - left, bottom - top);
+
+    return cv::Rect();
 }
 
 void getIntersect(const cv::Mat& mask1, const cv::Mat& mask2, 

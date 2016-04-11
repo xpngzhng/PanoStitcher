@@ -184,15 +184,21 @@ int main()
     //cfg.setSeamGraphCut(8, 4, 1, 2);
     cfg.setBlendMultiBand();
     //cfg.setBlendLinear(50);
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    printf("image index = %d\n", i);
-    //    //cv::Mat image = cv::imread(contentPaths[i], -1);
-    //    //cv::Mat mask = cv::imread(maskPaths[i], -1);
-    //    serialBlend(cfg, images[i]/*compensateImages[i]*/, masks[i], blendImage, blendMask);
-    //}
+    masks[2].setTo(0);
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("image index = %d\n", i);
+        //cv::Mat image = cv::imread(contentPaths[i], -1);
+        //cv::Mat mask = cv::imread(maskPaths[i], -1);
+        cv::imshow("image", images[i]);
+        cv::imshow("mask", masks[i]);
+        serialBlend(cfg, images[i]/*compensateImages[i]*/, masks[i], blendImage, blendMask);
+        cv::imshow("blend image", blendImage);
+        cv::imshow("blend mask", blendMask);
+        cv::waitKey(0);
+    }
 
-    parallelBlend(cfg, /*compensateImages*/images, masks, blendImage);
+    //parallelBlend(cfg, /*compensateImages*/images, masks, blendImage);
 
     //TilingMultibandBlend blender;
     //blender.prepare(masks, 20, 2);
