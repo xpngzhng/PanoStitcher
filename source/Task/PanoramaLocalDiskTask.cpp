@@ -32,6 +32,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     TilingMultibandBlendFastParallel blender;
     std::vector<cv::Mat> reprojImages;
     cv::Mat blendImage;
+    LogoFilter logoFilter;
     avp::AudioVideoWriter2 writer;
     bool endFlag;
 
@@ -111,6 +112,13 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         printf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        return false;
+    }
+
+    ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC3);
+    if (!ok)
+    {
+        printf("Error in %s, init logo filter failed\n", __FUNCTION__);
         return false;
     }
 
@@ -220,6 +228,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
         blender.blend(reprojImages, blendImage);
         //printf("blend finish\n");
+        logoFilter.addLogo(blendImage);
         avp::AudioVideoFrame frame = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24, 
             blendImage.cols, blendImage.rows, frames[0].timeStamp);
         ok = writer.write(frame);
@@ -382,6 +391,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     FrameVectorBuffer decodeFramesBuffer;
     FrameBuffer procFrameBuffer;
     cv::Mat blendImageCpu;
+    LogoFilter logoFilter;
     avp::AudioVideoWriter2 writer;
 
     int decodeCount;
@@ -478,6 +488,13 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         printf("Error in %s, could not init memory pool\n", __FUNCTION__);
+        return false;
+    }
+
+    ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC4);
+    if (!ok)
+    {
+        printf("Error in %s, init logo filter failed\n", __FUNCTION__);
         return false;
     }
 
@@ -724,6 +741,8 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         if (!procFrameBuffer.pull(deepFrame))
             break;
 
+        cv::Mat image(deepFrame.height, deepFrame.width, CV_8UC4, deepFrame.data, deepFrame.step);
+        logoFilter.addLogo(image);
         timerEncode.start();
         writer.write(avp::AudioVideoFrame(deepFrame));
         timerEncode.end();

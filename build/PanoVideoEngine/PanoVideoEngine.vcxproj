@@ -29,6 +29,7 @@
     <ClInclude Include="..\..\source\Task\SharedAudioVideoFramePool.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\source\Task\Image.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLocalDiskTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />

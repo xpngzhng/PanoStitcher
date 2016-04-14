@@ -3,6 +3,7 @@
 #include "PinnedMemoryFrameQueue.h"
 #include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
+#include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
 #include "opencv2/core.hpp"
@@ -96,6 +97,7 @@ struct PanoramaLiveStreamTask::Impl
     int renderThreadJoined;
     void procVideo();
 
+    LogoFilter logoFilter;
     std::unique_ptr<std::thread> postProcThread;
     void postProc();
 
@@ -319,7 +321,6 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     renderPrepareSuccess = render.prepare(renderConfigName, 
         highQualityBlend ? PanoramaRender::BlendTypeMultiband : PanoramaRender::BlendTypeLinear, 
         videoFrameSize, renderFrameSize);
-
     if (!renderPrepareSuccess)
     {
         printf("Could not prepare for video stitch\n");
@@ -331,10 +332,20 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     }
 
     renderPrepareSuccess = procFramePool.initAsVideoFramePool(pixelType, width, height);
-
     if (!renderPrepareSuccess)
     {
         printf("Could not init proc frame pool\n");
+
+        if (logCallbackFunc)
+            logCallbackFunc("Video stitch prepare failed", logCallbackData);
+
+        return false;
+    }
+
+    renderPrepareSuccess = logoFilter.init(width, height, CV_8UC4);
+    if (!renderPrepareSuccess)
+    {
+        printf("Could not init logo filter\n");
 
         if (logCallbackFunc)
             logCallbackFunc("Video stitch prepare failed", logCallbackData);
@@ -962,7 +973,7 @@ void PanoramaLiveStreamTask::Impl::postProc()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
+    /*cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
     cv::Mat origMask(128, 256, CV_8UC1, maskData);
     cv::Mat addImage;
     cv::Mat addMask;
@@ -978,7 +989,7 @@ void PanoramaLiveStreamTask::Impl::postProc()
         addImage = origImage;
         addMask = origMask;
         addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
-    }
+    }*/
 
     avp::SharedAudioVideoFrame frame;
     while (true)
@@ -991,8 +1002,9 @@ void PanoramaLiveStreamTask::Impl::postProc()
 
         //ztool::Timer timer;
         cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
-        cv::Mat resultROI = result(addROI);
-        addImage.copyTo(resultROI, addMask);
+        //cv::Mat resultROI = result(addROI);
+        //addImage.copyTo(resultROI, addMask);
+        logoFilter.addLogo(result);
         {
             std::lock_guard<std::mutex> lg(stitchedFrameMutex);
             stitchedFrame = frame;

@@ -175,10 +175,8 @@ bool LogoFilter::init(int width_, int height_, int type_)
     type = type_;
 
     cv::Mat origLogo(logoHeight, logoWidth, CV_8UC4, logoData);
-    cv::imshow("logo", origLogo);
-    cv::waitKey(0);
 
-    int blockWidth = 300, blockHeight = 300;
+    int blockWidth = 512, blockHeight = 512;
     rects.clear();
     if (width < logoWidth || height < logoHeight)
     {
