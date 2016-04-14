@@ -973,24 +973,6 @@ void PanoramaLiveStreamTask::Impl::postProc()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    /*cv::Mat origImage(128, 256, CV_8UC4, imageData8UC4);
-    cv::Mat origMask(128, 256, CV_8UC1, maskData);
-    cv::Mat addImage;
-    cv::Mat addMask;
-    cv::Rect addROI;
-    if (renderFrameSize.width <= 256 || renderFrameSize.height <= 128)
-    {
-        cv::resize(origImage, addImage, renderFrameSize);
-        cv::resize(origMask, addMask, renderFrameSize);
-        addROI = cv::Rect(0, 0, renderFrameSize.width, renderFrameSize.height);
-    }
-    else
-    {
-        addImage = origImage;
-        addMask = origMask;
-        addROI = cv::Rect(renderFrameSize.width / 2 - 128, renderFrameSize.height / 2 - 64, 256, 128);
-    }*/
-
     avp::SharedAudioVideoFrame frame;
     while (true)
     {
@@ -1002,8 +984,6 @@ void PanoramaLiveStreamTask::Impl::postProc()
 
         //ztool::Timer timer;
         cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
-        //cv::Mat resultROI = result(addROI);
-        //addImage.copyTo(resultROI, addMask);
         logoFilter.addLogo(result);
         {
             std::lock_guard<std::mutex> lg(stitchedFrameMutex);
@@ -1118,7 +1098,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     avp::AudioVideoWriter2 writer;
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", fileVideoEncodePreset));
-    sprintf(buf, fileWriterFormat.c_str()/*"temp%d.mp4"*/, count++);
+    sprintf(buf, fileWriterFormat.c_str(), count++);
     bool ok = writer.open(buf, "mp4", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
@@ -1152,7 +1132,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
                 writer.close();
                 if (logCallbackFunc)
                     logCallbackFunc(std::string("Finish write local file ") + buf, logCallbackData);
-                sprintf(buf, fileWriterFormat.c_str()/*"temp%d.mp4"*/, count++);
+                sprintf(buf, fileWriterFormat.c_str(), count++);
                 ok = writer.open(buf, "mp4", true,
                     audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
                     audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
