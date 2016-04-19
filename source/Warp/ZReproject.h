@@ -49,8 +49,8 @@ void rotatePhotoParamInXML(const std::string& src, const std::string& dst, doubl
 struct Remap
 {
 public:
-    void init(const PhotoParam& param, int srcWidth, int srcHeight);
-    void initInverse(const PhotoParam& param, int srcWidth, int srcHeight);
+    void init(const PhotoParam& param, int srcWidth, int srcHeight, int dstWidth, int dstHeight);
+    void initInverse(const PhotoParam& param, int srcWidth, int srcHeight, int dstWidth, int dstHeight);
     bool remapImage(double & x_dest, double & y_dest, double x_src, double y_src);
     bool inverseRemapImage(double x_dest, double y_dest, double & x_src, double & y_src);
 

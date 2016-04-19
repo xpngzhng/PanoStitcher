@@ -123,7 +123,7 @@ void getReprojectMapAndMask(const PhotoParam& param,
     if (param.imageType != 3 && param.imageType != 2)
     {
         Remap remap;
-        remap.init(param, dstWidth, dstHeight);
+        remap.init(param, dstWidth, dstHeight, srcWidth, srcHeight);
         map.create(dstHeight, dstWidth, CV_64FC2);
         mask.create(dstHeight, dstWidth, CV_8UC1);
         mask.setTo(0);
@@ -145,7 +145,7 @@ void getReprojectMapAndMask(const PhotoParam& param,
     else
     {
         Remap remap;
-        remap.init(param, dstWidth, dstHeight);
+        remap.init(param, dstWidth, dstHeight, srcWidth, srcHeight);
         map.create(dstHeight, dstWidth, CV_64FC2);
         mask.create(dstHeight, dstWidth, CV_8UC1);
         mask.setTo(0);
@@ -204,7 +204,7 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
     if (param.imageType != 3 && param.imageType != 2)
     {
         Remap remap;
-        remap.init(param, dstSize.width, dstSize.height);
+        remap.init(param, dstSize.width, dstSize.height, src.cols, src.rows);
         dst.create(dstSize, CV_8UC3);
         dst.setTo(0);
         mask.create(dstSize, CV_8UC1);
@@ -237,7 +237,7 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
     else
     {
         Remap remap;
-        remap.init(param, dstSize.width, dstSize.height);
+        remap.init(param, dstSize.width, dstSize.height, src.cols, src.rows);
         dst.create(dstSize, CV_8UC3);
         dst.setTo(0);
         mask.create(dstSize, CV_8UC1);

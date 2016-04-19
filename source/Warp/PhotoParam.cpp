@@ -625,8 +625,8 @@ static bool tryParseIndividualPhotoParam(const std::string& line, PhotoParam& pa
     if (posF == std::string::npos ||
         posY == std::string::npos ||
         posP == std::string::npos ||
-        posR == std::string::npos ||
-        posC == std::string::npos)
+        posR == std::string::npos/* ||
+        posC == std::string::npos*/)
         return false;
 
     memset(&param, 0, sizeof(param));
@@ -655,20 +655,19 @@ static bool tryParseIndividualPhotoParam(const std::string& line, PhotoParam& pa
     param.pitch = getValue(line, posP + 1);
     param.roll = getValue(line, posR + 1);
 
-    std::vector<double> vals;
-    getValues(line, posC + 1, vals);
-    if (vals.size() != 4)
-        return false;
+    if (posC != std::string::npos)
+    {
+        std::vector<double> vals;
+        getValues(line, posC + 1, vals);
+        if (vals.size() != 4)
+            return false;
 
-    param.cropX = vals[0];
-    param.cropY = vals[2];
-    param.cropWidth = vals[1] - vals[0];
-    param.cropHeight = vals[3] - vals[2];
+        param.cropX = vals[0];
+        param.cropY = vals[2];
+        param.cropWidth = vals[1] - vals[0];
+        param.cropHeight = vals[3] - vals[2];
+    }
 
-    //if (param.cropX == 0 && param.cropY == 0)
-    //    param.imageType = 3;
-    //else
-    //    param.imageType = 2;
     return true;
 }
 
@@ -711,10 +710,14 @@ void loadPhotoParamFromPTS(const std::string& fileName, std::vector<PhotoParam>&
         if (line.empty())
             continue;
 
-        //if (isInfoLine(line) && fov < 0)
-        //    tryParseHFov(line, fov);
         if (isInfoLine(line) && !globalSet)
+        {
             globalSet = tryParseGlobalPhotoParam(line, globalParam);
+            // Add the following condition continue to prevent line
+            // from being parsed twice
+            if (globalSet)
+                continue;
+        }            
 
         PhotoParam localParam;
         if (isInfoLine(line) && tryParseIndividualPhotoParam(line, localParam))

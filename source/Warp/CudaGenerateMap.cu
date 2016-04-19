@@ -223,7 +223,7 @@ void cudaGenerateReprojectMap(const PhotoParam& photoParam,
     CalcType sqrDist = photoParam.cropWidth * photoParam.cropWidth * 0.25;
 
     Remap remap;
-    remap.init(photoParam, dstWidth, dstHeight);
+    remap.init(photoParam, dstWidth, dstHeight, srcWidth, srcHeight);
     CudaRemapParam cudaParam;
     copyParam(remap, cudaParam, srcWidth, srcHeight, centx, centy, sqrDist, photoParam.imageType);
     cudaSafeCall(cudaMemcpyToSymbol(param, &cudaParam, sizeof(CudaRemapParam)));

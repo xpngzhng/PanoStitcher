@@ -139,10 +139,20 @@ void Remap::clear()
     memset(this, 0, sizeof(*this));
 }
 
-void Remap::init(const PhotoParam& param, int srcWidth, int srcHeight)
+void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstWidth, int dstHeight)
 {
     this->srcTX = srcWidth / 2;
     this->srcTY = srcHeight / 2;
+
+    bool fullImage = (param_.imageType == 0) || (param_.imageType == 1);
+    PhotoParam param = param_;
+    if (fullImage)
+    {
+        param.cropX = 0;
+        param.cropY = 0;
+        param.cropWidth = dstWidth;
+        param.cropHeight = dstHeight;
+    }
 
     this->destTX = param.cropX + param.cropWidth / 2;
     this->destTY = param.cropY + param.cropHeight / 2;
@@ -224,10 +234,20 @@ void Remap::init(const PhotoParam& param, int srcWidth, int srcHeight)
     this->mp.rad[4] = ((double)(param.cropWidth < param.cropHeight ? param.cropWidth : param.cropHeight)) / 2.0;
 }
 
-void Remap::initInverse(const PhotoParam& param, int srcWidth, int srcHeight)
+void Remap::initInverse(const PhotoParam& param_, int srcWidth, int srcHeight, int dstWidth, int dstHeight)
 {
     this->destTX = srcWidth / 2;
     this->destTY = srcHeight / 2;
+
+    bool fullImage = (param_.imageType == 0) || (param_.imageType == 1);
+    PhotoParam param = param_;
+    if (fullImage)
+    {
+        param.cropX = 0;
+        param.cropY = 0;
+        param.cropWidth = dstWidth;
+        param.cropHeight = dstHeight;
+    }
 
     this->srcTX = param.cropX + param.cropWidth / 2;
     this->srcTY = param.cropY + param.cropHeight / 2;
