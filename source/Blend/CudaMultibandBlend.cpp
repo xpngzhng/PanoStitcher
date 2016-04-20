@@ -3,7 +3,6 @@
 #include "opencv2/core/cuda/common.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
-#include "opencv2/cudaarithm.hpp"
 #include "Timer.h"
 #include "ZBlendAlgo.h"
 #include "ZBlend.h"
@@ -55,7 +54,7 @@ static void restoreImageFromLaplacePyramid(std::vector<cv::cuda::GpuMat>& pyr, b
     for (size_t i = pyr.size() - 1; i > 0; --i)
     {
         pyramidUp32SC4To32SC4(pyr[i], tmp, pyr[i - 1].size(), horiWrap);
-        cv::cuda::add(tmp, pyr[i - 1], pyr[i - 1]);
+        add32SC4(tmp, pyr[i - 1], pyr[i - 1]);
     }
 }
 
@@ -97,7 +96,7 @@ static void createLaplacePyramidPrecise(const cv::cuda::GpuMat& image, const cv:
     for (int i = 0; i < numLevels; ++i)
     {
         pyramidUp16SC4To16SC4(pyr[i + 1], tmp, pyr[i].size(), horiWrap);
-        cv::cuda::subtract(pyr[i], tmp, pyr[i]);
+        subtract16SC4(pyr[i], tmp, pyr[i]);
     }
 }
 
@@ -197,7 +196,7 @@ void createLaplacePyramidPrecise(const cv::cuda::GpuMat& image, const cv::cuda::
     for (int i = 0; i < numLevels; ++i)
     {
         pyramidUp16SC4To16SC4(imagePyr[i + 1], imageUpPyr[i], imagePyr[i].size(), horiWrap);
-        cv::cuda::subtract(imagePyr[i], imageUpPyr[i], imagePyr[i]);
+        subtract16SC4(imagePyr[i], imageUpPyr[i], imagePyr[i]);
     }
 }
 
@@ -210,7 +209,7 @@ void restoreImageFromLaplacePyramid(std::vector<cv::cuda::GpuMat>& pyr, bool hor
     for (size_t i = pyr.size() - 1; i > 0; --i)
     {
         pyramidUp32SC4To32SC4(pyr[i], upPyr[i - 1], pyr[i - 1].size(), horiWrap);
-        cv::cuda::add(upPyr[i - 1], pyr[i - 1], pyr[i - 1]);
+        add32SC4(upPyr[i - 1], pyr[i - 1], pyr[i - 1]);
     }
 }
 
