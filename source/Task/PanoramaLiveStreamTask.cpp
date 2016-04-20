@@ -342,7 +342,8 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
         return false;
     }
 
-    renderPrepareSuccess = logoFilter.init(width, height, CV_8UC4);
+    if (addLogo)
+        renderPrepareSuccess = logoFilter.init(width, height, CV_8UC4);
     if (!renderPrepareSuccess)
     {
         printf("Could not init logo filter\n");

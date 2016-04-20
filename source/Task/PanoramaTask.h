@@ -5,6 +5,8 @@
 #include <memory>
 #include <vector>
 
+void setAddLogo(bool addLogo);
+
 class PanoramaPreviewTask
 {
 public:

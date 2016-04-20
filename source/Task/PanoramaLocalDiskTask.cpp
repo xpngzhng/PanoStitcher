@@ -7,6 +7,7 @@
 #include "PinnedMemoryPool.h"
 #include "SharedAudioVideoFramePool.h"
 #include "Timer.h"
+#include "Image.h"
 
 struct CPUPanoramaLocalDiskTask::Impl
 {
@@ -228,7 +229,8 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
         blender.blend(reprojImages, blendImage);
         //printf("blend finish\n");
-        logoFilter.addLogo(blendImage);
+        if (addLogo)
+            logoFilter.addLogo(blendImage);
         avp::AudioVideoFrame frame = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24, 
             blendImage.cols, blendImage.rows, frames[0].timeStamp);
         ok = writer.write(frame);
@@ -742,7 +744,8 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
             break;
 
         cv::Mat image(deepFrame.height, deepFrame.width, CV_8UC4, deepFrame.data, deepFrame.step);
-        logoFilter.addLogo(image);
+        if (addLogo)
+            logoFilter.addLogo(image);
         timerEncode.start();
         writer.write(avp::AudioVideoFrame(deepFrame));
         timerEncode.end();

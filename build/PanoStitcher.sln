@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PanoVideoEngine", "PanoVide
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj", "{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestStatic", "TestStatic\TestStatic.vcxproj", "{90B6A124-638D-40A4-B1FA-C411F83E80AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -69,6 +71,18 @@ Global
 		{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}.Release|Win32.Build.0 = Release|Win32
 		{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}.Release|x64.ActiveCfg = Release|x64
 		{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}.Release|x64.Build.0 = Release|x64
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|Win32.ActiveCfg = Debug|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|Win32.Build.0 = Debug|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|x64.ActiveCfg = Debug|x64
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Debug|x64.Build.0 = Debug|x64
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|Win32.ActiveCfg = Release|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|Win32.Build.0 = Release|Win32
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|x64.ActiveCfg = Release|x64
+		{90B6A124-638D-40A4-B1FA-C411F83E80AA}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
