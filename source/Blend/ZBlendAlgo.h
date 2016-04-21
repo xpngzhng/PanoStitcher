@@ -233,9 +233,9 @@ void findSeamLeftRightWrap(const cv::Mat& image1, const cv::Mat& image2,
 // pad means how much pixel wide are padded before calling a findSeam function.
 // If scale is not 1, findSeamScaleDown will be called, 
 // and refine controls whether the coarse seam will be refined at the original scale.
-// If scale is 1, and the number of non zero pixels of the intersection of two image masks
-// are more than ratio multiplies the number of pixles in the bounding rect of the intersection,
-// the basic findSeam if called, otherwise findSeamInROI is called.
+// If scale is 1, and cv::countNonZero(masks[i] & masks[j]) is more than 
+// ratio multiplies the number of pixles in the bounding rect of the masks[i] & masks[j],
+// the basic findSeam is called, otherwise findSeamInROI is called.
 void findSeams(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, 
     std::vector<cv::Mat>& resultMasks, int pad, int scale, double ratio, bool refine);
 
@@ -264,7 +264,7 @@ void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::
 // the same applies to alpha2 and image2.
 // mask1 and mask2 tells which pixel should come from image1 and which image2.
 // mask1 and mask2 should be type CV_8UC1, 
-// mask1 & mask2 should be empty set, and mask1 | mask2 should be the whole size.
+// mask1 & mask2 should be empty set, and mask1 | mask2 should cover the whole image size.
 // If horiWrap is true, left most columns and right most colums will joined together
 // when buiding pyramids.
 // maxLevels defines the most number of levels except the original scale level.

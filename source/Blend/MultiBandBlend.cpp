@@ -503,6 +503,7 @@ void multibandBlendAnyMask(const std::vector<cv::Mat>& images, const std::vector
 
     std::vector<cv::Mat> imagePyr, weightPyr;
     cv::Mat aux(height, width, CV_16SC1);
+    cv::Mat alpha = cv::Mat::zeros(height, width, CV_8UC1);
     for (int i = 0; i < numImages; i++)
     {        
         aux.setTo(0);
@@ -512,10 +513,13 @@ void multibandBlendAnyMask(const std::vector<cv::Mat>& images, const std::vector
         aux.setTo(256, masks[i]);
         createGaussPyramid(aux, numLevels, true, weightPyr);
         accumulate(imagePyr, weightPyr, resultPyr, resultWeightPyr);
+        alpha |= alphas[i];
     }
     normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true);
     resultPyr[0].convertTo(result, CV_8U);
+    cv::bitwise_not(alpha, alpha);
+    result.setTo(0, alpha);
 }
 
 bool TilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
@@ -561,6 +565,11 @@ bool TilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int maxLev
     for (int i = 1; i <= numLevels; i++)
         resultPyr[i] = cv::Mat::zeros((resultPyr[i - 1].rows + 1) / 2, (resultPyr[i - 1].cols + 1) / 2, CV_32SC3);
 
+    resultWeightPyr.resize(numLevels + 1);
+    resultWeightPyr[0] = cv::Mat::zeros(rows, cols, CV_32SC1);
+    for (int i = 1; i <= numLevels; i++)
+        resultWeightPyr[i] = cv::Mat::zeros((resultWeightPyr[i - 1].rows + 1) / 2, (resultWeightPyr[i - 1].cols + 1) / 2, CV_32SC1);
+
     success = true;
     return true;
 }
@@ -584,7 +593,7 @@ void TilingMultibandBlend::tile(const cv::Mat& image, const cv::Mat& mask, int i
     aux.setTo(0);
     aux.setTo(256, uniqueMasks[index]);
     createGaussPyramid(aux, numLevels, true, weightPyr);
-    accumulate(imagePyr, weightPyr, resultPyr);
+    accumulate(imagePyr, weightPyr, resultPyr, resultWeightPyr);
 }
 
 void TilingMultibandBlend::composite(cv::Mat& blendImage)
@@ -592,7 +601,7 @@ void TilingMultibandBlend::composite(cv::Mat& blendImage)
     if (!success)
         return;
 
-    normalize(resultPyr);
+    normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true);
     resultPyr[0].convertTo(blendImage, CV_8U);
 
@@ -657,10 +666,10 @@ void TilingMultibandBlend::blendAndCompensate(const std::vector<cv::Mat>& images
         aux.setTo(0);
         aux.setTo(256, adjustMasks[i]);
         createGaussPyramid(aux, numLevels, true, weightPyr);
-        accumulate(imagePyr, weightPyr, resultPyr);
+        accumulate(imagePyr, weightPyr, resultPyr, resultWeightPyr);
     }
 
-    normalize(resultPyr);
+    normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true);
     resultPyr[0].convertTo(blendImage, CV_8U);
 
@@ -835,6 +844,33 @@ void add(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst)
         cv::add(src[i], dst[i], dst[i]);
 }
 
+void accumulateWeight(const cv::Mat& src, cv::Mat& dst)
+{
+    CV_Assert(src.data && src.type() == CV_16SC1 &&
+        dst.data && dst.type() == CV_32SC1 && src.size() == dst.size());
+
+    int rows = src.rows, cols = src.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        const short* ptrSrc = src.ptr<short>(i);
+        int* ptrDst = dst.ptr<int>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            *ptrDst += *ptrSrc;
+            ptrSrc++;
+            ptrDst++;
+        }
+    }
+}
+
+void accumulateWeight(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst)
+{
+    CV_Assert(src.size() == dst.size());
+    int size = src.size();
+    for (int i = 0; i < size; i++)
+        accumulateWeight(src[i], dst[i]);
+}
+
 bool TilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
     success = false;
@@ -891,6 +927,28 @@ bool TilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int ma
         }
     }
 
+    cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+        mask |= masks[i];
+    fullMask = cv::countNonZero(mask) == (rows * cols);
+    if (fullMask)
+    {
+        resultWeightPyr.clear();
+        maskNot.release();
+    }
+    else
+    {
+        resultWeightPyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            resultWeightPyr[i].create(sizes[i], CV_32SC1);
+            resultWeightPyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight(weightPyrs[i], resultWeightPyr);
+        maskNot = ~mask;
+    }
+
     success = true;
     return true;
 }
@@ -931,9 +989,14 @@ void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, cv::Mat
         accumulate(imagePyr, weightPyrs[i], resultPyr);
     }
 
-    normalize(resultPyr);
+    if (fullMask)
+        normalize(resultPyr);
+    else
+        normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!fullMask)
+        blendImage.setTo(0, maskNot);
 }
 
 TilingMultibandBlendFastParallel::~TilingMultibandBlendFastParallel()
@@ -1003,6 +1066,28 @@ bool TilingMultibandBlendFastParallel::prepare(const std::vector<cv::Mat>& masks
         }
     }
 
+    cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+        mask |= masks[i];
+    fullMask = cv::countNonZero(mask) == (rows * cols);
+    if (fullMask)
+    {
+        resultWeightPyr.clear();
+        maskNot.release();
+    }
+    else
+    {
+        resultWeightPyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            resultWeightPyr[i].create(sizes[i], CV_32SC1);
+            resultWeightPyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight(weightPyrs[i], resultWeightPyr);
+        maskNot = ~mask;
+    }
+
     imageHeaders.resize(numImages);
     imagePyrs.resize(numImages);
 
@@ -1049,9 +1134,14 @@ void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images,
     // and then add all weightedPyrs in the main thread will slow down the speed.
     for (int i = 0; i < numImages; i++)
         accumulate(imagePyrs[i], weightPyrs[i], resultPyr);
-    normalize(resultPyr);
+    if (fullMask)
+        normalize(resultPyr);
+    else
+        normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr, restoreRowBuffer, restoreTabBuffer);
     resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!fullMask)
+        blendImage.setTo(0, maskNot);
 }
 
 void TilingMultibandBlendFastParallel::buildPyramid(int index)
