@@ -202,8 +202,8 @@ private:
     std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr;
     std::vector<cv::cuda::GpuMat> alphaPyr, alpha32SPyr;
     std::vector<cv::cuda::GpuMat> imageUpPyr, resultUpPyr;
-    std::vector<cv::cuda::GpuMat> weightPyr;
-    cv::cuda::GpuMat image16S, aux16S;
+    std::vector<cv::cuda::GpuMat> weightPyr, resultWeightPyr;
+    cv::cuda::GpuMat image16S, aux16S, maskNot;
     int numImages;
     int rows, cols;
     int numLevels;
@@ -218,12 +218,14 @@ public:
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
 
 private:
-    std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr;
+    std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
     std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr, imageUpPyr;
     std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;
+    cv::cuda::GpuMat maskNot;
     int numImages;
     int rows, cols;
     int numLevels;
+    bool fullMask;
     bool success;
 };
 

@@ -10,6 +10,7 @@
 #include "CudaPyramid.h"
 #include "cuda_runtime.h"
 #include <iostream>
+#include <stdio.h>
 
 int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
 
@@ -73,6 +74,23 @@ static void normalize(std::vector<cv::cuda::GpuMat>& pyr)
     int size = pyr.size();
     for (int i = 0; i < size; i++)
         normalize32SC4(pyr[i]);
+}
+
+static void accumulate(const std::vector<cv::cuda::GpuMat>& imagePyr, const std::vector<cv::cuda::GpuMat>& weightPyr,
+    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<cv::cuda::GpuMat>& resultWeightPyr)
+{
+    CV_Assert(imagePyr.size() == weightPyr.size() &&
+        imagePyr.size() == resultPyr.size() && imagePyr.size() == resultWeightPyr.size());
+    int size = imagePyr.size();
+    for (int i = 0; i < size; i++)
+        accumulate16SC4To32SC4(imagePyr[i], weightPyr[i], resultPyr[i], resultWeightPyr[i]);
+}
+
+static void normalize(std::vector<cv::cuda::GpuMat>& pyr, const std::vector<cv::cuda::GpuMat>& weightPyr)
+{
+    int size = pyr.size();
+    for (int i = 0; i < size; i++)
+        normalize32SC4(pyr[i], weightPyr[i]);
 }
 
 static void createLaplacePyramidPrecise(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha, 
@@ -241,7 +259,6 @@ bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int ma
     for (int i = 0; i < numImages; i++)
         uniqueMasks[i].upload(uniqueMasksCpu[i]);
     uniqueMasksCpu.clear();
-    //std::vector<cv::Mat>().swap(uniqueMasksCpu);
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
 
@@ -253,6 +270,22 @@ bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int ma
         resultPyr[i].create((resultPyr[i - 1].rows + 1) / 2, (resultPyr[i - 1].cols + 1) / 2, CV_32SC4);
         resultPyr[i].setTo(0);
     }
+
+    resultWeightPyr.resize(numLevels + 1);
+    resultWeightPyr[0].create(rows, cols, CV_32SC1);
+    resultWeightPyr[0].setTo(0);
+    for (int i = 1; i <= numLevels; i++)
+    {
+        resultWeightPyr[i].create((resultWeightPyr[i - 1].rows + 1) / 2, (resultWeightPyr[i - 1].cols + 1) / 2, CV_32SC1);
+        resultWeightPyr[i].setTo(0);
+    }
+
+    cv::Mat mask(rows, cols, CV_8UC1);
+    mask.setTo(0);
+    for (int i = 0; i < numImages; i++)
+        mask |= masks[i];
+    cv::bitwise_not(mask, mask);
+    maskNot.upload(mask);
 
     success = true;
     return true;
@@ -318,7 +351,7 @@ void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cud
     aux16S.setTo(0);
     aux16S.setTo(256, uniqueMasks[index]);
     createGaussPyramid(aux16S, numLevels, true, weightPyr);
-    accumulate(imagePyr, weightPyr, resultPyr);
+    accumulate(imagePyr, weightPyr, resultPyr, resultWeightPyr);
 }
 
 void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
@@ -326,14 +359,18 @@ void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
     if (!success)
         return;
 
-    normalize(resultPyr);
+    normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
+    blendImage.setTo(0, maskNot);
 
     // Remember to set resultPyr to zero, 
     // otherwise next round of tile and composite will produce incorrect result!!!!!
     for (int i = 0; i <= numLevels; i++)
+    {
         resultPyr[i].setTo(0);
+        resultWeightPyr[i].setTo(0);
+    }
 }
 
 void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images, 
@@ -424,6 +461,14 @@ static void allocMemoryForResultPyrAndResultUpPyr(const std::vector<cv::Size>& s
         resultUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
 }
 
+static void accumulateWeight(const std::vector<cv::cuda::GpuMat>& src, std::vector<cv::cuda::GpuMat>& dst)
+{
+    CV_Assert(src.size() == dst.size());
+    int size = src.size();
+    for (int i = 0; i < size; i++)
+        accumulate16SC1To32SC1(src[i], dst[i]);
+}
+
 bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
     success = false;
@@ -512,6 +557,29 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     getStepsOfResultUpPyr(sizes, stepsResultUpPyr);
     allocMemoryForResultPyrAndResultUpPyr(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
 
+    cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+        mask |= masks[i];
+    fullMask = cv::countNonZero(mask) == (rows * cols);
+    if (fullMask)
+    {
+        resultWeightPyr.clear();
+        maskNot.release();
+    }
+    else
+    {
+        resultWeightPyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            resultWeightPyr[i].create(sizes[i], CV_32SC1);
+            resultWeightPyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight(weightPyrs[i], resultWeightPyr);
+        mask = ~mask;
+        maskNot.upload(mask);
+    }
+
     success = true;
     return true;
 }
@@ -547,9 +615,14 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
         }
         accumulate(imagePyr, weightPyrs[i], resultPyr);
     }
-    normalize(resultPyr);
+    if (fullMask)
+        normalize(resultPyr);
+    else
+        normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!fullMask)
+        blendImage.setTo(0, maskNot);
 }
 
 static void calcAlphasAndWeights(const std::vector<cv::cuda::GpuMat>& masks, const std::vector<cv::cuda::GpuMat>& uniqueMasks, int numLevels,

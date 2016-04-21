@@ -16,11 +16,15 @@ void pyramidUp16SC4To16SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, c
 void pyramidUp32SC4To32SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void accumulate16SC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void normalize32SC4(cv::cuda::GpuMat& image, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+void accumulate16SC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, 
+    cv::cuda::GpuMat& dst, cv::cuda::GpuMat& dstWeight, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+void normalize32SC4(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& weight, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void scaledSet16SC1Mask16SC1(cv::cuda::GpuMat& image, short val, const cv::cuda::GpuMat& mask, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void scaledSet16SC1Mask32SC1(cv::cuda::GpuMat& image, short val, const cv::cuda::GpuMat& mask, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void divide32SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha, cv::cuda::GpuMat& dstImage, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void subtract16SC4(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void add32SC4(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+void accumulate16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 
 // CudaPyramid4.cu -- Try to pad src image with border elements to reduce kernel's condition code.
 // But this version of code actually runs slower than CudaPyramid2.cu.

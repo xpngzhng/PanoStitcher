@@ -13,242 +13,6 @@
 #define UTIL_BLOCK_WIDTH 32
 #define UTIL_BLOCK_HEIGHT 8
 
-/*struct BrdRowReflect101
-{
-    explicit __host__ __device__ __forceinline__ BrdRowReflect101(int width) : last_col(width - 1) {}
-
-    __device__ __forceinline__ int idx_col_low(int x) const
-    {
-        return ::abs(x) % (last_col + 1);
-    }
-
-    __device__ __forceinline__ int idx_col_high(int x) const
-    {
-        return ::abs(last_col - ::abs(last_col - x)) % (last_col + 1);
-    }
-
-    __device__ __forceinline__ int idx_col(int x) const
-    {
-        return idx_col_low(idx_col_high(x));
-    }
-
-    const int last_col;
-};
-
-struct BrdColReflect101
-{
-    explicit __host__ __device__ __forceinline__ BrdColReflect101(int height) : last_row(height - 1) {}
-
-    __device__ __forceinline__ int idx_row_low(int y) const
-    {
-        return ::abs(y) % (last_row + 1);
-    }
-
-    __device__ __forceinline__ int idx_row_high(int y) const
-    {
-        return ::abs(last_row - ::abs(last_row - y)) % (last_row + 1);
-    }
-
-    __device__ __forceinline__ int idx_row(int y) const
-    {
-        return idx_row_low(idx_row_high(y));
-    }
-
-    const int last_row;
-};
-
-struct BrdRowWrap
-{
-    explicit __host__ __device__ __forceinline__ BrdRowWrap(int width_) : width(width_) {}
-
-    __device__ __forceinline__ int idx_col_low(int x) const
-    {
-        //return (x >= 0) * x + (x < 0) * (x - ((x - width + 1) / width) * width);
-        if (x >= 0) return x;
-        else return (x < 0) * (x - ((x - width + 1) / width) * width);
-    }
-
-    __device__ __forceinline__ int idx_col_high(int x) const
-    {
-        //return (x < width) * x + (x >= width) * (x % width);
-        if (x < width) return x;
-        else return (x % width);
-    }
-
-    __device__ __forceinline__ int idx_col(int x) const
-    {
-        return idx_col_high(idx_col_low(x));
-    }
-
-    const int width;
-};
-
-struct BrdColWrap
-{
-    explicit __host__ __device__ __forceinline__ BrdColWrap(int height_) : height(height_) {}
-
-    __device__ __forceinline__ int idx_row_low(int y) const
-    {
-        //return (y >= 0) * y + (y < 0) * (y - ((y - height + 1) / height) * height);
-        if (y >= 0) return y;
-        else return (y - ((y - height + 1) / height) * height);
-    }
-
-    __device__ __forceinline__ int idx_row_high(int y) const
-    {
-        //return (y < height) * y + (y >= height) * (y % height);
-        if (y < height) return y;
-        else return (y % height);
-    }
-
-    __device__ __forceinline__ int idx_row(int y) const
-    {
-        return idx_row_high(idx_row_low(y));
-    }
-
-    const int height;
-};
-
-template<typename Type>
-__device__ __forceinline__ Type getElem(const unsigned char* data, int step, int row, int col)
-{
-    return *((Type*)(data + row * step) + col);
-}
-
-template<typename Type>
-__device__ __forceinline__ Type getElem(unsigned char* data, int step, int row, int col)
-{
-    return *((Type*)(data + row * step) + col);
-}
-
-template<typename Type>
-__device__ __forceinline__ const Type* getRowPtr(const unsigned char* data, int step, int row)
-{
-    return (const Type*)(data + row * step);
-}
-
-template<typename Type>
-__device__ __forceinline__ Type* getRowPtr(unsigned char* data, int step, int row)
-{
-    return (Type*)(data + row * step);
-}
-
-__device__ __forceinline__ int4 operator*(int scale, short4 val)
-{
-    int4 ret;
-    ret.x = scale * val.x;
-    ret.y = scale * val.y;
-    ret.z = scale * val.z;
-    return ret;
-}
-
-__device__ __forceinline__ int4 operator+(int4 a, int4 b)
-{
-    int4 ret;
-    ret.x = a.x + b.x;
-    ret.y = a.y + b.y;
-    ret.z = a.z + b.z;
-    return ret;
-}
-
-__device__ __forceinline__ int4 operator-(int4 a, int4 b)
-{
-    int4 ret;
-    ret.x = a.x - b.x;
-    ret.y = a.y - b.y;
-    ret.z = a.z - b.z;
-    return ret;
-}
-
-__device__ __forceinline__ short4 operator-(short4 a, short4 b)
-{
-    short4 ret;
-    ret.x = a.x - b.x;
-    ret.y = a.y - b.y;
-    ret.z = a.z - b.z;
-    return ret;
-}
-
-__device__ __forceinline__ int4 operator*(short scale, int4 val)
-{
-    int4 ret;
-    ret.x = scale * val.x;
-    ret.y = scale * val.y;
-    ret.z = scale * val.z;
-    return ret;
-}
-
-__device__ __forceinline__ int4 operator*(int scale, int4 val)
-{
-    int4 ret;
-    ret.x = scale * val.x;
-    ret.y = scale * val.y;
-    ret.z = scale * val.z;
-    return ret;
-}
-
-__device__ __forceinline__ short4 operator/(int4 val, int scale)
-{
-    short4 ret;
-    ret.x = val.x / scale;
-    ret.y = val.y / scale;
-    ret.z = val.z / scale;
-    return ret;
-}
-
-__device__ __forceinline__ int4& operator+=(int4& a, int4& b)
-{
-    a.x += b.x;
-    a.y += b.y;
-    a.z += b.z;
-    return a;
-}
-
-__device__ __forceinline__ int4 operator>>(int4 val, int amount)
-{
-    int4 ret;
-    ret.x = val.x >> amount;
-    ret.y = val.y >> amount;
-    ret.z = val.z >> amount;
-    return ret;
-}
-
-__device__ __forceinline__ int4 operator<<(int4 val, int amount)
-{
-    int4 ret;
-    ret.x = val.x << amount;
-    ret.y = val.y << amount;
-    ret.z = val.z << amount;
-    return ret;
-}
-
-__device__ __forceinline__ int4 roundCastShift6ToInt4(int4 vec)
-{
-    int4 ret;
-    ret.x = (vec.x + 32) >> 6;
-    ret.y = (vec.y + 32) >> 6;
-    ret.z = (vec.z + 32) >> 6;
-    return ret;
-}
-
-__device__ __forceinline__ short4 roundCastShift6ToShort4(int4 vec)
-{
-    short4 ret;
-    ret.x = (vec.x + 32) >> 6;
-    ret.y = (vec.y + 32) >> 6;
-    ret.z = (vec.z + 32) >> 6;
-    return ret;
-}
-
-__device__ __forceinline__ short4 roundCastShift8ToShort4(int4 vec)
-{
-    short4 ret;
-    ret.x = (vec.x + 128) >> 8;
-    ret.y = (vec.y + 128) >> 8;
-    ret.z = (vec.z + 128) >> 8;
-    return ret;
-}*/
-
 template<typename ColWiseReflectType, typename RowWiseReflectType>
 __global__ void pyrDown16SC1To32SC1(const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
     unsigned char* dstData, int dstRows, int dstCols, int dstStep, 
@@ -884,6 +648,40 @@ __global__ void normalize32SC4(unsigned char* imageData, int imageRows, int imag
     }
 }
 
+__global__ void accumulate16SC4To32SC4(const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
+    const unsigned char* weightData, int weightRows, int weightCols, int weightStep,
+    unsigned char* dstData, int dstRows, int dstCols, int dstStep,
+    unsigned char* dstWeightData, int dstWeightRows, int dstWeightCols, int dstWeightStep)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < srcCols && y < srcRows)
+    {
+        getRowPtr<int4>(dstData, dstStep, y)[x] = getRowPtr<int4>(dstData, dstStep, y)[x] +
+            getElem<short>(weightData, weightStep, y, x) * getElem<short4>(srcData, srcStep, y, x);
+        getRowPtr<int>(dstWeightData, dstWeightStep, y)[x] = getRowPtr<int>(dstWeightData, dstWeightStep, y)[x] +
+            getElem<short>(weightData, weightStep, y, x);
+    }
+}
+
+__global__ void normalize32SC4(unsigned char* imageData, int imageRows, int imageCols, int imageStep,
+    const unsigned char* weightData, int weightRows, int weightCols, int weightStep)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < imageCols && y < imageRows)
+    {
+        int w = getElem<int>(weightData, weightStep, y, x);
+        if (!w) w++;
+        int4 result = getElem<int4>(imageData, imageStep, y, x);
+        result.x /= w;
+        result.y /= w;
+        result.z /= w;
+        result.w = 0;
+        getRowPtr<int4>(imageData, imageStep, y)[x] = result;
+    }
+}
+
 __global__ void scaledSet16SC1Mask16SC1(unsigned char* imageData, int imageRows, int imageCols, int imageStep,
     short val, const unsigned char* maskData, int maskStep)
 {
@@ -946,6 +744,17 @@ __global__ void add32SC4(const unsigned char* aData, int aStep, const unsigned c
     if (x < cols && y < rows)
     {
         getRowPtr<int4>(cData, cStep, y)[x] = getElem<int4>(aData, aStep, y, x) + getElem<int4>(bData, bStep, y, x);
+    }
+}
+
+__global__ void accumulate16SC1To32SC1(const unsigned char* srcData, int srcStep, unsigned char* dstData, int dstStep,
+    int rows, int cols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < cols && y < rows)
+    {
+        getRowPtr<int>(dstData, dstStep, y)[x] = getElem<int>(dstData, dstStep, y, x) + getElem<short>(srcData, srcStep, y, x);
     }
 }
 
@@ -1189,6 +998,39 @@ void normalize32SC4(cv::cuda::GpuMat& image, cv::cuda::Stream& stream)
     //cudaSafeCall(cudaDeviceSynchronize());
 }
 
+void accumulate16SC4To32SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, 
+    cv::cuda::GpuMat& dst, cv::cuda::GpuMat& dstWeight, cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_16SC4 &&
+        weight.data && weight.type() == CV_16SC1 &&
+        dst.data && dst.type() == CV_32SC4 &&
+        dstWeight.data && dstWeight.type() == CV_32SC1 &&
+        src.size() == weight.size() && src.size() == dst.size() && src.size() == dstWeight.size());
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
+    accumulate16SC4To32SC4<<<grid, block, 0, st>>>(src.data, src.rows, src.cols, src.step,
+        weight.data, weight.rows, weight.cols, weight.step,
+        dst.data, dst.rows, dst.cols, dst.step,
+        dstWeight.data, dstWeight.rows, dstWeight.cols, dstWeight.step);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void normalize32SC4(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& weight, cv::cuda::Stream& stream)
+{
+    CV_Assert(image.data && image.type() == CV_32SC4 &&
+        weight.data && weight.type() == CV_32SC1 && image.size() == weight.size());
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
+    normalize32SC4<<<grid, block, 0, st>>>(image.data, image.rows, image.cols, image.step,
+        weight.data, weight.rows, weight.cols, weight.step);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
 void scaledSet16SC1Mask16SC1(cv::cuda::GpuMat& image, short val, const cv::cuda::GpuMat& mask, cv::cuda::Stream& stream)
 {
     CV_Assert(image.data && image.type() == CV_16SC1 &&
@@ -1257,6 +1099,19 @@ void add32SC4(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::Gp
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
     add32SC4<<<grid, block, 0, st>>>(a.data, a.step, b.data, b.step, c.data, c.step, a.rows, a.cols);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void accumulate16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_16SC1 &&
+        dst.data && dst.type() == CV_32SC1 && src.size() == dst.size());
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
+    accumulate16SC1To32SC1<<<grid, block, 0, st>>>(src.data, src.step, dst.data, dst.step, src.rows, src.cols);
     //cudaSafeCall(cudaGetLastError());
     //cudaSafeCall(cudaDeviceSynchronize());
 }
