@@ -608,7 +608,10 @@ void TilingMultibandBlend::composite(cv::Mat& blendImage)
     // Remember to set resultPyr to zero, 
     // otherwise next round of tile and composite will produce incorrect result!!!!!
     for (int i = 0; i <= numLevels; i++)
+    {
         resultPyr[i].setTo(0);
+        resultWeightPyr[i].setTo(0);
+    }
 }
 
 void TilingMultibandBlend::blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage)
@@ -676,7 +679,11 @@ void TilingMultibandBlend::blendAndCompensate(const std::vector<cv::Mat>& images
     // Remember to set resultPyr to zero, 
     // otherwise next round of tile and composite will produce incorrect result!!!!!
     for (int i = 0; i <= numLevels; i++)
+    {
         resultPyr[i].setTo(0);
+        resultWeightPyr[i].setTo(0);
+    }
+        
 }
 
 static void setAlpha16SAccordingToAlpha32S(const cv::Mat& alpha32S, cv::Mat& alpha16S)
