@@ -165,7 +165,7 @@ int main(int argc, char* argv[])
         "{pano_file_encode_preset     | veryfast      | pano video local file encode preset}"
         "{enable_audio                | false         | enable audio or not}"
         "{enable_interactive_select_devices | false   | enable interactice select devices}"
-        "{high_quality_blend          | true         | use multiband blend}";
+        "{high_quality_blend          | false         | use multiband blend}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
