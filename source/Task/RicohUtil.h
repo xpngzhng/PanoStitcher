@@ -114,7 +114,7 @@ private:
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
     cv::cuda::GpuMat blendImageGPU;
-    cv::Mat blendImage;
+    cv::cuda::HostMem blendImage;
     std::vector<cv::cuda::Stream> streams;
     int blendType;
     CudaTilingMultibandBlendFast mbBlender;
