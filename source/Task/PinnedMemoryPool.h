@@ -8,17 +8,18 @@ class PinnedMemoryPool
 {
 public:
     PinnedMemoryPool() :
-        rows(0), cols(0), type(0), hasInit(0)
+        rows(0), cols(0), type(0), flag(cv::cuda::HostMem::PAGE_LOCKED), hasInit(0)
     {
     }
 
-    bool init(int rows_, int cols_, int type_)
+    bool init(int rows_, int cols_, int type_, 
+        cv::cuda::HostMem::AllocType flag_ = cv::cuda::HostMem::PAGE_LOCKED)
     {
         clear();
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        cv::cuda::HostMem test;
+        cv::cuda::HostMem test(flag_);
         try
         {
             test.create(rows_, cols_, type_);
@@ -33,6 +34,7 @@ public:
         rows = rows_;
         cols = cols_;
         type = type_;
+        flag = flag_;
 
         hasInit = 1;
         return true;
@@ -49,7 +51,7 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         if (!hasInit)
         {
-            mem = cv::cuda::HostMem();
+            mem = cv::cuda::HostMem(flag);
             return false;
         }
 
@@ -69,10 +71,10 @@ public:
             return true;
         }
 
-        cv::cuda::HostMem newMem(rows, cols, type);
+        cv::cuda::HostMem newMem(rows, cols, type, flag);
         if (!newMem.data)
         {
-            mem = cv::cuda::HostMem();
+            mem = cv::cuda::HostMem(flag);
             return false;
         }
 
@@ -84,6 +86,7 @@ private:
     int rows, cols, type;
     std::vector<cv::cuda::HostMem> pool;
     std::mutex mtx;
+    cv::cuda::HostMem::AllocType flag;
     int hasInit;
 };
 

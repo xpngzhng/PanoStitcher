@@ -170,8 +170,8 @@ private:
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
-    GpuMemoryPool pool;
-    typedef ForceWaitRealTimeQueue<std::pair<cv::cuda::GpuMat, long long int> > StampedMatQueue;
+    PinnedMemoryPool pool;
+    typedef ForceWaitRealTimeQueue<std::pair<cv::cuda::HostMem, long long int> > StampedMatQueue;
     StampedMatQueue queue;
     std::vector<cv::cuda::Stream> streams;
     int blendType;

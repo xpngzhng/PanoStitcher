@@ -918,7 +918,7 @@ bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, 
     cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
     streams.resize(numImages);
 
-    pool.init(dstSize.height, dstSize.width, CV_8UC4);
+    pool.init(dstSize.height, dstSize.width, CV_8UC4, cv::cuda::HostMem::SHARED);
 
     success = 1;
     return true;
@@ -940,10 +940,11 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
             return false;
     }
 
-    cv::cuda::GpuMat blendImageGPU;
-    if (!pool.get(blendImageGPU))
+    cv::cuda::HostMem blendImageMem;
+    if (!pool.get(blendImageMem))
         return false;
 
+    cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
     if (blendType == BlendTypeLinear)
     {
         srcImagesGPU.resize(numImages);
@@ -968,19 +969,19 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
             streams[i].waitForCompletion();
         mbBlender.blend(reprojImagesGPU, blendImageGPU);
     }
-
-    queue.push(std::make_pair(blendImageGPU, timeStamp));
+    queue.push(std::make_pair(blendImageMem, timeStamp));
 
     return true;
 }
 
 bool CudaMultiCameraPanoramaRender4::getResult(cv::Mat& dst, long long int& timeStamp)
 {
-    std::pair<cv::cuda::GpuMat, long long int> item;
+    std::pair<cv::cuda::HostMem, long long int> item;
     bool ret = queue.pull(item);
     if (ret)
     {
-        item.first.download(dst);
+        cv::Mat temp = item.first.createMatHeader();
+        temp.copyTo(dst);
         timeStamp = item.second;
     }        
     return ret;
