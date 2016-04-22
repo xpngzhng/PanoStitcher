@@ -1,21 +1,19 @@
 ﻿#include "ZBlend.h"
-#include "ReprojectionParam.h"
-#include "Reprojection.h"
+#include "ZReproject.h"
 #include "AudioVideoProcessor.h"
 #include "Timer.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
 
 int main()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
     cv::Size srcSize = cv::Size(1280, 960);
 
-	ReprojectParam pi;
-	pi.LoadConfig("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml");
-	pi.SetPanoSize(dstSize);
+    std::vector<PhotoParam> params;
+    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
 
     std::vector<std::string> srcVideoNames;
     srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
@@ -45,30 +43,17 @@ int main()
     //int offset[] = {554, 0, 436, 1064, 164, 785};
     //int numSkip = 3000;
 
-    std::vector<avp::VideoReader> readers(numVideos);
+    std::vector<avp::AudioVideoReader> readers(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
-        readers[i].open(srcVideoNames[i], /*avp::PixelTypeBGR32*/avp::PixelTypeBGR24);
+        readers[i].open(srcVideoNames[i], false, true, avp::PixelTypeBGR24);
         int count = offset[i] + numSkip;
-        avp::BGRImage image;
-        for (int j = 0; j < count; j++)
-            readers[i].read(image);
+        readers[i].seek(count * 1000000 / readers[i].getVideoFps() + 0.5, avp::VIDEO);
     }
-
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    avp::BGRImage bgrImage;
-    //    readers[i].read(bgrImage);
-    //    cv::Mat image(bgrImage.height, bgrImage.width, CV_8UC3, bgrImage.data, bgrImage.step);
-    //    char buf[256];
-    //    sprintf_s(buf, 256, "image%d.bmp", i);
-    //    cv::imwrite(buf, image);
-    //}
-    //return 0;
 
     std::vector<cv::Mat> dstMasks;
     std::vector<cv::Mat> dstSrcMaps;
-    getReprojectMapsAndMasks(pi, srcSize, dstSrcMaps, dstMasks);
+    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
     TilingMultibandBlend blender;
     bool success = blender.prepare(dstMasks, 16, 2);
@@ -76,7 +61,7 @@ int main()
     //bool success = blender.prepare(dstMasks);
 
     int frameCount = 0;
-    std::vector<avp::BGRImage> rawImages(numVideos);
+    std::vector<avp::AudioVideoFrame> rawImages(numVideos);
     std::vector<cv::Mat> images(numVideos), reprojImages(numVideos);
     cv::Mat blendImage;
 
@@ -100,8 +85,9 @@ int main()
 
     ztool::Timer timerTotal, timerDecode, timerReproject, timerBlend, timerEncode;
 
-    avp::VideoWriter writer;
-    writer.open("testnewcpu.mp4", /*avp::PixelTypeBGR32*/avp::PixelTypeBGR24, dstSize.width, dstSize.height, 48);
+    avp::AudioVideoWriter writer;
+    writer.open("testnewcpu.mp4", "", false, false, "", 0, 0, 0, 0,
+        true, "", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFps(), 4000000);
     while (true)
     {
         printf("currCount = %d\n", frameCount++);
@@ -136,7 +122,7 @@ int main()
         timerBlend.end();
 
         timerEncode.start();
-        avp::BGRImage image(blendImage.data, blendImage.cols, blendImage.rows, blendImage.step);
+        avp::AudioVideoFrame image = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24, blendImage.cols, blendImage.rows, -1LL);
         writer.write(image);
         timerEncode.end();
 

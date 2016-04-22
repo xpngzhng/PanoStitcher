@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ZBlend.h"
+#include "PinnedMemoryPool.h"
+#include "ConcurrentQueue.h"
 #include "opencv2/core.hpp"
 #include <memory>
 #include <string>
@@ -123,6 +125,7 @@ private:
     int success;
 };
 
+// add gain adjust function compared with CudaMultiCameraPanoramaRender2
 class CudaMultiCameraPanoramaRender3 : public PanoramaRender
 {
 public:
@@ -141,6 +144,39 @@ private:
     std::vector<cv::cuda::Stream> streams;
     MultibandBlendGainAdjust adjuster;
     CudaTilingLinearBlend blender;
+    int numImages;
+    int success;
+};
+
+// multithread version of CudaMultiCameraPanoramaRender2
+class CudaMultiCameraPanoramaRender4
+{
+public:
+    enum BlendType
+    {
+        BlendTypeLinear,
+        BlendTypeMultiband
+    };
+    CudaMultiCameraPanoramaRender4() : success(0) {};
+    ~CudaMultiCameraPanoramaRender4() { clear(); };
+    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
+    bool getResult(cv::Mat& dst, long long int& timeStamp);
+    void stop();
+    void resume();
+    void clear();
+private:
+    cv::Size srcFullSize;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    GpuMemoryPool pool;
+    typedef ForceWaitRealTimeQueue<std::pair<cv::cuda::GpuMat, long long int> > StampedMatQueue;
+    StampedMatQueue queue;
+    std::vector<cv::cuda::Stream> streams;
+    int blendType;
+    CudaTilingMultibandBlendFast mbBlender;
+    CudaTilingLinearBlend lBlender;
     int numImages;
     int success;
 };

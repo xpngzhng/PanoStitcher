@@ -2,6 +2,7 @@
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include "Timer.h"
 
 static const int UNIT_SHIFT = 10;
 static const int UNIT = 1 << UNIT_SHIFT;
@@ -744,6 +745,7 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             return false;
     }
 
+    ztool::Timer t;
     if (blendType == BlendTypeLinear)
     {
         srcImagesGPU.resize(numImages);
@@ -755,7 +757,10 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
         lBlender.blend(reprojImagesGPU, blendImageGPU);
+        t.start();
         blendImageGPU.download(dst);
+        t.end();
+        printf("time = %f\n", t.elapse());
     }
     else if (blendType == BlendTypeMultiband)
     {
@@ -860,4 +865,145 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
     blendImageGPU.download(dst);
 
     return true;
+}
+
+bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    clear();
+
+    success = 0;
+
+    if (type != BlendTypeLinear && type != BlendTypeMultiband)
+        return false;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    blendType = type;
+    srcFullSize = srcSize;
+
+    std::string::size_type length = path.length();
+    std::string fileExt = path.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path, params);
+        else
+            loadPhotoParamFromXML(path, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, dstSrcMaps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+    if (blendType == BlendTypeLinear)
+    {
+        if (!lBlender.prepare(masks, 50))
+            return false;
+    }
+    else if (blendType == BlendTypeMultiband)
+    {
+        if (!mbBlender.prepare(masks, 20, 2))
+            return false;
+    }
+    else
+        return false;
+
+    cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+    streams.resize(numImages);
+
+    pool.init(dstSize.height, dstSize.width, CV_8UC4);
+
+    success = 1;
+    return true;
+}
+
+bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcFullSize)
+            return false;
+        if (src[i].type() != CV_8UC4)
+            return false;
+    }
+
+    cv::cuda::GpuMat blendImageGPU;
+    if (!pool.get(blendImageGPU))
+        return false;
+
+    if (blendType == BlendTypeLinear)
+    {
+        srcImagesGPU.resize(numImages);
+        reprojImagesGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            srcImagesGPU[i].upload(src[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            streams[i].waitForCompletion();
+        lBlender.blend(reprojImagesGPU, blendImageGPU);
+    }
+    else if (blendType == BlendTypeMultiband)
+    {
+        srcImagesGPU.resize(numImages);
+        reprojImagesGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            srcImagesGPU[i].upload(src[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            streams[i].waitForCompletion();
+        mbBlender.blend(reprojImagesGPU, blendImageGPU);
+    }
+
+    queue.push(std::make_pair(blendImageGPU, timeStamp));
+
+    return true;
+}
+
+bool CudaMultiCameraPanoramaRender4::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<cv::cuda::GpuMat, long long int> item;
+    bool ret = queue.pull(item);
+    if (ret)
+    {
+        item.first.download(dst);
+        timeStamp = item.second;
+    }        
+    return ret;
+}
+
+void CudaMultiCameraPanoramaRender4::stop()
+{
+    queue.stop();
+}
+
+void CudaMultiCameraPanoramaRender4::resume()
+{
+    queue.resume();
+}
+
+void CudaMultiCameraPanoramaRender4::clear()
+{
+    dstSrcXMapsGPU.clear();
+    dstSrcYMapsGPU.clear();
+    srcImagesGPU.clear();
+    reprojImagesGPU.clear();
+    queue.stop();
+    pool.clear();
+    queue.clear();
+    streams.clear();
 }

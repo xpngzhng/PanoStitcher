@@ -52,13 +52,32 @@ int main()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
 
+    //std::vector<std::string> paths;
+    //paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
+    //paths.push_back("F:\\panoimage\\beijing\\image1.bmp");
+    //paths.push_back("F:\\panoimage\\beijing\\image2.bmp");
+    //paths.push_back("F:\\panoimage\\beijing\\image3.bmp");
+    //paths.push_back("F:\\panoimage\\beijing\\image4.bmp");
+    //paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+    //std::string configFilePath = "F:\\panoimage\\beijing\\temp_camera_param_new.xml";
+
     std::vector<std::string> paths;
-    paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
-    paths.push_back("F:\\panoimage\\beijing\\image1.bmp");
-    paths.push_back("F:\\panoimage\\beijing\\image2.bmp");
-    paths.push_back("F:\\panoimage\\beijing\\image3.bmp");
-    paths.push_back("F:\\panoimage\\beijing\\image4.bmp");
-    paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+    paths.push_back("F:\\panoimage\\road\\image0.bmp");
+    paths.push_back("F:\\panoimage\\road\\image1.bmp");
+    paths.push_back("F:\\panoimage\\road\\image2.bmp");
+    paths.push_back("F:\\panoimage\\road\\image3.bmp");
+    paths.push_back("F:\\panoimage\\road\\image4.bmp");
+    paths.push_back("F:\\panoimage\\road\\image5.bmp");
+    std::string configFilePath = "F:\\panoimage\\road\\param.xml";
+
+    //std::vector<std::string> paths;
+    //paths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //paths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //paths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //paths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //paths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //paths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //std::string configFilePath = "F:\\panoimage\\zhanxiang\\zhanxiang.xml";
 
     int numImages = paths.size();
     std::vector<cv::Mat> src(numImages);
@@ -66,9 +85,7 @@ int main()
         src[i] = cv::imread(paths[i]);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
-    //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
-    //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+    loadPhotoParamFromXML(configFilePath, params);
 
     std::vector<cv::Mat> maps, masks;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
@@ -86,7 +103,7 @@ int main()
     //    cv::waitKey(0);
     //}
 
-    TilingMultibandBlendFastParallel blender;
+    TilingMultibandBlend blender;
     blender.prepare(masks, 20, 2);
     cv::Mat blendImage;
     //blender.blend(dst, blendImage);
@@ -95,16 +112,44 @@ int main()
 
     ztool::Timer timer;
     ztool::RepeatTimer timerReproject, timerBlend;
-    for (int i = 0; i < 500; i++)
+    for (int i = 0; i < 1; i++)
     {
         timerReproject.start();
-        reprojectParallelTo16S(src, dst, maps);
+        reprojectParallel(src, dst, maps);
+        for (int j = 0; j < dst.size(); j++)
+        {
+            cv::imshow("dst", dst[j]);
+            cv::waitKey(0);
+        }
         timerReproject.end();
         timerBlend.start();
-        blender.blend(dst, blendImage);
+        blender.blend(dst, masks, blendImage);
+        //BlendConfig config;
+        //config.setSeamDistanceTransform();
+        //parallelBlend(config, dst, masks, blendImage);
         timerBlend.end();
     }
     timer.end();
+    cv::imshow("blend", blendImage);
+    cv::waitKey(0);
     printf("%f, %f, %f\n", timer.elapse(), timerReproject.getAccTime(), timerBlend.getAccTime());
+
+    CudaTilingMultibandBlendFast cudaBlender;
+    cudaBlender.prepare(masks, 20, 2);
+    std::vector<cv::cuda::GpuMat> cudaImages(numImages), cudaMasks(numImages);
+    cv::Mat imageC4(dst[0].size(), CV_8UC4);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::cvtColor(dst[i], imageC4, CV_BGR2BGRA);
+        cudaImages[i].upload(imageC4);
+        cudaMasks[i].upload(masks[i]);
+    }
+    cv::cuda::GpuMat cudaBlendImage;
+    for (int i = 0; i < 10; i++)
+        cudaBlender.blend(cudaImages, cudaBlendImage);
+    cudaBlendImage.download(blendImage);
+    cv::imshow("cuda blend", blendImage);
+    cv::waitKey(0);
+
     return 0;
 }
