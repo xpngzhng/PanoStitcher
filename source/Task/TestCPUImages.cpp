@@ -48,6 +48,8 @@
 //    cv::waitKey(0);
 //}
 
+void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+
 int main()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
@@ -89,6 +91,43 @@ int main()
 
     std::vector<cv::Mat> maps, masks;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+    std::vector<cv::Mat> weights;
+    getWeightsLinearBlend32F(masks, 30, weights);
+    cv::Mat orImage = cv::Mat::zeros(dstSize, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::Mat show = weights[i] > 0;
+        orImage |= show;
+        cv::imshow("e", show);
+        cv::waitKey(0);
+    }
+    cv::imshow("or", orImage);
+    cv::waitKey(0);
+
+    std::vector<cv::cuda::GpuMat> weightsGPU(numImages);
+    for (int i = 0; i < numImages; i++)
+        weightsGPU[i].upload(weights[i]);
+
+    cv::cuda::GpuMat accum(dstSize, CV_32FC4);
+    accum.setTo(0);
+
+    cv::Mat temp, show;
+    cv::cuda::GpuMat tempGPU;
+    std::vector<cv::cuda::GpuMat> xmapsGPU, ymapsGPU;
+    cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmapsGPU, ymapsGPU);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::cvtColor(src[i], temp, CV_BGR2BGRA);
+        tempGPU.upload(temp);
+        cudaReprojectWeightedAccumulateTo32F(tempGPU, accum, xmapsGPU[i], ymapsGPU[i], weightsGPU[i]);
+    }
+    cv::Mat result32F, result;
+    accum.download(result32F);
+    result32F.convertTo(result, CV_8U);
+    cv::imshow("result", result);
+    cv::waitKey(0);
+    return 0;
 
     std::vector<cv::Mat> dst(numImages);
     //for (int i = 0; i < numImages; i++)

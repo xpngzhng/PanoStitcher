@@ -867,6 +867,7 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
     return true;
 }
 
+void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
 {
     clear();
@@ -904,8 +905,14 @@ bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, 
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
     if (blendType == BlendTypeLinear)
     {
-        if (!lBlender.prepare(masks, 50))
-            return false;
+        //if (!lBlender.prepare(masks, 50))
+        //    return false;
+        std::vector<cv::Mat> weights;
+        getWeightsLinearBlend32F(masks, 50, weights);
+        weightsGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            weightsGPU[i].upload(weights[i]);
+        accumGPU.create(dstSize, CV_32FC4);
     }
     else if (blendType == BlendTypeMultiband)
     {
@@ -945,6 +952,7 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
         return false;
 
     cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
+    accumGPU.setTo(0);
     if (blendType == BlendTypeLinear)
     {
         srcImagesGPU.resize(numImages);
@@ -952,10 +960,12 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
         for (int i = 0; i < numImages; i++)
             srcImagesGPU[i].upload(src[i], streams[i]);
         for (int i = 0; i < numImages; i++)
-            cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+            //cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+            cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
-        lBlender.blend(reprojImagesGPU, blendImageGPU);
+        //lBlender.blend(reprojImagesGPU, blendImageGPU);
+        accumGPU.convertTo(blendImageGPU, CV_8U);
     }
     else if (blendType == BlendTypeMultiband)
     {

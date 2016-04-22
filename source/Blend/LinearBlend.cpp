@@ -73,6 +73,86 @@ void getWeightsLinearBlend(const std::vector<cv::Mat>& masks, int radius, std::v
     calcWeights(dists, weights);
 }
 
+static void calcWeights32F(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& weights)
+{
+    int numImages = dists.size();
+    int rows = dists[0].rows, cols = dists[0].cols;
+
+    weights.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        weights[i].create(rows, cols, CV_32FC1);
+        weights[i].setTo(0);
+    }        
+
+    std::vector<const unsigned char*> ptrDistVector(numImages);
+    const unsigned char** ptrDist = &ptrDistVector[0];
+    std::vector<float*> ptrWeightVector(numImages);
+    float** ptrWeight = &ptrWeightVector[0];
+    for (int i = 0; i < rows; i++)
+    {
+        for (int k = 0; k < numImages; k++)
+        {
+            ptrDist[k] = dists[k].ptr<unsigned char>(i);
+            ptrWeight[k] = weights[k].ptr<float>(i);
+        }
+        for (int j = 0; j < cols; j++)
+        {
+            float sum = 0;
+            int nonZeroCount = 0;
+            int nonZeroIndex = 0;
+            for (int k = 0; k < numImages; k++)
+            {
+                sum += ptrDist[k][j];
+                if (ptrDist[k][j])
+                {
+                    nonZeroCount++;
+                    nonZeroIndex = k;
+                }
+            }
+            if (nonZeroCount > 1)
+            {
+                sum = fabs(sum) <= FLT_MIN ? 0 : 1.0F / sum;
+                for (int k = 0; k < numImages; k++)
+                    ptrWeight[k][j] = ptrDist[k][j] * sum;
+            }
+            else if (nonZeroCount == 1)
+                ptrWeight[nonZeroIndex][j] = 1.0;
+
+            //float sum = 0;
+            //for (int k = 0; k < numImages; k++)
+            //    sum += ptrDist[k][j];
+            //sum = fabs(sum) <= FLT_MIN ? 0 : 1.0F / sum;
+            //int intSum = 0;
+            //for (int k = 0; k < numImages; k++)
+            //{
+            //    ;
+            //    ptrWeight[k][j] = ptrDist[k][j] * sum;
+            //}
+        }
+    }
+}
+
+void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights)
+{
+    int numImages = masks.size();
+    std::vector<cv::Mat> uniqueMasks(numImages);
+    getNonIntersectingMasks(masks, uniqueMasks);
+
+    std::vector<cv::Mat> dists(numImages);
+    cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
+    double sigma = radius / 3.0;
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::GaussianBlur(uniqueMasks[i], dists[i], blurSize, sigma, sigma);
+        cv::bitwise_and(dists[i], masks[i], dists[i]);
+        //cv::imshow("dist", dists[i]);
+        //cv::waitKey(0);
+    }
+
+    calcWeights32F(dists, weights);
+}
+
 static void accumulate(const cv::Mat& image, const cv::Mat& weight, cv::Mat& accumImage)
 {
     CV_Assert(image.data && image.type() == CV_8UC3 &&

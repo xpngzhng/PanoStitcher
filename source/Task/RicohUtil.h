@@ -177,6 +177,8 @@ private:
     int blendType;
     CudaTilingMultibandBlendFast mbBlender;
     CudaTilingLinearBlend lBlender;
+    std::vector<cv::cuda::GpuMat> weightsGPU;
+    cv::cuda::GpuMat accumGPU;
     int numImages;
     int success;
 };
