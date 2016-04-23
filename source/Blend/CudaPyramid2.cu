@@ -450,9 +450,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
     {
         {
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, x);
+            sum =       1 * getElem<short4>(srcData, srcStep, srcy - 2, x);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, x);
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, x);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,     x);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, x);
             sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, x);
             smem[2 + threadIdx.x] = sum;
@@ -462,9 +462,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
         {
             const int leftx = x - 2;
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, leftx);
+            sum =       1 * getElem<short4>(srcData, srcStep, srcy - 2, leftx);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, leftx);
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, leftx);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,     leftx);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, leftx);
             sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, leftx);
             smem[threadIdx.x] = sum;
@@ -474,9 +474,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
         {
             const int rightx = x + 2;
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, rightx);
+            sum =       1 * getElem<short4>(srcData, srcStep, srcy - 2, rightx);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, rightx);
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, rightx);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,     rightx);
             sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, rightx);
             sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, rightx);
             smem[4 + threadIdx.x] = sum;
@@ -486,9 +486,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
     {
         {
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(x));
-            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(x));
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col_high(x));
+            sum =       1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(x));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(x));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,                      cb.idx_col_high(x));
             sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(x));
             sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(x));
             smem[2 + threadIdx.x] = sum;
@@ -498,9 +498,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
         {
             const int leftx = x - 2;
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col(leftx));
-            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col(leftx));
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col(leftx));
+            sum =       1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col(leftx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col(leftx));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,                      cb.idx_col(leftx));
             sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col(leftx));
             sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col(leftx));
             smem[threadIdx.x] = sum;
@@ -510,9 +510,9 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
         {
             const int rightx = x + 2;
             int4 sum;
-            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(rightx));
-            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(rightx));
-            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col_high(rightx));
+            sum =       1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(rightx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(rightx));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy,                      cb.idx_col_high(rightx));
             sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(rightx));
             sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(rightx));
             smem[4 + threadIdx.x] = sum;
