@@ -342,7 +342,7 @@ void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cud
     if (image.type() == CV_8UC4)
         image.convertTo(image16S, CV_16S);
     else
-        image16S = image;
+        image.copyTo(image16S);
     aux16S.create(rows, cols, CV_16SC1);
     aux16S.setTo(0);
     aux16S.setTo(256, mask);
@@ -602,7 +602,7 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
         if (images[i].type() == CV_8UC4)
             images[i].convertTo(imagePyr[0], CV_16S);
         else if (images[i].type() == CV_16SC4)
-            imagePyr[0] = images[i];
+            images[i].copyTo(imagePyr[0]);
         for (int j = 0; j < numLevels; j++)
         {
             pyramidDown16SC4To32SC4(imagePyr[j], image32SPyr[j + 1], cv::Size(), true);
@@ -620,6 +620,257 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
     else
         normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
+    resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!fullMask)
+        blendImage.setTo(0, maskNot);
+}
+
+static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
+{
+    int numLevels = sizes.size() - 1;
+    steps.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+    {
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32FC4);
+        steps[i] = tmp.step;
+    }
+}
+
+static void getStepsOfImageUpPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
+{
+    int numLevels = sizes.size() - 1;
+    steps.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+    {
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32FC4);
+        steps[i] = tmp.step;
+    }
+}
+
+static void getStepsOfResultUpPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
+{
+    int numLevels = sizes.size() - 1;
+    steps.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+    {
+        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32FC4);
+        steps[i] = tmp.step;
+    }
+}
+
+static void allocMemoryForImageDownPyrAndImageUpPyr32F(const std::vector<cv::Size>& sizes,
+    const std::vector<int>& stepsImageDownPyr, const std::vector<int>& stepsImageUpPyr,
+    std::vector<cv::cuda::GpuMat>& imageDownPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr)
+{
+    int numLevels = sizes.size() - 1;
+    cv::cuda::GpuMat mem(sizes[0], CV_32FC4);
+
+    imageUpPyr.resize(numLevels + 1);
+    imageUpPyr[0] = mem;
+    for (int i = 1; i < numLevels; i++)
+        imageUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32FC4, mem.data, stepsImageUpPyr[i]);
+
+    imageDownPyr.resize(numLevels + 1);
+    for (int i = 1; i <= numLevels; i++)
+        imageDownPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32FC4, mem.data, stepsImageDownPyr[i]);
+}
+
+static void allocMemoryForResultPyrAndResultUpPyr32F(const std::vector<cv::Size>& sizes,
+    const std::vector<int>& stepsResultUpPyr, std::vector<cv::cuda::GpuMat>& resultPyr,
+    std::vector<cv::cuda::GpuMat>& resultUpPyr)
+{
+    int numLevels = sizes.size() - 1;
+
+    resultPyr.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].create(sizes[i], CV_32FC4);
+
+    cv::cuda::GpuMat mem(sizes[0], CV_32FC4);
+    resultUpPyr.resize(numLevels + 1);
+    resultUpPyr[0] = mem;
+    for (int i = 1; i < numLevels; i++)
+        resultUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32FC4, mem.data, stepsResultUpPyr[i]);
+}
+
+static void accumulateWeight32F(const std::vector<cv::cuda::GpuMat>& src, std::vector<cv::cuda::GpuMat>& dst)
+{
+    CV_Assert(src.size() == dst.size());
+    int size = src.size();
+    for (int i = 0; i < size; i++)
+        accumulate32FC1(src[i], dst[i]);
+}
+
+static void inverseWeight32F(std::vector<cv::cuda::GpuMat>& weights)
+{
+    int size = weights.size();
+    for (int i = 0; i < size; i++)
+        inverse32FC1(weights[i]);
+}
+
+static void accumulate32F(const std::vector<cv::cuda::GpuMat>& imagePyr, const std::vector<cv::cuda::GpuMat>& weightPyr,
+    std::vector<cv::cuda::GpuMat>& resultPyr)
+{
+    CV_Assert(imagePyr.size() == weightPyr.size() &&
+        imagePyr.size() == resultPyr.size());
+    int size = imagePyr.size();
+    for (int i = 0; i < size; i++)
+        accumulate32FC4(imagePyr[i], weightPyr[i], resultPyr[i]);
+}
+
+void restoreImageFromLaplacePyramid32F(std::vector<cv::cuda::GpuMat>& pyr, bool horiWrap,
+    std::vector<cv::cuda::GpuMat>& upPyr)
+{
+    if (pyr.empty())
+        return;
+    upPyr.resize(pyr.size());
+    for (size_t i = pyr.size() - 1; i > 0; --i)
+    {
+        pyramidUp32FC4(pyr[i], upPyr[i - 1], pyr[i - 1].size(), horiWrap);
+        add32FC4(upPyr[i - 1], pyr[i - 1], pyr[i - 1]);
+    }
+}
+
+static void scale32F(std::vector<cv::cuda::GpuMat>& pyr, const std::vector<cv::cuda::GpuMat>& alphas)
+{
+    CV_Assert(pyr.size() == alphas.size());
+    int size = pyr.size();
+    for (int i = 0; i < size; i++)
+        scale32FC4(pyr[i], alphas[i]);
+}
+
+bool CudaTilingMultibandBlendFast32F::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
+{
+    success = false;
+    if (masks.empty())
+        return false;
+
+    int currNumMasks = masks.size();
+    if (currNumMasks > 255)
+        return false;
+
+    int currRows = masks[0].rows, currCols = masks[0].cols;
+    for (int i = 0; i < currNumMasks; i++)
+    {
+        if (!masks[i].data || masks[i].type() != CV_8UC1 ||
+            masks[i].rows != currRows || masks[i].cols != currCols)
+            return false;
+    }
+    rows = currRows;
+    cols = currCols;
+    numImages = currNumMasks;
+
+    std::vector<cv::Mat> uniqueMasks;
+    getNonIntersectingMasks(masks, uniqueMasks);
+
+    std::vector<cv::cuda::GpuMat> uniqueMasksGpu(numImages);
+    for (int i = 0; i < numImages; i++)
+        uniqueMasksGpu[i].upload(uniqueMasks[i]);
+    uniqueMasks.clear();
+
+    numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
+
+    std::vector<cv::cuda::GpuMat> masksGpu(numImages);
+    for (int i = 0; i < numImages; i++)
+        masksGpu[i].upload(masks[i]);
+
+    cv::cuda::GpuMat aux32F(rows, cols, CV_32FC1);
+
+    std::vector<cv::cuda::GpuMat> tempAlphaPyr(numLevels + 1);
+    alphaPyrs.resize(numImages);
+    weightPyrs.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        alphaPyrs[i].resize(numLevels + 1);
+        weightPyrs[i].resize(numLevels + 1);
+        aux32F.setTo(0);
+        aux32F.setTo(1, masksGpu[i]);
+        tempAlphaPyr[0] = aux32F.clone();
+        aux32F.setTo(0);
+        aux32F.setTo(1, uniqueMasksGpu[i]);
+        weightPyrs[i][0] = aux32F.clone();
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidDown32FC1(tempAlphaPyr[j], alphaPyrs[i][j + 1], cv::Size(), true);
+            tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_32FC1);
+            scaledSet32FC1Mask32FC1(tempAlphaPyr[j + 1], 1, alphaPyrs[i][j + 1]);
+            pyramidDown32FC1(weightPyrs[i][j], weightPyrs[i][j + 1], cv::Size(), true);
+        }
+    }
+
+    std::vector<cv::Size> sizes;
+    getPyramidLevelSizes(sizes, rows, cols, numLevels);
+
+    std::vector<int> stepsImageDownPyr, stepsImageUpPyr;
+    getStepsOfImageDownPyr32F(sizes, stepsImageDownPyr);
+    getStepsOfImageUpPyr32F(sizes, stepsImageUpPyr);
+    allocMemoryForImageDownPyrAndImageUpPyr32F(sizes, stepsImageDownPyr, stepsImageUpPyr, imageDownPyr, imageUpPyr);
+
+    std::vector<int> stepsResultUpPyr;
+    getStepsOfResultUpPyr32F(sizes, stepsResultUpPyr);
+    allocMemoryForResultPyrAndResultUpPyr32F(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
+
+    cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+        mask |= masks[i];
+    fullMask = cv::countNonZero(mask) == (rows * cols);
+    if (fullMask)
+    {
+        resultScalePyr.clear();
+        maskNot.release();
+    }
+    else
+    {
+        resultScalePyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            resultScalePyr[i].create(sizes[i], CV_32FC1);
+            resultScalePyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight32F(weightPyrs[i], resultScalePyr);
+        inverseWeight32F(resultScalePyr);
+        mask = ~mask;
+        maskNot.upload(mask);
+    }
+
+    success = true;
+    return true;
+}
+
+void CudaTilingMultibandBlendFast32F::blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage)
+{
+    if (!success)
+        return;
+
+    CV_Assert(images.size() == numImages);
+
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].setTo(0);
+
+    imagePyr.resize(numLevels + 1);
+    imageDownPyr.resize(numLevels + 1);
+    imageUpPyr.resize(numLevels + 1);
+    for (int i = 0; i < numImages; i++)
+    {
+        if (images[i].type() == CV_8UC4)
+            images[i].convertTo(imagePyr[0], CV_32F);
+        else if (images[i].type() == CV_32FC4)
+            images[i].copyTo(imagePyr[0]);
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidDown32FC4(imagePyr[j], imageDownPyr[j + 1], cv::Size(), true);
+            divide32FC4(imageDownPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
+        }
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidUp32FC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size(), true);
+            subtract32FC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
+        }
+        accumulate32F(imagePyr, weightPyrs[i], resultPyr);
+    }
+    if (!fullMask)
+        scale32F(resultPyr, resultScalePyr);
+    restoreImageFromLaplacePyramid32F(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
     if (!fullMask)
         blendImage.setTo(0, maskNot);
@@ -706,7 +957,7 @@ void calcImagePyramid(const cv::cuda::GpuMat& image, const std::vector<cv::cuda:
     if (image.type() == CV_8UC4)
         image.convertTo(imagePyr[0], CV_16S, stream);
     else
-        imagePyr[0] = image;
+        image.copyTo(imagePyr[0]);
     for (int j = 0; j < numLevels; j++)
     {
         pyramidDown16SC4To32SC4(imagePyr[j], image32SPyr[j + 1], cv::Size(), true, stream);

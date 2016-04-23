@@ -149,9 +149,27 @@ __device__ __forceinline__ int4 operator+(int4 a, int4 b)
     return ret;
 }
 
+__device__ __forceinline__ float4 operator+(float4 a, float4 b)
+{
+    float4 ret;
+    ret.x = a.x + b.x;
+    ret.y = a.y + b.y;
+    ret.z = a.z + b.z;
+    return ret;
+}
+
 __device__ __forceinline__ int4 operator-(int4 a, int4 b)
 {
     int4 ret;
+    ret.x = a.x - b.x;
+    ret.y = a.y - b.y;
+    ret.z = a.z - b.z;
+    return ret;
+}
+
+__device__ __forceinline__ float4 operator-(float4 a, float4 b)
+{
+    float4 ret;
     ret.x = a.x - b.x;
     ret.y = a.y - b.y;
     ret.z = a.z - b.z;
@@ -185,9 +203,27 @@ __device__ __forceinline__ int4 operator*(int scale, int4 val)
     return ret;
 }
 
+__device__ __forceinline__ float4 operator*(float scale, float4 val)
+{
+    float4 ret;
+    ret.x = scale * val.x;
+    ret.y = scale * val.y;
+    ret.z = scale * val.z;
+    return ret;
+}
+
 __device__ __forceinline__ short4 operator/(int4 val, int scale)
 {
     short4 ret;
+    ret.x = val.x / scale;
+    ret.y = val.y / scale;
+    ret.z = val.z / scale;
+    return ret;
+}
+
+__device__ __forceinline__ float4 operator/(float4 val, float scale)
+{
+    float4 ret;
     ret.x = val.x / scale;
     ret.y = val.y / scale;
     ret.z = val.z / scale;

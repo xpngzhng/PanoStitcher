@@ -49,6 +49,7 @@
     <CudaCompile Include="..\..\source\Blend\CudaFeatherBlend.cu" />
     <CudaCompile Include="..\..\source\Blend\CudaPyramid2.cu" />
     <CudaCompile Include="..\..\source\Blend\CudaGainAdjust.cu" />
+    <CudaCompile Include="..\..\source\Blend\CudaPyramid6.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{59B9EFB5-3165-416D-8F9F-CEA106DB6633}</ProjectGuid>
