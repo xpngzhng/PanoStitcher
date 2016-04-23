@@ -8,6 +8,8 @@ void pyramidDown16SC1To16SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
 void pyramidDown16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To32SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& scale, cv::cuda::GpuMat& dst, bool horiWrap, 
+    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void divide32SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha,
     cv::cuda::GpuMat& dstImage, cv::cuda::GpuMat& dstAlpha, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha, bool horiWrap,

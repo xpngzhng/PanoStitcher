@@ -434,6 +434,114 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
 }
 
 template<typename ColWiseReflectType, typename RowWiseReflectType>
+__global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
+    const unsigned char* scaleData, int scaleRows, int scaleCols, int scaleStep,
+    unsigned char* dstData, int dstRows, int dstCols, int dstStep,
+    const ColWiseReflectType rb, const RowWiseReflectType cb)
+{
+    __shared__ int4 smem[PYR_DOWN_BLOCK_SIZE + 4];
+
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y;
+
+    const int srcy = 2 * y;
+
+    if (srcy >= 2 && srcy < srcRows - 2 && x >= 2 && x < srcCols - 2)
+    {
+        {
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, x);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, x);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, x);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, x);
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, x);
+            smem[2 + threadIdx.x] = sum;
+        }
+
+        if (threadIdx.x < 2)
+        {
+            const int leftx = x - 2;
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, leftx);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, leftx);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, leftx);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, leftx);
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, leftx);
+            smem[threadIdx.x] = sum;
+        }
+
+        if (threadIdx.x > PYR_DOWN_BLOCK_SIZE - 3)
+        {
+            const int rightx = x + 2;
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, srcy - 2, rightx);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy - 1, rightx);
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, rightx);
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, srcy + 1, rightx);
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, srcy + 2, rightx);
+            smem[4 + threadIdx.x] = sum;
+        }
+    }
+    else
+    {
+        {
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(x));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(x));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col_high(x));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(x));
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(x));
+            smem[2 + threadIdx.x] = sum;
+        }
+
+        if (threadIdx.x < 2)
+        {
+            const int leftx = x - 2;
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col(leftx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col(leftx));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col(leftx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col(leftx));
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col(leftx));
+            smem[threadIdx.x] = sum;
+        }
+
+        if (threadIdx.x > PYR_DOWN_BLOCK_SIZE - 3)
+        {
+            const int rightx = x + 2;
+            int4 sum;
+            sum = 1 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(rightx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(rightx));
+            sum = sum + 6 * getElem<short4>(srcData, srcStep, srcy, cb.idx_col_high(rightx));
+            sum = sum + 4 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(rightx));
+            sum = sum + 1 * getElem<short4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(rightx));
+            smem[4 + threadIdx.x] = sum;
+        }
+    }
+
+    __syncthreads();
+
+    if (threadIdx.x < PYR_DOWN_BLOCK_SIZE / 2)
+    {
+        const int tid2 = threadIdx.x * 2;
+        int4 sum;
+        sum = 1 * smem[2 + tid2 - 2];
+        sum = sum + 4 * smem[2 + tid2 - 1];
+        sum = sum + 6 * smem[2 + tid2];
+        sum = sum + 4 * smem[2 + tid2 + 1];
+        sum = sum + 1 * smem[2 + tid2 + 2];
+
+        const int dstx = (blockIdx.x * blockDim.x + tid2) / 2;
+
+        if (dstx < dstCols)
+        {
+            int scale = getElem<int>(scaleData, scaleStep, y, dstx);
+            getRowPtr<short4>(dstData, dstStep, y)[dstx] = scale ? ((sum << 8) - sum) / scale : make_short4(0, 0, 0, 0);
+        }
+    }
+}
+
+template<typename ColWiseReflectType, typename RowWiseReflectType>
 __global__ void pyrUp32SC4To32SC4(const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
     unsigned char* dstData, int dstRows, int dstCols, int dstStep, 
     const ColWiseReflectType rb, const RowWiseReflectType cb)
@@ -874,6 +982,35 @@ void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
         BrdRowReflect101 cb(src.cols);
         pyrDown16SC4To16SC4<<<grid, block, 0, st>>>(src.data, src.rows, src.cols, src.step, dst.data, dst.rows, dst.cols, dst.step, rb, cb);
     }    
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& scale, cv::cuda::GpuMat& dst, bool horiWrap, cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_16SC4 && scale.data && scale.type() == CV_32SC1);
+
+    dst.create(scale.size(), CV_16SC4);
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    const dim3 block(PYR_DOWN_BLOCK_SIZE);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), dst.rows);
+    if (horiWrap)
+    {
+        BrdColReflect101 rb(src.rows);
+        BrdRowWrap cb(src.cols);
+        pyrDown16SC4To16SC4<<<grid, block, 0, st>>>(src.data, src.rows, src.cols, src.step, 
+            scale.data, scale.rows, scale.cols, scale.step, 
+            dst.data, dst.rows, dst.cols, dst.step, rb, cb);
+    }
+    else
+    {
+        BrdColReflect101 rb(src.rows);
+        BrdRowReflect101 cb(src.cols);
+        pyrDown16SC4To16SC4<<<grid, block, 0, st>>>(src.data, src.rows, src.cols, src.step, 
+            scale.data, scale.rows, scale.cols, scale.step,
+            dst.data, dst.rows, dst.cols, dst.step, rb, cb);
+    }
     //cudaSafeCall(cudaGetLastError());
     //cudaSafeCall(cudaDeviceSynchronize());
 }
