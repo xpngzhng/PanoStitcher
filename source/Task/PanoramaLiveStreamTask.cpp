@@ -147,7 +147,6 @@ struct PanoramaLiveStreamTask::Impl
     ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
-    ForceWaitFrameQueue procFrameBufferForPostProc;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 };
@@ -358,7 +357,6 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
     syncedFramesBufferForProc.clear();
-    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();
@@ -383,7 +381,6 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
         renderThread->join();
         renderThread.reset(0);
         render.clear();
-        procFrameBufferForPostProc.stop();
         postProcThread->join();
         postProcThread.reset(0);
         renderPrepareSuccess = 0;
@@ -632,7 +629,6 @@ void PanoramaLiveStreamTask::Impl::closeAll()
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
     procFramePool.clear();
-    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
@@ -967,7 +963,6 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     }
 
     render.stop();
-    procFrameBufferForPostProc.stop();
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
