@@ -794,6 +794,7 @@ bool CudaTilingMultibandBlendFast32F::prepare(const std::vector<cv::Mat>& masks,
             tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_32FC1);
             scaledSet32FC1Mask32FC1(tempAlphaPyr[j + 1], 1, alphaPyrs[i][j + 1]);
             pyramidDown32FC1(weightPyrs[i][j], weightPyrs[i][j + 1], cv::Size(), true);
+            inverse32FC1(alphaPyrs[i][j + 1]);
         }
     }
 
@@ -859,7 +860,8 @@ void CudaTilingMultibandBlendFast32F::blend(const std::vector<cv::cuda::GpuMat>&
         for (int j = 0; j < numLevels; j++)
         {
             pyramidDown32FC4(imagePyr[j], imageDownPyr[j + 1], cv::Size(), true);
-            divide32FC4(imageDownPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
+            //divide32FC4(imageDownPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
+            scale32FC4(imageDownPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
         }
         for (int j = 0; j < numLevels; j++)
         {

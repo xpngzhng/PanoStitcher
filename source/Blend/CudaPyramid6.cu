@@ -408,6 +408,18 @@ __global__ void scale32FC4(unsigned char* imageData, int imageStep,
     }
 }
 
+__global__ void scale32FC4(const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
+    const unsigned char* weightData, int weightStep, unsigned char* dstData, int dstStep)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < srcCols && y < srcRows)
+    {
+        getRowPtr<float4>(dstData, dstStep, y)[x] = 
+            getElem<float>(weightData, weightStep, y, x) * getElem<float4>(srcData, srcStep, y, x);
+    }
+}
+
 void pyramidDown32FC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap)
 {
     CV_Assert(src.data && src.type() == CV_32FC1);
@@ -596,6 +608,22 @@ void scale32FC4(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha)
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(image.cols, block.x), cv::cuda::device::divUp(image.rows, block.y));
     scale32FC4<<<grid, block>>>(image.data, image.step, alpha.data, alpha.step, image.rows, image.cols);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void scale32FC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst)
+{
+    CV_Assert(src.data && src.type() == CV_32FC4 &&
+        weight.data && weight.type() == CV_32FC1 &&
+        src.size() == weight.size());
+
+    dst.create(src.size(), CV_32FC4);
+
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
+    scale32FC4 << <grid, block >> >(src.data, src.rows, src.cols, src.step,
+        weight.data, weight.step, dst.data, dst.step);
     //cudaSafeCall(cudaGetLastError());
     //cudaSafeCall(cudaDeviceSynchronize());
 }

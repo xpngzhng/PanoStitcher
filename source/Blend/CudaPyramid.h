@@ -69,3 +69,4 @@ void accumulate32FC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst);
 void accumulate32FC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst);
 void inverse32FC1(cv::cuda::GpuMat& mat);
 void scale32FC4(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha);
+void scale32FC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& alpha, cv::cuda::GpuMat& dst);
