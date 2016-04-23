@@ -136,72 +136,102 @@ __global__ void pyrDown32FC4(const unsigned char* srcData, int srcRows, int srcC
     if (srcy >= 2 && srcy < srcRows - 2 && x >= 2 && x < srcCols - 2)
     {
         {
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, x);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, x);
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     x);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, x);
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, x);
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy - 2, x));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy - 1, x));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, x));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy + 1, x));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy + 2, x));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, x);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, x);
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     x);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, x);
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, x);
             smem[2 + threadIdx.x] = sum;
         }
 
         if (threadIdx.x < 2)
         {
             const int leftx = x - 2;
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, leftx);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, leftx);
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     leftx);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, leftx);
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, leftx);
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy - 2, leftx));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy - 1, leftx));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, leftx));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy + 1, leftx));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy + 2, leftx));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, leftx);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, leftx);
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     leftx);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, leftx);
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, leftx);
             smem[threadIdx.x] = sum;
         }
 
         if (threadIdx.x > PYR_DOWN_BLOCK_SIZE - 3)
         {
             const int rightx = x + 2;
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, rightx);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, rightx);
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     rightx);
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, rightx);
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, rightx);
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy - 2, rightx));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy - 1, rightx));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, rightx));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, srcy + 1, rightx));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, srcy + 2, rightx));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 2, rightx);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy - 1, rightx);
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,     rightx);
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 1, rightx);
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, srcy + 2, rightx);
             smem[4 + threadIdx.x] = sum;
         }
     }
     else
     {
         {
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(x));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(x));
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col_high(x));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(x));
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(x));
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(x)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(x)));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, cb.idx_col_high(x)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(x)));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(x)));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(x));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(x));
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col_high(x));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(x));
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(x));
             smem[2 + threadIdx.x] = sum;
         }
 
         if (threadIdx.x < 2)
         {
             const int leftx = x - 2;
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col(leftx));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col(leftx));
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col(leftx));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col(leftx));
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col(leftx));
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col(leftx)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col(leftx)));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, cb.idx_col(leftx)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col(leftx)));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col(leftx)));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col(leftx));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col(leftx));
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col(leftx));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col(leftx));
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col(leftx));
             smem[threadIdx.x] = sum;
         }
 
         if (threadIdx.x > PYR_DOWN_BLOCK_SIZE - 3)
         {
             const int rightx = x + 2;
-            float4 sum;
-            sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(rightx));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(rightx));
-            sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col_high(rightx));
-            sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(rightx));
-            sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(rightx));
+            float4 sum = make_float4(0, 0, 0, 0);
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2), cb.idx_col_high(rightx)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1), cb.idx_col_high(rightx)));
+            sum = scaleAndAdd(sum, NUM_6_DEN_16, getElem<float4>(srcData, srcStep, srcy, cb.idx_col_high(rightx)));
+            sum = scaleAndAdd(sum, NUM_4_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(rightx)));
+            sum = scaleAndAdd(sum, NUM_1_DEN_16, getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(rightx)));
+            //sum =       NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 2),  cb.idx_col_high(rightx));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_low(srcy - 1),  cb.idx_col_high(rightx));
+            //sum = sum + NUM_6_DEN_16 * getElem<float4>(srcData, srcStep, srcy,                      cb.idx_col_high(rightx));
+            //sum = sum + NUM_4_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 1), cb.idx_col_high(rightx));
+            //sum = sum + NUM_1_DEN_16 * getElem<float4>(srcData, srcStep, rb.idx_row_high(srcy + 2), cb.idx_col_high(rightx));
             smem[4 + threadIdx.x] = sum;
         }
     }
@@ -211,12 +241,17 @@ __global__ void pyrDown32FC4(const unsigned char* srcData, int srcRows, int srcC
     if (threadIdx.x < PYR_DOWN_BLOCK_SIZE / 2)
     {
         const int tid2 = threadIdx.x * 2;
-        float4 sum;
-        sum =       NUM_1_DEN_16 * smem[2 + tid2 - 2];
-        sum = sum + NUM_4_DEN_16 * smem[2 + tid2 - 1];
-        sum = sum + NUM_6_DEN_16 * smem[2 + tid2    ];
-        sum = sum + NUM_4_DEN_16 * smem[2 + tid2 + 1];
-        sum = sum + NUM_1_DEN_16 * smem[2 + tid2 + 2];
+        float4 sum = make_float4(0, 0, 0, 0);
+        sum = scaleAndAdd(sum, NUM_1_DEN_16, smem[2 + tid2 - 2]);
+        sum = scaleAndAdd(sum, NUM_4_DEN_16, smem[2 + tid2 - 1]);
+        sum = scaleAndAdd(sum, NUM_6_DEN_16, smem[2 + tid2]);
+        sum = scaleAndAdd(sum, NUM_4_DEN_16, smem[2 + tid2 + 1]);
+        sum = scaleAndAdd(sum, NUM_1_DEN_16, smem[2 + tid2 + 2]);
+        //sum =       NUM_1_DEN_16 * smem[2 + tid2 - 2];
+        //sum = sum + NUM_4_DEN_16 * smem[2 + tid2 - 1];
+        //sum = sum + NUM_6_DEN_16 * smem[2 + tid2    ];
+        //sum = sum + NUM_4_DEN_16 * smem[2 + tid2 + 1];
+        //sum = sum + NUM_1_DEN_16 * smem[2 + tid2 + 2];
 
         const int dstx = (blockIdx.x * blockDim.x + tid2) / 2;
 
@@ -258,24 +293,36 @@ __global__ void pyrUp32FC4(const unsigned char* srcData, int srcRows, int srcCol
 
     if (eveny)
     {
-        sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 2) >> 1)];
-        sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 1) >> 1)];
-        sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx)     >> 1)];
-        sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 1) >> 1)];
-        sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 2) >> 1)];
+        sum = make_float4(0, 0, 0, 0);
+        sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 2) >> 1)]);
+        sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 1) >> 1)]);
+        sum = scaleAndAdd(sum, (evenFlag * NUM_6_DEN_16), s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx) >> 1)]);
+        sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 1) >> 1)]);
+        sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 2) >> 1)]);
+        //sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 2) >> 1)];
+        //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx - 1) >> 1)];
+        //sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx)     >> 1)];
+        //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 1) >> 1)];
+        //sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[1 + (threadIdx.y >> 1)][1 + ((tidx + 2) >> 1)];
     }
 
     s_dstPatch[2 + threadIdx.y][threadIdx.x] = sum;
 
     if (threadIdx.y < 2)
     {
+        sum = make_float4(0, 0, 0, 0);
         if (eveny)
         {
-            sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[0][1 + ((tidx - 2) >> 1)];
-            sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[0][1 + ((tidx - 1) >> 1)];
-            sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[0][1 + ((tidx)     >> 1)];
-            sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[0][1 + ((tidx + 1) >> 1)];
-            sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[0][1 + ((tidx + 2) >> 1)];
+            sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[0][1 + ((tidx - 2) >> 1)]);
+            sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[0][1 + ((tidx - 1) >> 1)]);
+            sum = scaleAndAdd(sum, (evenFlag * NUM_6_DEN_16), s_srcPatch[0][1 + ((tidx) >> 1)]);
+            sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[0][1 + ((tidx + 1) >> 1)]);
+            sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[0][1 + ((tidx + 2) >> 1)]);
+            //sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[0][1 + ((tidx - 2) >> 1)];
+            //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[0][1 + ((tidx - 1) >> 1)];
+            //sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[0][1 + ((tidx)     >> 1)];
+            //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[0][1 + ((tidx + 1) >> 1)];
+            //sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[0][1 + ((tidx + 2) >> 1)];
         }
 
         s_dstPatch[threadIdx.y][threadIdx.x] = sum;
@@ -283,13 +330,19 @@ __global__ void pyrUp32FC4(const unsigned char* srcData, int srcRows, int srcCol
 
     if (threadIdx.y > PYR_UP_BLOCK_HEIGHT - 3)
     {
+        sum = make_float4(0, 0, 0, 0);
         if (eveny)
         {
-            sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 2) >> 1)];
-            sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 1) >> 1)];
-            sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx)     >> 1)];
-            sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 1) >> 1)];
-            sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 2) >> 1)];
+            sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 2) >> 1)]);
+            sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 1) >> 1)]);
+            sum = scaleAndAdd(sum, (evenFlag * NUM_6_DEN_16), s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx) >> 1)]);
+            sum = scaleAndAdd(sum, (oddFlag  * NUM_4_DEN_16), s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 1) >> 1)]);
+            sum = scaleAndAdd(sum, (evenFlag * NUM_1_DEN_16), s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 2) >> 1)]);
+            //sum =       (evenFlag * NUM_1_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 2) >> 1)];
+            //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 1) >> 1)];
+            //sum = sum + (evenFlag * NUM_6_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx)     >> 1)];
+            //sum = sum + (oddFlag  * NUM_4_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 1) >> 1)];
+            //sum = sum + (evenFlag * NUM_1_DEN_16) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 2) >> 1)];
         }
 
         s_dstPatch[4 + threadIdx.y][threadIdx.x] = sum;
@@ -298,12 +351,17 @@ __global__ void pyrUp32FC4(const unsigned char* srcData, int srcRows, int srcCol
     __syncthreads();
 
     const int tidy = threadIdx.y;
-
-    sum =       NUM_1_DEN_16 * s_dstPatch[2 + tidy - 2][threadIdx.x];
-    sum = sum + NUM_4_DEN_16 * s_dstPatch[2 + tidy - 1][threadIdx.x];
-    sum = sum + NUM_6_DEN_16 * s_dstPatch[2 + tidy    ][threadIdx.x];
-    sum = sum + NUM_4_DEN_16 * s_dstPatch[2 + tidy + 1][threadIdx.x];
-    sum = sum + NUM_1_DEN_16 * s_dstPatch[2 + tidy + 2][threadIdx.x];
+    sum = make_float4(0, 0, 0, 0);
+    sum = scaleAndAdd(sum, NUM_1_DEN_16, s_dstPatch[2 + tidy - 2][threadIdx.x]);
+    sum = scaleAndAdd(sum, NUM_4_DEN_16, s_dstPatch[2 + tidy - 1][threadIdx.x]);
+    sum = scaleAndAdd(sum, NUM_6_DEN_16, s_dstPatch[2 + tidy][threadIdx.x]);
+    sum = scaleAndAdd(sum, NUM_4_DEN_16, s_dstPatch[2 + tidy + 1][threadIdx.x]);
+    sum = scaleAndAdd(sum, NUM_1_DEN_16, s_dstPatch[2 + tidy + 2][threadIdx.x]);
+    //sum =       NUM_1_DEN_16 * s_dstPatch[2 + tidy - 2][threadIdx.x];
+    //sum = sum + NUM_4_DEN_16 * s_dstPatch[2 + tidy - 1][threadIdx.x];
+    //sum = sum + NUM_6_DEN_16 * s_dstPatch[2 + tidy    ][threadIdx.x];
+    //sum = sum + NUM_4_DEN_16 * s_dstPatch[2 + tidy + 1][threadIdx.x];
+    //sum = sum + NUM_1_DEN_16 * s_dstPatch[2 + tidy + 2][threadIdx.x];
 
     if (x < dstCols && y < dstRows)
         getRowPtr<float4>(dstData, dstStep, y)[x] = 4.0F * sum;

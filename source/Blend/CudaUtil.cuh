@@ -1,5 +1,6 @@
 #pragma once
 #include "cuda_runtime.h"
+#include "device_functions.h"
 #include <cmath>
 
 struct BrdRowReflect101
@@ -280,5 +281,14 @@ __device__ __forceinline__ short4 roundCastShift8ToShort4(int4 vec)
     ret.x = (vec.x + 128) >> 8;
     ret.y = (vec.y + 128) >> 8;
     ret.z = (vec.z + 128) >> 8;
+    return ret;
+}
+
+__device__ __forceinline__ float4 scaleAndAdd(float4 base, float scale, float4 val)
+{
+    float4 ret;
+    ret.x = __fmaf_rz(scale, val.x, base.x);
+    ret.y = __fmaf_rz(scale, val.y, base.y);
+    ret.z = __fmaf_rz(scale, val.z, base.z);
     return ret;
 }
