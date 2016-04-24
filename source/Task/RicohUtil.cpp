@@ -1009,6 +1009,20 @@ void CudaPanoramaRender::resume()
     cpQueue.resume();
 }
 
+void CudaPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
 void CudaPanoramaRender::clear()
 {
     dstSrcXMapsGPU.clear();

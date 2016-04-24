@@ -387,7 +387,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
-    CudaMultiCameraPanoramaRender2 render;
+    CudaPanoramaRender render;
     PinnedMemoryPool srcFramesMemoryPool;
     SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
     FrameVectorBuffer decodeFramesBuffer;
@@ -408,10 +408,12 @@ struct CudaPanoramaLocalDiskTask::Impl
 
     void decode();
     void proc();
+    void postProc();
     void encode();
 
     std::unique_ptr<std::thread> decodeThread;
     std::unique_ptr<std::thread> procThread;
+    std::unique_ptr<std::thread> postProcThread;
     std::unique_ptr<std::thread> encodeThread;
 
     bool initSuccess;
@@ -479,7 +481,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     printf("Info in %s, open videos done\n", __FUNCTION__);
     printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
 
-    ok = render.prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, true, true, srcSize, dstSize);
     if (!ok)
     {
         printf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -549,6 +551,7 @@ bool CudaPanoramaLocalDiskTask::Impl::start()
 
     decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::decode, this));
     procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::proc, this));
+    postProcThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::postProc, this));
     encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::encode, this));
 
     return true;
@@ -562,6 +565,9 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
     if (procThread && procThread->joinable())
         procThread->join();
     procThread.reset(0);
+    if (postProcThread && postProcThread->joinable())
+        postProcThread->join();
+    postProcThread.reset(0);
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
@@ -605,6 +611,9 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
     if (procThread && procThread->joinable())
         procThread->join();
     procThread.reset(0);
+    if (postProcThread && postProcThread->joinable())
+        postProcThread->join();
+    postProcThread.reset(0);
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
@@ -696,23 +705,44 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
 
     procCount = 0;
     StampedPinnedMemoryVector srcFrames;
-    avp::SharedAudioVideoFrame dstFrame;
     std::vector<cv::Mat> images(numVideos);
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
             break;
-
-        dstFramesMemoryPool.get(dstFrame);
+        
         for (int i = 0; i < numVideos; i++)
-            images[i] = srcFrames.frames[i].createMatHeader();
-        cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
-        render.render(images, result);
-        dstFrame.timeStamp = srcFrames.timeStamp;
-        procFrameBuffer.push(dstFrame);
-
+            images[i] = srcFrames.frames[i].createMatHeader();        
+        render.render(images, srcFrames.timeStamp);
         procCount++;
         //printf("proc count = %d\n", procCount);
+    }
+    
+    render.waitForCompletion();
+    render.stop();
+
+    printf("total proc %d\n", procCount);
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void CudaPanoramaLocalDiskTask::Impl::postProc()
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    avp::SharedAudioVideoFrame dstFrame;
+    while (true)
+    {
+        dstFramesMemoryPool.get(dstFrame);
+        cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
+        if (!render.getResult(result, dstFrame.timeStamp))
+            break;
+
+        cv::Mat image(dstFrame.height, dstFrame.width, CV_8UC4, dstFrame.data, dstFrame.step);
+        if (addLogo)
+            logoFilter.addLogo(image);
+
+        procFrameBuffer.push(dstFrame);
     }
 
     while (procFrameBuffer.size())
@@ -743,9 +773,6 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         if (!procFrameBuffer.pull(deepFrame))
             break;
 
-        cv::Mat image(deepFrame.height, deepFrame.width, CV_8UC4, deepFrame.data, deepFrame.step);
-        if (addLogo)
-            logoFilter.addLogo(image);
         timerEncode.start();
         writer.write(avp::AudioVideoFrame(deepFrame));
         timerEncode.end();
