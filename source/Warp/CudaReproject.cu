@@ -7,7 +7,7 @@
 #include "device_functions.h"
 
 texture<uchar4, 2> srcTexture;
-texture<float, 2> xmapTexture, ymapTexture;
+texture<float, 2> xmapTexture, ymapTexture, weightTexture;
 
 template<typename DstElemType>
 __global__ void reprojectNearestNeighborKernel(unsigned char* dstData, 
@@ -176,6 +176,30 @@ __global__ void reprojectCubicKernel(unsigned char* dstData,
         resampling(srcWidth, srcHeight, srcx, srcy, ptrDst);
 }
 
+__global__ void reprojectWeightedAccumulate(unsigned char* dstData,
+    int dstWidth, int dstHeight, int dstStep, int srcWidth, int srcHeight)
+{
+    int dstx = threadIdx.x + blockIdx.x * blockDim.x;
+    int dsty = threadIdx.y + blockIdx.y * blockDim.y;
+
+    float srcx = tex2D(xmapTexture, dstx, dsty);
+    float srcy = tex2D(ymapTexture, dstx, dsty);
+    
+    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
+        ;
+    else
+    {
+        float temp[4];
+        float w = tex2D(weightTexture, dstx, dsty);
+        resampling(srcWidth, srcHeight, srcx, srcy, temp);
+        float* ptrDst = (float*)(dstData + dsty * dstStep) + dstx * 4;
+        ptrDst[0] += temp[0] * w;
+        ptrDst[1] += temp[1] * w;
+        ptrDst[2] += temp[2] * w;
+        ptrDst[3] = 0;
+    }
+}
+
 void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, 
     const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream)
 {
@@ -196,7 +220,7 @@ void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
     dim3 block(16, 16);
     dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
-    reprojectCubicKernel<unsigned char><<<grid, block, 0, st>>>(dst.data, dstSize.height, dstSize.width, dst.step, src.cols, src.rows);
+    reprojectCubicKernel<unsigned char><<<grid, block, 0, st>>>(dst.data, dstSize.width, dstSize.height, dst.step, src.cols, src.rows);
     cudaSafeCall(cudaGetLastError());
 
     cudaSafeCall(cudaUnbindTexture(srcTexture));
@@ -226,7 +250,7 @@ void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
     dim3 block(16, 16);
     dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
-    reprojectCubicKernel<short><<<grid, block, 0, st>>>(dst.data, dstSize.height, dstSize.width, dst.step, src.cols, src.rows);
+    reprojectCubicKernel<short><<<grid, block, 0, st>>>(dst.data, dstSize.width, dstSize.height, dst.step, src.cols, src.rows);
     cudaSafeCall(cudaGetLastError());
 
     cudaSafeCall(cudaUnbindTexture(srcTexture));
@@ -234,4 +258,36 @@ void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     cudaSafeCall(cudaUnbindTexture(ymapTexture));
 
     //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, const cv::cuda::GpuMat& weight,
+    cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_8UC4 &&
+        xmap.data && xmap.type() == CV_32FC1 && ymap.data && ymap.type() == CV_32FC1 &&
+        weight.data && weight.type() == CV_32FC1 && 
+        xmap.size() == ymap.size() && xmap.size() == weight.size());
+
+    cv::Size dstSize = xmap.size();
+    dst.create(dstSize, CV_32FC4);
+
+    cudaChannelFormatDesc chanDescUchar4 = cudaCreateChannelDesc<uchar4>();
+    cudaChannelFormatDesc chanDescFloat = cudaCreateChannelDesc<float>();
+
+    cudaSafeCall(cudaBindTexture2D(NULL, srcTexture, src.data, chanDescUchar4, src.cols, src.rows, src.step));
+    cudaSafeCall(cudaBindTexture2D(NULL, xmapTexture, xmap.data, chanDescFloat, xmap.cols, xmap.rows, xmap.step));
+    cudaSafeCall(cudaBindTexture2D(NULL, ymapTexture, ymap.data, chanDescFloat, ymap.cols, ymap.rows, ymap.step));
+    cudaSafeCall(cudaBindTexture2D(NULL, weightTexture, weight.data, chanDescFloat, weight.cols, weight.rows, weight.step));
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    dim3 block(16, 16);
+    dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
+    reprojectWeightedAccumulate<<<grid, block, 0, st>>>(dst.data, dstSize.width, dstSize.height, dst.step, src.cols, src.rows);
+    cudaSafeCall(cudaGetLastError());
+
+    cudaSafeCall(cudaUnbindTexture(srcTexture));
+    cudaSafeCall(cudaUnbindTexture(xmapTexture));
+    cudaSafeCall(cudaUnbindTexture(ymapTexture));
+    cudaSafeCall(cudaUnbindTexture(weightTexture));
 }

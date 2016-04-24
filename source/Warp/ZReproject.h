@@ -108,3 +108,7 @@ void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
 
 void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+
+void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, const cv::cuda::GpuMat& weight,
+    cv::cuda::Stream& stream = cv::cuda::Stream::Null());

@@ -1,5 +1,6 @@
 #pragma once
 #include "cuda_runtime.h"
+#include "device_functions.h"
 #include <cmath>
 
 struct BrdRowReflect101
@@ -149,9 +150,27 @@ __device__ __forceinline__ int4 operator+(int4 a, int4 b)
     return ret;
 }
 
+__device__ __forceinline__ float4 operator+(float4 a, float4 b)
+{
+    float4 ret;
+    ret.x = a.x + b.x;
+    ret.y = a.y + b.y;
+    ret.z = a.z + b.z;
+    return ret;
+}
+
 __device__ __forceinline__ int4 operator-(int4 a, int4 b)
 {
     int4 ret;
+    ret.x = a.x - b.x;
+    ret.y = a.y - b.y;
+    ret.z = a.z - b.z;
+    return ret;
+}
+
+__device__ __forceinline__ float4 operator-(float4 a, float4 b)
+{
+    float4 ret;
     ret.x = a.x - b.x;
     ret.y = a.y - b.y;
     ret.z = a.z - b.z;
@@ -185,9 +204,27 @@ __device__ __forceinline__ int4 operator*(int scale, int4 val)
     return ret;
 }
 
+__device__ __forceinline__ float4 operator*(float scale, float4 val)
+{
+    float4 ret;
+    ret.x = scale * val.x;
+    ret.y = scale * val.y;
+    ret.z = scale * val.z;
+    return ret;
+}
+
 __device__ __forceinline__ short4 operator/(int4 val, int scale)
 {
     short4 ret;
+    ret.x = val.x / scale;
+    ret.y = val.y / scale;
+    ret.z = val.z / scale;
+    return ret;
+}
+
+__device__ __forceinline__ float4 operator/(float4 val, float scale)
+{
+    float4 ret;
     ret.x = val.x / scale;
     ret.y = val.y / scale;
     ret.z = val.z / scale;
@@ -244,5 +281,14 @@ __device__ __forceinline__ short4 roundCastShift8ToShort4(int4 vec)
     ret.x = (vec.x + 128) >> 8;
     ret.y = (vec.y + 128) >> 8;
     ret.z = (vec.z + 128) >> 8;
+    return ret;
+}
+
+__device__ __forceinline__ float4 scaleAndAdd(float4 base, float scale, float4 val)
+{
+    float4 ret;
+    ret.x = __fmaf_rz(scale, val.x, base.x);
+    ret.y = __fmaf_rz(scale, val.y, base.y);
+    ret.z = __fmaf_rz(scale, val.z, base.z);
     return ret;
 }

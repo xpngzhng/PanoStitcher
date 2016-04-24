@@ -868,3 +868,173 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 
     return true;
 }
+
+void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_, 
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path_, params);
+        else
+            loadPhotoParamFromXML(path_, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, dstSrcMaps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+    if (highQualityBlend)
+    {
+        if (!mbBlender.prepare(masks, 20, 2))
+            return false;
+    }
+    else
+    {
+        std::vector<cv::Mat> weights;
+        getWeightsLinearBlend32F(masks, 50, weights);
+        weightsGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            weightsGPU[i].upload(weights[i]);
+        accumGPU.create(dstSize, CV_32FC4);
+    }
+
+    cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+    streams.resize(numImages);
+
+    pool.init(dstSize.height, dstSize.width, CV_8UC4, cv::cuda::HostMem::SHARED);
+    
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
+
+    success = 1;
+    return true;
+}
+
+bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+            return false;
+        if (src[i].type() != CV_8UC4)
+            return false;
+    }
+
+    cv::cuda::HostMem blendImageMem;
+    if (!pool.get(blendImageMem))
+        return false;
+
+    cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
+    if (!highQualityBlend)
+    {
+        accumGPU.setTo(0);
+        srcImagesGPU.resize(numImages);
+        reprojImagesGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            srcImagesGPU[i].upload(src[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            streams[i].waitForCompletion();
+        accumGPU.convertTo(blendImageGPU, CV_8U);
+    }
+    else
+    {
+        srcImagesGPU.resize(numImages);
+        reprojImagesGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            srcImagesGPU[i].upload(src[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+        for (int i = 0; i < numImages; i++)
+            streams[i].waitForCompletion();
+        mbBlender.blend(reprojImagesGPU, blendImageGPU);
+    }
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImageMem, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImageMem, timeStamp));
+
+    return true;
+}
+
+bool CudaPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<cv::cuda::HostMem, long long int> item;
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
+    if (ret)
+    {
+        cv::Mat temp = item.first.createMatHeader();
+        temp.copyTo(dst);
+        timeStamp = item.second;
+    }        
+    return ret;
+}
+
+void CudaPanoramaRender::stop()
+{
+    rtQueue.stop();
+    cpQueue.stop();
+}
+
+void CudaPanoramaRender::resume()
+{
+    rtQueue.resume();
+    cpQueue.resume();
+}
+
+void CudaPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
+void CudaPanoramaRender::clear()
+{
+    dstSrcXMapsGPU.clear();
+    dstSrcYMapsGPU.clear();
+    srcImagesGPU.clear();
+    reprojImagesGPU.clear();
+    rtQueue.stop();
+    cpQueue.stop();
+    pool.clear();
+    rtQueue.clear();
+    cpQueue.clear();
+    streams.clear();
+}

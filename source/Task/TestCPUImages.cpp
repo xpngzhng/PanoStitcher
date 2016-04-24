@@ -48,6 +48,8 @@
 //    cv::waitKey(0);
 //}
 
+void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+
 int main()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
@@ -90,6 +92,33 @@ int main()
     std::vector<cv::Mat> maps, masks;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
+    std::vector<cv::Mat> weights;
+    getWeightsLinearBlend32F(masks, 30, weights);
+
+    std::vector<cv::cuda::GpuMat> weightsGPU(numImages);
+    for (int i = 0; i < numImages; i++)
+        weightsGPU[i].upload(weights[i]);
+
+    cv::cuda::GpuMat accum(dstSize, CV_32FC4);
+    accum.setTo(0);
+
+    cv::Mat temp, show;
+    cv::cuda::GpuMat tempGPU;
+    std::vector<cv::cuda::GpuMat> xmapsGPU, ymapsGPU;
+    cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmapsGPU, ymapsGPU);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::cvtColor(src[i], temp, CV_BGR2BGRA);
+        tempGPU.upload(temp);
+        cudaReprojectWeightedAccumulateTo32F(tempGPU, accum, xmapsGPU[i], ymapsGPU[i], weightsGPU[i]);
+    }
+    cv::Mat result32F, result;
+    accum.download(result32F);
+    result32F.convertTo(result, CV_8U);
+    cv::imshow("result", result);
+    cv::waitKey(0);
+    //return 0;
+
     std::vector<cv::Mat> dst(numImages);
     //for (int i = 0; i < numImages; i++)
     //{
@@ -116,11 +145,12 @@ int main()
     {
         timerReproject.start();
         reprojectParallel(src, dst, maps);
-        for (int j = 0; j < dst.size(); j++)
-        {
-            cv::imshow("dst", dst[j]);
-            cv::waitKey(0);
-        }
+
+        //for (int j = 0; j < dst.size(); j++)
+        //{
+        //    cv::imshow("dst", dst[j]);
+        //    cv::waitKey(0);
+        //}
         timerReproject.end();
         timerBlend.start();
         blender.blend(dst, masks, blendImage);
@@ -137,18 +167,40 @@ int main()
     CudaTilingMultibandBlendFast cudaBlender;
     cudaBlender.prepare(masks, 20, 2);
     std::vector<cv::cuda::GpuMat> cudaImages(numImages), cudaMasks(numImages);
-    cv::Mat imageC4(dst[0].size(), CV_8UC4);
+
+    cv::Mat imageC4(dst[0].size(), CV_8UC4), image16SC4;
     for (int i = 0; i < numImages; i++)
     {
         cv::cvtColor(dst[i], imageC4, CV_BGR2BGRA);
-        cudaImages[i].upload(imageC4);
+        imageC4.convertTo(image16SC4, CV_16S);
+        cudaImages[i].upload(image16SC4);
         cudaMasks[i].upload(masks[i]);
     }
     cv::cuda::GpuMat cudaBlendImage;
-    for (int i = 0; i < 10; i++)
+    timer.start();
+    for (int i = 0; i < 100; i++)
         cudaBlender.blend(cudaImages, cudaBlendImage);
+    timer.end();
+    printf("fix point time %f\n", timer.elapse());
     cudaBlendImage.download(blendImage);
     cv::imshow("cuda blend", blendImage);
+    cv::waitKey(0);
+
+    CudaTilingMultibandBlendFast32F cudaBlender32F;
+    cudaBlender32F.prepare(masks, 20, 2);
+    std::vector<cv::cuda::GpuMat> cudaImages32F(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cudaImages[i].convertTo(cudaImages32F[i], CV_32F);
+    }
+    cv::cuda::GpuMat cudaBlendImage32F;
+    timer.start();
+    for (int i = 0; i < 100; i++)
+        cudaBlender32F.blend(cudaImages32F, cudaBlendImage32F);
+    timer.end();
+    printf("fix point time %f\n", timer.elapse());
+    cudaBlendImage32F.download(blendImage);
+    cv::imshow("cuda blend 32F", blendImage);
     cv::waitKey(0);
 
     return 0;

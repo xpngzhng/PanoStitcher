@@ -229,6 +229,26 @@ private:
     bool success;
 };
 
+
+class CudaTilingMultibandBlendFast32F
+{
+public:
+    CudaTilingMultibandBlendFast32F() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
+    bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
+
+private:
+    std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultScalePyr;
+    std::vector<cv::cuda::GpuMat> imagePyr, imageDownPyr, imageUpPyr;
+    std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;
+    cv::cuda::GpuMat maskNot;
+    int numImages;
+    int rows, cols;
+    int numLevels;
+    bool fullMask;
+    bool success;
+};
+
 void prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength,
     std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs,
     std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<std::vector<cv::cuda::GpuMat> >& image32SPyrs,

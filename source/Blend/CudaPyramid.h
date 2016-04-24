@@ -8,6 +8,8 @@ void pyramidDown16SC1To16SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
 void pyramidDown16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To32SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& scale, cv::cuda::GpuMat& dst, bool horiWrap, 
+    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void divide32SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha,
     cv::cuda::GpuMat& dstImage, cv::cuda::GpuMat& dstAlpha, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 void pyramidDown16SC4To16SC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha, bool horiWrap,
@@ -56,3 +58,17 @@ void pyramidDown16SC1To32SC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
 
 
 void func(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst);
+
+// CudaPyramid6.cpp floating point implementation
+void pyramidDown32FC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap);
+void pyramidDown32FC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap);
+void pyramidUp32FC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize, bool horiWrap);
+void scaledSet32FC1Mask32FC1(cv::cuda::GpuMat& image, float val, const cv::cuda::GpuMat& mask);
+void divide32FC4(const cv::cuda::GpuMat& srcImage, const cv::cuda::GpuMat& srcAlpha, cv::cuda::GpuMat& dstImage);
+void subtract32FC4(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c);
+void add32FC4(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c);
+void accumulate32FC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst);
+void accumulate32FC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& weight, cv::cuda::GpuMat& dst);
+void inverse32FC1(cv::cuda::GpuMat& mat);
+void scale32FC4(cv::cuda::GpuMat& image, const cv::cuda::GpuMat& alpha);
+void scale32FC4(const cv::cuda::GpuMat& src, const cv::cuda::GpuMat& alpha, cv::cuda::GpuMat& dst);

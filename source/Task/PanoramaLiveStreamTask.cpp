@@ -88,7 +88,7 @@ struct PanoramaLiveStreamTask::Impl
     int audioThreadJoined;
     void audioSource();
 
-    CudaMultiCameraPanoramaRender2 render;
+    CudaPanoramaRender render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -147,7 +147,6 @@ struct PanoramaLiveStreamTask::Impl
     ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
-    ForceWaitFrameQueue procFrameBufferForPostProc;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 };
@@ -162,7 +161,7 @@ PanoramaLiveStreamTask::Impl::Impl()
 PanoramaLiveStreamTask::Impl::~Impl()
 {
     closeAll();
-    printf("live stream task destructore called\n");
+    printf("live stream task destructor called\n");
 }
 
 bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
@@ -318,8 +317,7 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    renderPrepareSuccess = render.prepare(renderConfigName, 
-        highQualityBlend ? PanoramaRender::BlendTypeMultiband : PanoramaRender::BlendTypeLinear, 
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
@@ -358,7 +356,6 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
     syncedFramesBufferForProc.clear();
-    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();
@@ -382,7 +379,7 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
         syncedFramesBufferForProc.stop();
         renderThread->join();
         renderThread.reset(0);
-        procFrameBufferForPostProc.stop();
+        render.clear();
         postProcThread->join();
         postProcThread.reset(0);
         renderPrepareSuccess = 0;
@@ -631,7 +628,6 @@ void PanoramaLiveStreamTask::Impl::closeAll()
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
     procFramePool.clear();
-    procFrameBufferForPostProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
@@ -944,27 +940,28 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
-            //frame = avp::sharedVideoFrame(pixelType, renderFrameSize.width, renderFrameSize.height, timeStamp);
-            procFramePool.get(frame);
-            result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
-            procTimer.start();
-            ok = render.render(src, result);
-            procTimer.end();
+
+            //procFramePool.get(frame);
+            //result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+            //procTimer.start();
+            //ok = render.render(src, result);
+            //procTimer.end();
+            ok = render.render(src, timeStamp);
             if (!ok)
             {
                 printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
-            frame.timeStamp = timeStamp;
-            procFrameBufferForPostProc.push(frame);
+            //frame.timeStamp = timeStamp;
+            //procFrameBufferForPostProc.push(frame);
 
             localTimer.end();
             //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
         }
     }
 
-    procFrameBufferForPostProc.stop();
+    render.stop();
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
@@ -980,11 +977,16 @@ void PanoramaLiveStreamTask::Impl::postProc()
         if (finish || renderEndFlag)
             break;
 
-        if (!procFrameBufferForPostProc.pull(frame))
+        //if (!procFrameBufferForPostProc.pull(frame))
+        //    continue;
+
+        procFramePool.get(frame);
+        cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+        if (!render.getResult(result, frame.timeStamp))
             continue;
 
         //ztool::Timer timer;
-        cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+        //cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
         logoFilter.addLogo(result);
         {
             std::lock_guard<std::mutex> lg(stitchedFrameMutex);
