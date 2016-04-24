@@ -868,31 +868,31 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 }
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
-bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_, 
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
 
     success = 0;
 
-    if (type != BlendTypeLinear && type != BlendTypeMultiband)
-        return false;
-
     if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
         dstSize.height * 2 == dstSize.width))
         return false;
 
-    blendType = type;
-    srcFullSize = srcSize;
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
-    std::string::size_type length = path.length();
-    std::string fileExt = path.substr(length - 3, 3);
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
     std::vector<PhotoParam> params;
     try
     {
         if (fileExt == "pts")
-            loadPhotoParamFromPTS(path, params);
+            loadPhotoParamFromPTS(path_, params);
         else
-            loadPhotoParamFromXML(path, params);
+            loadPhotoParamFromXML(path_, params);
     }
     catch (...)
     {
@@ -903,10 +903,13 @@ bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, 
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
-    if (blendType == BlendTypeLinear)
+    if (highQualityBlend)
     {
-        //if (!lBlender.prepare(masks, 50))
-        //    return false;
+        if (!mbBlender.prepare(masks, 20, 2))
+            return false;
+    }
+    else
+    {
         std::vector<cv::Mat> weights;
         getWeightsLinearBlend32F(masks, 50, weights);
         weightsGPU.resize(numImages);
@@ -914,24 +917,20 @@ bool CudaMultiCameraPanoramaRender4::prepare(const std::string& path, int type, 
             weightsGPU[i].upload(weights[i]);
         accumGPU.create(dstSize, CV_32FC4);
     }
-    else if (blendType == BlendTypeMultiband)
-    {
-        if (!mbBlender.prepare(masks, 20, 2))
-            return false;
-    }
-    else
-        return false;
 
     cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
     streams.resize(numImages);
 
     pool.init(dstSize.height, dstSize.width, CV_8UC4, cv::cuda::HostMem::SHARED);
+    
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
 
     success = 1;
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
 {
     if (!success)
         return false;
@@ -941,7 +940,7 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
 
     for (int i = 0; i < numImages; i++)
     {
-        if (src[i].size() != srcFullSize)
+        if (src[i].size() != srcSize)
             return false;
         if (src[i].type() != CV_8UC4)
             return false;
@@ -952,22 +951,20 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
         return false;
 
     cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
-    accumGPU.setTo(0);
-    if (blendType == BlendTypeLinear)
+    if (!highQualityBlend)
     {
+        accumGPU.setTo(0);
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
         for (int i = 0; i < numImages; i++)
             srcImagesGPU[i].upload(src[i], streams[i]);
         for (int i = 0; i < numImages; i++)
-            //cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
             cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
-        //lBlender.blend(reprojImagesGPU, blendImageGPU);
         accumGPU.convertTo(blendImageGPU, CV_8U);
     }
-    else if (blendType == BlendTypeMultiband)
+    else
     {
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
@@ -979,15 +976,18 @@ bool CudaMultiCameraPanoramaRender4::render(const std::vector<cv::Mat>& src, lon
             streams[i].waitForCompletion();
         mbBlender.blend(reprojImagesGPU, blendImageGPU);
     }
-    queue.push(std::make_pair(blendImageMem, timeStamp));
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImageMem, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImageMem, timeStamp));
 
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender4::getResult(cv::Mat& dst, long long int& timeStamp)
+bool CudaPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
 {
     std::pair<cv::cuda::HostMem, long long int> item;
-    bool ret = queue.pull(item);
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
     if (ret)
     {
         cv::Mat temp = item.first.createMatHeader();
@@ -997,24 +997,28 @@ bool CudaMultiCameraPanoramaRender4::getResult(cv::Mat& dst, long long int& time
     return ret;
 }
 
-void CudaMultiCameraPanoramaRender4::stop()
+void CudaPanoramaRender::stop()
 {
-    queue.stop();
+    rtQueue.stop();
+    cpQueue.stop();
 }
 
-void CudaMultiCameraPanoramaRender4::resume()
+void CudaPanoramaRender::resume()
 {
-    queue.resume();
+    rtQueue.resume();
+    cpQueue.resume();
 }
 
-void CudaMultiCameraPanoramaRender4::clear()
+void CudaPanoramaRender::clear()
 {
     dstSrcXMapsGPU.clear();
     dstSrcYMapsGPU.clear();
     srcImagesGPU.clear();
     reprojImagesGPU.clear();
-    queue.stop();
+    rtQueue.stop();
+    cpQueue.stop();
     pool.clear();
-    queue.clear();
+    rtQueue.clear();
+    cpQueue.clear();
     streams.clear();
 }

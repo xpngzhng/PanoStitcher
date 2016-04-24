@@ -149,34 +149,32 @@ private:
 };
 
 // multithread version of CudaMultiCameraPanoramaRender2
-class CudaMultiCameraPanoramaRender4
+class CudaPanoramaRender
 {
 public:
-    enum BlendType
-    {
-        BlendTypeLinear,
-        BlendTypeMultiband
-    };
-    CudaMultiCameraPanoramaRender4() : success(0) {};
-    ~CudaMultiCameraPanoramaRender4() { clear(); };
-    bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
+    CudaPanoramaRender() : success(0) {};
+    ~CudaPanoramaRender() { clear(); };
+    bool prepare(const std::string& path, int highQualityBlend, int completeQueue, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
     bool getResult(cv::Mat& dst, long long int& timeStamp);
     void stop();
     void resume();
+    void waitForCompletion();
     void clear();
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
     PinnedMemoryPool pool;
-    typedef ForceWaitRealTimeQueue<std::pair<cv::cuda::HostMem, long long int> > StampedMatQueue;
-    StampedMatQueue queue;
+    typedef ForceWaitRealTimeQueue<std::pair<cv::cuda::HostMem, long long int> > RealTimeQueue;
+    typedef BoundedCompleteQueue<std::pair<cv::cuda::HostMem, long long int> > CompleteQueue;
+    RealTimeQueue rtQueue;
+    CompleteQueue cpQueue;
     std::vector<cv::cuda::Stream> streams;
-    int blendType;
+    int highQualityBlend;
+    int completeQueue;
     CudaTilingMultibandBlendFast mbBlender;
-    CudaTilingLinearBlend lBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;
     cv::cuda::GpuMat accumGPU;
     int numImages;

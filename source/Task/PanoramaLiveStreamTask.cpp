@@ -88,7 +88,7 @@ struct PanoramaLiveStreamTask::Impl
     int audioThreadJoined;
     void audioSource();
 
-    CudaMultiCameraPanoramaRender4 render;
+    CudaPanoramaRender render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -317,8 +317,7 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    renderPrepareSuccess = render.prepare(renderConfigName, 
-        highQualityBlend ? PanoramaRender::BlendTypeMultiband : PanoramaRender::BlendTypeLinear, 
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
