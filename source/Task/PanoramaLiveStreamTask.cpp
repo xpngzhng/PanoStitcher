@@ -941,20 +941,15 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
 
-            //procFramePool.get(frame);
-            //result = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
             //procTimer.start();
-            //ok = render.render(src, result);
-            //procTimer.end();
             ok = render.render(src, timeStamp);
+            //procTimer.end();
             if (!ok)
             {
                 printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
-            //frame.timeStamp = timeStamp;
-            //procFrameBufferForPostProc.push(frame);
 
             localTimer.end();
             //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
@@ -977,16 +972,12 @@ void PanoramaLiveStreamTask::Impl::postProc()
         if (finish || renderEndFlag)
             break;
 
-        //if (!procFrameBufferForPostProc.pull(frame))
-        //    continue;
-
         procFramePool.get(frame);
         cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
         if (!render.getResult(result, frame.timeStamp))
             continue;
 
         //ztool::Timer timer;
-        //cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
         logoFilter.addLogo(result);
         {
             std::lock_guard<std::mutex> lg(stitchedFrameMutex);
