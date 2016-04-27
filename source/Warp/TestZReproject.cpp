@@ -1,7 +1,7 @@
 #include "ZReproject.h"
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
+#include "opencv2/highgui.hpp"
 
 void getEquirectToCubeInverseMap(cv::Mat& map, int equirectWidth, int equirectHeight, int cubeWidth, int cubeHeight);
 
@@ -29,7 +29,44 @@ int main()
     //    loadPhotoParamFromXML("left.xml", params);
     //}
 
-    cv::Size dstSize = cv::Size(100, 50);
+    cv::Size dstSize = cv::Size(2048, 1024);
+
+    {
+        std::vector<std::string> paths;
+        paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
+        paths.push_back("F:\\panoimage\\vrdloffice\\image1.bmp");
+        paths.push_back("F:\\panoimage\\vrdloffice\\image2.bmp");
+        paths.push_back("F:\\panoimage\\vrdloffice\\image3.bmp");
+
+        int numImages = paths.size();
+        std::vector<cv::Mat> src(numImages);
+        for (int i = 0; i < numImages; i++)
+            src[i] = cv::imread(paths[i]);
+
+        std::vector<PhotoParam> params;
+        //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
+        //loadPhotoParamFromXML("F:\\panoimage\\outdoor\\outdoor.xml", params);
+        loadPhotoParamFromXML("F:\\panoimage\\vrdloffice\\1234.xml", params);
+        //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+
+        std::vector<cv::Mat> maps, masks;
+        getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+        std::vector<cv::Mat> dst(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            char buf[64];
+            sprintf(buf, "mask%d.bmp", i);
+            //cv::imwrite(buf, masks[i]);
+            cv::imshow("mask", masks[i]);
+            reproject(src[i], dst[i], maps[i]);
+            sprintf(buf, "reprojimage%d.bmp", i);
+            //cv::imwrite(buf, dst[i]);
+            cv::imshow("dst", dst[i]);
+            cv::waitKey(0);
+        }
+    }
+    return 0;
 
     {
         std::vector<std::string> paths;
@@ -50,9 +87,10 @@ int main()
         //rotatePhotoParamInXML("F:\\panoimage\\circular\\param.xml", "F:\\panoimage\\circular\\new.xml", 1.57, 0.0, 0.0);
         //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
 
+        cv::Size srcSize = src[0].size();
         Remap remap, remapInverse;
-        remap.init(params[0], dstSize.width, dstSize.height);
-        remapInverse.initInverse(params[0], dstSize.width, dstSize.height);
+        remap.init(params[0], dstSize.width, dstSize.height, srcSize.width, srcSize.height);
+        remapInverse.initInverse(params[0], dstSize.width, dstSize.height, srcSize.width, srcSize.height);
         for (int i = 0; i < dstSize.height; i++)
         {
             for (int j = 0; j < dstSize.width; j++)

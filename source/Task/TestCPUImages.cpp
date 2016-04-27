@@ -63,14 +63,21 @@ int main()
     //paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
     //std::string configFilePath = "F:\\panoimage\\beijing\\temp_camera_param_new.xml";
 
+    //std::vector<std::string> paths;
+    //paths.push_back("F:\\panoimage\\road\\image0.bmp");
+    //paths.push_back("F:\\panoimage\\road\\image1.bmp");
+    //paths.push_back("F:\\panoimage\\road\\image2.bmp");
+    //paths.push_back("F:\\panoimage\\road\\image3.bmp");
+    //paths.push_back("F:\\panoimage\\road\\image4.bmp");
+    //paths.push_back("F:\\panoimage\\road\\image5.bmp");
+    //std::string configFilePath = "F:\\panoimage\\road\\param.xml";
+
     std::vector<std::string> paths;
-    paths.push_back("F:\\panoimage\\road\\image0.bmp");
-    paths.push_back("F:\\panoimage\\road\\image1.bmp");
-    paths.push_back("F:\\panoimage\\road\\image2.bmp");
-    paths.push_back("F:\\panoimage\\road\\image3.bmp");
-    paths.push_back("F:\\panoimage\\road\\image4.bmp");
-    paths.push_back("F:\\panoimage\\road\\image5.bmp");
-    std::string configFilePath = "F:\\panoimage\\road\\param.xml";
+    paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
+    paths.push_back("F:\\panoimage\\vrdloffice\\image1.bmp");
+    paths.push_back("F:\\panoimage\\vrdloffice\\image2.bmp");
+    paths.push_back("F:\\panoimage\\vrdloffice\\image3.bmp");
+    std::string configFilePath = "F:\\panoimage\\vrdloffice\\12345.xml";
 
     //std::vector<std::string> paths;
     //paths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");

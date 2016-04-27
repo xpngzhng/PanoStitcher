@@ -151,7 +151,9 @@ void getReprojectMapAndMask(const PhotoParam& param,
         mask.setTo(0);
         double centx = param.cropX + param.cropWidth / 2;
         double centy = param.cropY + param.cropHeight / 2;
-        double sqrDist = param.cropWidth * param.cropWidth * 0.25;
+        double sqrDist = param.cropWidth > param.cropHeight ? 
+            param.cropWidth * param.cropWidth * 0.25 :
+            param.cropHeight * param.cropHeight * 0.25;
         for (int h = 0; h < dstHeight; h++)
         {
             cv::Point2d* ptrMap = map.ptr<cv::Point2d>(h);
@@ -245,7 +247,9 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
 
         double centx = param.cropX + param.cropWidth / 2;
         double centy = param.cropY + param.cropHeight / 2;
-        double sqrDist = param.cropWidth * param.cropWidth * 0.25;
+        double sqrDist = param.cropWidth > param.cropHeight ?
+            param.cropWidth * param.cropWidth * 0.25 :
+            param.cropHeight * param.cropHeight * 0.25;
         int srcWidth = src.cols;
         int srcHeight = src.rows;
         int srcStep = src.step;
