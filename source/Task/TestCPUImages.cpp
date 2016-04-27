@@ -4,6 +4,7 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include <fstream>
 
 //int main()
 //{
@@ -50,6 +51,19 @@
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
+static void retrievePaths(const std::string& fileName, std::vector<std::string>& paths)
+{
+    paths.clear();
+    std::ifstream f(fileName);
+    std::string temp;
+    while (!f.eof())
+    {
+        std::getline(f, temp);
+        if (!temp.empty())
+            paths.push_back(temp);
+    }
+}
+
 int main()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
@@ -72,12 +86,16 @@ int main()
     //paths.push_back("F:\\panoimage\\road\\image5.bmp");
     //std::string configFilePath = "F:\\panoimage\\road\\param.xml";
 
+    //std::vector<std::string> paths;
+    //paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
+    //paths.push_back("F:\\panoimage\\vrdloffice\\image1.bmp");
+    //paths.push_back("F:\\panoimage\\vrdloffice\\image2.bmp");
+    //paths.push_back("F:\\panoimage\\vrdloffice\\image3.bmp");
+    //std::string configFilePath = "F:\\panoimage\\vrdloffice\\12345.xml";
+
     std::vector<std::string> paths;
-    paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
-    paths.push_back("F:\\panoimage\\vrdloffice\\image1.bmp");
-    paths.push_back("F:\\panoimage\\vrdloffice\\image2.bmp");
-    paths.push_back("F:\\panoimage\\vrdloffice\\image3.bmp");
-    std::string configFilePath = "F:\\panoimage\\vrdloffice\\12345.xml";
+    retrievePaths("F:\\panoimage\\drone3\\filelist.txt", paths);
+    std::string configFilePath = "F:\\panoimage\\drone3\\drone.xml";
 
     //std::vector<std::string> paths;
     //paths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -100,7 +118,7 @@ int main()
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
     std::vector<cv::Mat> weights;
-    getWeightsLinearBlend32F(masks, 30, weights);
+    getWeightsLinearBlend32F(masks, 5, weights);
 
     std::vector<cv::cuda::GpuMat> weightsGPU(numImages);
     for (int i = 0; i < numImages; i++)
@@ -185,7 +203,7 @@ int main()
     }
     cv::cuda::GpuMat cudaBlendImage;
     timer.start();
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 10; i++)
         cudaBlender.blend(cudaImages, cudaBlendImage);
     timer.end();
     printf("fix point time %f\n", timer.elapse());
@@ -202,7 +220,7 @@ int main()
     }
     cv::cuda::GpuMat cudaBlendImage32F;
     timer.start();
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 10; i++)
         cudaBlender32F.blend(cudaImages32F, cudaBlendImage32F);
     timer.end();
     printf("fix point time %f\n", timer.elapse());

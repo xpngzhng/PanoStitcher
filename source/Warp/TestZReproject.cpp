@@ -2,8 +2,22 @@
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
+#include <fstream>
 
 void getEquirectToCubeInverseMap(cv::Mat& map, int equirectWidth, int equirectHeight, int cubeWidth, int cubeHeight);
+
+static void retrievePaths(const std::string& fileName, std::vector<std::string>& paths)
+{
+    paths.clear();
+    std::ifstream f(fileName);
+    std::string temp;
+    while (!f.eof())
+    {
+        std::getline(f, temp);
+        if (!temp.empty())
+            paths.push_back(temp);
+    }
+}
 
 int main()
 {

@@ -144,7 +144,7 @@ void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstW
     this->srcTX = srcWidth / 2;
     this->srcTY = srcHeight / 2;
 
-    bool fullImage = (param_.imageType == 0) || (param_.imageType == 1);
+    bool fullImage = (param_.imageType == PhotoParam::ImageTypeRectlinear) || (param_.imageType == PhotoParam::ImageTypeFullFrameFishEye);
     PhotoParam param = param_;
     if (fullImage)
     {
@@ -153,6 +153,14 @@ void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstW
         param.cropWidth = dstWidth;
         param.cropHeight = dstHeight;
     }
+
+    if (param.imageType == PhotoParam::ImageTypeRectlinear)
+        this->srcImageType = PTImageTypeRectlinear;
+    else if (param.imageType == PhotoParam::ImageTypeFullFrameFishEye)
+        this->srcImageType = PTImageTypeFullFrameFishEye;
+    else if (param.imageType == PhotoParam::ImageTypeDrumFishEye ||
+        param.imageType == PhotoParam::ImageTypeCircularFishEye)
+        this->srcImageType = PTImageTypeCircularFishEye;
 
     this->destTX = param.cropX + param.cropWidth / 2;
     this->destTY = param.cropY + param.cropHeight / 2;
@@ -180,7 +188,11 @@ void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstW
     SetMatrix(-DEG_TO_RAD(param.pitch), 0.0, -DEG_TO_RAD(param.roll), this->mp.mt, 0);
 
     this->mp.distance = ((double)srcWidth) / b;
-    this->mp.scale[0] = ((double)param.cropWidth) / a / this->mp.distance;
+
+    if (srcImageType == PTImageTypeRectlinear)
+        this->mp.scale[0] = ((double)param.cropWidth) / (2.0 * tan(a / 2.0)) / mp.distance;
+    else
+        this->mp.scale[0] = ((double)param.cropWidth) / a / this->mp.distance;
 
     this->mp.scale[1] = this->mp.scale[0];
 
@@ -248,6 +260,14 @@ void Remap::initInverse(const PhotoParam& param_, int srcWidth, int srcHeight, i
         param.cropWidth = dstWidth;
         param.cropHeight = dstHeight;
     }
+
+    if (param.imageType == PhotoParam::ImageTypeRectlinear)
+        this->srcImageType = PTImageTypeRectlinear;
+    else if (param.imageType == PhotoParam::ImageTypeFullFrameFishEye)
+        this->srcImageType = PTImageTypeFullFrameFishEye;
+    else if (param.imageType == PhotoParam::ImageTypeDrumFishEye ||
+        param.imageType == PhotoParam::ImageTypeCircularFishEye)
+        this->srcImageType = PTImageTypeCircularFishEye;
 
     this->srcTX = param.cropX + param.cropWidth / 2;
     this->srcTY = param.cropY + param.cropHeight / 2;
@@ -413,6 +433,25 @@ bool Remap::remapImage(double & x_dest, double & y_dest, double x_src, double y_
     x_src = x_dest;
     y_src = y_dest;
 
+    if (srcImageType == PTImageTypeRectlinear)                                    // rectilinear image
+    {
+        //SetDesc(m_stack[i],   rect_sphere_tp,         &(m_mp.distance) ); i++; // Convert rectilinear to spherical
+        register double rho, theta, r;
+        r = sqrt(x_src * x_src + y_src * y_src);
+        theta = r / mp.distance;
+
+        if (theta >= PI / 2.0)
+            rho = 1.6e16;
+        else if (theta == 0.0)
+            rho = 1.0;
+        else
+            rho = tan(theta) / theta;
+        x_dest = rho * x_src;
+        y_dest = rho * y_src;
+        x_src = x_dest;
+        y_src = y_dest;
+    }
+
     //ÉãÏñ»úÄÚ²Î
     //SetDesc(  stack[i],   resize,                 mp.scale       ); i++; // Scale image
     x_dest = x_src * mp.scale[0];
@@ -527,6 +566,22 @@ bool Remap::inverseRemapImage(double x_dest, double y_dest, double & x_src, doub
     // scale 
     x_src = x_src * mp.scale[0]; //3.0887488917637373
     y_src = y_src *mp.scale[1]; //-227.52315797376562
+
+    if (srcImageType == PTImageTypeRectlinear)                                    // rectilinear image
+    {
+        register double  theta, r;
+        r = sqrt(x_src*x_src + y_src*y_src) / mp.distance;
+        if (r == 0.0)
+            theta = 1.0;
+        else
+            theta = atan(r) / r;
+
+        x_dest = theta * x_dest;
+        y_dest = theta * y_dest;
+        x_src = x_dest;
+        y_src = y_dest;
+
+    }
 
     //Perspective Control spherical Image
     x_dest = x_src;

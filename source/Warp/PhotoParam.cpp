@@ -644,12 +644,12 @@ static bool tryParseIndividualPhotoParam(const std::string& line, PhotoParam& pa
     // itFisheyeCircle = 3
     double ptsImageTypeDouble = getValue(line, posF + 1);
     int ptsImageType = ptsImageTypeDouble + 0.5;
-    if (ptsImageType == 0)
-        param.imageType = 0;
-    else if (ptsImageType == 2)
-        param.imageType = 3;
-    else if (ptsImageType == 3)
-        param.imageType = 1;
+    if (ptsImageType == PTImageTypeRectlinear)
+        param.imageType = PhotoParam::ImageTypeRectlinear;
+    else if (ptsImageType == PTImageTypeCircularFishEye)
+        param.imageType = PhotoParam::ImageTypeCircularFishEye;
+    else if (ptsImageType == PTImageTypeFullFrameFishEye)
+        param.imageType = PhotoParam::ImageTypeFullFrameFishEye;
 
     param.yaw = getValue(line, posY + 1);
     param.pitch = getValue(line, posP + 1);

@@ -6,8 +6,24 @@
 #include <string>
 #include <memory>
 
+enum PanoToolsImageType
+{
+    PTImageTypeRectlinear = 0,
+    PTImageTypePanoramic = 1,
+    PTImageTypeCircularFishEye = 2,
+    PTImageTypeFullFrameFishEye = 3,
+    PTImageTypeEquiRect = 4
+};
+
 struct PhotoParam
 {
+    enum ImageType
+    {
+        ImageTypeRectlinear = 0,
+        ImageTypeFullFrameFishEye = 1,
+        ImageTypeDrumFishEye = 2,
+        ImageTypeCircularFishEye = 3
+    };
     int imageType;
     int cropMode;
     int cropX;
@@ -44,7 +60,7 @@ void rotatePhotoParamInXML(const std::string& src, const std::string& dst, doubl
 
 // NOTICE!!!!
 // We want to remap fisheye image to equirect image.
-// In this class, src refers to equirect image and dst refers to fisheye image.
+// In this class, src refers to panorama image and dst refers to fisheye image or rectlinear image.
 // This kind of image expression is different from what we usually see in OpenCV.
 struct Remap
 {
@@ -56,6 +72,7 @@ public:
 
 public:
     void clear();
+    int srcImageType;
     double srcTX, srcTY;
     double destTX, destTY;
     struct MakeParam
