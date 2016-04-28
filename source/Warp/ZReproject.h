@@ -60,7 +60,9 @@ void rotatePhotoParamInXML(const std::string& src, const std::string& dst, doubl
 
 // NOTICE!!!!
 // We want to remap fisheye image to equirect image.
-// In this class, src refers to panorama image and dst refers to fisheye image or rectlinear image.
+// In this class, src refers to equirectangular image and dst refers to fisheye image or rectlinear image.
+// Currently initInverse and inverseRemapImage only support dst image of type fisheye,
+// rectlinear is not supported
 // This kind of image expression is different from what we usually see in OpenCV.
 struct Remap
 {
