@@ -120,6 +120,14 @@ int main()
     std::vector<cv::Mat> weights;
     getWeightsLinearBlend32F(masks, 5, weights);
 
+    cv::Mat r = cv::Mat::zeros(dstSize, CV_32FC3);
+    for (int i = 0; i < numImages; i++)
+        reprojectWeightedAccumulateTo32F(src[i], r, maps[i], weights[i]);
+    cv::Mat rr;
+    r.convertTo(rr, CV_8U);
+    cv::imshow("r", rr);
+    cv::waitKey(0);
+
     std::vector<cv::cuda::GpuMat> weightsGPU(numImages);
     for (int i = 0; i < numImages; i++)
         weightsGPU[i].upload(weights[i]);

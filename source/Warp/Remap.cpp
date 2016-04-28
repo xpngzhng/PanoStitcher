@@ -139,6 +139,11 @@ void Remap::clear()
     memset(this, 0, sizeof(*this));
 }
 
+static void print(double xs, double ys, double xd, double yd)
+{
+    printf("xsrc = %f, ysrc = %f, xdst = %f, ydst = %f\n", xs, ys, xd, yd);
+}
+
 void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstWidth, int dstHeight)
 {
     this->srcTX = srcWidth / 2;
@@ -186,14 +191,11 @@ void Remap::init(const PhotoParam& param_, int srcWidth, int srcHeight, int dstW
     double b = DEG_TO_RAD(360);
 
     SetMatrix(-DEG_TO_RAD(param.pitch), 0.0, -DEG_TO_RAD(param.roll), this->mp.mt, 0);
-
     this->mp.distance = ((double)srcWidth) / b;
-
     if (srcImageType == PTImageTypeRectlinear)
         this->mp.scale[0] = ((double)param.cropWidth) / (2.0 * tan(a / 2.0)) / mp.distance;
     else
         this->mp.scale[0] = ((double)param.cropWidth) / a / this->mp.distance;
-
     this->mp.scale[1] = this->mp.scale[0];
 
     this->mp.shear[0] = param.shearX / param.cropHeight;
@@ -521,6 +523,8 @@ bool Remap::inverseRemapImage(double x_dest, double y_dest, double & x_src, doub
     {
         x_src = x_dest + mp.shear[0] * y_dest;
         y_src = y_dest + mp.shear[1] * x_dest;
+        x_dest = x_src;
+        y_dest = y_src;
     }
 
     // horizontal correction
@@ -537,6 +541,8 @@ bool Remap::inverseRemapImage(double x_dest, double y_dest, double & x_src, doub
     {
         x_src = x_dest;
         y_src = y_dest + mp.vertical;
+        x_dest = x_src;
+        y_dest = y_src;
     }
 
     //inverse radial correction

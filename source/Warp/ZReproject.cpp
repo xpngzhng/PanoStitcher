@@ -399,3 +399,34 @@ void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat
     for (int i = 0; i < numImages; i++)
         reprojectParallelTo16S(src[i], dst[i], maps[i]);
 }
+
+void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
+    const cv::Mat& map, const cv::Mat& weight)
+{
+    CV_Assert(src.data && src.type() == CV_8UC3 && dst.data && dst.type() == CV_32FC3 &&
+        map.data && map.type() == CV_64FC2 && weight.data && weight.type() == CV_32FC1 &&
+        dst.size() == map.size() && dst.size() == weight.size());
+
+    int srcWidth = src.cols, srcHeight = src.rows, srcStep = src.step;
+    int dstWidth = map.cols, dstHeight = map.rows;
+    const unsigned char* srcData = src.data;
+    for (int h = 0; h < dstHeight; h++)
+    {
+        const cv::Point2d* ptrSrcPos = map.ptr<cv::Point2d>(h);
+        const float* ptrWeight = weight.ptr<float>(h);
+        cv::Vec3f* ptrDstRow = dst.ptr<cv::Vec3f>(h);
+        for (int w = 0; w < dstWidth; w++)
+        {
+            cv::Point2d pt = ptrSrcPos[w];
+            if (pt.x >= 0 && pt.y >= 0 && pt.x < srcWidth && pt.y < srcHeight)
+            {
+                uchar dest[3];
+                bicubicResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
+                float alpha = ptrWeight[w];
+                ptrDstRow[w][0] += dest[0] * alpha;
+                ptrDstRow[w][1] += dest[1] * alpha;
+                ptrDstRow[w][2] += dest[2] * alpha;
+            }
+        }
+    }
+}

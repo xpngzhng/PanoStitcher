@@ -11,6 +11,13 @@ typedef double CalcType;
 
 struct CudaRemapParam
 {
+    enum ImageType
+    {
+        ImageTypeRectlinear = 0,
+        ImageTypeFullFrameFishEye = 1,
+        ImageTypeDrumFishEye = 2,
+        ImageTypeCircularFishEye = 3
+    };
     CalcType srcTX, srcTY;
     CalcType destTX, destTY;
     CalcType scale[2];
@@ -28,11 +35,11 @@ struct CudaRemapParam
     CalcType centx;
     CalcType centy;
     CalcType sqrDist;
-    int type;
+    int imageType;
 };
 
 void copyParam(const Remap& src, CudaRemapParam& dst, 
-    CalcType width, CalcType height, CalcType centx, CalcType centy, CalcType sqrDist, CalcType type)
+    CalcType width, CalcType height, CalcType centx, CalcType centy, CalcType sqrDist, int type)
 {
     dst.srcTX = src.srcTX;
     dst.srcTY = src.srcTY;
@@ -62,7 +69,7 @@ void copyParam(const Remap& src, CudaRemapParam& dst,
     dst.centx = centx;
     dst.centy = centy;
     dst.sqrDist = sqrDist;
-    dst.type = type;
+    dst.imageType = type;
 }
 
 __constant__ CudaRemapParam param;
@@ -136,6 +143,25 @@ __global__ void remapKernel(unsigned char* xMapData, int xMapStep,
     x_src = tx_dest;
     y_src = ty_dest;
 
+    if (param.imageType == CudaRemapParam::ImageTypeRectlinear)                                    // rectilinear image
+    {
+        //SetDesc(m_stack[i],   rect_sphere_tp,         &(m_mp.distance) ); i++; // Convert rectilinear to spherical
+        CalcType rho, theta, r;
+        r = sqrt(x_src * x_src + y_src * y_src);
+        theta = r / param.distance;
+
+        if (theta >= param.PI / 2.0)
+            rho = 1.6e16;
+        else if (theta == 0.0)
+            rho = 1.0;
+        else
+            rho = tan(theta) / theta;
+        tx_dest = rho * x_src;
+        ty_dest = rho * y_src;
+        x_src = tx_dest;
+        y_src = ty_dest;
+    }
+
     //ÉãÏñ»úÄÚ²Î
     //SetDesc(  stack[i],   resize,                 param.scale       ); i++; // Scale image
     tx_dest = x_src * param.scale[0];
@@ -190,7 +216,8 @@ __global__ void remapKernel(unsigned char* xMapData, int xMapStep,
     tx_dest += param.destTX - 0.5;
     ty_dest += param.destTY - 0.5;
 
-    if (param.type == 2 || param.type == 3)
+    if (param.imageType == CudaRemapParam::ImageTypeDrumFishEye || 
+        param.imageType == CudaRemapParam::ImageTypeCircularFishEye)
     {
         float diffx = tx_dest - param.centx;
         float diffy = ty_dest - param.centy;
@@ -213,14 +240,27 @@ __global__ void remapKernel(unsigned char* xMapData, int xMapStep,
     }
 }
 
-void cudaGenerateReprojectMap(const PhotoParam& photoParam,
+void cudaGenerateReprojectMap(const PhotoParam& photoParam_,
     const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap)
 {
     int dstWidth = dstSize.width, dstHeight = dstSize.height;
     int srcWidth = srcSize.width, srcHeight = srcSize.height;
+
+    bool fullImage = (photoParam_.imageType == PhotoParam::ImageTypeRectlinear) || 
+                     (photoParam_.imageType == PhotoParam::ImageTypeFullFrameFishEye);
+    PhotoParam photoParam = photoParam_;
+    if (fullImage)
+    {
+        photoParam.cropX = 0;
+        photoParam.cropY = 0;
+        photoParam.cropWidth = dstWidth;
+        photoParam.cropHeight = dstHeight;
+    }
     CalcType centx = photoParam.cropX + photoParam.cropWidth / 2;
     CalcType centy = photoParam.cropY + photoParam.cropHeight / 2;
-    CalcType sqrDist = photoParam.cropWidth * photoParam.cropWidth * 0.25;
+    CalcType sqrDist = photoParam.cropWidth > photoParam.cropHeight ?
+        photoParam.cropWidth * photoParam.cropWidth * 0.25 :
+        photoParam.cropHeight * photoParam.cropHeight * 0.25;
 
     Remap remap;
     remap.init(photoParam, dstWidth, dstHeight, srcWidth, srcHeight);
