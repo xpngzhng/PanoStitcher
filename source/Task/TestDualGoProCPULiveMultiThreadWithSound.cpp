@@ -327,14 +327,14 @@ void send()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{a | camera_width | 1920 | camera picture width}"
-        "{b | camera_height | 1080 | camera picture height}"
-        "{c | frames_per_second | 30 | camera frame rate}"
-        "{d | pano_width | 1440 | pano picture width}"
-        "{e | pano_height | 720 | pano picture height}"
-        "{f | pano_bits_per_second | 1000000 | pano live stream bits per second}"
-        "{g | pano_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
-        "{h | pts_path | dualgopro.pts | ptgui pts file path}";
+        "{camera_width      | 1920 | camera picture width}"
+        "{camera_height     | 1080 | camera picture height}"
+        "{frames_per_second | 30   | camera frame rate}"
+        "{pano_width        | 1440 | pano picture width}"
+        "{pano_height       | 720  | pano picture height}"
+        "{pano_bits_per_second | 1000000 | pano live stream bits per second}"
+        "{pano_url          | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
+        "{pts_path          | dualgopro.pts | ptgui pts file path}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
@@ -351,7 +351,7 @@ int main(int argc, char* argv[])
     }
     ptsPath = parser.get<std::string>("pts_path");
     bool ok;
-    ok = render.prepare(ptsPath, srcSize, dstSize);
+    ok = render.prepare(ptsPath, 0, srcSize, dstSize);
     if (!ok)
     {
         printf("Could not prepare for panorama render\n");

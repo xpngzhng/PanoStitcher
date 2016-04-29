@@ -125,15 +125,15 @@ void write()
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{camera_width | 1920 | camera picture width}"
-        "{camera_height | 1080 | camera picture height}"
-        "{frames_per_second | 30 | camera frame rate}"
-        "{pano_width | 2048 | pano picture width}"
-        "{pano_height | 1024 | pano picture height}"
-        "{pano_bits_per_second | 1000000 | pano live stream bits per second}"
+        "{camera_width      | 1920    | camera picture width}"
+        "{camera_height     | 1080    | camera picture height}"
+        "{frames_per_second | 30      | camera frame rate}"
+        "{pano_width        | 2048    | pano picture width}"
+        "{pano_height       | 1024    | pano picture height}"
+        "{pano_bit_rate     | 2000000 | pano live stream bits per second}"
         "{pano_encode_preset | veryfast | pano video x264 encode preset}"
-        "{pano_url | rtmp://pili-publish.live.detu.com/detulive/detudemov550?key=detukey | pano live stream address}"
-        "{xml_path | paramricoh.xml | xml param file path}";
+        "{pano_url          | rtsp://127.0.0.1/test.sdp | pano live stream address}"
+        "{xml_path          | paramricoh.xml | xml param file path}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 
