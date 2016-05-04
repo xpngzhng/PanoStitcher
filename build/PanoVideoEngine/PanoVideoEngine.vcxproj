@@ -121,7 +121,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>Blend-Debug.lib;Warp-Debug.lib;AudioVideoProcessor-Debug.lib;TiCPP-Debug.lib;qtmaind.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;opencv_core300d.lib;opencv_imgproc300d.lib;opencv_highgui300d.lib;opencv_imgcodecs300d.lib;opencv_cudaarithm300d.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;nppc.lib;nppi.lib;npps.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;comctl32.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\lib;E:\Projects\PanoVideo\lib;D:\ffmpeg-20150921\lib\x64;D:\OpenCV3.0.0\build\x64\vc12\lib;$(QTDIR)\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;D:\ffmpeg-20150921\lib\x64;D:\OpenCV3.0.0\build\x64\vc12\lib;$(QTDIR)\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
@@ -169,7 +169,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <OptimizeReferences>false</OptimizeReferences>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>Blend-Release.lib;Warp-Release.lib;AudioVideoProcessor-Release.lib;TiCPP-Release.lib;qtmain.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;opencv_core300.lib;opencv_imgproc300.lib;opencv_highgui300.lib;opencv_imgcodecs300.lib;opencv_cudaarithm300.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;nppc.lib;nppi.lib;npps.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;comctl32.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>..\lib;E:\Projects\PanoVideo\lib;D:\ffmpeg-20150921\lib\x64;D:\OpenCV3.0.0\build\x64\vc12\lib;$(QTDIR)\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;D:\ffmpeg-20150921\lib\x64;D:\OpenCV3.0.0\build\x64\vc12\lib;$(QTDIR)\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"

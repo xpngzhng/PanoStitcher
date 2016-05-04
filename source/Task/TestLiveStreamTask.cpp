@@ -5,6 +5,72 @@
 #include <iostream>
 #include <thread>
 
+struct ShowTiledImages
+{
+    ShowTiledImages() : hasInit(false) {};
+    bool init(int width_, int height_, int numImages_)
+    {
+        origWidth = width_;
+        origHeight = height_;
+        numImages = numImages_;
+
+        showWidth = 480;
+        showHeight = origHeight * double(showWidth) / double(origWidth) + 0.5;
+
+        int totalWidth = numImages * showWidth;
+        if (totalWidth <= screenWidth)
+            tileWidth = numImages * showWidth;
+        else
+            tileWidth = screenWidth;
+        tileHeight = ((totalWidth + screenWidth - 1) / screenWidth) * showHeight;
+
+        int horiNumImages = screenWidth / showWidth;
+        locations.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            int gridx = i % horiNumImages;
+            int gridy = i / horiNumImages;
+            locations[i] = cv::Rect(gridx * showWidth, gridy * showHeight, showWidth, showHeight);
+        }
+
+        hasInit = true;
+        return true;
+    }
+    bool show(const std::string& winName, const std::vector<cv::Mat>& images)
+    {
+        if (!hasInit)
+            return false;
+
+        if (images.size() != numImages)
+            return false;
+
+        for (int i = 0; i < numImages; i++)
+        {
+            if (images[i].rows != origHeight || images[i].cols != origWidth || images[i].type() != CV_8UC4)
+                return false;
+        }
+
+        tileImage.create(tileHeight, tileWidth, CV_8UC4);
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::Mat curr = tileImage(locations[i]);
+            cv::resize(images[i], curr, cv::Size(showWidth, showHeight), 0, 0, CV_INTER_NN);
+        }
+        cv::imshow(winName, tileImage);
+
+        return true;
+    }
+    
+    const int screenWidth = 1920;
+    int origWidth, origHeight;
+    int showWidth, showHeight;
+    int numImages;
+    int tileWidth, tileHeight;
+    cv::Mat tileImage;
+    std::vector<cv::Rect> locations;    
+    bool hasInit;
+};
+
 cv::Size srcSize(1920, 1080);
 
 int frameRate;
@@ -33,6 +99,7 @@ int waitTime = 30;
 
 bool highQualityBlend = true;
 
+ShowTiledImages showTiledImages;
 PanoramaLiveStreamTask task;
 
 void selectVideoDevices(bool interactive, int numCameras, std::vector<int>& videoIndexes)
@@ -85,6 +152,7 @@ void showVideoSources()
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<cv::Mat> images(numCameras);
     while (true)
     {
         if (task.hasFinished())
@@ -92,14 +160,12 @@ void showVideoSources()
         task.getVideoSourceFrames(frames);
         if (frames.size() == numCameras)
         {
-            char winName[64];
             for (int i = 0; i < numCameras; i++)
             {
-                cv::Mat show(frames[i].height, frames[i].width, 
+                images[i] = cv::Mat(frames[i].height, frames[i].width,
                     frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data, frames[i].step);
-                sprintf(winName, "source %d", i);
-                cv::imshow(winName, show);
-            }            
+            }
+            showTiledImages.show("src images", images);
             int key = cv::waitKey(waitTime / 2);
             if (key == 'q')
             {
@@ -380,8 +446,11 @@ int main(int argc, char* argv[])
 
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);
 
-    std::thread svr(showVideoResult);
-    svr.join();
+    showTiledImages.init(srcSize.width, srcSize.height, numCameras);
+    //std::thread svr(showVideoResult);
+    //svr.join();
+    std::thread svs(showVideoSources);
+    svs.join();
 
     task.closeVideoDevices();
     task.closeAudioDevice();
