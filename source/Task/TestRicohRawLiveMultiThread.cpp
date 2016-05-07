@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
         "{pano_width           | 2048    | pano picture width}"
         "{pano_height          | 1024    | pano picture height}"
         "{pano_bits_per_second | 1000000 | pano live stream bits per second}"
-        "{pano_url             | rtsp://127.0.0.1/test.sdp | pano live stream address}";
+        "{pano_url             | rtsp://127.0.0.1/ricoh.sdp | pano live stream address}";
 
     cv::CommandLineParser parser(argc, argv, keys);
 

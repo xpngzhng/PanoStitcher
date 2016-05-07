@@ -129,11 +129,16 @@ public:
     PanoramaLiveStreamTask();
     ~PanoramaLiveStreamTask();
 
+    void setUseGPU(bool useGPU);
+
     bool openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success);
     void closeVideoDevices();
 
     bool openAudioDevice(const avp::Device& device, int sampleRate);
     void closeAudioDevice();
+
+    bool openVideoStreams(const std::vector<std::string>& urls);
+    bool openAudioStream(const std::string& url);
 
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();

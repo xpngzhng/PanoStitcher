@@ -46,11 +46,12 @@ struct ShowTiledImages
 
         for (int i = 0; i < numImages; i++)
         {
-            if (images[i].rows != origHeight || images[i].cols != origWidth || images[i].type() != CV_8UC4)
+            if (images[i].rows != origHeight || images[i].cols != origWidth ||
+                (images[i].type() != CV_8UC4 && images[i].type() != CV_8UC3))
                 return false;
         }
 
-        tileImage.create(tileHeight, tileWidth, CV_8UC4);
+        tileImage.create(tileHeight, tileWidth, images[0].type());
         for (int i = 0; i < numImages; i++)
         {
             cv::Mat curr = tileImage(locations[i]);
@@ -234,6 +235,8 @@ int main(int argc, char* argv[])
         "{high_quality_blend          | false         | use multiband blend}";
 
     cv::CommandLineParser parser(argc, argv, keys);
+
+    task.setUseGPU(false);
 
     cameraModel = parser.get<std::string>("camera_model");
 
@@ -447,9 +450,9 @@ int main(int argc, char* argv[])
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);
 
     showTiledImages.init(srcSize.width, srcSize.height, numCameras);
-    //std::thread svr(showVideoResult);
-    //svr.join();
+    std::thread svr(showVideoResult);    
     std::thread svs(showVideoSources);
+    svr.join();
     svs.join();
 
     task.closeVideoDevices();

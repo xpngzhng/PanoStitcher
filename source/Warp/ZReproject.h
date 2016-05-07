@@ -119,6 +119,9 @@ void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat
 void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
     const cv::Mat& dstSrcMap, const cv::Mat& weight);
 
+void reprojectWeightedAccumulateParallelTo32F(const cv::Mat& src, cv::Mat& dst,
+    const cv::Mat& dstSrcMap, const cv::Mat& weight);
+
 void cudaGenerateReprojectMap(const PhotoParam& param,
     const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap);
 

@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
         "{num_frames_skip        | 100         | number of frames to skip}"
         "{pano_width             | 2048        | pano picture width}"
         "{pano_height            | 1024        | pano picture height}"
-        "{pano_video_name        | panocpu.mp4 | xml param file path}"
+        "{pano_video_name        | panocpu0.mp4 | xml param file path}"
         "{pano_video_num_frames  | 1000        | number of frames to write}"
         "{use_cuda               | false       | use gpu to accelerate computation}";
 

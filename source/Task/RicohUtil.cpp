@@ -870,6 +870,7 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 }
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+
 bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -1031,10 +1032,158 @@ void CudaPanoramaRender::clear()
     dstSrcYMapsGPU.clear();
     srcImagesGPU.clear();
     reprojImagesGPU.clear();
+    weightsGPU.clear();
     rtQueue.stop();
     cpQueue.stop();
     pool.clear();
     rtQueue.clear();
     cpQueue.clear();
     streams.clear();
+}
+
+bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path_, params);
+        else
+            loadPhotoParamFromXML(path_, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+    if (highQualityBlend)
+    {
+        if (!mbBlender.prepare(masks, 20, 2))
+            return false;
+    }
+    else
+    {
+        getWeightsLinearBlend32F(masks, 50, weights);
+        accum.create(dstSize, CV_32FC3);
+    }
+
+    pool.init(dstSize.height, dstSize.width, CV_8UC3);
+
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
+
+    success = 1;
+    return true;
+}
+
+bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+            return false;
+        if (src[i].type() != CV_8UC3)
+            return false;
+    }
+
+    cv::Mat blendImage;
+    if (!pool.get(blendImage))
+        return false;
+
+    if (!highQualityBlend)
+    {
+        accum.setTo(0);
+        for (int i = 0; i < numImages; i++)
+            reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
+        accum.convertTo(blendImage, CV_8U);
+    }
+    else
+    {
+        reprojImages.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
+        mbBlender.blend(reprojImages, blendImage);
+    }
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImage, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImage, timeStamp));
+
+    return true;
+}
+
+bool CPUPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<cv::Mat, long long int> item;
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
+    if (ret)
+    {
+        item.first.copyTo(dst);
+        timeStamp = item.second;
+    }
+    return ret;
+}
+
+void CPUPanoramaRender::stop()
+{
+    rtQueue.stop();
+    cpQueue.stop();
+}
+
+void CPUPanoramaRender::resume()
+{
+    rtQueue.resume();
+    cpQueue.resume();
+}
+
+void CPUPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
+void CPUPanoramaRender::clear()
+{
+    maps.clear();
+    reprojImages.clear();
+    weights.clear();
+    rtQueue.stop();
+    cpQueue.stop();
+    pool.clear();
+    rtQueue.clear();
+    cpQueue.clear();
 }

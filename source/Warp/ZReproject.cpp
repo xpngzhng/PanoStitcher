@@ -430,3 +430,59 @@ void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
         }
     }
 }
+
+class ReprojAccumLoop : public cv::ParallelLoopBody
+{
+public:
+    ReprojAccumLoop(const cv::Mat& src_, cv::Mat& dst_, const cv::Mat& map_, const cv::Mat& weight_)
+        : src(src_), dst(dst_), map(map_), weight(weight_)
+    {
+        srcWidth = src.cols, srcHeight = src.rows, srcStep = src.step;
+        dstWidth = map.cols, dstHeight = map.rows;
+    }
+
+    virtual ~ReprojAccumLoop() {}
+
+    virtual void operator()(const cv::Range& r) const
+    {
+        const unsigned char* srcData = src.data;
+        int start = r.start, end = std::min(r.end, dstHeight);
+        for (int h = start; h < end; h++)
+        {
+            const cv::Point2d* ptrSrcPos = map.ptr<cv::Point2d>(h);
+            const float* ptrWeight = weight.ptr<float>(h);
+            cv::Vec3f* ptrDstRow = dst.ptr<cv::Vec3f>(h);
+            for (int w = 0; w < dstWidth; w++)
+            {
+                cv::Point2d pt = ptrSrcPos[w];
+                if (pt.x >= 0 && pt.y >= 0 && pt.x < srcWidth && pt.y < srcHeight)
+                {
+                    uchar dest[3];
+                    bilinearResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
+                    float alpha = ptrWeight[w];
+                    ptrDstRow[w][0] += dest[0] * alpha;
+                    ptrDstRow[w][1] += dest[1] * alpha;
+                    ptrDstRow[w][2] += dest[2] * alpha;
+                }
+            }
+        }
+    }
+
+    const cv::Mat& src;
+    cv::Mat& dst;
+    const cv::Mat& map;
+    const cv::Mat& weight;
+    int srcWidth, srcHeight, srcStep;
+    int dstWidth, dstHeight;
+};
+
+void reprojectWeightedAccumulateParallelTo32F(const cv::Mat& src, cv::Mat& dst,
+    const cv::Mat& map, const cv::Mat& weight)
+{
+    CV_Assert(src.data && src.type() == CV_8UC3 && dst.data && dst.type() == CV_32FC3 &&
+        map.data && map.type() == CV_64FC2 && weight.data && weight.type() == CV_32FC1 &&
+        dst.size() == map.size() && dst.size() == weight.size());
+
+    ReprojAccumLoop loop(src, dst, map, weight);
+    cv::parallel_for_(cv::Range(0, dst.rows), loop);
+}
