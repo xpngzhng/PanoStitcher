@@ -447,10 +447,10 @@ int main(int argc, char* argv[])
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);
 
     showTiledImages.init(srcSize.width, srcSize.height, numCameras);
-    //std::thread svr(showVideoResult);
-    //svr.join();
     std::thread svs(showVideoSources);
+    std::thread svr(showVideoResult);    
     svs.join();
+    svr.join();
 
     task.closeVideoDevices();
     task.closeAudioDevice();
