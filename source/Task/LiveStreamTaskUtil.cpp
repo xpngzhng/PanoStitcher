@@ -11,18 +11,15 @@ AudioVideoSource::~AudioVideoSource()
 
 }
 
-void AudioVideoSource::setProp(bool useGPU_, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
+void AudioVideoSource::setProp(bool useCuda_, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
     BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU_,
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU_,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend_, ForceWaitFrameQueue* ptrProcFrameBufferForSave_, 
     LogCallbackFunction logCallbackFunc_, void* logCallbackData_, 
     FrameRateCallbackFunction videoFrameRateCallbackFunc_, void* videoFrameRateCallbackData_)
 {
-    useGPU = useGPU_;
-    if (useGPU)
-        pixelType = avp::PixelTypeBGR32;
-    else
-        pixelType = avp::PixelTypeBGR24;
+    useCuda = useCuda_;
+    pixelType = avp::PixelTypeBGR32;
     logCallbackFunc = logCallbackFunc_;
     logCallbackData = logCallbackData_;
     videoFrameRateCallbackFunc = videoFrameRateCallbackFunc_;
@@ -42,7 +39,7 @@ bool AudioVideoSource::hasFinished()
 void AudioVideoSource::init()
 {
     finish = 0;
-    useGPU = 1;
+    useCuda = 1;
 
     videoOpenSuccess = 0;
     videoEndFlag = 0;
@@ -162,7 +159,7 @@ void AudioVideoSource::videoSink()
             break;
 
         syncedFramesBufferForShow.push(syncedFrames);
-        if (useGPU)
+        if (useCuda)
             syncedFramesBufferForProcGPU.push(syncedFrames);
         else
             syncedFramesBufferForProcCPU.push(syncedFrames);
@@ -185,7 +182,7 @@ void AudioVideoSource::videoSink()
             //printf("\n");
 
             syncedFramesBufferForShow.push(frames);
-            if (useGPU)
+            if (useCuda)
                 syncedFramesBufferForProcGPU.push(frames);
             else
                 syncedFramesBufferForProcCPU.push(frames);
@@ -227,7 +224,7 @@ END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-FFmpegAudioVideoSource::FFmpegAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+FFmpegAudioVideoSource::FFmpegAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
     BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
@@ -235,7 +232,7 @@ FFmpegAudioVideoSource::FFmpegAudioVideoSource(bool useGPU, ForShowFrameVectorQu
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(useGPU, ptrSyncedFramesBufferForShow,
+    setProp(useCuda, ptrSyncedFramesBufferForShow,
         ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
         logCallbackFunc, logCallbackData,
@@ -693,7 +690,7 @@ int RecvbyLen(SOCKET recvSocket, char *pszBuf, int nRecvLen)
     return nAlreadyLen;
 }
 
-JuJingAudioVideoSource::JuJingAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+JuJingAudioVideoSource::JuJingAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
     BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
@@ -701,7 +698,7 @@ JuJingAudioVideoSource::JuJingAudioVideoSource(bool useGPU, ForShowFrameVectorQu
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(useGPU, ptrSyncedFramesBufferForShow,
+    setProp(useCuda, ptrSyncedFramesBufferForShow,
         ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
         logCallbackFunc, logCallbackData,
@@ -906,7 +903,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
 
     RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
     ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
-    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", avp::PixelTypeBGR24);
+    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", pixelType);
     DataPacket pkt;
     avp::AudioVideoFrame frame;
     bool ok;

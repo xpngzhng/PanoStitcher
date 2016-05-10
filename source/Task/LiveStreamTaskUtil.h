@@ -33,7 +33,7 @@ public:
     virtual void close() = 0;
 
 protected:
-    void setProp(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    void setProp(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
         ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave, 
@@ -68,14 +68,14 @@ protected:
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU;
     ForceWaitFrameQueue* ptrProcFrameBufferForSend; 
     ForceWaitFrameQueue* ptrProcFrameBufferForSave;
-    int useGPU;
+    int useCuda;
     int finish;
 };
 
 struct FFmpegAudioVideoSource : public AudioVideoSource
 {
 public:
-    FFmpegAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    FFmpegAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
         ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
@@ -129,7 +129,7 @@ typedef ForceWaitRealTimeQueue<DataPacket> RealTimeDataPacketQueue;
 struct JuJingAudioVideoSource : public AudioVideoSource
 {
 public:
-    JuJingAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    JuJingAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
         ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,

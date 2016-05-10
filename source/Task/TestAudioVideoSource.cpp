@@ -120,8 +120,6 @@ void ShowThread()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-
-
 int main()
 {
     std::vector<avp::Device> ds, vds;
