@@ -129,8 +129,6 @@ public:
     PanoramaLiveStreamTask();
     ~PanoramaLiveStreamTask();
 
-    void setUseGPU(bool useGPU);
-
     bool openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success);
     void closeVideoDevices();
 

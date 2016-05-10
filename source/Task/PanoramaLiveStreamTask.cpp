@@ -32,8 +32,6 @@ struct PanoramaLiveStreamTask::Impl
     Impl();
     ~Impl();
 
-    void setUseGPU(bool useGPU);
-
     bool openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success);
     void closeVideoDevices();
 
@@ -95,8 +93,7 @@ struct PanoramaLiveStreamTask::Impl
     int audioThreadJoined;
     void audioSource();
 
-    CPUPanoramaRender renderCPU;
-    CudaPanoramaRender renderGPU;
+    CudaPanoramaRender render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -149,14 +146,12 @@ struct PanoramaLiveStreamTask::Impl
     FrameRateCallbackFunction stitchFrameRateCallbackFunc;
     void* stitchFrameRateCallbackData;
 
-    int useGPU;
     int pixelType;
     int elemType;
     int finish;
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
-    ForShowFrameVectorQueue syncedFramesBufferForProcCPU;
-    BoundedPinnedMemoryFrameQueue syncedFramesBufferForProcGPU;
+    BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     SharedAudioVideoFramePool procFramePool;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
@@ -172,21 +167,6 @@ PanoramaLiveStreamTask::Impl::~Impl()
 {
     closeAll();
     printf("live stream task destructor called\n");
-}
-
-void PanoramaLiveStreamTask::Impl::setUseGPU(bool useGPU_)
-{
-    useGPU = useGPU_;
-    if (useGPU)
-    {
-        pixelType = avp::PixelTypeBGR32;
-        elemType = CV_8UC4;
-    }
-    else
-    {
-        pixelType = avp::PixelTypeBGR24;
-        elemType = CV_8UC3;
-    }
 }
 
 bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
@@ -242,8 +222,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Devic
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     syncedFramesBufferForShow.clear();
-    syncedFramesBufferForProcCPU.clear();
-    syncedFramesBufferForProcGPU.clear();
+    syncedFramesBufferForProc.clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -408,8 +387,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::strin
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     syncedFramesBufferForShow.clear();
-    syncedFramesBufferForProcCPU.clear();
-    syncedFramesBufferForProcGPU.clear();
+    syncedFramesBufferForProc.clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -460,21 +438,12 @@ bool PanoramaLiveStreamTask::Impl::openAudioStream(const std::string& url)
 
 bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
-    //pixelType = avp::PixelTypeBGR32;
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    if (useGPU)
-    {
-        renderPrepareSuccess = renderGPU.prepare(renderConfigName, highQualityBlend, false,
-            videoFrameSize, renderFrameSize);
-    }
-    else
-    {
-        renderPrepareSuccess = renderCPU.prepare(renderConfigName, highQualityBlend, false,
-            videoFrameSize, renderFrameSize);
-    }
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
+        videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
         printf("Could not prepare for video stitch\n");
@@ -511,8 +480,7 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     if (logCallbackFunc)
         logCallbackFunc("Video stitch prepare success", logCallbackData);
     
-    syncedFramesBufferForProcCPU.clear();
-    syncedFramesBufferForProcGPU.clear();
+    syncedFramesBufferForProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();
@@ -533,11 +501,10 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
     if (renderPrepareSuccess && !renderThreadJoined)
     {
         renderEndFlag = 1;
-        syncedFramesBufferForProcGPU.stop();
+        syncedFramesBufferForProc.stop();
         renderThread->join();
         renderThread.reset(0);
-        renderCPU.clear();
-        renderGPU.clear();
+        render.clear();
         postProcThread->join();
         postProcThread.reset(0);
         renderPrepareSuccess = 0;
@@ -757,7 +724,6 @@ void PanoramaLiveStreamTask::Impl::initAll()
     fileThreadJoined = 0;
 
     finish = 0;
-    useGPU = 1;
     pixelType = avp::PixelTypeBGR32;
     elemType = CV_8UC4;
 }
@@ -788,8 +754,7 @@ void PanoramaLiveStreamTask::Impl::closeAll()
         //ptrFrameBuffers->clear();
     }    
     syncedFramesBufferForShow.clear();
-    syncedFramesBufferForProcCPU.clear();
-    syncedFramesBufferForProcGPU.clear();
+    syncedFramesBufferForProc.clear();
     procFramePool.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSend.clear();
@@ -1006,10 +971,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         }
 
         syncedFramesBufferForShow.push(syncedFrames);
-        if (useGPU)
-            syncedFramesBufferForProcGPU.push(syncedFrames);
-        else
-            syncedFramesBufferForProcCPU.push(syncedFrames);
+        syncedFramesBufferForProc.push(syncedFrames);
 
         if (!videoCheckFrameRate)
             videoCheckFrameRate = 1;
@@ -1034,10 +996,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
             }
 
             syncedFramesBufferForShow.push(frames);
-            if (useGPU)
-                syncedFramesBufferForProcGPU.push(frames);
-            else
-                syncedFramesBufferForProcCPU.push(frames);
+            syncedFramesBufferForProc.push(frames);
 
             pullCount++;
             int needSync = 0;
@@ -1070,7 +1029,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     }
 
     //syncedFramesBufferForShow.stop();
-    syncedFramesBufferForProcGPU.stop();
+    syncedFramesBufferForProc.stop();
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -1096,117 +1055,59 @@ void PanoramaLiveStreamTask::Impl::procVideo()
         if (finish || renderEndFlag)
             break;
         //printf("show\n");
-        if (useGPU)
+        if (!syncedFramesBufferForProc.pull(mems, timeStamp))
         {
-            if (!syncedFramesBufferForProcGPU.pull(mems, timeStamp))
-            {
-                //std::this_thread::sleep_for(std::chrono::milliseconds(20));
-                continue;
-            }
-            //printf("ts %lld\n", timeStamp);
-            //printf("before check size\n");
-            // NOTICE: it would be better to check frames's pixelType and other properties.
-            if (mems.size() == numVideos)
-            {
-                ztool::Timer localTimer, procTimer;
-                if (count < 0)
-                {
-                    count = 0;
-                    timer.start();
-                }
-                else
-                {
-                    count++;
-                    timer.end();
-                    double elapse = timer.elapse();
-                    if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
-                    {
-                        double r = count / elapse;
-                        printf("%d  %f, %f\n", count, elapse, r);
-                        timer.start();
-                        count = 0;
-
-                        if (stitchFrameRateCallbackFunc)
-                            stitchFrameRateCallbackFunc(r, stitchFrameRateCallbackData);
-                    }
-                }
-
-                src.resize(numVideos);
-                for (int i = 0; i < numVideos; i++)
-                    src[i] = mems[i].createMatHeader();
-
-                //procTimer.start();
-                ok = renderGPU.render(src, timeStamp);
-                //procTimer.end();
-                if (!ok)
-                {
-                    printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
-                    finish = 1;
-                    break;
-                }
-
-                localTimer.end();
-                //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
-            }
+            //std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
         }
-        else
+        //printf("ts %lld\n", timeStamp);
+        //printf("before check size\n");
+        // NOTICE: it would be better to check frames's pixelType and other properties.
+        if (mems.size() == numVideos)
         {
-            if (!syncedFramesBufferForProcCPU.pull(frames))
+            ztool::Timer localTimer, procTimer;
+            if (count < 0)
             {
-                //std::this_thread::sleep_for(std::chrono::milliseconds(20));
-                continue;
+                count = 0;
+                timer.start();
             }
-
-            if (frames.size() == numVideos)
+            else
             {
-                ztool::Timer localTimer, procTimer;
-                if (count < 0)
+                count++;
+                timer.end();
+                double elapse = timer.elapse();
+                if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
                 {
-                    count = 0;
+                    double r = count / elapse;
+                    printf("%d  %f, %f\n", count, elapse, r);
                     timer.start();
+                    count = 0;
+
+                    if (stitchFrameRateCallbackFunc)
+                        stitchFrameRateCallbackFunc(r, stitchFrameRateCallbackData);
                 }
-                else
-                {
-                    count++;
-                    timer.end();
-                    double elapse = timer.elapse();
-                    if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
-                    {
-                        double r = count / elapse;
-                        printf("%d  %f, %f\n", count, elapse, r);
-                        timer.start();
-                        count = 0;
-
-                        if (stitchFrameRateCallbackFunc)
-                            stitchFrameRateCallbackFunc(r, stitchFrameRateCallbackData);
-                    }
-                }
-
-                src.resize(numVideos);
-                for (int i = 0; i < numVideos; i++)
-                    src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data, frames[i].step);
-
-                //procTimer.start();
-                ok = renderCPU.render(src, frames[0].timeStamp);
-                //procTimer.end();
-                if (!ok)
-                {
-                    printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
-                    finish = 1;
-                    break;
-                }
-
-                localTimer.end();
-                //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
             }
-        }
-        
+
+            src.resize(numVideos);
+            for (int i = 0; i < numVideos; i++)
+                src[i] = mems[i].createMatHeader();
+
+            //procTimer.start();
+            ok = render.render(src, timeStamp);
+            //procTimer.end();
+            if (!ok)
+            {
+                printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
+                finish = 1;
+                break;
+            }
+
+            localTimer.end();
+            //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
+        }        
     }
 
-    if (useGPU)
-        renderGPU.stop();
-    else
-        renderCPU.stop();
+    render.stop();
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
@@ -1224,16 +1125,9 @@ void PanoramaLiveStreamTask::Impl::postProc()
 
         procFramePool.get(frame);
         cv::Mat result(frame.height, frame.width, elemType, frame.data, frame.step);
-        if (useGPU)
-        {
-            if (!renderGPU.getResult(result, frame.timeStamp))
-                continue;
-        }
-        else
-        {
-            if (!renderCPU.getResult(result, frame.timeStamp))
-                continue;
-        }
+        
+        if (!render.getResult(result, frame.timeStamp))
+            continue;
 
         //ztool::Timer timer;
         logoFilter.addLogo(result);
@@ -1461,11 +1355,6 @@ PanoramaLiveStreamTask::PanoramaLiveStreamTask()
 PanoramaLiveStreamTask::~PanoramaLiveStreamTask()
 {
 
-}
-
-void PanoramaLiveStreamTask::setUseGPU(bool useGPU)
-{
-    ptrImpl->setUseGPU(useGPU);
 }
 
 bool PanoramaLiveStreamTask::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)

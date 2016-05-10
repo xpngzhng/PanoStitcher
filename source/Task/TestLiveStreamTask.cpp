@@ -236,8 +236,6 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
-    task.setUseGPU(false);
-
     cameraModel = parser.get<std::string>("camera_model");
 
     if (cameraModel == "dualgopro")
