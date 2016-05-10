@@ -1,0 +1,931 @@
+#include "LiveStreamTaskUtil.h"
+#include "Timer.h"
+
+AudioVideoSource::AudioVideoSource()
+{
+
+}
+
+AudioVideoSource::~AudioVideoSource()
+{
+
+}
+
+void AudioVideoSource::setProp(bool useGPU_, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU_,
+    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU_,
+    ForceWaitFrameQueue* ptrProcFrameBufferForSend_, ForceWaitFrameQueue* ptrProcFrameBufferForSave_, 
+    LogCallbackFunction logCallbackFunc_, void* logCallbackData_, 
+    FrameRateCallbackFunction videoFrameRateCallbackFunc_, void* videoFrameRateCallbackData_)
+{
+    useGPU = useGPU_;
+    if (useGPU)
+        pixelType = avp::PixelTypeBGR32;
+    else
+        pixelType = avp::PixelTypeBGR24;
+    logCallbackFunc = logCallbackFunc_;
+    logCallbackData = logCallbackData_;
+    videoFrameRateCallbackFunc = videoFrameRateCallbackFunc_;
+    videoFrameRateCallbackData = videoFrameRateCallbackData_;
+    ptrSyncedFramesBufferForShow = ptrSyncedFramesBufferForShow_;
+    ptrSyncedFramesBufferForProcGPU = ptrSyncedFramesBufferForProcGPU_;
+    ptrSyncedFramesBufferForProcCPU = ptrSyncedFramesBufferForProcCPU_;
+    ptrProcFrameBufferForSend = ptrProcFrameBufferForSend_;
+    ptrProcFrameBufferForSave = ptrProcFrameBufferForSave_;
+}
+
+bool AudioVideoSource::hasFinished()
+{
+    return finish != 0;
+}
+
+void AudioVideoSource::init()
+{
+    finish = 0;
+    useGPU = 1;
+
+    videoOpenSuccess = 0;
+    videoEndFlag = 0;
+    videoThreadsJoined = 0;
+
+    audioOpenSuccess = 0;
+    audioEndFlag = 0;
+    audioThreadJoined = 0;
+
+    logCallbackFunc = 0;
+    logCallbackData = 0;
+
+    videoFrameRateCallbackFunc = 0;
+    videoFrameRateCallbackData = 0;
+}
+
+static int syncInterval = 60;
+
+void AudioVideoSource::videoSink()
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    ForShowFrameVectorQueue& syncedFramesBufferForShow = *ptrSyncedFramesBufferForShow;
+    BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProcGPU = *ptrSyncedFramesBufferForProcGPU;
+    ForShowFrameVectorQueue& syncedFramesBufferForProcCPU = *ptrSyncedFramesBufferForProcCPU;
+
+    if (finish || videoEndFlag)
+    {
+        printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+        return;
+    }
+
+    for (int i = 0; i < numVideos; i++)
+        printf("size = %d\n", frameBuffers[i].size());
+
+    for (int j = 0; j < 25; j++)
+    {
+        for (int i = 0; i < numVideos; i++)
+        {
+            avp::SharedAudioVideoFrame sharedFrame;
+            frameBuffers[i].pull(sharedFrame);
+        }
+    }
+
+    if (finish || videoEndFlag)
+    {
+        printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+        return;
+    }
+
+    while (true)
+    {
+        if (finish || videoEndFlag)
+            break;
+
+        long long int currMaxTS = -1;
+        int currMaxIndex = -1;
+        for (int i = 0; i < numVideos; i++)
+        {
+            avp::SharedAudioVideoFrame sharedFrame;
+            frameBuffers[i].pull(sharedFrame);
+            if (sharedFrame.timeStamp < 0)
+            {
+                printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                finish = 1;
+                break;
+            }
+            if (sharedFrame.timeStamp > currMaxTS)
+            {
+                currMaxIndex = i;
+                currMaxTS = sharedFrame.timeStamp;
+            }
+        }
+
+        if (finish || videoEndFlag)
+            break;
+
+        std::vector<avp::SharedAudioVideoFrame> syncedFrames(numVideos);
+        avp::SharedAudioVideoFrame slowestFrame;
+        frameBuffers[currMaxIndex].pull(slowestFrame);
+        syncedFrames[currMaxIndex] = slowestFrame;
+        printf("slowest ts = %lld\n", slowestFrame.timeStamp);
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (finish || videoEndFlag)
+                break;
+
+            if (i == currMaxIndex)
+                continue;
+
+            avp::SharedAudioVideoFrame sharedFrame;
+            while (true)
+            {
+                if (finish || videoEndFlag)
+                    break;
+
+                frameBuffers[i].pull(sharedFrame);
+                printf("this ts = %lld\n", sharedFrame.timeStamp);
+                if (sharedFrame.timeStamp < 0)
+                {
+                    printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                    finish = 1;
+                    break;
+                }
+                if (sharedFrame.timeStamp >= slowestFrame.timeStamp)
+                {
+                    syncedFrames[i] = sharedFrame;
+                    printf("break\n");
+                    break;
+                }
+            }
+        }
+        if (finish || videoEndFlag)
+            break;
+
+        syncedFramesBufferForShow.push(syncedFrames);
+        if (useGPU)
+            syncedFramesBufferForProcGPU.push(syncedFrames);
+        else
+            syncedFramesBufferForProcCPU.push(syncedFrames);
+
+        if (!videoCheckFrameRate)
+            videoCheckFrameRate = 1;
+
+        int pullCount = 0;
+        std::vector<avp::SharedAudioVideoFrame> frames(numVideos);
+        while (true)
+        {
+            if (finish || videoEndFlag)
+                break;
+
+            for (int i = 0; i < numVideos; i++)
+            {
+                frameBuffers[i].pull(frames[i]);
+                //printf("%d ", frameBuffers[i].size());
+            }
+            //printf("\n");
+
+            syncedFramesBufferForShow.push(frames);
+            if (useGPU)
+                syncedFramesBufferForProcGPU.push(frames);
+            else
+                syncedFramesBufferForProcCPU.push(frames);
+
+            pullCount++;
+            int needSync = 0;
+            if (pullCount == roundedVideoFrameRate * syncInterval)
+            {
+                printf("Checking frames synchronization status, ");
+                long long int maxDiff = 1000000.0 / videoFrameRate * 1.1 + 0.5;
+                long long int baseTimeStamp = frames[0].timeStamp;
+                for (int i = 1; i < numVideos; i++)
+                {
+                    if (abs(baseTimeStamp - frames[i].timeStamp) > maxDiff)
+                    {
+                        needSync = 1;
+                        break;
+                    }
+                }
+
+                if (needSync)
+                {
+                    printf("frames badly synchronized, resync\n");
+                    break;
+                }
+                else
+                {
+                    printf("frames well synchronized, continue\n");
+                    pullCount = 0;
+                }
+            }
+        }
+    }
+
+    //syncedFramesBufferForShow.stop();
+    syncedFramesBufferForProcGPU.stop();
+
+END:
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+FFmpegAudioVideoSource::FFmpegAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
+    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+    ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+    LogCallbackFunction logCallbackFunc, void* logCallbackData, 
+    FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
+{
+    init();
+    setProp(useGPU, ptrSyncedFramesBufferForShow,
+        ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
+        ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
+        logCallbackFunc, logCallbackData,
+        videoFrameRateCallbackFunc, videoFrameRateCallbackData);
+}
+
+FFmpegAudioVideoSource::~FFmpegAudioVideoSource()
+{
+    close();
+}
+
+bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
+    bool openAudio, const avp::Device& device, int sampleRate)
+{
+    videoDevices = devices;
+    videoFrameSize.width = width;
+    videoFrameSize.height = height;
+    videoFrameRate = frameRate;
+    roundedVideoFrameRate = videoFrameRate + 0.5;
+    numVideos = devices.size();
+
+    std::vector<avp::Option> opts;
+    std::string frameRateStr = std::to_string(videoFrameRate);
+    std::string videoSizeStr = std::to_string(videoFrameSize.width) + "x" + std::to_string(videoFrameSize.height);
+    opts.push_back(std::make_pair("framerate", frameRateStr));
+    opts.push_back(std::make_pair("video_size", videoSizeStr));
+
+    bool ok;
+    bool failExists = false;
+    videoReaders.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        // IMPORTANT NOTICE!!!!!!
+        // FORCE PIXEL_TYPE_BGR_32
+        // SUPPORT GPU ONLY
+        opts.resize(2);
+        opts.push_back(std::make_pair("video_device_number", videoDevices[i].numString));
+        ok = videoReaders[i].open("video=" + videoDevices[i].shortName,
+            false, true, pixelType, "dshow", opts);
+        if (!ok)
+        {
+            printf("Could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
+                videoDevices[i].shortName.c_str(), videoDevices[i].numString.c_str(),
+                frameRateStr.c_str(), videoSizeStr.c_str());
+            failExists = true;
+        }
+    }
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources open failed", logCallbackData);
+        return false;
+    }
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources open success", logCallbackData);
+
+    ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrFrameBuffers)[i].setMaxSize(36);
+    ptrSyncedFramesBufferForShow->clear();
+    ptrSyncedFramesBufferForProcCPU->clear();
+    ptrSyncedFramesBufferForProcGPU->clear();
+
+    videoEndFlag = 0;
+    videoThreadsJoined = 0;
+    videoSourceThreads.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        videoSourceThreads[i].reset(new std::thread(&FFmpegAudioVideoSource::videoSource, this, i));
+    }
+    videoSinkThread.reset(new std::thread(&FFmpegAudioVideoSource::videoSink, this));
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources related threads create success\n", logCallbackData);
+
+    if (openAudio)
+    {
+        audioDevice = device;
+        audioSampleRate = sampleRate;
+
+        std::vector<avp::Option> audioOpts;
+        std::string sampleRateStr = std::to_string(audioSampleRate);
+        audioOpts.push_back(std::make_pair("ar", sampleRateStr));
+        audioOpts.push_back(std::make_pair("audio_device_number", audioDevice.numString));
+        audioOpenSuccess = audioReader.open("audio=" + audioDevice.shortName, true,
+            false, avp::PixelTypeUnknown, "dshow", audioOpts);
+        if (!audioOpenSuccess)
+        {
+            printf("Could not open DirectShow audio device %s[%s], skip\n",
+                audioDevice.shortName.c_str(), audioDevice.numString.c_str());
+
+            if (logCallbackFunc)
+                logCallbackFunc("Audio source open failed", logCallbackData);
+        }
+        else
+        {
+            if (logCallbackFunc)
+                logCallbackFunc("Audio source open success", logCallbackData);
+
+            ptrProcFrameBufferForSave->clear();
+            ptrProcFrameBufferForSend->clear();
+
+            audioEndFlag = 0;
+            audioThreadJoined = 0;
+            audioThread.reset(new std::thread(&FFmpegAudioVideoSource::audioSource, this));
+
+            if (logCallbackFunc)
+                logCallbackFunc("Audio source thread create success", logCallbackData);
+        }        
+    }
+
+    return videoOpenSuccess == 1;
+}
+
+bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool openAudio, const std::string& url)
+{
+    if (urls.empty())
+        return false;
+
+    bool ok;
+    bool failExists = false;
+    numVideos = urls.size();
+    videoReaders.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        ok = videoReaders[i].open(urls[i], false, true, avp::PixelTypeBGR32);
+        if (!ok)
+        {
+            printf("Could not open video stream %s\n", urls[i].c_str());
+            failExists = true;
+            break;
+        }
+    }
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources open failed", logCallbackData);
+        return false;
+    }
+
+    videoFrameSize.width = videoReaders[0].getVideoWidth();
+    videoFrameSize.height = videoReaders[0].getVideoHeight();
+    videoFrameRate = videoReaders[0].getVideoFps();
+    roundedVideoFrameRate = videoFrameRate + 0.5;
+    for (int i = 1; i < numVideos; i++)
+    {
+        if (videoReaders[i].getVideoWidth() != videoFrameSize.width)
+        {
+            failExists = true;
+            printf("Error, video streams width not match\n");
+            break;
+        }
+        if (videoReaders[i].getVideoHeight() != videoFrameSize.height)
+        {
+            failExists = true;
+            printf("Error, video streams height not match\n");
+            break;
+        }
+        if (fabs(videoReaders[i].getVideoFps() - videoFrameRate) > 0.001)
+        {
+            failExists = true;
+            printf("Error, video streams frame rate not match\n");
+            break;
+        }
+    }
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources properties not match", logCallbackData);
+        return false;
+    }
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources open success", logCallbackData);
+
+    ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrFrameBuffers)[i].setMaxSize(36);
+    ptrSyncedFramesBufferForShow->clear();
+    ptrSyncedFramesBufferForProcCPU->clear();
+    ptrSyncedFramesBufferForProcGPU->clear();
+
+    videoEndFlag = 0;
+    videoThreadsJoined = 0;
+    videoSourceThreads.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        videoSourceThreads[i].reset(new std::thread(&FFmpegAudioVideoSource::videoSource, this, i));
+    }
+    videoSinkThread.reset(new std::thread(&FFmpegAudioVideoSource::videoSink, this));
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources related threads create success\n", logCallbackData);
+
+    if (openAudio)
+    {
+        audioOpenSuccess = audioReader.open(url, true, false, avp::PixelTypeUnknown);
+        if (!audioOpenSuccess)
+        {
+            printf("Could not open DirectShow audio device %s[%s], skip\n",
+                audioDevice.shortName.c_str(), audioDevice.numString.c_str());
+
+            if (logCallbackFunc)
+                logCallbackFunc("Audio source open failed", logCallbackData);
+
+            return false;
+        }
+
+        audioSampleRate = audioReader.getAudioSampleRate();
+
+        if (logCallbackFunc)
+            logCallbackFunc("Audio source open success", logCallbackData);
+
+        ptrProcFrameBufferForSave->clear();
+        ptrProcFrameBufferForSend->clear();
+
+        audioEndFlag = 0;
+        audioThreadJoined = 0;
+        audioThread.reset(new std::thread(&FFmpegAudioVideoSource::audioSource, this));
+
+        if (logCallbackFunc)
+            logCallbackFunc("Audio source thread create success", logCallbackData);
+    }
+
+    return videoOpenSuccess == 1;
+}
+
+void FFmpegAudioVideoSource::close()
+{
+    if (videoOpenSuccess && !videoThreadsJoined)
+    {
+        videoEndFlag = 1;
+        for (int i = 0; i < numVideos; i++)
+            videoSourceThreads[i]->join();
+        videoSinkThread->join();
+        videoSourceThreads.clear();
+        videoSinkThread.reset(0);
+        videoOpenSuccess = 0;
+        videoThreadsJoined = 1;
+
+        if (logCallbackFunc)
+        {
+            logCallbackFunc("Video sources related threads close success", logCallbackData);
+            logCallbackFunc("Video sources close success", logCallbackData);
+        }
+    }
+
+    if (audioOpenSuccess && !audioThreadJoined)
+    {
+        audioEndFlag = 1;
+        audioThread->join();
+        audioThread.reset(0);
+        audioOpenSuccess = 0;
+        audioThreadJoined = 1;
+
+        if (logCallbackFunc)
+        {
+            logCallbackFunc("Audio source thread close success", logCallbackData);
+            logCallbackFunc("Audio source close success", logCallbackData);
+        }
+    }
+
+    finish = 1;
+}
+
+inline void stopCompleteFrameBuffers(std::vector<ForceWaitFrameQueue>* ptrFrameBuffers)
+{
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    int numBuffers = frameBuffers.size();
+    for (int i = 0; i < numBuffers; i++)
+        frameBuffers[i].stop();
+}
+
+void FFmpegAudioVideoSource::videoSource(int index)
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started, index = %d\n", __FUNCTION__, id, index);
+
+    std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
+    ForceWaitFrameQueue& buffer = frameBuffers[index];
+    avp::AudioVideoReader& reader = videoReaders[index];
+
+    long long int count = 0, beginCheckCount = roundedVideoFrameRate * 5;
+    ztool::Timer timer;
+    avp::AudioVideoFrame frame;
+    bool ok;
+    while (true)
+    {
+        ok = reader.read(frame);
+        if (!ok)
+        {
+            printf("Error in %s [%8x], cannot read video frame\n", __FUNCTION__, id);
+            stopCompleteFrameBuffers(ptrFrameBuffers.get());
+            finish = 1;
+            break;
+        }
+
+        count++;
+        if (count == beginCheckCount)
+            timer.start();
+        if ((count > beginCheckCount) && (count % roundedVideoFrameRate == 0))
+        {
+            timer.end();
+            double actualFps = (count - beginCheckCount) / timer.elapse();
+            //printf("[%8x] fps = %f\n", id, actualFps);
+            if (index == 0 && videoFrameRateCallbackFunc)
+                videoFrameRateCallbackFunc(actualFps, videoFrameRateCallbackData);
+            if (abs(actualFps - videoFrameRate) > 2 && videoCheckFrameRate)
+            {
+                printf("Error in %s [%8x], actual fps = %f, far away from the set one\n", __FUNCTION__, id, actualFps);
+                //buffer.stop();
+                //stopCompleteFrameBuffers(ptrFrameBuffers.get());
+                //finish = 1;
+                //break;
+            }
+        }
+
+        // NOTICE, for simplicity, I do not check whether the frame has the right property.
+        // For the sake of program robustness, we should at least check whether the frame
+        // is of type VIDEO, and is not empty, and has the correct pixel type and width and height.
+        buffer.push(frame);
+
+        if (finish || videoEndFlag)
+        {
+            //buffer.stop();
+            stopCompleteFrameBuffers(ptrFrameBuffers.get());
+            finish = 1;
+            break;
+        }
+    }
+    reader.close();
+
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void FFmpegAudioVideoSource::audioSource()
+{
+    if (!audioOpenSuccess)
+        return;
+
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    ztool::Timer timer;
+    avp::AudioVideoFrame frame;
+    bool ok;
+    while (true)
+    {
+        if (finish || audioEndFlag)
+            break;
+
+        ok = audioReader.read(frame);
+        if (!ok)
+        {
+            printf("Error in %s [%8x], cannot read audio frame\n", __FUNCTION__, id);
+            finish = 1;
+            break;
+        }
+
+        avp::SharedAudioVideoFrame deep(frame);
+        ptrProcFrameBufferForSend->push(deep);
+        ptrProcFrameBufferForSave->push(deep);
+    }
+
+    ptrProcFrameBufferForSend->stop();
+    ptrProcFrameBufferForSave->stop();
+
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+// Package Head struct
+typedef struct _PACKAGE_HEAD_ 
+{
+    char MsgFlag[8];
+    unsigned int nFrameId;
+    int  nFrameLen;
+    int  nFrameType;
+    char szReserv[20];
+} PACKAGEHEAD;
+
+SOCKET ConnectTCP(const char *pszIP, int nPort)
+{
+    //----------------------
+    // Initialize Winsock
+    WSADATA wsaData;
+    int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (iResult != NO_ERROR) {
+        printf("WSAStartup function failed with error: %d\n", iResult);
+        return -1;
+    }
+    //----------------------
+    // Create a SOCKET for connecting to server
+    SOCKET ConnectSocket;
+    ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (ConnectSocket == INVALID_SOCKET) {
+        printf("socket function failed with error: %ld\n", WSAGetLastError());
+        WSACleanup();
+        return -1;
+    }
+    //----------------------
+    // The sockaddr_in structure specifies the address family,
+    // IP address, and port of the server to be connected to.
+    sockaddr_in clientService;
+    clientService.sin_family = AF_INET;
+    clientService.sin_addr.s_addr = inet_addr(pszIP);
+    clientService.sin_port = htons(nPort);
+
+    //----------------------
+    // Connect to server.
+    iResult = connect(ConnectSocket, (SOCKADDR *)& clientService, sizeof (clientService));
+    if (iResult == SOCKET_ERROR) {
+        printf("connect function failed with error: %ld\n", WSAGetLastError());
+        iResult = closesocket(ConnectSocket);
+        if (iResult == SOCKET_ERROR)
+            printf("closesocket function failed with error: %ld\n", WSAGetLastError());
+        WSACleanup();
+        return -1;
+    }
+
+    char szCmd[64] = { 0 };
+    sprintf(szCmd, "GETFRAME RUNS 0");
+    iResult = send(ConnectSocket, szCmd, strlen(szCmd), 0);
+
+    //Sleep(1000);
+
+    //sprintf(szCmd, "GETFRAME SYNC 0");
+    //iResult = send(ConnectSocket, szCmd, strlen(szCmd), 0);
+
+    return ConnectSocket;
+}
+
+int RecvbyLen(SOCKET recvSocket, char *pszBuf, int nRecvLen)
+{
+    int iResult = 0;
+    int nAlreadyLen = 0;
+    int nWillRecvLen = nRecvLen;
+
+    while (nWillRecvLen > 0) {
+        iResult = recv(recvSocket, pszBuf + nAlreadyLen, nWillRecvLen, 0);
+        if (0 > iResult) {
+            return SOCKET_ERROR;
+        }
+
+        nWillRecvLen -= iResult;
+        nAlreadyLen += iResult;
+    }
+
+    return nAlreadyLen;
+}
+
+JuJingAudioVideoSource::JuJingAudioVideoSource(bool useGPU, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
+    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+    ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+    LogCallbackFunction logCallbackFunc, void* logCallbackData,
+    FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
+{
+    init();
+    setProp(useGPU, ptrSyncedFramesBufferForShow,
+        ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
+        ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
+        logCallbackFunc, logCallbackData,
+        videoFrameRateCallbackFunc, videoFrameRateCallbackData);
+}
+
+JuJingAudioVideoSource::~JuJingAudioVideoSource()
+{
+    close();
+}
+
+bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
+{
+    if (urls.empty())
+        return false;
+
+    bool ok;
+    bool failExists = false;
+    numVideos = urls.size();
+    sockets.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        sockets[i] = ConnectTCP(urls[i].c_str(), 8889);
+        if (sockets[i] == SOCKET_ERROR)
+        {
+            failExists = true;
+            break;
+        }
+    }        
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources open failed", logCallbackData);
+        return false;
+    }
+
+    videoFrameSize.width = 1920;
+    videoFrameSize.height = 1080;
+    videoFrameRate = 25;
+    roundedVideoFrameRate = videoFrameRate + 0.5;
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources open success", logCallbackData);
+
+    ptrDataPacketQueues.reset(new std::vector<RealTimeDataPacketQueue>(numVideos));
+    ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrFrameBuffers)[i].setMaxSize(36);
+    ptrSyncedFramesBufferForShow->clear();
+    ptrSyncedFramesBufferForProcCPU->clear();
+    ptrSyncedFramesBufferForProcGPU->clear();
+
+    videoEndFlag = 0;
+    videoThreadsJoined = 0;
+    videoReceiveThreads.resize(numVideos);
+    videoDecodeThreads.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        videoReceiveThreads[i].reset(new std::thread(&JuJingAudioVideoSource::videoRecieve, this, i));
+        videoDecodeThreads[i].reset(new std::thread(&JuJingAudioVideoSource::videoDecode, this, i));
+    }
+    videoSinkThread.reset(new std::thread(&JuJingAudioVideoSource::videoSink, this));
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources related threads create success\n", logCallbackData);
+
+    return true;
+}
+
+void JuJingAudioVideoSource::close()
+{
+    if (videoOpenSuccess && !videoThreadsJoined)
+    {
+        videoEndFlag = 1;
+        for (int i = 0; i < numVideos; i++)
+        {
+            videoReceiveThreads[i]->join();
+            videoDecodeThreads[i]->join();
+        }            
+        videoSinkThread->join();
+        videoReceiveThreads.clear();
+        videoDecodeThreads.clear();
+        videoSinkThread.reset(0);
+        videoOpenSuccess = 0;
+        videoThreadsJoined = 1;
+
+        if (logCallbackFunc)
+        {
+            logCallbackFunc("Video sources related threads close success", logCallbackData);
+            logCallbackFunc("Video sources close success", logCallbackData);
+        }
+    }
+}
+
+void JuJingAudioVideoSource::videoRecieve(int index)
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    PACKAGEHEAD sHead;
+    SOCKET connectSocket = SOCKET_ERROR;
+    char *pszRecvBuf = NULL;
+    fd_set fdread;
+    timeval timeout;
+    int nBufLen = 1024 * 1024;
+    int nRecvLen = 0;
+    int nRet = 0;
+    int receiveZeroPts = 0;
+
+    pszRecvBuf = (char *)malloc(nBufLen);
+    connectSocket = sockets[index];
+    RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
+
+    while (!videoEndFlag) 
+    {
+        FD_ZERO(&fdread);
+        FD_SET(connectSocket, &fdread);
+
+        timeout.tv_sec = 2;
+        timeout.tv_usec = 0;
+        nRet = select(0, &fdread, NULL, NULL, &timeout);
+        if (0 == nRet) 
+        {
+            //printf("Timeout.\n");
+            continue;
+        }
+        else if (SOCKET_ERROR == nRet) 
+        {
+            printf("select function failed with error: %u", WSAGetLastError());
+            break;
+        }
+
+        if (FD_ISSET(connectSocket, &fdread))
+        {
+            // 接收数据头
+            memset(&sHead, 0, sizeof(sHead));
+            nRecvLen = recv(connectSocket, (char *)&sHead, sizeof(sHead), 0);
+            if (nRecvLen > 0) 
+            {
+                //printf("Bytes received: %d\n", nRecvLen);
+            }
+            else if (nRecvLen == 0) 
+            {
+                printf("Connection closed\n");
+                closesocket(connectSocket);
+                continue;
+            }
+            else 
+            {
+                printf("recv failed: %d\n", WSAGetLastError());
+                closesocket(connectSocket);
+                continue;
+            }
+
+            if (0 != strcmp(sHead.MsgFlag, "IPCAMVR")) 
+            {
+                printf("invalid data.\n");
+                continue;
+            }
+
+            // 接收数据体
+            if (sHead.nFrameLen > nBufLen) 
+            {
+                pszRecvBuf = (char *)realloc(pszRecvBuf, sHead.nFrameLen);
+                nBufLen = sHead.nFrameLen;
+            }
+
+            nRecvLen = RecvbyLen(connectSocket, pszRecvBuf, sHead.nFrameLen);
+            if (SOCKET_ERROR == nRecvLen) 
+            {
+                printf("socket failed\n");
+                closesocket(connectSocket);
+                continue;
+            }
+            else if (nRecvLen != sHead.nFrameLen) 
+            {
+                printf("invalid body.\n");
+                continue;
+            }
+
+            if (!receiveZeroPts)
+            {
+                if (sHead.nFrameId == 0)
+                    receiveZeroPts = 1;
+            }
+
+            //printf("idx = %d\n", sHead.nFrameId);
+            if (receiveZeroPts)
+                dataPacketQueue.push(DataPacket((unsigned char*)pszRecvBuf, sHead.nFrameLen, sHead.nFrameType, sHead.nFrameId * 1000));
+        }
+    }
+
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void JuJingAudioVideoSource::videoDecode(int index)
+{
+    size_t id = std::this_thread::get_id().hash();
+    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
+    ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
+    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", avp::PixelTypeBGR24);
+    DataPacket pkt;
+    avp::AudioVideoFrame frame;
+    bool ok;
+    while (!videoEndFlag)
+    {
+        dataPacketQueue.pull(pkt);
+        if (pkt.data.get())
+        {
+            ok = decoder->decode(pkt.data.get(), pkt.dataSize, pkt.pts, frame);
+            if (ok && frame.data)
+            {
+                frame.timeStamp = pkt.pts;
+                frameQueue.push(frame);
+            }
+        }
+    }
+    delete decoder;
+
+    stopCompleteFrameBuffers(ptrFrameBuffers.get());
+
+    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}

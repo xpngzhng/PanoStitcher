@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
+    <ClInclude Include="..\..\source\Task\LiveStreamTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTask.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\PinnedMemoryFrameQueue.h" />
@@ -30,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Task\Image.cpp" />
+    <ClCompile Include="..\..\source\Task\LiveStreamTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLocalDiskTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
