@@ -72,10 +72,10 @@ struct ShowTiledImages
 ShowTiledImages showTiledImages;
 int numVideos;
 int waitTime;
+int globalFinish = 0;
 
 ForShowFrameVectorQueue syncedFramesBufferForShow;
-ForShowFrameVectorQueue syncedFramesBufferForProcCPU;
-BoundedPinnedMemoryFrameQueue syncedFramesBufferForProcGPU;
+BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
 ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 FFmpegAudioVideoSource* ptrSource;
 
@@ -126,8 +126,8 @@ int main()
     avp::listDirectShowDevices(ds);
     avp::keepVideoDirectShowDevices(ds, vds);
 
-    ptrSource = new FFmpegAudioVideoSource(false, &syncedFramesBufferForShow, &syncedFramesBufferForProcGPU, &syncedFramesBufferForProcCPU,
-        &procFrameBufferForSend, &procFrameBufferForSave, 0, 0, 0, 0);
+    ptrSource = new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
+        &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
 
     ptrSource->open(vds, 1920, 1080, 30);
 

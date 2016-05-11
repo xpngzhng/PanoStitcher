@@ -57,9 +57,6 @@ struct PanoramaLiveStreamTask::Impl
     void setLogCallback(LogCallbackFunction func, void* data);
     void initCallback();
 
-    bool getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
-    bool getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame);
-
     bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
     bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
     void cancelGetVideoSourceFrames();
@@ -130,12 +127,6 @@ struct PanoramaLiveStreamTask::Impl
     int fileEndFlag;
     int fileThreadJoined;
     void fileSave();
-
-    std::mutex videoSourceFramesMutex;
-    std::vector<avp::SharedAudioVideoFrame> videoSourceFrames;
-
-    std::mutex stitchedFrameMutex;
-    avp::SharedAudioVideoFrame stitchedFrame;
 
     LogCallbackFunction logCallbackFunc;
     void* logCallbackData;
@@ -513,44 +504,6 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
         if (logCallbackFunc)
             logCallbackFunc("Video stitch thread close success", logCallbackData);
     }
-}
-
-bool PanoramaLiveStreamTask::Impl::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
-{
-    if (finish)
-    {
-        frames.clear();
-        return false;
-    }
-    {
-        std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-
-        if (videoSourceFrames.size() != numVideos)
-            return false;
-
-        frames.resize(numVideos);
-        for (int i = 0; i < numVideos; i++)
-        {
-            avp::AudioVideoFrame shallow = videoSourceFrames[i];
-            frames[i] = shallow;
-        }
-    }
-    return true;
-}
-
-bool PanoramaLiveStreamTask::Impl::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
-{
-    if (finish)
-    {
-        frame = avp::SharedAudioVideoFrame();
-        return false;
-    }
-    {
-        std::lock_guard<std::mutex> lg(stitchedFrameMutex);
-        avp::AudioVideoFrame shallow = stitchedFrame;
-        frame = shallow;
-    }
-    return true;
 }
 
 bool PanoramaLiveStreamTask::Impl::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
@@ -965,11 +918,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         if (finish || videoEndFlag)
             break;
 
-        {
-            std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-            videoSourceFrames = syncedFrames;
-        }
-
         syncedFramesBufferForShow.push(syncedFrames);
         syncedFramesBufferForProc.push(syncedFrames);
 
@@ -989,11 +937,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
                 //printf("%d ", frameBuffers[i].size());
             }
             //printf("\n");
-
-            {
-                std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-                videoSourceFrames = frames;
-            }
 
             syncedFramesBufferForShow.push(frames);
             syncedFramesBufferForProc.push(frames);
@@ -1131,10 +1074,6 @@ void PanoramaLiveStreamTask::Impl::postProc()
 
         //ztool::Timer timer;
         logoFilter.addLogo(result);
-        {
-            std::lock_guard<std::mutex> lg(stitchedFrameMutex);
-            stitchedFrame = frame;
-        }
         procFrameBufferForShow.push(frame);
         if (streamOpenSuccess)
             procFrameBufferForSend.push(frame);

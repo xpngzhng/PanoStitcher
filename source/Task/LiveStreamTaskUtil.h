@@ -29,15 +29,14 @@ public:
     AudioVideoSource();
     virtual ~AudioVideoSource();
     
-    bool hasFinished();
+    bool isRunning();
     virtual void close() = 0;
 
 protected:
-    void setProp(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
-        ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+    void setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave, 
-        LogCallbackFunction logCallbackFunc, void* logCallbackData,
+        int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
         FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
     void init();
     void videoSink();
@@ -64,22 +63,21 @@ protected:
     
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU;
-    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU;
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc;
     ForceWaitFrameQueue* ptrProcFrameBufferForSend; 
     ForceWaitFrameQueue* ptrProcFrameBufferForSave;
-    int useCuda;
+    int* ptrFinish;
     int finish;
+    int running;
 };
 
 struct FFmpegAudioVideoSource : public AudioVideoSource
 {
 public:
-    FFmpegAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
-        ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+    FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
-        LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
+        int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
         FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
     ~FFmpegAudioVideoSource();
     bool open(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
@@ -129,11 +127,10 @@ typedef ForceWaitRealTimeQueue<DataPacket> RealTimeDataPacketQueue;
 struct JuJingAudioVideoSource : public AudioVideoSource
 {
 public:
-    JuJingAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
-        ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+    JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
-        LogCallbackFunction logCallbackFunc, void* logCallbackData,
+        int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
         FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
     ~JuJingAudioVideoSource();
     bool open(const std::vector<std::string>& urls);

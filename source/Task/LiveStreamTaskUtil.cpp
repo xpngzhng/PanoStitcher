@@ -11,35 +11,34 @@ AudioVideoSource::~AudioVideoSource()
 
 }
 
-void AudioVideoSource::setProp(bool useCuda_, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU_,
-    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU_,
+void AudioVideoSource::setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc_,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend_, ForceWaitFrameQueue* ptrProcFrameBufferForSave_, 
-    LogCallbackFunction logCallbackFunc_, void* logCallbackData_, 
+    int* ptrFinish_, LogCallbackFunction logCallbackFunc_, void* logCallbackData_,
     FrameRateCallbackFunction videoFrameRateCallbackFunc_, void* videoFrameRateCallbackData_)
 {
-    useCuda = useCuda_;
     pixelType = avp::PixelTypeBGR32;
+    ptrFinish = ptrFinish_;
     logCallbackFunc = logCallbackFunc_;
     logCallbackData = logCallbackData_;
     videoFrameRateCallbackFunc = videoFrameRateCallbackFunc_;
     videoFrameRateCallbackData = videoFrameRateCallbackData_;
     ptrSyncedFramesBufferForShow = ptrSyncedFramesBufferForShow_;
-    ptrSyncedFramesBufferForProcGPU = ptrSyncedFramesBufferForProcGPU_;
-    ptrSyncedFramesBufferForProcCPU = ptrSyncedFramesBufferForProcCPU_;
+    ptrSyncedFramesBufferForProc = ptrSyncedFramesBufferForProc_;
     ptrProcFrameBufferForSend = ptrProcFrameBufferForSend_;
     ptrProcFrameBufferForSave = ptrProcFrameBufferForSave_;
 }
 
-bool AudioVideoSource::hasFinished()
+bool AudioVideoSource::isRunning()
 {
-    return finish != 0;
+    return running != 0;
 }
 
 void AudioVideoSource::init()
 {
+    ptrFinish = 0;
     finish = 0;
-    useCuda = 1;
+    running = 0;
 
     videoOpenSuccess = 0;
     videoEndFlag = 0;
@@ -66,8 +65,7 @@ void AudioVideoSource::videoSink()
     std::this_thread::sleep_for(std::chrono::microseconds(100));
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     ForShowFrameVectorQueue& syncedFramesBufferForShow = *ptrSyncedFramesBufferForShow;
-    BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProcGPU = *ptrSyncedFramesBufferForProcGPU;
-    ForShowFrameVectorQueue& syncedFramesBufferForProcCPU = *ptrSyncedFramesBufferForProcCPU;
+    BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProc = *ptrSyncedFramesBufferForProc;
 
     if (finish || videoEndFlag)
     {
@@ -159,10 +157,7 @@ void AudioVideoSource::videoSink()
             break;
 
         syncedFramesBufferForShow.push(syncedFrames);
-        if (useCuda)
-            syncedFramesBufferForProcGPU.push(syncedFrames);
-        else
-            syncedFramesBufferForProcCPU.push(syncedFrames);
+        syncedFramesBufferForProc.push(syncedFrames);
 
         if (!videoCheckFrameRate)
             videoCheckFrameRate = 1;
@@ -182,10 +177,7 @@ void AudioVideoSource::videoSink()
             //printf("\n");
 
             syncedFramesBufferForShow.push(frames);
-            if (useCuda)
-                syncedFramesBufferForProcGPU.push(frames);
-            else
-                syncedFramesBufferForProcCPU.push(frames);
+            syncedFramesBufferForProc.push(frames);
 
             pullCount++;
             int needSync = 0;
@@ -218,24 +210,22 @@ void AudioVideoSource::videoSink()
     }
 
     //syncedFramesBufferForShow.stop();
-    syncedFramesBufferForProcGPU.stop();
+    syncedFramesBufferForProc.stop();
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-FFmpegAudioVideoSource::FFmpegAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
-    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+FFmpegAudioVideoSource::FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
-    LogCallbackFunction logCallbackFunc, void* logCallbackData, 
+    int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData, 
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(useCuda, ptrSyncedFramesBufferForShow,
-        ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
+    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc, 
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
-        logCallbackFunc, logCallbackData,
+        ptrFinish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData);
 }
 
@@ -284,6 +274,9 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
     videoOpenSuccess = !failExists;
     if (failExists)
     {
+        for (int i = 0; i < numVideos; i++)
+            videoReaders[i].close();
+
         if (logCallbackFunc)
             logCallbackFunc("Video sources open failed", logCallbackData);
         return false;
@@ -296,8 +289,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProcCPU->clear();
-    ptrSyncedFramesBufferForProcGPU->clear();
+    ptrSyncedFramesBufferForProc->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -347,6 +339,9 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
         }        
     }
 
+    finish = 0;
+    running = 1;
+
     return videoOpenSuccess == 1;
 }
 
@@ -373,6 +368,9 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
     videoOpenSuccess = !failExists;
     if (failExists)
     {
+        for (int i = 0; i < numVideos; i++)
+            videoReaders[i].close();
+
         if (logCallbackFunc)
             logCallbackFunc("Video sources open failed", logCallbackData);
         return false;
@@ -419,8 +417,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProcCPU->clear();
-    ptrSyncedFramesBufferForProcGPU->clear();
+    ptrSyncedFramesBufferForProc->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -464,6 +461,9 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
             logCallbackFunc("Audio source thread create success", logCallbackData);
     }
 
+    finish = 0;
+    running = 1;
+
     return videoOpenSuccess == 1;
 }
 
@@ -503,6 +503,7 @@ void FFmpegAudioVideoSource::close()
     }
 
     finish = 1;
+    running = 0;
 }
 
 inline void stopCompleteFrameBuffers(std::vector<ForceWaitFrameQueue>* ptrFrameBuffers)
@@ -534,6 +535,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
             printf("Error in %s [%8x], cannot read video frame\n", __FUNCTION__, id);
             stopCompleteFrameBuffers(ptrFrameBuffers.get());
             finish = 1;
+            *ptrFinish = 1;
             break;
         }
 
@@ -596,6 +598,7 @@ void FFmpegAudioVideoSource::audioSource()
         {
             printf("Error in %s [%8x], cannot read audio frame\n", __FUNCTION__, id);
             finish = 1;
+            *ptrFinish = 1;
             break;
         }
 
@@ -690,18 +693,16 @@ int RecvbyLen(SOCKET recvSocket, char *pszBuf, int nRecvLen)
     return nAlreadyLen;
 }
 
-JuJingAudioVideoSource::JuJingAudioVideoSource(bool useCuda, ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProcGPU,
-    ForShowFrameVectorQueue* ptrSyncedFramesBufferForProcCPU,
+JuJingAudioVideoSource::JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
-    LogCallbackFunction logCallbackFunc, void* logCallbackData,
+    int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(useCuda, ptrSyncedFramesBufferForShow,
-        ptrSyncedFramesBufferForProcGPU, ptrSyncedFramesBufferForProcCPU,
+    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
-        logCallbackFunc, logCallbackData,
+        ptrFinish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData);
 }
 
@@ -727,7 +728,15 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
             failExists = true;
             break;
         }
-    }        
+    }
+
+    char cmd[64] = { 0 };
+    sprintf(cmd, "GETFRAME SYNC 0");
+    int cmdLen = strlen(cmd);
+    //sprintf(szCmd, "GETFRAME STOP 0");
+    int ret;
+    for (int i = 0; i < numVideos; i++)
+        ret = send(sockets[0], cmd, cmdLen, 0);
 
     videoOpenSuccess = !failExists;
     if (failExists)
@@ -750,8 +759,7 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProcCPU->clear();
-    ptrSyncedFramesBufferForProcGPU->clear();
+    ptrSyncedFramesBufferForProc->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -889,9 +897,16 @@ void JuJingAudioVideoSource::videoRecieve(int index)
 
             //printf("idx = %d\n", sHead.nFrameId);
             if (receiveZeroPts)
-                dataPacketQueue.push(DataPacket((unsigned char*)pszRecvBuf, sHead.nFrameLen, sHead.nFrameType, sHead.nFrameId * 1000));
+                dataPacketQueue.push(DataPacket((unsigned char*)pszRecvBuf, sHead.nFrameLen, sHead.nFrameType, sHead.nFrameId * 1000LL));
         }
     }
+
+    char cmd[64] = { 0 };
+    sprintf(cmd, "GETFRAME STOP 0");
+    int cmdLen = strlen(cmd);
+    int ret = send(sockets[0], cmd, cmdLen, 0);
+
+    ret = closesocket(connectSocket);
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
