@@ -736,7 +736,7 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     //sprintf(szCmd, "GETFRAME STOP 0");
     int ret;
     for (int i = 0; i < numVideos; i++)
-        ret = send(sockets[0], cmd, cmdLen, 0);
+        ret = send(sockets[i], cmd, cmdLen, 0);
 
     videoOpenSuccess = !failExists;
     if (failExists)

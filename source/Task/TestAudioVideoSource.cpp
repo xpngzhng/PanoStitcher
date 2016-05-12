@@ -77,7 +77,8 @@ int globalFinish = 0;
 ForShowFrameVectorQueue syncedFramesBufferForShow;
 BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
 ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
-FFmpegAudioVideoSource* ptrSource;
+//FFmpegAudioVideoSource* ptrSource;
+JuJingAudioVideoSource* ptrSource;
 
 void ShowThread()
 {
@@ -125,15 +126,23 @@ int main()
     std::vector<avp::Device> ds, vds;
     avp::listDirectShowDevices(ds);
     avp::keepVideoDirectShowDevices(ds, vds);
+    //ptrSource = new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
+    //    &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
+    //ptrSource->open(vds, 1920, 1080, 30);
+    //numVideos = vds.size();
+    //waitTime = 30;
+    //showTiledImages.init(1920, 1080, vds.size());
 
-    ptrSource = new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
+    std::vector<std::string> urls;
+    urls.push_back("192.168.1.205");
+    urls.push_back("192.168.1.206");
+    urls.push_back("192.168.1.207");
+    ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
-
-    ptrSource->open(vds, 1920, 1080, 30);
-
-    numVideos = vds.size();
+    ptrSource->open(urls);
+    numVideos = urls.size();
     waitTime = 30;
-    showTiledImages.init(1920, 1080, vds.size());
+    showTiledImages.init(1920, 1080, urls.size());
 
     std::thread showThread(ShowThread);
     showThread.join();

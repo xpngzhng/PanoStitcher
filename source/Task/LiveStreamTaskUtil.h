@@ -130,8 +130,8 @@ public:
     JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
-        int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
-        FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
+        int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
+        FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
     ~JuJingAudioVideoSource();
     bool open(const std::vector<std::string>& urls);
     void close();
