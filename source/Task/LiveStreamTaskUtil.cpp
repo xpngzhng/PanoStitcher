@@ -853,20 +853,23 @@ void JuJingAudioVideoSource::videoRecieve(int index)
             else if (nRecvLen == 0) 
             {
                 printf("Connection closed\n");
-                closesocket(connectSocket);
-                continue;
+                //closesocket(connectSocket);
+                //continue;
+                break;
             }
             else 
             {
                 printf("recv failed: %d\n", WSAGetLastError());
-                closesocket(connectSocket);
-                continue;
+                //closesocket(connectSocket);
+                //continue;
+                break;
             }
 
             if (0 != strcmp(sHead.MsgFlag, "IPCAMVR")) 
             {
                 printf("invalid data.\n");
-                continue;
+                //continue;
+                break;
             }
 
             // 接收数据体
@@ -880,13 +883,15 @@ void JuJingAudioVideoSource::videoRecieve(int index)
             if (SOCKET_ERROR == nRecvLen) 
             {
                 printf("socket failed\n");
-                closesocket(connectSocket);
-                continue;
+                //closesocket(connectSocket);
+                //continue;
+                break;
             }
             else if (nRecvLen != sHead.nFrameLen) 
             {
                 printf("invalid body.\n");
-                continue;
+                //continue;
+                break;
             }
 
             if (!receiveZeroPts)
@@ -904,7 +909,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
     char cmd[64] = { 0 };
     sprintf(cmd, "GETFRAME STOP 0");
     int cmdLen = strlen(cmd);
-    int ret = send(sockets[0], cmd, cmdLen, 0);
+    int ret = send(sockets[index], cmd, cmdLen, 0);
 
     ret = closesocket(connectSocket);
 
