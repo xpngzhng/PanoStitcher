@@ -909,7 +909,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
     char cmd[64] = { 0 };
     sprintf(cmd, "GETFRAME STOP 0");
     int cmdLen = strlen(cmd);
-    int ret = send(sockets[index], cmd, cmdLen, 0);
+    int ret = send(connectSocket, cmd, cmdLen, 0);
 
     ret = closesocket(connectSocket);
 
