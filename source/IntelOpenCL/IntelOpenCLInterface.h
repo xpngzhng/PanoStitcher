@@ -1,3 +1,5 @@
+#pragma once
+
 #include "IntelOpenCLMat.h"
 #include "oclobject.hpp"
 #include "CL/cl.h"

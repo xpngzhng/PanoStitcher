@@ -143,11 +143,17 @@ class BoundedAlignedMemoryFrameQueue
 public:
     enum { DEFAULT_SIZE = 4, MAX_SIZE = 16 };
 
-    BoundedAlignedMemoryFrameQueue(cl_context context, int size = DEFAULT_SIZE) :
+    BoundedAlignedMemoryFrameQueue(int size = DEFAULT_SIZE) :
         maxCapacity((size < DEFAULT_SIZE || size > MAX_SIZE) ? DEFAULT_SIZE : size),
         currCapacity(0),
-        pass(0), ctx(context)
+        pass(0), ctx(0)
     {}
+
+    // calling any member functions before setContext will cause crash 
+    void setContext(cl_context context)
+    {
+        ctx = context;
+    }
 
     void clear()
     {

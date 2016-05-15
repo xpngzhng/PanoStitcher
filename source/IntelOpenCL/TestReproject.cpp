@@ -25,8 +25,8 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
 int main(int argc, char** argv)
 {
     //cv::Size dstSize = cv::Size(3072, 1536);
-    cv::Size dstSize = cv::Size(2560, 1280);
-    //cv::Size dstSize = cv::Size(2048, 1024);
+    //cv::Size dstSize = cv::Size(2560, 1280);
+    cv::Size dstSize = cv::Size(2048, 1024);
 
     std::vector<std::string> paths;
     //retrievePaths("F:\\panoimage\\beijing\\filelist.txt", paths);

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "opencv2/core.hpp"
 #include "CL/cl.h"
 #include <memory>
@@ -122,6 +124,11 @@ struct IOclMat
         create(rows, cols, type, ctx);
     }
 
+    IOclMat(const cv::Size& size, int type, cl_context ctx)
+    {
+        create(size, type, ctx);
+    }
+
     void clear()
     {
         data = 0;
@@ -184,6 +191,11 @@ struct IOclMat
         simage.reset();
         sampler = 0;
         ssampler.reset();
+    }
+
+    void create(const cv::Size& size_, int type_, cl_context ctx_)
+    {
+        create(size_.height, size_.width, type_, ctx_);
     }
 
     bool bindReadOnlyImageAndSampler()

@@ -1187,3 +1187,168 @@ void CPUPanoramaRender::clear()
     rtQueue.clear();
     cpQueue.clear();
 }
+
+#include "IntelOpenCLInterface.h"
+
+bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
+    const cv::Size& srcSize_, const cv::Size& dstSize_, OpenCLBasic* ocl_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+    ocl = ocl_;
+
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path_, params);
+        else
+            loadPhotoParamFromXML(path_, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, maps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+    xmaps.resize(numImages);
+    ymaps.resize(numImages);
+    cv::Mat map32F;
+    for (int i = 0; i < numImages; i++)
+    {
+        xmaps[i].create(dstSize, CV_32FC1, ocl->context);
+        ymaps[i].create(dstSize, CV_32FC1, ocl->context);
+        cv::Mat arr[] = { xmaps[i].toOpenCVMat(), ymaps[i].toOpenCVMat() };
+        maps[i].convertTo(map32F, CV_32F);
+        cv::split(map32F, arr);
+    }
+    //if (highQualityBlend)
+    //{
+    //}
+    //else
+    {
+        std::vector<cv::Mat> ws;
+        getWeightsLinearBlend32F(masks, 50, ws);
+        weights.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            weights[i].create(dstSize, CV_32FC1, ocl->context);
+            cv::Mat header = weights[i].toOpenCVMat();
+            ws[i].copyTo(header);
+        }
+    }
+
+    pool.init(dstSize.height, dstSize.width, CV_32FC4, ocl->context);
+
+    setZeroKern.reset(new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel"));
+    rprjKern.reset(new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel"));
+
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
+
+    success = 1;
+    return true;
+}
+
+bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int timeStamp)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+            return false;
+        if (src[i].type != CV_8UC4)
+            return false;
+    }
+
+    IOclMat blendImage;
+    if (!pool.get(blendImage))
+        return false;
+
+    //if (!highQualityBlend)
+    {
+        ioclSetZero(blendImage, *ocl, *setZeroKern);
+        for (int i = 0; i < numImages; i++)
+            ioclReprojectAccumulateWeightedTo32F(src[i], blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+    }
+    //else
+    //{
+    //}
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImage, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImage, timeStamp));
+
+    return true;
+}
+
+bool IOclPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<IOclMat, long long int> item;
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
+    if (ret)
+    {
+        cv::Mat header = item.first.toOpenCVMat();
+        header.convertTo(dst, CV_8U);
+        timeStamp = item.second;
+    }
+    return ret;
+}
+
+void IOclPanoramaRender::stop()
+{
+    rtQueue.stop();
+    cpQueue.stop();
+}
+
+void IOclPanoramaRender::resume()
+{
+    rtQueue.resume();
+    cpQueue.resume();
+}
+
+void IOclPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
+void IOclPanoramaRender::clear()
+{
+    xmaps.clear();
+    ymaps.clear();
+    weights.clear();
+    rtQueue.stop();
+    cpQueue.stop();
+    pool.clear();
+    rtQueue.clear();
+    cpQueue.clear();
+}

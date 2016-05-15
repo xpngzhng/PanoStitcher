@@ -6,6 +6,7 @@
 #include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
+#include "oclobject.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
@@ -26,6 +27,8 @@ typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForceWa
 typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
+
+#define COMPILE_CUDA 0
 
 struct PanoramaLiveStreamTask::Impl
 {
@@ -90,7 +93,11 @@ struct PanoramaLiveStreamTask::Impl
     int audioThreadJoined;
     void audioSource();
 
+#if COMPILE_CUDA
     CudaPanoramaRender render;
+#else
+    IOclPanoramaRender render;
+#endif
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -142,16 +149,31 @@ struct PanoramaLiveStreamTask::Impl
     int finish;
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
+#if COMPILE_CUDA
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
+#else
+    BoundedAlignedMemoryFrameQueue syncedFramesBufferForProc;
+#endif
     SharedAudioVideoFramePool procFramePool;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
+
+#if COMPILE_CUDA
+#else
+    OpenCLBasic ocl;
+#endif
 };
 
 PanoramaLiveStreamTask::Impl::Impl()
+#if !COMPILE_CUDA
+    : ocl("Intel", "GPU")
+#endif
 {
     initAll();
     initCallback();
+#if !COMPILE_CUDA
+    syncedFramesBufferForProc.setContext(ocl.context);
+#endif
 }
 
 PanoramaLiveStreamTask::Impl::~Impl()
@@ -433,8 +455,13 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
+#if COMPILE_CUDA
     renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
         videoFrameSize, renderFrameSize);
+#else
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
+        videoFrameSize, renderFrameSize, &ocl);
+#endif
     if (!renderPrepareSuccess)
     {
         printf("Could not prepare for video stitch\n");
@@ -983,10 +1010,16 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
+#if COMPILE_CUDA
     std::vector<cv::cuda::HostMem> mems;
+#else
+    std::vector<IOclMat> mems;
+#endif
     long long int timeStamp;
     std::vector<avp::SharedAudioVideoFrame> frames;
+#if COMPILE_CUDA
     std::vector<cv::Mat> src;
+#endif
     //avp::SharedAudioVideoFrame frame;
     //cv::Mat result;
     bool ok;
@@ -1031,6 +1064,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
                 }
             }
 
+#if COMPILE_CUDA
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
@@ -1038,6 +1072,9 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             //procTimer.start();
             ok = render.render(src, timeStamp);
             //procTimer.end();
+#else
+            ok = render.render(mems, timeStamp);
+#endif
             if (!ok)
             {
                 printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
