@@ -1266,7 +1266,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     return true;
 }
 
-bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int timeStamp)
+bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
 {
     ztool::Timer t, tt;;
     if (!success)
@@ -1279,7 +1279,7 @@ bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int t
     {
         if (src[i].size() != srcSize)
             return false;
-        if (src[i].type != CV_8UC4)
+        if (src[i].type() != CV_8UC4)
             return false;
     }
 
@@ -1292,7 +1292,10 @@ bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int t
         tt.start();
         ioclSetZero(blendImage, *ocl, *setZeroKern);
         for (int i = 0; i < numImages; i++)
-            ioclReprojectAccumulateWeightedTo32F(src[i], blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+        {
+            IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, ocl->context);
+            ioclReprojectAccumulateWeightedTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+        }            
         tt.end();
     }
     //else

@@ -4,7 +4,7 @@
 #include "CL/cl.h"
 #include <memory>
 
-const int ptrAlignSize = 4096;
+const int ptrAlignSize = 128;
 const int stepAlignSize = 128;
 
 struct IntelOclMat
@@ -115,8 +115,6 @@ struct IOclMat
 
         ctx = 0;
         mem = 0;
-        image = 0;
-        sampler = 0;
     }
 
     IOclMat(int rows, int cols, int type, cl_context ctx)
@@ -127,6 +125,16 @@ struct IOclMat
     IOclMat(const cv::Size& size, int type, cl_context ctx)
     {
         create(size, type, ctx);
+    }
+
+    IOclMat(int rows, int cols, int type, unsigned char* data, int step, cl_context ctx)
+    {
+        create(rows, cols, type, data, step, ctx);
+    }
+
+    IOclMat(const cv::Size& size, int type, unsigned char* data, int step, cl_context ctx)
+    {
+        create(size, type, data, step, ctx);
     }
 
     void clear()
@@ -141,10 +149,6 @@ struct IOclMat
         ctx = 0;
         mem = 0;
         smem.reset();
-        image = 0; 
-        simage.reset();
-        sampler = 0;
-        ssampler = 0;
     }
 
     void create(int rows_, int cols_, int type_, cl_context ctx_)
@@ -183,14 +187,8 @@ struct IOclMat
             if (err)
             {
                 clear();
-            }                
+            }
         }
-
-        // If memory reallocated, or context changed, image and sampler are invalidated
-        image = 0;
-        simage.reset();
-        sampler = 0;
-        ssampler.reset();
     }
 
     void create(const cv::Size& size_, int type_, cl_context ctx_)
@@ -198,41 +196,29 @@ struct IOclMat
         create(size_.height, size_.width, type_, ctx_);
     }
 
-    bool bindReadOnlyImageAndSampler()
+    void create(int rows_, int cols_, int type_, unsigned char* data_, int step_, cl_context ctx_)
     {
-        simage.reset();
-        ssampler.reset();
-        image = 0;
-        sampler = 0;
-        if (type == CV_8UC4)
-        {
-            int err = 0;
+        clear();
 
-            cl_image_format clImageFormat;
-            clImageFormat.image_channel_order = CL_RGBA;
-            clImageFormat.image_channel_data_type = CL_UNSIGNED_INT8;
-            image = clCreateImage2D(ctx, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, &clImageFormat,
-                cols, rows, step, data, &err);
-            if (err)
-            {
-                image = 0;
-                return false;
-            }                
-            simage.reset(image, clReleaseMemObject);
+        if (rows_ <= 0 || cols_ <= 0 || !ctx_)
+            return;
 
-            sampler = clCreateSampler(ctx, CL_FALSE, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
-            if (err)
-            {
-                image = 0;
-                simage.reset();
-                sampler = 0;
-                return false;
-            }
-            ssampler.reset(sampler, clReleaseSampler);
+        rows = rows_;
+        cols = cols_;
+        step = step_;
+        type = type_ & CV_MAT_TYPE_MASK;
+        data = data_;
+        ctx = ctx_;
+        int err = 0;
+        mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, rows * step, data, &err);
+        smem.reset(mem, clReleaseMemObject);
+        if (err)
+            clear();
+    }
 
-            return true;
-        }
-        return false;
+    void create(const cv::Size& size_, int type_, unsigned char* data_, int step_, cl_context ctx_)
+    {
+        create(size_.height, size_.width, type_, data_, step_, ctx_);
     }
 
     cv::Mat toOpenCVMat() const
@@ -289,8 +275,4 @@ struct IOclMat
     cl_context ctx;
     cl_mem mem;
     std::shared_ptr<_cl_mem> smem;
-    cl_mem image;
-    std::shared_ptr<_cl_mem> simage;
-    cl_sampler sampler;
-    std::shared_ptr<_cl_sampler> ssampler;
 };

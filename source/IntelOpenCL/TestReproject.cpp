@@ -100,8 +100,6 @@ int main(int argc, char** argv)
         xmaps32F[i].copyTo(xmapMatWrapper);
         ymaps32F[i].copyTo(ymapMatWrapper);
 
-        srcMats[i].bindReadOnlyImageAndSampler();
-
         cv::Mat weightWrapper(weightMats[i].rows, weightMats[i].cols, weightMats[i].type, weightMats[i].data, weightMats[i].step);
         weights[i].copyTo(weightWrapper);
     }
@@ -127,7 +125,7 @@ int main(int argc, char** argv)
     {
         printf("%s\n", e.what());
     }
-    return 0;
+    //return 0;
 
     int width = dstSize.width;
     int height = dstSize.height;

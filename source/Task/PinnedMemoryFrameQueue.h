@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Timer.h"
 #include "AudioVideoProcessor.h"
 #include "opencv2/core/cuda.hpp"
 #include <vector>
@@ -74,10 +75,6 @@ public:
             }
             mem.timeStamp = frames[0].timeStamp;
             mem.waiting = 1;
-
-            //for (std::list<int>::const_iterator itr = indexes.cbegin(), itrEnd = indexes.cend(); itr != itrEnd; ++itr)
-            //    printf("%lld ", pool[*itr].timeStamp);
-            //printf("\n");
         }
 
         cvNonEmpty.notify_one();
@@ -200,6 +197,7 @@ public:
             StampedAlignedMemory& mem = pool[availIndex];
             int num = frames.size();
             mem.buffer.resize(num);
+            ztool::Timer t;
             for (int i = 0; i < num; i++)
             {
                 mem.buffer[i].create(frames[i].height, frames[i].width, CV_8UC4, ctx);
@@ -207,12 +205,10 @@ public:
                 cv::Mat dst = mem.buffer[i].toOpenCVMat();
                 src.copyTo(dst);
             }
+            t.end();
+            printf("copy time = %f\n", t.elapse());
             mem.timeStamp = frames[0].timeStamp;
             mem.waiting = 1;
-
-            //for (std::list<int>::const_iterator itr = indexes.cbegin(), itrEnd = indexes.cend(); itr != itrEnd; ++itr)
-            //    printf("%lld ", pool[*itr].timeStamp);
-            //printf("\n");
         }
 
         cvNonEmpty.notify_one();

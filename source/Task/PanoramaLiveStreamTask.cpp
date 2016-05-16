@@ -152,7 +152,8 @@ struct PanoramaLiveStreamTask::Impl
 #if COMPILE_CUDA
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
 #else
-    BoundedAlignedMemoryFrameQueue syncedFramesBufferForProc;
+    //BoundedAlignedMemoryFrameQueue syncedFramesBufferForProc;
+    ForShowFrameVectorQueue syncedFramesBufferForProc;
 #endif
     SharedAudioVideoFramePool procFramePool;
     ForShowFrameQueue procFrameBufferForShow;
@@ -172,7 +173,7 @@ PanoramaLiveStreamTask::Impl::Impl()
     initAll();
     initCallback();
 #if !COMPILE_CUDA
-    syncedFramesBufferForProc.setContext(ocl.context);
+    //syncedFramesBufferForProc.setContext(ocl.context);
 #endif
 }
 
@@ -519,7 +520,11 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
     if (renderPrepareSuccess && !renderThreadJoined)
     {
         renderEndFlag = 1;
+#if COMPILE_CUDA
         syncedFramesBufferForProc.stop();
+#else
+        //syncedFramesBufferForProc.stop();
+#endif
         renderThread->join();
         renderThread.reset(0);
         render.clear();
@@ -999,7 +1004,11 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     }
 
     //syncedFramesBufferForShow.stop();
+#if COMPILE_CUDA
     syncedFramesBufferForProc.stop();
+#else
+    //syncedFramesBufferForProc.stop();
+#endif
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -1019,6 +1028,8 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     std::vector<avp::SharedAudioVideoFrame> frames;
 #if COMPILE_CUDA
     std::vector<cv::Mat> src;
+#else
+    std::vector<cv::Mat> src;
 #endif
     //avp::SharedAudioVideoFrame frame;
     //cv::Mat result;
@@ -1032,15 +1043,27 @@ void PanoramaLiveStreamTask::Impl::procVideo()
         if (finish || renderEndFlag)
             break;
         //printf("show\n");
+#if COMPILE_CUDA
         if (!syncedFramesBufferForProc.pull(mems, timeStamp))
         {
             //std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
+#else
+        if (!syncedFramesBufferForProc.pull(frames))
+        {
+            continue;
+        }
+#endif
         //printf("ts %lld\n", timeStamp);
         //printf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
+#if COMPILE_CUDA
         if (mems.size() == numVideos)
+#else
+        //if (mems.size() == numVideos)
+        if (frames.size() == numVideos)
+#endif
         {
             //ztool::Timer localTimer, procTimer;
             if (count < 0)
@@ -1074,8 +1097,11 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             ok = render.render(src, timeStamp);
             //procTimer.end();
 #else
+            src.resize(numVideos);
+            for (int i = 0; i < numVideos; i++)
+                src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data, frames[i].step);
             procTimer.start();
-            ok = render.render(mems, timeStamp);
+            ok = render.render(src, frames[0].timeStamp);
             procTimer.end();
 #endif
             if (!ok)

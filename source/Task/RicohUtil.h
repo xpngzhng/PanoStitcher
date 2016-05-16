@@ -222,7 +222,7 @@ public:
     ~IOclPanoramaRender() { clear(); };
     bool prepare(const std::string& path, int highQualityBlend, int completeQueue,
         const cv::Size& srcSize, const cv::Size& dstSize, OpenCLBasic* ocl);
-    bool render(const std::vector<IOclMat>& src, long long int timeStamp);
+    bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
     bool getResult(cv::Mat& dst, long long int& timeStamp);
     void stop();
     void resume();
