@@ -10,14 +10,14 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
     dst.create(xmap.rows, ymap.cols, CV_8UC4, ocl.context);
 
     cl_int err = CL_SUCCESS;
-    
-    err = clSetKernelArg(executable.kernel, 0, sizeof(cl_mem), (void *)&src.image);
+
+    err = clSetKernelArg(executable.kernel, 0, sizeof(cl_mem), (void *)&src.mem);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 1, sizeof(cl_sampler), (void *)&src.sampler);
+    err = clSetKernelArg(executable.kernel, 1, sizeof(int), &src.cols);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 2, sizeof(int), &src.cols);
+    err = clSetKernelArg(executable.kernel, 2, sizeof(int), &src.rows);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 3, sizeof(int), &src.rows);
+    err = clSetKernelArg(executable.kernel, 3, sizeof(int), (void *)&src.step);
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(executable.kernel, 4, sizeof(cl_mem), (void *)&dst.mem);
     SAMPLE_CHECK_ERRORS(err);
@@ -57,13 +57,13 @@ void ioclReprojectAccumulateWeightedTo32F(const IOclMat& src, IOclMat& dst, cons
 
     cl_int err = CL_SUCCESS;
 
-    err = clSetKernelArg(executable.kernel, 0, sizeof(cl_mem), (void *)&src.image);
+    err = clSetKernelArg(executable.kernel, 0, sizeof(cl_mem), (void *)&src.mem);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 1, sizeof(cl_sampler), (void *)&src.sampler);
+    err = clSetKernelArg(executable.kernel, 1, sizeof(int), &src.cols);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 2, sizeof(int), &src.cols);
+    err = clSetKernelArg(executable.kernel, 2, sizeof(int), &src.rows);
     SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(executable.kernel, 3, sizeof(int), &src.rows);
+    err = clSetKernelArg(executable.kernel, 3, sizeof(int), &src.step);
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(executable.kernel, 4, sizeof(cl_mem), (void *)&dst.mem);
     SAMPLE_CHECK_ERRORS(err);

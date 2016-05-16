@@ -1028,6 +1028,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     ztool::Timer timer;
     while (true)
     {
+        ztool::Timer localTimer, procTimer;
         if (finish || renderEndFlag)
             break;
         //printf("show\n");
@@ -1041,7 +1042,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
         // NOTICE: it would be better to check frames's pixelType and other properties.
         if (mems.size() == numVideos)
         {
-            ztool::Timer localTimer, procTimer;
+            //ztool::Timer localTimer, procTimer;
             if (count < 0)
             {
                 count = 0;
@@ -1073,7 +1074,9 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             ok = render.render(src, timeStamp);
             //procTimer.end();
 #else
+            procTimer.start();
             ok = render.render(mems, timeStamp);
+            procTimer.end();
 #endif
             if (!ok)
             {

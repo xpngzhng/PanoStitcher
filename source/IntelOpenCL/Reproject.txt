@@ -2,7 +2,7 @@ __constant int BILINEAR_INTER_SHIFT = 10;
 __constant int BILINEAR_INTER_BACK_SHIFT = BILINEAR_INTER_SHIFT * 2;
 __constant int BILINEAR_UNIT = 1 << BILINEAR_INTER_SHIFT;
 
-__kernel void reprojectLinearKernel(__read_only image2d_t srcImage, sampler_t srcSampler, int srcWidth, int srcHeight,
+__kernel void reprojectLinearKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
     __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
     __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep)
 {
@@ -24,27 +24,27 @@ __kernel void reprojectLinearKernel(__read_only image2d_t srcImage, sampler_t sr
         int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
         int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
         int b = 0, g = 0, r = 0, w = 0;
-        uint4 val;
+        uchar4 val;
         
-        val = read_imageui(srcImage, srcSampler, (int2)(x0, y0));
+        val = *((__global const uchar4*)(srcData + srcStep * y0) + x0);
         w = deltax1 * deltay1;
         b += val.x * w;
         g += val.y * w;
         r += val.z * w;
         
-        val = read_imageui(srcImage, srcSampler, (int2)(x1, y0));
+        val = *((__global const uchar4*)(srcData + srcStep * y0) + x1);
         w = deltax0 * deltay1;
         b += val.x * w;
         g += val.y * w;
         r += val.z * w;
 
-        val = read_imageui(srcImage, srcSampler, (int2)(x0, y1));
+        val = *((__global const uchar4*)(srcData + srcStep * y1) + x0);
         w = deltax1 * deltay0;
         b += val.x * w;
         g += val.y * w;
         r += val.z * w;
 
-        val = read_imageui(srcImage, srcSampler, (int2)(x1, y1));
+        val = *((__global const uchar4*)(srcData + srcStep * y1) + x1);
         w = deltax0 * deltay0;
         b += val.x * w;
         g += val.y * w;
@@ -57,62 +57,7 @@ __kernel void reprojectLinearKernel(__read_only image2d_t srcImage, sampler_t sr
     }
 }
 
-void reprojectLinearLocal(__read_only image2d_t srcImage, sampler_t srcSampler, int srcWidth, int srcHeight,
-    unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
-    __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep)
-{
-    int dstx = get_global_id(0);
-    int dsty = get_global_id(1);
-    if (dstx >= dstWidth || dsty >= dstHeight)
-        return;
-
-    float srcx = *((__global const float*)(xmapData + dsty * xmapStep) + dstx);
-    float srcy = *((__global const float*)(ymapData + dsty * ymapStep) + dstx);
-
-    __global unsigned char* ptrDst = (__global unsigned char*)(dstData + dsty * dstStep) + dstx * 4;
-    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
-        ptrDst[3] = ptrDst[2] = ptrDst[1] = ptrDst[0] = 0;
-    else
-    {
-        int x0 = srcx, y0 = srcy;
-        int x1 = x0 + (x0 < srcWidth - 1), y1 = y0 + (y0 < srcHeight - 1);
-        int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
-        int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
-        int b = 0, g = 0, r = 0, w = 0;
-        uint4 val;
-        
-        val = read_imageui(srcImage, srcSampler, (int2)(x0, y0));
-        w = deltax1 * deltay1;
-        b += val.x * w;
-        g += val.y * w;
-        r += val.z * w;
-        
-        val = read_imageui(srcImage, srcSampler, (int2)(x1, y0));
-        w = deltax0 * deltay1;
-        b += val.x * w;
-        g += val.y * w;
-        r += val.z * w;
-
-        val = read_imageui(srcImage, srcSampler, (int2)(x0, y1));
-        w = deltax1 * deltay0;
-        b += val.x * w;
-        g += val.y * w;
-        r += val.z * w;
-
-        val = read_imageui(srcImage, srcSampler, (int2)(x1, y1));
-        w = deltax0 * deltay0;
-        b += val.x * w;
-        g += val.y * w;
-        r += val.z * w;
-
-        ptrDst[0] = b >> BILINEAR_INTER_BACK_SHIFT;
-        ptrDst[1] = g >> BILINEAR_INTER_BACK_SHIFT;
-        ptrDst[2] = r >> BILINEAR_INTER_BACK_SHIFT;
-        ptrDst[3] = 0;
-    }
-}
-
-void reprojectLinearLocal1(__read_only image2d_t srcImage, sampler_t srcSampler, int srcWidth, int srcHeight,
+void reprojectLinearLocal(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
     float srcx, float srcy, unsigned char* result)
 {
     int x0 = srcx, y0 = srcy;
@@ -120,27 +65,27 @@ void reprojectLinearLocal1(__read_only image2d_t srcImage, sampler_t srcSampler,
     int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
     int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
     int b = 0, g = 0, r = 0, w = 0;
-    uint4 val;
+    uchar4 val;
         
-    val = read_imageui(srcImage, srcSampler, (int2)(x0, y0));
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x0);
     w = deltax1 * deltay1;
     b += val.x * w;
     g += val.y * w;
     r += val.z * w;
         
-    val = read_imageui(srcImage, srcSampler, (int2)(x1, y0));
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x1);
     w = deltax0 * deltay1;
     b += val.x * w;
     g += val.y * w;
     r += val.z * w;
 
-    val = read_imageui(srcImage, srcSampler, (int2)(x0, y1));
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x0);
     w = deltax1 * deltay0;
     b += val.x * w;
     g += val.y * w;
     r += val.z * w;
 
-    val = read_imageui(srcImage, srcSampler, (int2)(x1, y1));
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x1);
     w = deltax0 * deltay0;
     b += val.x * w;
     g += val.y * w;
@@ -168,7 +113,7 @@ inline void calcWeight(float deta, float weight[4])
 	weight[0] = (-deta * (1.0F + deta * (-2.0F + deta))) ;  
 }
 
-void resamplingGlobal(__read_only image2d_t image, sampler_t sampler, int width, int height, float x, float y, __global unsigned char* result) 
+void resamplingGlobal(__global const unsigned char* data, int width, int height, int step, float x, float y, __global unsigned char* result) 
 {
 	int x2 = (int)x;
 	int y2 = (int)y;
@@ -192,11 +137,11 @@ void resamplingGlobal(__read_only image2d_t image, sampler_t sampler, int width,
 	calcWeight(u, tweight1);//weight
 	calcWeight(v, tweight2);//weight
 
-    uint4 val[4][4];
+    uchar4 val[4][4];
     for (int j = 0; j < 4; j++)
     {
         for (int i = 0; i < 4; i++)
-            val[j][i] = read_imageui(image, sampler, (int2)(nx[i], ny[j]));
+            val[j][i] = *((__global uchar4*)(data + ny[j] * step) + nx[i]);
     }
     uint temp0[4], temp1[4];
     for (int j = 0; j < 4; j++)
@@ -235,7 +180,7 @@ void resamplingGlobal(__read_only image2d_t image, sampler_t sampler, int width,
     result[3] = 0;
 }
 
-void resamplingLocal(__read_only image2d_t image, sampler_t sampler, int width, int height, float x, float y, unsigned char* result) 
+void resamplingLocal(__global const unsigned char* data, int width, int height, int step, float x, float y, unsigned char* result) 
 {
 	int x2 = (int)x;
 	int y2 = (int)y;
@@ -259,11 +204,11 @@ void resamplingLocal(__read_only image2d_t image, sampler_t sampler, int width, 
 	calcWeight(u, tweight1);//weight
 	calcWeight(v, tweight2);//weight
 
-    uint4 val[4][4];
+    uchar4 val[4][4];
     for (int j = 0; j < 4; j++)
     {
         for (int i = 0; i < 4; i++)
-            val[j][i] = read_imageui(image, sampler, (int2)(nx[i], ny[j]));
+            val[j][i] = *((uchar4*)(data + ny[j] * step) + nx[i]);
     }
     uint temp0[4], temp1[4];
     for (int j = 0; j < 4; j++)
@@ -302,7 +247,7 @@ void resamplingLocal(__read_only image2d_t image, sampler_t sampler, int width, 
     result[3] = 0;
 }
 
-__kernel void reprojectCubicKernel(__read_only image2d_t srcImage, sampler_t srcSampler, int srcWidth, int srcHeight,
+__kernel void reprojectCubicKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
     __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
     __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep)
 {
@@ -318,10 +263,10 @@ __kernel void reprojectCubicKernel(__read_only image2d_t srcImage, sampler_t src
     if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
         ptrDst[3] = ptrDst[2] = ptrDst[1] = ptrDst[0] = 0;
     else
-        resamplingGlobal(srcImage, srcSampler, srcWidth, srcHeight, srcx, srcy, ptrDst);
+        resamplingGlobal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, ptrDst);
 }
 
-__kernel void reprojectWeighedAccumulateTo32FKernel(__read_only image2d_t srcImage, sampler_t srcSampler, int srcWidth, int srcHeight,
+__kernel void reprojectWeighedAccumulateTo32FKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
     __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
     __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep,
     __global const unsigned char* weightData, int weightStep)
@@ -339,8 +284,8 @@ __kernel void reprojectWeighedAccumulateTo32FKernel(__read_only image2d_t srcIma
     else
     {        
         unsigned char temp[4];
-        reprojectLinearLocal1(srcImage, srcSampler, srcWidth, srcHeight, srcx, srcy, temp);
-        //resamplingLocal(srcImage, srcSampler, srcWidth, srcHeight, srcx, srcy, temp);
+        reprojectLinearLocal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, temp);
+        //resamplingLocal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, temp);
         float w = *((__global const float*)(weightData + dsty * weightStep) + dstx);
         __global float* ptrDst = (__global float*)(dstData + dsty * dstStep) + dstx * 4;
         ptrDst[0] += temp[0] * w;

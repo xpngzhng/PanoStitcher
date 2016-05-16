@@ -1,3 +1,4 @@
+#include "Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
@@ -1267,6 +1268,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
 bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int timeStamp)
 {
+    ztool::Timer t, tt;;
     if (!success)
         return false;
 
@@ -1287,9 +1289,11 @@ bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int t
 
     //if (!highQualityBlend)
     {
+        tt.start();
         ioclSetZero(blendImage, *ocl, *setZeroKern);
         for (int i = 0; i < numImages; i++)
             ioclReprojectAccumulateWeightedTo32F(src[i], blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+        tt.end();
     }
     //else
     //{
@@ -1299,6 +1303,8 @@ bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, long long int t
     else
         rtQueue.push(std::make_pair(blendImage, timeStamp));
 
+    t.end();
+    //printf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
     return true;
 }
 

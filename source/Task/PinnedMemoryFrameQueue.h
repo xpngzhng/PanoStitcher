@@ -206,7 +206,6 @@ public:
                 cv::Mat src(frames[i].height, frames[i].width, CV_8UC4, frames[i].data, frames[i].step);
                 cv::Mat dst = mem.buffer[i].toOpenCVMat();
                 src.copyTo(dst);
-                mem.buffer[i].bindReadOnlyImageAndSampler();
             }
             mem.timeStamp = frames[0].timeStamp;
             mem.waiting = 1;

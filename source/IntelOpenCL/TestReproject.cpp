@@ -84,10 +84,6 @@ int main(int argc, char** argv)
     // Create the necessary OpenCL objects up to device queue.
     OpenCLBasic oclobjects("Intel", "GPU");
 
-    cl_image_format clImageFormat;
-    clImageFormat.image_channel_order = CL_RGBA;
-    clImageFormat.image_channel_data_type = CL_UNSIGNED_INT8;
-
     std::vector<IOclMat> srcMats(numImages);
     std::vector<IOclMat> xmapMats(numImages), ymapMats(numImages), weightMats(numImages);
     for (int i = 0; i < numImages; i++)
@@ -115,6 +111,23 @@ int main(int argc, char** argv)
 
     IOclMat dstMat;
     dstMat.create(dstSize.height, dstSize.width, CV_8UC4, oclobjects.context);
+
+    try
+    {
+        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectLinearKernel");
+        for (int i = 0; i < numImages; i++)
+        {
+            ioclReproject(srcMats[i], dstMat, xmapMats[i], ymapMats[i], oclobjects, rprjKern);
+            cv::Mat head = dstMat.toOpenCVMat();
+            cv::imshow("rprj", head);
+            cv::waitKey(0);
+        }
+    }
+    catch (std::exception& e)
+    {
+        printf("%s\n", e.what());
+    }
+    return 0;
 
     int width = dstSize.width;
     int height = dstSize.height;
