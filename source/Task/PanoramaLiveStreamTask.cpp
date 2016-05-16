@@ -152,7 +152,6 @@ struct PanoramaLiveStreamTask::Impl
 #if COMPILE_CUDA
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
 #else
-    //BoundedAlignedMemoryFrameQueue syncedFramesBufferForProc;
     ForShowFrameVectorQueue syncedFramesBufferForProc;
 #endif
     SharedAudioVideoFramePool procFramePool;
@@ -172,9 +171,6 @@ PanoramaLiveStreamTask::Impl::Impl()
 {
     initAll();
     initCallback();
-#if !COMPILE_CUDA
-    //syncedFramesBufferForProc.setContext(ocl.context);
-#endif
 }
 
 PanoramaLiveStreamTask::Impl::~Impl()
@@ -522,8 +518,6 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
         renderEndFlag = 1;
 #if COMPILE_CUDA
         syncedFramesBufferForProc.stop();
-#else
-        //syncedFramesBufferForProc.stop();
 #endif
         renderThread->join();
         renderThread.reset(0);
@@ -1006,8 +1000,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     //syncedFramesBufferForShow.stop();
 #if COMPILE_CUDA
     syncedFramesBufferForProc.stop();
-#else
-    //syncedFramesBufferForProc.stop();
 #endif
 
 END:
@@ -1021,18 +1013,11 @@ void PanoramaLiveStreamTask::Impl::procVideo()
 
 #if COMPILE_CUDA
     std::vector<cv::cuda::HostMem> mems;
-#else
-    std::vector<IOclMat> mems;
-#endif
     long long int timeStamp;
-    std::vector<avp::SharedAudioVideoFrame> frames;
-#if COMPILE_CUDA
-    std::vector<cv::Mat> src;
 #else
-    std::vector<cv::Mat> src;
+    std::vector<avp::SharedAudioVideoFrame> frames;
 #endif
-    //avp::SharedAudioVideoFrame frame;
-    //cv::Mat result;
+    std::vector<cv::Mat> src;
     bool ok;
     int roundedFrameRate = videoFrameRate + 0.5;
     int count = -1;
@@ -1061,7 +1046,6 @@ void PanoramaLiveStreamTask::Impl::procVideo()
 #if COMPILE_CUDA
         if (mems.size() == numVideos)
 #else
-        //if (mems.size() == numVideos)
         if (frames.size() == numVideos)
 #endif
         {
@@ -1092,7 +1076,6 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
-
             //procTimer.start();
             ok = render.render(src, timeStamp);
             //procTimer.end();
