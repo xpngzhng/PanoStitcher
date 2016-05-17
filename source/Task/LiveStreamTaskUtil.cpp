@@ -30,7 +30,17 @@ void AudioVideoSource::setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferFor
     forCuda = forCuda_;
 }
 
-bool AudioVideoSource::isRunning()
+bool AudioVideoSource::isVideoOpened() const
+{
+    return videoOpenSuccess != 0;
+}
+
+bool AudioVideoSource::isAudioOpened() const
+{
+    return audioOpenSuccess != 0;
+}
+
+bool AudioVideoSource::isRunning() const
 {
     return running != 0;
 }
@@ -524,6 +534,46 @@ void FFmpegAudioVideoSource::close()
     running = 0;
 }
 
+int FFmpegAudioVideoSource::getNumVideos() const
+{
+    return videoOpenSuccess ? numVideos : 0;
+}
+
+int FFmpegAudioVideoSource::getVideoFrameWidth() const
+{
+    return videoOpenSuccess ? videoFrameSize.width : 0;
+}
+
+int FFmpegAudioVideoSource::getVideoFrameHeight() const
+{
+    return videoOpenSuccess ? videoFrameSize.height : 0;
+}
+
+double FFmpegAudioVideoSource::getVideoFrameRate() const
+{
+    return videoOpenSuccess ? videoFrameRate : 0;
+}
+
+int FFmpegAudioVideoSource::getAudioSampleRate() const
+{
+    return audioOpenSuccess ? audioSampleRate : 0;
+}
+
+int FFmpegAudioVideoSource::getAudioSampleType() const
+{
+    return audioOpenSuccess ? audioReader.getAudioSampleType() : 0;
+}
+
+int FFmpegAudioVideoSource::getAudioNumChannels() const
+{
+    return audioOpenSuccess ? audioReader.getAudioNumChannels() : 0;
+}
+
+int FFmpegAudioVideoSource::getAudioChannelLayout() const
+{
+    return audioOpenSuccess ? audioReader.getAudioChannelLayout() : 0;
+}
+
 inline void stopCompleteFrameBuffers(std::vector<ForceWaitFrameQueue>* ptrFrameBuffers)
 {
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
@@ -587,6 +637,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
             //buffer.stop();
             stopCompleteFrameBuffers(ptrFrameBuffers.get());
             finish = 1;
+            *ptrFinish = 1;
             break;
         }
     }
@@ -796,6 +847,8 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     if (logCallbackFunc)
         logCallbackFunc("Video sources related threads create success\n", logCallbackData);
 
+    audioOpenSuccess = 0;
+
     return true;
 }
 
@@ -822,6 +875,46 @@ void JuJingAudioVideoSource::close()
             logCallbackFunc("Video sources close success", logCallbackData);
         }
     }
+}
+
+int JuJingAudioVideoSource::getNumVideos() const
+{
+    return videoOpenSuccess ? numVideos : 0;
+}
+
+int JuJingAudioVideoSource::getVideoFrameWidth() const
+{
+    return videoOpenSuccess ? videoFrameSize.width : 0;
+}
+
+int JuJingAudioVideoSource::getVideoFrameHeight() const
+{
+    return videoOpenSuccess ? videoFrameSize.height : 0;
+}
+
+double JuJingAudioVideoSource::getVideoFrameRate() const
+{
+    return videoOpenSuccess ? videoFrameRate : 0;
+}
+
+int JuJingAudioVideoSource::getAudioSampleRate() const
+{
+    return 0;
+}
+
+int JuJingAudioVideoSource::getAudioSampleType() const
+{
+    return 0;
+}
+
+int JuJingAudioVideoSource::getAudioNumChannels() const
+{
+    return 0;
+}
+
+int JuJingAudioVideoSource::getAudioChannelLayout() const
+{
+    return 0;
 }
 
 void JuJingAudioVideoSource::videoRecieve(int index)
@@ -963,6 +1056,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
     }
     delete decoder;
 
+    *ptrFinish = 1;
     stopCompleteFrameBuffers(ptrFrameBuffers.get());
 
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);

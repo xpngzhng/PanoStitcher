@@ -175,8 +175,9 @@ public:
     ~PanoramaLiveStreamTask2();
 
     bool openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate, 
-        bool openAudio, const avp::Device& device, int sampleRate);
-    bool openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url);
+        bool openAudio = false, const avp::Device& device = avp::Device(), int sampleRate = 0);
+    bool openAudioVideoSources(const std::vector<std::string>& urls, 
+        bool openAudio = false, const std::string& url = std::string());
     void closeAudioVideoSources();
 
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
@@ -203,6 +204,12 @@ public:
     void initAll();
     void closeAll();
     bool hasFinished() const;
+
+    int getNumVideos() const;
+    int getVideoWidth() const;
+    int getVideoHeight() const;
+    double getVideoFrameRate() const;
+    int getAudioSampleRate() const;
 
 private:
     struct Impl;

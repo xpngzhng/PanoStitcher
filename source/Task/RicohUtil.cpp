@@ -940,14 +940,32 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
         return false;
 
     if (src.size() != numImages)
+    {
+        printf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
+    }        
 
     for (int i = 0; i < numImages; i++)
     {
         if (src[i].size() != srcSize)
+        {
+            printf("Error in %s, src[%d] size (%d, %d), not equal, data = %p\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height, src[i].data);
+
+            for (int j = 0; j < numImages; j++)
+            {
+                printf("(%d, %d) %p, ", src[j].size().width, src[j].size().height, src[j].data);
+            }
+            printf("\n");
             return false;
+        }
+            
         if (src[i].type() != CV_8UC4)
+        {
+            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
+        }
+            
     }
 
     cv::cuda::HostMem blendImageMem;

@@ -29,7 +29,18 @@ public:
     AudioVideoSource();
     virtual ~AudioVideoSource();
     
-    bool isRunning();
+    bool isVideoOpened() const;
+    bool isAudioOpened() const;
+    bool isRunning() const;
+
+    virtual int getNumVideos() const = 0;
+    virtual int getVideoFrameWidth() const = 0;
+    virtual int  getVideoFrameHeight() const = 0;
+    virtual double getVideoFrameRate() const = 0;
+    virtual int getAudioSampleRate() const = 0;
+    virtual int getAudioSampleType() const = 0;
+    virtual int getAudioNumChannels() const = 0;
+    virtual int getAudioChannelLayout() const = 0;
     virtual void close() = 0;
 
 protected:
@@ -86,6 +97,15 @@ public:
     bool open(const std::vector<std::string>& urls, bool openAudio = false, const std::string& url = "");
     void close();
 
+    int getNumVideos() const;
+    int getVideoFrameWidth() const;
+    int  getVideoFrameHeight() const;
+    double getVideoFrameRate() const;
+    int getAudioSampleRate() const;
+    int getAudioSampleType() const;
+    int getAudioNumChannels() const;
+    int getAudioChannelLayout() const;
+
 private:
     std::vector<avp::AudioVideoReader> videoReaders;
     std::vector<avp::Device> videoDevices;
@@ -136,6 +156,15 @@ public:
     ~JuJingAudioVideoSource();
     bool open(const std::vector<std::string>& urls);
     void close();
+
+    int getNumVideos() const;
+    int getVideoFrameWidth() const;
+    int  getVideoFrameHeight() const;
+    double getVideoFrameRate() const;
+    int getAudioSampleRate() const;
+    int getAudioSampleType() const;
+    int getAudioNumChannels() const;
+    int getAudioChannelLayout() const;
 
 private:
     std::vector<SOCKET> sockets;

@@ -33,6 +33,7 @@
     <ClCompile Include="..\..\source\Task\Image.cpp" />
     <ClCompile Include="..\..\source\Task\LiveStreamTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask.cpp" />
+    <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask2.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLocalDiskTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />

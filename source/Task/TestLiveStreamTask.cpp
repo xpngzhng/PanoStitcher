@@ -157,7 +157,10 @@ void showVideoSources()
     while (true)
     {
         if (task.hasFinished())
+        {
+            printf("%s break\n", __FUNCTION__);
             break;
+        }
         task.getVideoSourceFrames(frames);
         if (frames.size() == numCameras)
         {
@@ -188,7 +191,10 @@ void showVideoResult()
     while (true)
     {
         if (task.hasFinished())
+        {
+            printf("%s break\n", __FUNCTION__);
             break;
+        }            
         task.getStitchedVideoFrame(frame);
         if (frame.data)
         {
