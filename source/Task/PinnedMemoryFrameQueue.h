@@ -35,30 +35,6 @@ public:
         {
             std::lock_guard<std::mutex> lock(mtxBuffer);
 
-            int numFrames = frames.size();
-            if (numFrames == 0)
-            {
-                printf("In %s, num frames = 0\n", __FUNCTION__);
-            }
-            bool except = false;
-            for (int i = 0; i < numFrames; i++)
-            {
-                if (!frames[i].data || !frames[i].width || !frames[i].height)
-                {
-                    except = true;
-                    break;
-                }
-            }
-            if (except)
-            {
-                printf("In %s, ", __FUNCTION__);
-                for (int i = 0; i < numFrames; i++)
-                {
-                    printf("(%d, %d), %p, ", frames[i].width, frames[i].height, frames[i].data);
-                }
-                printf("\n");
-            }
-
             // First check whether pool has available memory
             int poolSize = pool.size();
             int availIndex = -1;
