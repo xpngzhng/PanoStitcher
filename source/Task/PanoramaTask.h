@@ -77,7 +77,7 @@ public:
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
-        ProgressCallbackFunction func, void* data) = 0;
+        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data) = 0;
     virtual bool start() = 0;
     virtual void waitForCompletion() = 0;
     virtual int getProgress() const = 0;
@@ -92,7 +92,7 @@ public:
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -110,7 +110,7 @@ public:
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;

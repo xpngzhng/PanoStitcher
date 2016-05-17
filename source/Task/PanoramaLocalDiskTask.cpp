@@ -16,7 +16,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -63,7 +63,7 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
-    ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
 {
     clear();
 
@@ -102,6 +102,9 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
+
+    if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
+        validFrameCount = dstVideoMaxFrameCount;
 
     printf("Info in %s, open videos done\n", __FUNCTION__);
     printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
@@ -248,6 +251,9 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         if (count % step == 0)
             finishPercent.store(double(count) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
 
+        if (count >= validFrameCount)
+            break;
+
         //printf("finish\n");
     }
 
@@ -333,10 +339,10 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
-        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, dstVideoEncoder, dstVideoPreset, func, data);
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, dstVideoFile, dstWidth, dstHeight,
+        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount, func, data);
 }
 
 bool CPUPanoramaLocalDiskTask::start()
@@ -375,7 +381,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -434,7 +440,7 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
 {
     clear();
 
@@ -458,6 +464,9 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
+
+    if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
+        validFrameCount = dstVideoMaxFrameCount;
 
     ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
     if (!ok)
@@ -685,6 +694,9 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
         decodeFramesBuffer.push(deepFrames);
         decodeCount++;
         //printf("decode count = %d\n", decodeCount);
+
+        if (decodeCount >= validFrameCount)
+            break;
     }
 
     while (decodeFramesBuffer.size())
@@ -809,10 +821,10 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile,
-        dstVideoFile, dstWidth, dstHeight, dstVideoBitRate, dstVideoEncoder, dstVideoPreset, func, data);
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, dstVideoFile, dstWidth, dstHeight,
+        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount, func, data);
 }
 
 bool CudaPanoramaLocalDiskTask::start()

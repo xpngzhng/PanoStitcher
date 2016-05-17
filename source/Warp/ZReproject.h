@@ -58,8 +58,6 @@ void rotateCameras(std::vector<PhotoParam>& params, double yaw, double pitch, do
 
 void rotatePhotoParamInXML(const std::string& src, const std::string& dst, double yaw, double pitch, double roll);
 
-cv::Vec3d getRotation(const cv::Vec3d& src, const cv::Vec3d& dst);
-
 // NOTICE!!!!
 // We want to remap fisheye image to equirect image.
 // In this class, src refers to equirectangular image and dst refers to fisheye image or rectlinear image.

@@ -930,14 +930,3 @@ void rotatePhotoParamInXML(const std::string& src, const std::string& dst, doubl
     rotateCameras(params, yaw, pitch, roll);
     exportPhotoParamToXML(dst, params);
 }
-
-cv::Vec3d getRotation(const cv::Vec3d& src, const cv::Vec3d& dst)
-{
-    cv::Matx33d srcRot, dstRot, diffRot;
-    setRotationRM(srcRot, src[0], src[1], src[2]);
-    setRotationRM(dstRot, dst[0], dst[1], dst[2]);
-    diffRot = dstRot * srcRot.t();
-    cv::Vec3d ret;
-    getRotationRM(diffRot, ret[0], ret[1], ret[2]);
-    return ret;
-}
