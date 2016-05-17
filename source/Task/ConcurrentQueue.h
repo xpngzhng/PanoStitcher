@@ -58,6 +58,14 @@ public:
         std::lock_guard<std::mutex> lock(mtxQueue);
         return queue.size();
     }
+    void stop()
+    {
+        
+    }
+    void resume()
+    {
+        
+    }
 private:
     int maxSize;
     std::deque<ItemType> queue;

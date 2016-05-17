@@ -34,7 +34,7 @@ public:
 
 protected:
     void setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
+        void* ptrSyncedFramesBufferForProc, int forCuda,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave, 
         int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
         FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
@@ -63,19 +63,20 @@ protected:
     
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc;
+    void* ptrSyncedFramesBufferForProc;
     ForceWaitFrameQueue* ptrProcFrameBufferForSend; 
     ForceWaitFrameQueue* ptrProcFrameBufferForSave;
     int* ptrFinish;
     int finish;
     int running;
+    int forCuda;
 };
 
 struct FFmpegAudioVideoSource : public AudioVideoSource
 {
 public:
     FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
+        void* ptrSyncedFramesBufferForProc, int forCuda,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
         int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
         FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
@@ -128,7 +129,7 @@ struct JuJingAudioVideoSource : public AudioVideoSource
 {
 public:
     JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-        BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
+        void* ptrSyncedFramesBufferForProc, int forCuda,
         ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
         int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
         FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);

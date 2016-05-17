@@ -12,7 +12,7 @@ AudioVideoSource::~AudioVideoSource()
 }
 
 void AudioVideoSource::setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc_,
+    void* ptrSyncedFramesBufferForProc_, int forCuda_,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend_, ForceWaitFrameQueue* ptrProcFrameBufferForSave_, 
     int* ptrFinish_, LogCallbackFunction logCallbackFunc_, void* logCallbackData_,
     FrameRateCallbackFunction videoFrameRateCallbackFunc_, void* videoFrameRateCallbackData_)
@@ -27,6 +27,7 @@ void AudioVideoSource::setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferFor
     ptrSyncedFramesBufferForProc = ptrSyncedFramesBufferForProc_;
     ptrProcFrameBufferForSend = ptrProcFrameBufferForSend_;
     ptrProcFrameBufferForSave = ptrProcFrameBufferForSave_;
+    forCuda = forCuda_;
 }
 
 bool AudioVideoSource::isRunning()
@@ -39,6 +40,7 @@ void AudioVideoSource::init()
     ptrFinish = 0;
     finish = 0;
     running = 0;
+    forCuda = 0;
 
     videoOpenSuccess = 0;
     videoEndFlag = 0;
@@ -65,7 +67,8 @@ void AudioVideoSource::videoSink()
     std::this_thread::sleep_for(std::chrono::microseconds(100));
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     ForShowFrameVectorQueue& syncedFramesBufferForShow = *ptrSyncedFramesBufferForShow;
-    BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProc = *ptrSyncedFramesBufferForProc;
+    BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProcCuda = *(BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc;
+    ForceWaitFrameVectorQueue& syncedFramesBufferForProcIOcl = *(ForceWaitFrameVectorQueue*)ptrSyncedFramesBufferForProc;
 
     if (finish || videoEndFlag)
     {
@@ -157,7 +160,10 @@ void AudioVideoSource::videoSink()
             break;
 
         syncedFramesBufferForShow.push(syncedFrames);
-        syncedFramesBufferForProc.push(syncedFrames);
+        if (forCuda)
+            syncedFramesBufferForProcCuda.push(syncedFrames);
+        else
+            syncedFramesBufferForProcIOcl.push(syncedFrames);
 
         if (!videoCheckFrameRate)
             videoCheckFrameRate = 1;
@@ -177,7 +183,10 @@ void AudioVideoSource::videoSink()
             //printf("\n");
 
             syncedFramesBufferForShow.push(frames);
-            syncedFramesBufferForProc.push(frames);
+            if (forCuda)
+                syncedFramesBufferForProcCuda.push(frames);
+            else
+                syncedFramesBufferForProcIOcl.push(frames);
 
             pullCount++;
             int needSync = 0;
@@ -210,20 +219,23 @@ void AudioVideoSource::videoSink()
     }
 
     //syncedFramesBufferForShow.stop();
-    syncedFramesBufferForProc.stop();
+    if (forCuda)
+        syncedFramesBufferForProcCuda.stop();
+    else
+        syncedFramesBufferForProcCuda.stop();
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 FFmpegAudioVideoSource::FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
+    void* ptrSyncedFramesBufferForProc, int forCuda,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
     int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData, 
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc, 
+    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc, forCuda,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
         ptrFinish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData);
@@ -289,7 +301,10 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProc->clear();
+    if (forCuda)
+        ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
+    else
+        ((ForceWaitFrameVectorQueue*)ptrSyncedFramesBufferForProc)->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -417,7 +432,10 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProc->clear();
+    if (forCuda)
+        ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
+    else
+        ((ForceWaitFrameVectorQueue*)ptrSyncedFramesBufferForProc)->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;
@@ -694,13 +712,13 @@ int RecvbyLen(SOCKET recvSocket, char *pszBuf, int nRecvLen)
 }
 
 JuJingAudioVideoSource::JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
-    BoundedPinnedMemoryFrameQueue* ptrSyncedFramesBufferForProc,
+    void* ptrSyncedFramesBufferForProc, int forCuda,
     ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
     int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
     init();
-    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc,
+    setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc, forCuda,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
         ptrFinish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData);
@@ -759,7 +777,10 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
     ptrSyncedFramesBufferForShow->clear();
-    ptrSyncedFramesBufferForProc->clear();
+    if (forCuda)
+        ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
+    else
+        ((ForceWaitFrameVectorQueue*)ptrSyncedFramesBufferForProc)->clear();
 
     videoEndFlag = 0;
     videoThreadsJoined = 0;

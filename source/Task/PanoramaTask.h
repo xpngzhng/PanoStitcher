@@ -167,3 +167,44 @@ private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
 };
+
+class PanoramaLiveStreamTask2
+{
+public:
+    PanoramaLiveStreamTask2();
+    ~PanoramaLiveStreamTask2();
+
+    bool openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate, 
+        bool openAudio, const avp::Device& device, int sampleRate);
+    bool openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url);
+    void closeAudioVideoSources();
+
+    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
+    void stopVideoStitch();
+
+    bool openLiveStream(const std::string& name, int width, int height, int videoBPS,
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
+    void closeLiveStream();
+
+    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+        const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
+    void stopSaveToDisk();
+
+    void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
+    void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
+    void setLogCallback(LogCallbackFunction func, void* data);
+    void initCallback();
+
+    bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
+    bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
+    void cancelGetVideoSourceFrames();
+    void cancelGetStitchedVideoFrame();
+
+    void initAll();
+    void closeAll();
+    bool hasFinished() const;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
+};

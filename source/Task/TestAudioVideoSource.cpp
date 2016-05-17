@@ -138,7 +138,7 @@ int main()
     urls.push_back("192.168.1.205");
     urls.push_back("192.168.1.206");
     urls.push_back("192.168.1.207");
-    ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
+    ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
     ptrSource->open(urls);
     numVideos = urls.size();
