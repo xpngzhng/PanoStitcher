@@ -146,7 +146,7 @@ PanoramaLiveStreamTask2::Impl::~Impl()
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
     bool openAudio, const avp::Device& device, int sampleRate)
 {
-    audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 1,
+    audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
         &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData));
     bool ok = ((FFmpegAudioVideoSource*)audioVideoSource.get())->open(devices, width, height, frameRate, openAudio, device, sampleRate);
@@ -164,7 +164,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
 
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url)
 {
-    audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 1,
+    audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
         &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData));
     bool ok = ((JuJingAudioVideoSource*)audioVideoSource.get())->open(urls);

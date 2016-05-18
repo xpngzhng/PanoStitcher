@@ -78,7 +78,7 @@ void AudioVideoSource::videoSink()
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     ForShowFrameVectorQueue& syncedFramesBufferForShow = *ptrSyncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue& syncedFramesBufferForProcCuda = *(BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc;
-    ForceWaitFrameVectorQueue& syncedFramesBufferForProcIOcl = *(ForceWaitFrameVectorQueue*)ptrSyncedFramesBufferForProc;
+    ForShowFrameVectorQueue& syncedFramesBufferForProcIOcl = *(ForShowFrameVectorQueue*)ptrSyncedFramesBufferForProc;
 
     if (finish || videoEndFlag)
     {
@@ -232,7 +232,7 @@ void AudioVideoSource::videoSink()
     if (forCuda)
         syncedFramesBufferForProcCuda.stop();
     else
-        syncedFramesBufferForProcCuda.stop();
+        syncedFramesBufferForProcIOcl.stop();
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -849,6 +849,9 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
 
     audioOpenSuccess = 0;
 
+    finish = 0;
+    running = 1;
+
     return true;
 }
 
@@ -875,6 +878,9 @@ void JuJingAudioVideoSource::close()
             logCallbackFunc("Video sources close success", logCallbackData);
         }
     }
+
+    finish = 1;
+    running = 0;
 }
 
 int JuJingAudioVideoSource::getNumVideos() const
@@ -938,7 +944,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
     connectSocket = sockets[index];
     RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
 
-    while (!videoEndFlag) 
+    while (!videoEndFlag && !finish) 
     {
         FD_ZERO(&fdread);
         FD_SET(connectSocket, &fdread);
@@ -1029,7 +1035,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
 
     if (errorOccurred)
     {
-        videoEndFlag = 1;
+        finish = 1;
         *ptrFinish = 1;
     }
 
@@ -1054,7 +1060,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
     DataPacket pkt;
     avp::AudioVideoFrame frame;
     bool ok;
-    while (!videoEndFlag)
+    while (!videoEndFlag && !finish)
     {
         dataPacketQueue.pull(pkt);
         if (pkt.data.get())
