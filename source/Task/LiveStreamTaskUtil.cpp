@@ -89,15 +89,6 @@ void AudioVideoSource::videoSink()
     for (int i = 0; i < numVideos; i++)
         printf("size = %d\n", frameBuffers[i].size());
 
-    for (int j = 0; j < 25; j++)
-    {
-        for (int i = 0; i < numVideos; i++)
-        {
-            avp::SharedAudioVideoFrame sharedFrame;
-            frameBuffers[i].pull(sharedFrame);
-        }
-    }
-
     if (finish || videoEndFlag)
     {
         printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -940,6 +931,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
     int nRecvLen = 0;
     int nRet = 0;
     int receiveZeroPts = 0;
+    int receiveIntraFrame = 0;
 
     pszRecvBuf = (char *)malloc(nBufLen);
     connectSocket = sockets[index];
@@ -1024,7 +1016,13 @@ void JuJingAudioVideoSource::videoRecieve(int index)
             }
 
             //printf("idx = %d\n", sHead.nFrameId);
-            if (receiveZeroPts)
+            if (receiveZeroPts && !receiveIntraFrame)
+            {
+                if (sHead.nFrameType == 1)
+                    receiveIntraFrame = 1;
+            }
+
+            if (receiveIntraFrame)
                 dataPacketQueue.push(DataPacket((unsigned char*)pszRecvBuf, sHead.nFrameLen, sHead.nFrameType, sHead.nFrameId * 1000LL));
         }
     }
