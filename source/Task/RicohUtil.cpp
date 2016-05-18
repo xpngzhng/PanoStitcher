@@ -949,8 +949,9 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     {
         if (src[i].size() != srcSize)
         {
-            printf("Error in %s, src[%d] size (%d, %d), not equal, data = %p\n",
-                __FUNCTION__, i, src[i].size().width, src[i].size().height, src[i].data);
+            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height, 
+                srcSize.width, srcSize.height);
             return false;
         }
             
