@@ -187,7 +187,7 @@ public:
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+    bool beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 

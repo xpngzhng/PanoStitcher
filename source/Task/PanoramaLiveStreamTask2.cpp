@@ -32,7 +32,7 @@ struct PanoramaLiveStreamTask2::Impl
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+    bool beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
@@ -146,6 +146,12 @@ PanoramaLiveStreamTask2::Impl::~Impl()
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
     bool openAudio, const avp::Device& device, int sampleRate)
 {
+    if (audioVideoSource)
+    {
+        printf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
     audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
         &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData));
@@ -157,13 +163,19 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
     videoFrameRate = frameRate;
     numVideos = devices.size();
     audioSampleRate = sampleRate;
-    videoOpenSuccess = true;
+    videoOpenSuccess = 1;
     audioOpenSuccess = audioVideoSource->isAudioOpened();
     return true;
 }
 
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url)
 {
+    if (audioVideoSource)
+    {
+        printf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
     audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
         &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData));
@@ -175,7 +187,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
     videoFrameRate = 25;
     numVideos = urls.size();
     audioSampleRate = 0;
-    videoOpenSuccess = true;
+    videoOpenSuccess = 1;
     audioOpenSuccess = audioVideoSource->isAudioOpened();
     return true;
 }
@@ -183,11 +195,29 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
 void PanoramaLiveStreamTask2::Impl::closeAudioVideoSources()
 {
     if (audioVideoSource)
+    {
         audioVideoSource->close();
+        audioVideoSource.reset();
+
+        videoOpenSuccess = 0;
+        audioOpenSuccess = 0;
+    } 
 }
 
 bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
+    if (!videoOpenSuccess || !audioVideoSource)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderThreadJoined)
+    {
+        printf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
+        return false;
+    }
+
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
@@ -310,6 +340,24 @@ void PanoramaLiveStreamTask2::Impl::cancelGetStitchedVideoFrame()
 bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
     int width, int height, int videoBPS, const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
+    if (!videoOpenSuccess || !audioVideoSource)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderPrepareSuccess || renderThreadJoined)
+    {
+        printf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!streamThreadJoined)
+    {
+        printf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        return false;
+    }
+
     streamURL = name;
     streamFrameSize.width = width;
     streamFrameSize.height = height;
@@ -372,9 +420,27 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
     }
 }
 
-void PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
+    if (!videoOpenSuccess || !audioVideoSource)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderPrepareSuccess || renderThreadJoined)
+    {
+        printf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!fileThreadJoined)
+    {
+        printf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        return false;
+    }
+
     fileWriterFormat = dir.empty() ? "temp%d.mp4" : dir + "/temp%d.mp4";
     fileFrameSize.width = width;
     fileFrameSize.height = height;
@@ -407,6 +473,7 @@ void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
         fileThread->join();
         fileThread.reset(0);
         fileThreadJoined = 1;
+        fileConfigSet = 0;
     }
 }
 
@@ -421,20 +488,20 @@ void PanoramaLiveStreamTask2::Impl::initAll()
 
     renderPrepareSuccess = 0;
     renderEndFlag = 0;
-    renderThreadJoined = 0;
+    renderThreadJoined = 1;
 
     streamVideoBitRate = 0;
     streamAudioBitRate = 0;
     streamOpenSuccess = 0;
     streamEndFlag = 0;
-    streamThreadJoined = 0;
+    streamThreadJoined = 1;
 
     fileVideoBitRate = 0;
     fileAudioBitRate = 0;
     fileDuration = 0;
     fileConfigSet = 0;
     fileEndFlag = 0;
-    fileThreadJoined = 0;
+    fileThreadJoined = 1;
 
     finish = 0;
     pixelType = avp::PixelTypeBGR32;
@@ -804,10 +871,10 @@ void PanoramaLiveStreamTask2::closeLiveStream()
     ptrImpl->closeLiveStream();
 }
 
-void PanoramaLiveStreamTask2::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+bool PanoramaLiveStreamTask2::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration)
 {
-    ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
+    return ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
 }
 
 void PanoramaLiveStreamTask2::stopSaveToDisk()

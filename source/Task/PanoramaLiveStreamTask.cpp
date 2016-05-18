@@ -28,7 +28,7 @@ typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
 
-#define COMPILE_CUDA 0
+#define COMPILE_CUDA 1
 
 struct PanoramaLiveStreamTask::Impl
 {
@@ -858,10 +858,10 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         for (int i = 0; i < numVideos; i++)
         {
             avp::SharedAudioVideoFrame sharedFrame;
-            frameBuffers[i].pull(sharedFrame);
-            if (sharedFrame.timeStamp < 0)
+            bool ok = frameBuffers[i].pull(sharedFrame);
+            if (!ok)
             {
-                printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                printf("Error in %s [%8x], pull frame failed\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
@@ -894,11 +894,11 @@ void PanoramaLiveStreamTask::Impl::videoSink()
                 if (finish || videoEndFlag)
                     break;
 
-                frameBuffers[i].pull(sharedFrame);
+                bool ok = frameBuffers[i].pull(sharedFrame);
                 printf("this ts = %lld\n", sharedFrame.timeStamp);
-                if (sharedFrame.timeStamp < 0)
+                if (!ok)
                 {
-                    printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                    printf("Error in %s [%8x], pull frame failed\n", __FUNCTION__, id);
                     finish = 1;
                     break;
                 }
@@ -926,12 +926,21 @@ void PanoramaLiveStreamTask::Impl::videoSink()
             if (finish || videoEndFlag)
                 break;
 
+            bool ok = true;
             for (int i = 0; i < numVideos; i++)
             {
-                frameBuffers[i].pull(frames[i]);
-                //printf("%d ", frameBuffers[i].size());
+                if (!frameBuffers[i].pull(frames[i]))
+                {
+                    printf("Error in %s [%8x], pull frame failed, buffer index %d\n", __FUNCTION__, id, i);
+                    ok = false;
+                    break;
+                }
             }
-            //printf("\n");
+            if (!ok)
+            {
+                finish = 1;
+                break;
+            }
 
             syncedFramesBufferForShow.push(frames);
             syncedFramesBufferForProc.push(frames);
