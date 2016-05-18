@@ -28,7 +28,7 @@ typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
 
-#define COMPILE_CUDA 1
+#define COMPILE_CUDA 0
 
 struct PanoramaLiveStreamTask::Impl
 {
@@ -731,6 +731,8 @@ bool PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
     fileEndFlag = 0;
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::fileSave, this));
+
+    return true;
 }
 
 void PanoramaLiveStreamTask::Impl::stopSaveToDisk()

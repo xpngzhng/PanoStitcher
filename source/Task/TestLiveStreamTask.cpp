@@ -221,18 +221,18 @@ int main(int argc, char* argv[])
         "{camera_width                | 1920          | camera picture width}"
         "{camera_height               | 1080          | camera picture height}"
         "{frames_per_second           | 30            | camera frame rate}"
-        "{pano_stitch_frame_width     | 1440          | pano video picture width}"
-        "{pano_stitch_frame_height    | 720           | pano video picture height}"
-        "{pano_stream_frame_width     | 1440          | pano video live stream picture width}"
-        "{pano_stream_frame_height    | 720           | pano video live stream picture height}"
+        "{pano_stitch_frame_width     | 2048          | pano video picture width}"
+        "{pano_stitch_frame_height    | 1024          | pano video picture height}"
+        "{pano_stream_frame_width     | 2048          | pano video live stream picture width}"
+        "{pano_stream_frame_height    | 1024          | pano video live stream picture height}"
         "{pano_stream_bits_per_second | 1000000       | pano video live stream bits per second}"
         "{pano_stream_encoder         | h264          | pano video live stream encoder}"
         "{pano_stream_encode_preset   | veryfast      | pano video live stream encode preset}"
         "{pano_stream_url             | rtsp://127.0.0.1/test.sdp | pano live stream address}"
         "{pano_save_file              | false         | whether to save audio video to local hard disk}"
         "{pano_file_duration          | 60            | each local pano audio video file duration in seconds}"
-        "{pano_file_frame_width       | 1440          | pano video local file picture width}"
-        "{pano_file_frame_height      | 720           | pano video local file picture height}"
+        "{pano_file_frame_width       | 2048          | pano video local file picture width}"
+        "{pano_file_frame_height      | 1024          | pano video local file picture height}"
         "{pano_file_bits_per_second   | 1000000       | pano video local file bits per second}"
         "{pano_file_encoder           | h264          | pano video local file encoder}"
         "{pano_file_encode_preset     | veryfast      | pano video local file encode preset}"
@@ -384,6 +384,7 @@ int main(int argc, char* argv[])
     //printf("pass render prepare\n");
 
     streamURL = parser.get<std::string>("pano_stream_url");
+    streamURL = "rtsp://127.0.0.1/test.sdp";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
@@ -399,6 +400,7 @@ int main(int argc, char* argv[])
 
         streamBitRate = parser.get<int>("pano_stream_bits_per_second");
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
+        streamEncoder = "h264_qsv";
         if (streamEncoder != "h264_qsv")
             streamEncoder = "h264";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
@@ -447,8 +449,13 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height, 
+        ok = task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height, 
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        if (!ok)
+        {
+            printf("Could not save file to disk\n");
+            return 0;
+        }
     }
 
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);

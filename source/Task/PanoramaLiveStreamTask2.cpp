@@ -462,6 +462,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     fileEndFlag = 0;
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::fileSave, this));
+
+    return true;
 }
 
 void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
