@@ -799,19 +799,34 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
         }
     }
 
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources open failed", logCallbackData);
+        return false;
+    }
+
     char cmd[64] = { 0 };
     sprintf(cmd, "GETFRAME SYNC 0");
     int cmdLen = strlen(cmd);
     //sprintf(szCmd, "GETFRAME STOP 0");
     int ret;
     for (int i = 0; i < numVideos; i++)
+    {
         ret = send(sockets[i], cmd, cmdLen, 0);
+        if (ret == SOCKET_ERROR)
+        {
+            failExists = true;
+            break;
+        }
+    }        
 
     videoOpenSuccess = !failExists;
     if (failExists)
     {
         if (logCallbackFunc)
-            logCallbackFunc("Video sources open failed", logCallbackData);
+            logCallbackFunc("Video sources sync failed", logCallbackData);
         return false;
     }
 
