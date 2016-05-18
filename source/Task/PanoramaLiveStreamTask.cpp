@@ -842,15 +842,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     for (int i = 0; i < numVideos; i++)
         printf("size = %d\n", frameBuffers[i].size());
 
-    for (int j = 0; j < 25; j++)
-    {
-        for (int i = 0; i < numVideos; i++)
-        {
-            avp::SharedAudioVideoFrame sharedFrame;
-            frameBuffers[i].pull(sharedFrame);
-        }
-    }
-
     if (finish || videoEndFlag)
     {
         printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -861,28 +852,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     {
         if (finish || videoEndFlag)
             break;
-
-        //std::vector<avp::SharedAudioVideoFrame> sFrames(numVideos);
-        //for (int i = 0; i < numVideos; i++)
-        //{
-        //    avp::SharedAudioVideoFrame sharedFrame;
-        //    frameBuffers[i].pull(sharedFrame);
-        //    if (sharedFrame.timeStamp < 0)
-        //    {
-        //        printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
-        //        finish = 1;
-        //        break;
-        //    }
-        //    sFrames[i] = sharedFrame;
-        //}
-
-        //{
-        //    std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-        //    videoSourceFrames = sFrames;
-        //}
-
-        //syncedFramesBufferForShow.push(sFrames);
-        //syncedFramesBufferForProc.push(sFrames);
 
         long long int currMaxTS = -1;
         int currMaxIndex = -1;

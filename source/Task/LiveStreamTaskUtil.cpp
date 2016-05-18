@@ -932,6 +932,7 @@ void JuJingAudioVideoSource::videoRecieve(int index)
     int nRet = 0;
     int receiveZeroPts = 0;
     int receiveIntraFrame = 0;
+    int errorOccurred = 0;
 
     pszRecvBuf = (char *)malloc(nBufLen);
     connectSocket = sockets[index];
@@ -952,7 +953,8 @@ void JuJingAudioVideoSource::videoRecieve(int index)
         }
         else if (SOCKET_ERROR == nRet) 
         {
-            printf("select function failed with error: %u", WSAGetLastError());
+            printf("Error in %s [%8x], select function failed with error: %u", __FUNCTION__, id, WSAGetLastError());
+            errorOccurred = 1;
             break;
         }
 
@@ -967,24 +969,22 @@ void JuJingAudioVideoSource::videoRecieve(int index)
             }
             else if (nRecvLen == 0) 
             {
-                printf("Connection closed\n");
-                //closesocket(connectSocket);
-                //continue;
+                printf("Error in %s [%8x], connection closed\n", __FUNCTION__, id);
+                errorOccurred = 1;
                 break;
             }
             else 
             {
-                printf("recv failed: %d\n", WSAGetLastError());
-                //closesocket(connectSocket);
-                //continue;
+                printf("Error in %s [%8x], recv failed: %d\n", __FUNCTION__, id, WSAGetLastError());
+                errorOccurred = 1;
                 break;
             }
 
             if (0 != strcmp(sHead.MsgFlag, "IPCAMVR")) 
             {
-                printf("invalid data.\n");
-                //continue;
-                break;
+                printf("Warning in %s [%8x], invalid data, continue\n", __FUNCTION__, id);
+                continue;
+                //break;
             }
 
             // 接收数据体
@@ -1025,6 +1025,12 @@ void JuJingAudioVideoSource::videoRecieve(int index)
             if (receiveIntraFrame)
                 dataPacketQueue.push(DataPacket((unsigned char*)pszRecvBuf, sHead.nFrameLen, sHead.nFrameType, sHead.nFrameId * 1000LL));
         }
+    }
+
+    if (errorOccurred)
+    {
+        videoEndFlag = 1;
+        *ptrFinish = 1;
     }
 
     char cmd[64] = { 0 };
