@@ -1,7 +1,6 @@
 #include "ticpp.h"
 #include "ZReproject.h"
 #include "Mtx33.h"
-#include "Rotation.h"
 
 #include <fstream>
 #include <sstream>

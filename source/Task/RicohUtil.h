@@ -4,7 +4,6 @@
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
 #include "opencv2/core.hpp"
-#include "CL/cl.h"
 #include <memory>
 #include <string>
 

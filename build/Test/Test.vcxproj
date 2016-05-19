@@ -109,7 +109,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\lib;..\source\IntelOpenCL;E:\Projects\ffmpeg windows\ffmpeg\build\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Blend-Debug.lib;Warp-Debug.lib;IntelOpenCL-Debug.lib;PanoVideoEngine-Debug.lib;AudioVideoProcessor-Debug.lib;TiCPP-Debug.lib;opencv_core300d.lib;opencv_imgproc300d.lib;opencv_highgui300d.lib;opencv_imgcodecs300d.lib;opencv_cudaarithm300d.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a_debug.lib;OpenCL.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
@@ -150,7 +150,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\lib;..\source\IntelOpenCL;E:\Projects\ffmpeg windows\ffmpeg\build\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Blend-Release.lib;Warp-Release.lib;IntelOpenCL-Release.lib;PanoVideoEngine-Release.lib;AudioVideoProcessor-Release.lib;TiCPP-Release.lib;opencv_core300.lib;opencv_imgproc300.lib;opencv_highgui300.lib;opencv_imgcodecs300.lib;opencv_cudaarithm300.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a.lib;OpenCL.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>

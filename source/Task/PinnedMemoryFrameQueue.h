@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Timer.h"
 #include "AudioVideoProcessor.h"
 #include "opencv2/core/cuda.hpp"
 #include <vector>

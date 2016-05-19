@@ -465,7 +465,6 @@ int main(int argc, char* argv[])
     std::thread svs(showVideoSources);
     svr.join();
     svs.join();
-    svr.join();
 
     task.closeVideoDevices();
     task.closeAudioDevice();
