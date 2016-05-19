@@ -2,7 +2,7 @@
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
-#include "cuda_runtime.h"
+#include "opencv2/imgproc.hpp"
 
 void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
 {
@@ -28,21 +28,8 @@ void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
 
 int main()
 {
-
-    //std::vector<PhotoParam> params;
-    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\bbb.vrdl", params);
-
-    //return 0;
-
-    cudaSetDevice(0);
-    cudaFree(0);
-    printf("setup finish\n");
-
-    cv::Mat tempCpu(8, 8, CV_8UC1);
-    cv::cuda::GpuMat tempGpu(tempCpu);
-    printf("start\n");
-
-    cv::Size dstSize = cv::Size(1024, 512);
+    int height = 600;
+    cv::Size dstSize = cv::Size(height * 2, height);
 
     //{
     //    cv::Mat ss(2000, 4000, CV_64FC4);
@@ -97,8 +84,12 @@ int main()
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
+        cv::Mat temp;
         for (int i = 0; i < numImages; i++)
-            src[i] = cv::imread(paths[i]);
+        {
+            temp = cv::imread(paths[i]);
+            cv::cvtColor(temp, src[i], CV_BGR2BGRA);
+        }            
 
         std::vector<PhotoParam> params;
         loadPhotoParamFromPTS("F:\\panoimage\\detuoffice2\\4port.pts", params);
@@ -111,16 +102,32 @@ int main()
         std::vector<cv::cuda::GpuMat> xmaps, ymaps;
         cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);
 
-        cv::Mat splitMats[2];
-        cv::Mat fromGpuMats[2];
+        cv::cuda::GpuMat orig;
+        cv::cuda::GpuMat rprj;
+        cv::Mat rprj16S, rprj8U;
+        //rprj.create(dstSize, CV_16SC4);
+        //rprj.download(rprj16S);
         for (int i = 0; i < numImages; i++)
         {
-            cv::split(maps[i], splitMats);
-            xmaps[i].download(fromGpuMats[0]);
-            ymaps[i].download(fromGpuMats[1]);
-            compare(fromGpuMats[0], splitMats[0]);
-            compare(fromGpuMats[1], splitMats[1]);
+            orig.upload(src[i]);
+            //rprj.create(dstSize, CV_16SC4);
+            cudaReprojectTo16S(orig, rprj, xmaps[i], ymaps[i]);
+            rprj.download(rprj16S);
+            rprj16S.convertTo(rprj8U, CV_8U);
+            cv::imshow("dst", rprj8U);
+            cv::waitKey(0);
         }
+
+        //cv::Mat splitMats[2];
+        //cv::Mat fromGpuMats[2];
+        //for (int i = 0; i < numImages; i++)
+        //{
+        //    cv::split(maps[i], splitMats);
+        //    xmaps[i].download(fromGpuMats[0]);
+        //    ymaps[i].download(fromGpuMats[1]);
+        //    compare(fromGpuMats[0], splitMats[0]);
+        //    compare(fromGpuMats[1], splitMats[1]);
+        //}
     }
 
     return 0;

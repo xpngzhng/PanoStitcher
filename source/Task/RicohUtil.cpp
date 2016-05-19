@@ -970,6 +970,9 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     {
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
+        // Add the following two lines to prevent exception if dstSize is around (1200, 600)
+        for (int i = 0; i < numImages; i++)
+            reprojImagesGPU[i].create(dstSize, CV_16SC4);
         for (int i = 0; i < numImages; i++)
             srcImagesGPU[i].upload(src[i], streams[i]);
         for (int i = 0; i < numImages; i++)
