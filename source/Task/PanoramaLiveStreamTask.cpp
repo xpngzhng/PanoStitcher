@@ -6,9 +6,11 @@
 #include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
+#include "oclobject.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 
 // for video source
 //typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
@@ -26,6 +28,8 @@ typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
 
+#define COMPILE_CUDA 1
+
 struct PanoramaLiveStreamTask::Impl
 {
     Impl();
@@ -37,6 +41,9 @@ struct PanoramaLiveStreamTask::Impl
     bool openAudioDevice(const avp::Device& device, int sampleRate);
     void closeAudioDevice();
 
+    bool openVideoStreams(const std::vector<std::string>& urls);
+    bool openAudioStream(const std::string& url);
+
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
@@ -44,7 +51,7 @@ struct PanoramaLiveStreamTask::Impl
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    void beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+    bool beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
@@ -52,9 +59,6 @@ struct PanoramaLiveStreamTask::Impl
     void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
     void setLogCallback(LogCallbackFunction func, void* data);
     void initCallback();
-
-    bool getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
-    bool getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame);
 
     bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
     bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
@@ -68,7 +72,8 @@ struct PanoramaLiveStreamTask::Impl
     std::vector<avp::AudioVideoReader> videoReaders;
     std::vector<avp::Device> videoDevices;
     cv::Size videoFrameSize;
-    int videoFrameRate;
+    double videoFrameRate;
+    int roundedVideoFrameRate;
     int numVideos;
     int videoOpenSuccess;
     int videoCheckFrameRate;
@@ -88,7 +93,11 @@ struct PanoramaLiveStreamTask::Impl
     int audioThreadJoined;
     void audioSource();
 
+#if COMPILE_CUDA
     CudaPanoramaRender render;
+#else
+    IOclPanoramaRender render;
+#endif
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -126,12 +135,6 @@ struct PanoramaLiveStreamTask::Impl
     int fileThreadJoined;
     void fileSave();
 
-    std::mutex videoSourceFramesMutex;
-    std::vector<avp::SharedAudioVideoFrame> videoSourceFrames;
-
-    std::mutex stitchedFrameMutex;
-    avp::SharedAudioVideoFrame stitchedFrame;
-
     LogCallbackFunction logCallbackFunc;
     void* logCallbackData;
 
@@ -142,17 +145,29 @@ struct PanoramaLiveStreamTask::Impl
     void* stitchFrameRateCallbackData;
 
     int pixelType;
+    int elemType;
     int finish;
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
+#if COMPILE_CUDA
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
+#else
+    ForShowFrameVectorQueue syncedFramesBufferForProc;
+#endif
     SharedAudioVideoFramePool procFramePool;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
+
+#if COMPILE_CUDA
+#else
+    OpenCLBasic ocl;
+#endif
 };
 
-
 PanoramaLiveStreamTask::Impl::Impl()
+#if !COMPILE_CUDA
+    : ocl("Intel", "GPU")
+#endif
 {
     initAll();
     initCallback();
@@ -166,10 +181,17 @@ PanoramaLiveStreamTask::Impl::~Impl()
 
 bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Device>& devices, int width, int height, int frameRate, std::vector<int>& success)
 {
+    if (videoOpenSuccess || !videoThreadsJoined)
+    {
+        printf("Error in %s, video sources should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
     videoDevices = devices;
     videoFrameSize.width = width;
     videoFrameSize.height = height;
     videoFrameRate = frameRate;
+    roundedVideoFrameRate = videoFrameRate + 0.5;
     numVideos = devices.size();
 
     std::vector<avp::Option> opts;
@@ -190,7 +212,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Devic
         opts.resize(2);
         opts.push_back(std::make_pair("video_device_number", videoDevices[i].numString));
         ok = videoReaders[i].open("video=" + videoDevices[i].shortName,
-            false, true, avp::PixelTypeBGR32, "dshow", opts);
+            false, true, pixelType/*avp::PixelTypeBGR32*/, "dshow", opts);
         if (!ok)
         {
             printf("Could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
@@ -256,6 +278,12 @@ void PanoramaLiveStreamTask::Impl::closeVideoDevices()
 
 bool PanoramaLiveStreamTask::Impl::openAudioDevice(const avp::Device& device, int sampleRate)
 {
+    if (audioOpenSuccess || !audioThreadJoined)
+    {
+        printf("Error in %s, audio source should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
     audioDevice = device;
     audioSampleRate = sampleRate;
 
@@ -310,15 +338,166 @@ void PanoramaLiveStreamTask::Impl::closeAudioDevice()
     }
 }
 
+bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::string>& urls)
+{
+    if (videoOpenSuccess || !videoThreadsJoined)
+    {
+        printf("Error in %s, video sources should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
+    if (urls.empty())
+    {
+        printf("Error in %s, no urls assigned\n", __FUNCTION__);
+        return false;
+    }        
+
+    bool ok;
+    bool failExists = false;
+    numVideos = urls.size();
+    videoReaders.resize(numVideos);
+    std::vector<avp::Option> opts;
+    opts.push_back(std::make_pair("max_delay", "1000000"));
+    for (int i = 0; i < numVideos; i++)
+    {
+        ok = videoReaders[i].open(urls[i], false, true, avp::PixelTypeBGR32);
+        if (!ok)
+        {
+            printf("Could not open video stream %s\n", urls[i].c_str());
+            failExists = true;
+            break;
+        }
+    }
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources open failed", logCallbackData);
+        return false;
+    }
+
+    videoFrameSize.width = videoReaders[0].getVideoWidth();
+    videoFrameSize.height = videoReaders[0].getVideoHeight();
+    videoFrameRate = videoReaders[0].getVideoFps();
+    roundedVideoFrameRate = videoFrameRate + 0.5;
+    for (int i = 1; i < numVideos; i++)
+    {
+        if (videoReaders[i].getVideoWidth() != videoFrameSize.width)
+        {
+            failExists = true;
+            printf("Error, video streams width not match\n");
+            break;
+        }
+        if (videoReaders[i].getVideoHeight() != videoFrameSize.height)
+        {
+            failExists = true;
+            printf("Error, video streams height not match\n");
+            break;
+        }
+        if (fabs(videoReaders[i].getVideoFps() - videoFrameRate) > 0.001)
+        {
+            failExists = true;
+            printf("Error, video streams frame rate not match\n");
+            break;
+        }
+    }
+
+    videoOpenSuccess = !failExists;
+    if (failExists)
+    {
+        if (logCallbackFunc)
+            logCallbackFunc("Video sources properties not match", logCallbackData);
+        return false;
+    }
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources open success", logCallbackData);
+
+    ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrFrameBuffers)[i].setMaxSize(36);
+    syncedFramesBufferForShow.clear();
+    syncedFramesBufferForProc.clear();
+
+    videoEndFlag = 0;
+    videoThreadsJoined = 0;
+    videoSourceThreads.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        videoSourceThreads[i].reset(new std::thread(&PanoramaLiveStreamTask::Impl::videoSource, this, i));
+    }
+    videoSinkThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::videoSink, this));
+
+    if (logCallbackFunc)
+        logCallbackFunc("Video sources related threads create success\n", logCallbackData);
+
+    return true;
+}
+
+bool PanoramaLiveStreamTask::Impl::openAudioStream(const std::string& url)
+{
+    if (audioOpenSuccess || !audioThreadJoined)
+    {
+        printf("Error in %s, audio source should be closed first before open again\n", __FUNCTION__);
+        return false;
+    }
+
+    audioOpenSuccess = audioReader.open(url, true, false, avp::PixelTypeUnknown);
+    if (!audioOpenSuccess)
+    {
+        printf("Could not open DirectShow audio device %s[%s], skip\n",
+            audioDevice.shortName.c_str(), audioDevice.numString.c_str());
+
+        if (logCallbackFunc)
+            logCallbackFunc("Audio source open failed", logCallbackData);
+
+        return false;
+    }
+
+    audioSampleRate = audioReader.getAudioSampleRate();
+
+    if (logCallbackFunc)
+        logCallbackFunc("Audio source open success", logCallbackData);
+
+    procFrameBufferForSave.clear();
+    procFrameBufferForSend.clear();
+
+    audioEndFlag = 0;
+    audioThreadJoined = 0;
+    audioThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::audioSource, this));
+
+    if (logCallbackFunc)
+        logCallbackFunc("Audio source thread create success", logCallbackData);
+
+    return true;
+}
+
 bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
-    pixelType = avp::PixelTypeBGR32;
+    if (!videoOpenSuccess)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderThreadJoined)
+    {
+        printf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
+        return false;
+    }
+
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
+#if COMPILE_CUDA
     renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
         videoFrameSize, renderFrameSize);
+#else
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
+        videoFrameSize, renderFrameSize, &ocl);
+#endif
     if (!renderPrepareSuccess)
     {
         printf("Could not prepare for video stitch\n");
@@ -341,7 +520,7 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
     }
 
     if (addLogo)
-        renderPrepareSuccess = logoFilter.init(width, height, CV_8UC4);
+        renderPrepareSuccess = logoFilter.init(width, height, elemType);
     if (!renderPrepareSuccess)
     {
         printf("Could not init logo filter\n");
@@ -376,7 +555,9 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
     if (renderPrepareSuccess && !renderThreadJoined)
     {
         renderEndFlag = 1;
+#if COMPILE_CUDA
         syncedFramesBufferForProc.stop();
+#endif
         renderThread->join();
         renderThread.reset(0);
         render.clear();
@@ -388,44 +569,6 @@ void PanoramaLiveStreamTask::Impl::stopVideoStitch()
         if (logCallbackFunc)
             logCallbackFunc("Video stitch thread close success", logCallbackData);
     }
-}
-
-bool PanoramaLiveStreamTask::Impl::getLatestVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
-{
-    if (finish)
-    {
-        frames.clear();
-        return false;
-    }
-    {
-        std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-
-        if (videoSourceFrames.size() != numVideos)
-            return false;
-
-        frames.resize(numVideos);
-        for (int i = 0; i < numVideos; i++)
-        {
-            avp::AudioVideoFrame shallow = videoSourceFrames[i];
-            frames[i] = shallow;
-        }
-    }
-    return true;
-}
-
-bool PanoramaLiveStreamTask::Impl::getLatestStitchedFrame(avp::SharedAudioVideoFrame& frame)
-{
-    if (finish)
-    {
-        frame = avp::SharedAudioVideoFrame();
-        return false;
-    }
-    {
-        std::lock_guard<std::mutex> lg(stitchedFrameMutex);
-        avp::AudioVideoFrame shallow = stitchedFrame;
-        frame = shallow;
-    }
-    return true;
 }
 
 bool PanoramaLiveStreamTask::Impl::getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames)
@@ -466,6 +609,24 @@ void PanoramaLiveStreamTask::Impl::cancelGetStitchedVideoFrame()
 bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
     int width, int height, int videoBPS, const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
+    if (!videoOpenSuccess)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderPrepareSuccess || renderThreadJoined)
+    {
+        printf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!streamThreadJoined)
+    {
+        printf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        return false;
+    }
+
     streamURL = name;
     streamFrameSize.width = width;
     streamFrameSize.height = height;
@@ -487,7 +648,7 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
     {
-        printf("Could not open streaming url with frame rate = %d and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
+        printf("Could not open streaming url with frame rate = %f and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
 
         if (logCallbackFunc)
             logCallbackFunc("Live stream open failed", logCallbackData);
@@ -528,9 +689,27 @@ void PanoramaLiveStreamTask::Impl::closeLiveStream()
     }
 }
 
-void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+bool PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
+    if (!videoOpenSuccess)
+    {
+        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!renderPrepareSuccess || renderThreadJoined)
+    {
+        printf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
+        return false;
+    }
+
+    if (!fileThreadJoined)
+    {
+        printf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        return false;
+    }
+
     fileWriterFormat = dir.empty() ? "temp%d.mp4" : dir + "/temp%d.mp4";
     fileFrameSize.width = width;
     fileFrameSize.height = height;
@@ -552,6 +731,8 @@ void PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
     fileEndFlag = 0;
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::fileSave, this));
+
+    return true;
 }
 
 void PanoramaLiveStreamTask::Impl::stopSaveToDisk()
@@ -563,41 +744,45 @@ void PanoramaLiveStreamTask::Impl::stopSaveToDisk()
         fileThread->join();
         fileThread.reset(0);
         fileThreadJoined = 1;
+        fileConfigSet = 0;
     }
 }
 
 void PanoramaLiveStreamTask::Impl::initAll()
 {
     videoFrameRate = 0;
+    roundedVideoFrameRate = 0;
     numVideos = 0;
     videoOpenSuccess = 0;
     videoCheckFrameRate = 0;
     videoEndFlag = 0;
-    videoThreadsJoined = 0;
+    videoThreadsJoined = 1;
 
     audioSampleRate = 0;
     audioOpenSuccess = 0;
     audioEndFlag = 0;
-    audioThreadJoined = 0;
+    audioThreadJoined = 1;
 
     renderPrepareSuccess = 0;
     renderEndFlag = 0;
-    renderThreadJoined = 0;
+    renderThreadJoined = 1;
 
     streamVideoBitRate = 0;
     streamAudioBitRate = 0;
     streamOpenSuccess = 0;
     streamEndFlag = 0;
-    streamThreadJoined = 0;
+    streamThreadJoined = 1;
 
     fileVideoBitRate = 0;
     fileAudioBitRate = 0;
     fileDuration = 0;
     fileConfigSet = 0;
     fileEndFlag = 0;
-    fileThreadJoined = 0;
+    fileThreadJoined = 1;
 
     finish = 0;
+    pixelType = avp::PixelTypeBGR32;
+    elemType = CV_8UC4;
 }
 
 void PanoramaLiveStreamTask::Impl::closeAll()
@@ -665,7 +850,7 @@ void PanoramaLiveStreamTask::Impl::videoSource(int index)
     ForceWaitFrameQueue& buffer = frameBuffers[index];
     avp::AudioVideoReader& reader = videoReaders[index];
 
-    long long int count = 0, beginCheckCount = videoFrameRate * 5;
+    long long int count = 0, beginCheckCount = roundedVideoFrameRate * 5;
     ztool::Timer timer;
     avp::AudioVideoFrame frame;
     bool ok;
@@ -683,7 +868,7 @@ void PanoramaLiveStreamTask::Impl::videoSource(int index)
         count++;
         if (count == beginCheckCount)
             timer.start();
-        if ((count > beginCheckCount) && (count % videoFrameRate == 0))
+        if ((count > beginCheckCount) && (count % roundedVideoFrameRate == 0))
         {
             timer.end();
             double actualFps = (count - beginCheckCount) / timer.elapse();
@@ -692,7 +877,7 @@ void PanoramaLiveStreamTask::Impl::videoSource(int index)
                 videoFrameRateCallbackFunc(actualFps, videoFrameRateCallbackData);
             if (abs(actualFps - videoFrameRate) > 2 && videoCheckFrameRate)
             {
-                printf("Error in %s [%8x], fps far away from the set one\n", __FUNCTION__, id);
+                printf("Error in %s [%8x], actual fps = %f, far away from the set one\n", __FUNCTION__, id, actualFps);
                 //buffer.stop();
                 //stopCompleteFrameBuffers(ptrFrameBuffers.get());
                 //finish = 1;
@@ -735,15 +920,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     for (int i = 0; i < numVideos; i++)
         printf("size = %d\n", frameBuffers[i].size());
 
-    for (int j = 0; j < 25; j++)
-    {
-        for (int i = 0; i < numVideos; i++)
-        {
-            avp::SharedAudioVideoFrame sharedFrame;
-            frameBuffers[i].pull(sharedFrame);
-        }
-    }
-
     if (finish || videoEndFlag)
     {
         printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -760,10 +936,10 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         for (int i = 0; i < numVideos; i++)
         {
             avp::SharedAudioVideoFrame sharedFrame;
-            frameBuffers[i].pull(sharedFrame);
-            if (sharedFrame.timeStamp < 0)
+            bool ok = frameBuffers[i].pull(sharedFrame);
+            if (!ok)
             {
-                printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                printf("Error in %s [%8x], pull frame failed\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
@@ -796,11 +972,11 @@ void PanoramaLiveStreamTask::Impl::videoSink()
                 if (finish || videoEndFlag)
                     break;
 
-                frameBuffers[i].pull(sharedFrame);
+                bool ok = frameBuffers[i].pull(sharedFrame);
                 printf("this ts = %lld\n", sharedFrame.timeStamp);
-                if (sharedFrame.timeStamp < 0)
+                if (!ok)
                 {
-                    printf("Error in %s [%8x], cannot read valid frame with non-negative time stamp\n", __FUNCTION__, id);
+                    printf("Error in %s [%8x], pull frame failed\n", __FUNCTION__, id);
                     finish = 1;
                     break;
                 }
@@ -815,11 +991,6 @@ void PanoramaLiveStreamTask::Impl::videoSink()
         if (finish || videoEndFlag)
             break;
 
-        {
-            std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-            videoSourceFrames = syncedFrames;
-        }
-
         syncedFramesBufferForShow.push(syncedFrames);
         syncedFramesBufferForProc.push(syncedFrames);
 
@@ -833,16 +1004,20 @@ void PanoramaLiveStreamTask::Impl::videoSink()
             if (finish || videoEndFlag)
                 break;
 
+            bool ok = true;
             for (int i = 0; i < numVideos; i++)
             {
-                frameBuffers[i].pull(frames[i]);
-                //printf("%d ", frameBuffers[i].size());
+                if (!frameBuffers[i].pull(frames[i]))
+                {
+                    printf("Error in %s [%8x], pull frame failed, buffer index %d\n", __FUNCTION__, id, i);
+                    ok = false;
+                    break;
+                }
             }
-            //printf("\n");
-
+            if (!ok)
             {
-                std::lock_guard<std::mutex> lg(videoSourceFramesMutex);
-                videoSourceFrames = frames;
+                finish = 1;
+                break;
             }
 
             syncedFramesBufferForShow.push(frames);
@@ -850,7 +1025,7 @@ void PanoramaLiveStreamTask::Impl::videoSink()
 
             pullCount++;
             int needSync = 0;
-            if (pullCount == videoFrameRate * syncInterval)
+            if (pullCount == roundedVideoFrameRate * syncInterval)
             {
                 printf("Checking frames synchronization status, ");
                 long long int maxDiff = 1000000.0 / videoFrameRate * 1.1 + 0.5;
@@ -879,7 +1054,9 @@ void PanoramaLiveStreamTask::Impl::videoSink()
     }
 
     //syncedFramesBufferForShow.stop();
+#if COMPILE_CUDA
     syncedFramesBufferForProc.stop();
+#endif
 
 END:
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
@@ -890,31 +1067,45 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
+#if COMPILE_CUDA
     std::vector<cv::cuda::HostMem> mems;
     long long int timeStamp;
+#else
+    std::vector<avp::SharedAudioVideoFrame> frames;
+#endif
     std::vector<cv::Mat> src;
-    avp::SharedAudioVideoFrame frame;
-    cv::Mat result;
     bool ok;
     int roundedFrameRate = videoFrameRate + 0.5;
     int count = -1;
     ztool::Timer timer;
     while (true)
     {
+        ztool::Timer localTimer, procTimer;
         if (finish || renderEndFlag)
             break;
         //printf("show\n");
+#if COMPILE_CUDA
         if (!syncedFramesBufferForProc.pull(mems, timeStamp))
         {
             //std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
+#else
+        if (!syncedFramesBufferForProc.pull(frames))
+        {
+            continue;
+        }
+#endif
         //printf("ts %lld\n", timeStamp);
         //printf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
+#if COMPILE_CUDA
         if (mems.size() == numVideos)
+#else
+        if (frames.size() == numVideos)
+#endif
         {
-            ztool::Timer localTimer, procTimer;
+            //ztool::Timer localTimer, procTimer;
             if (count < 0)
             {
                 count = 0;
@@ -927,7 +1118,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
                 double elapse = timer.elapse();
                 if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
                 {
-                    double r = count / elapse; 
+                    double r = count / elapse;
                     printf("%d  %f, %f\n", count, elapse, r);
                     timer.start();
                     count = 0;
@@ -937,13 +1128,21 @@ void PanoramaLiveStreamTask::Impl::procVideo()
                 }
             }
 
+#if COMPILE_CUDA
             src.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
-
             //procTimer.start();
             ok = render.render(src, timeStamp);
             //procTimer.end();
+#else
+            src.resize(numVideos);
+            for (int i = 0; i < numVideos; i++)
+                src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data, frames[i].step);
+            procTimer.start();
+            ok = render.render(src, frames[0].timeStamp);
+            procTimer.end();
+#endif
             if (!ok)
             {
                 printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
@@ -953,7 +1152,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
 
             localTimer.end();
             //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
-        }
+        }        
     }
 
     render.stop();
@@ -973,16 +1172,13 @@ void PanoramaLiveStreamTask::Impl::postProc()
             break;
 
         procFramePool.get(frame);
-        cv::Mat result(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+        cv::Mat result(frame.height, frame.width, elemType, frame.data, frame.step);
+        
         if (!render.getResult(result, frame.timeStamp))
             continue;
 
         //ztool::Timer timer;
         logoFilter.addLogo(result);
-        {
-            std::lock_guard<std::mutex> lg(stitchedFrameMutex);
-            stitchedFrame = frame;
-        }
         procFrameBufferForShow.push(frame);
         if (streamOpenSuccess)
             procFrameBufferForSend.push(frame);
@@ -1057,9 +1253,9 @@ void PanoramaLiveStreamTask::Impl::streamSend()
             //printf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
             if (frame.mediaType == avp::VIDEO && streamFrameSize != renderFrameSize)
             {
-                cv::Mat srcMat(renderFrameSize, pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);
+                cv::Mat srcMat(renderFrameSize, elemType, frame.data, frame.step);
                 cv::resize(srcMat, dstMat, streamFrameSize, 0, 0, cv::INTER_NEAREST);
-                shallow = avp::videoFrame(dstMat.data, dstMat.step, avp::PixelTypeBGR24, dstMat.cols, dstMat.rows, frame.timeStamp);
+                shallow = avp::videoFrame(dstMat.data, dstMat.step, pixelType, dstMat.cols, dstMat.rows, frame.timeStamp);
             }
             else
                 shallow = frame;
@@ -1149,9 +1345,9 @@ void PanoramaLiveStreamTask::Impl::fileSave()
             avp::AudioVideoFrame shallow;
             if (frame.mediaType == avp::VIDEO && fileFrameSize != renderFrameSize)
             {
-                cv::Mat srcMat(renderFrameSize, pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);
+                cv::Mat srcMat(renderFrameSize, elemType, frame.data, frame.step);
                 cv::resize(srcMat, dstMat, fileFrameSize, 0, 0, cv::INTER_NEAREST);
-                shallow = avp::videoFrame(dstMat.data, dstMat.step, avp::PixelTypeBGR24, dstMat.cols, dstMat.rows, frame.timeStamp);
+                shallow = avp::videoFrame(dstMat.data, dstMat.step, pixelType, dstMat.cols, dstMat.rows, frame.timeStamp);
             }
             else
                 shallow = frame;
@@ -1225,6 +1421,16 @@ void PanoramaLiveStreamTask::closeAudioDevice()
     return ptrImpl->closeAudioDevice();
 }
 
+bool PanoramaLiveStreamTask::openVideoStreams(const std::vector<std::string>& urls)
+{
+    return ptrImpl->openVideoStreams(urls);
+}
+
+bool PanoramaLiveStreamTask::openAudioStream(const std::string& url)
+{
+    return ptrImpl->openAudioStream(url);
+}
+
 bool PanoramaLiveStreamTask::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
     return ptrImpl->beginVideoStitch(configFileName, width, height, highQualityBlend);
@@ -1246,10 +1452,10 @@ void PanoramaLiveStreamTask::closeLiveStream()
     ptrImpl->closeLiveStream();
 }
 
-void PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
+bool PanoramaLiveStreamTask::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS, 
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration)
 {
-    ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
+    return ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
 }
 
 void PanoramaLiveStreamTask::stopSaveToDisk()

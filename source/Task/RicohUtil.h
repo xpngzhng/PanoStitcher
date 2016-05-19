@@ -4,6 +4,7 @@
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
 #include "opencv2/core.hpp"
+#include "CL/cl.h"
 #include <memory>
 #include <string>
 
@@ -177,6 +178,70 @@ private:
     CudaTilingMultibandBlendFast mbBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;
     cv::cuda::GpuMat accumGPU;
+    int numImages;
+    int success;
+};
+
+// cpu version of CudaPanoramaRender
+class CPUPanoramaRender
+{
+public:
+    CPUPanoramaRender() : success(0) {};
+    ~CPUPanoramaRender() { clear(); };
+    bool prepare(const std::string& path, int highQualityBlend, int completeQueue, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
+    bool getResult(cv::Mat& dst, long long int& timeStamp);
+    void stop();
+    void resume();
+    void waitForCompletion();
+    void clear();
+private:
+    cv::Size srcSize, dstSize;
+    std::vector<cv::Mat> maps;
+    std::vector<cv::Mat> reprojImages;
+    CPUMemoryPool pool;
+    typedef ForceWaitRealTimeQueue<std::pair<cv::Mat, long long int> > RealTimeQueue;
+    typedef BoundedCompleteQueue<std::pair<cv::Mat, long long int> > CompleteQueue;
+    RealTimeQueue rtQueue;
+    CompleteQueue cpQueue;
+    int highQualityBlend;
+    int completeQueue;
+    TilingMultibandBlendFastParallel mbBlender;
+    std::vector<cv::Mat> weights;
+    cv::Mat accum;
+    int numImages;
+    int success;
+};
+
+#include "oclobject.hpp"
+
+class IOclPanoramaRender
+{
+public:
+    IOclPanoramaRender() : success(0) {};
+    ~IOclPanoramaRender() { clear(); };
+    bool prepare(const std::string& path, int highQualityBlend, int completeQueue,
+        const cv::Size& srcSize, const cv::Size& dstSize, OpenCLBasic* ocl);
+    bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
+    bool getResult(cv::Mat& dst, long long int& timeStamp);
+    void stop();
+    void resume();
+    void waitForCompletion();
+    void clear();
+private:
+    OpenCLBasic* ocl;
+    std::unique_ptr<OpenCLProgramOneKernel> setZeroKern;
+    std::unique_ptr<OpenCLProgramOneKernel> rprjKern;
+    cv::Size srcSize, dstSize;
+    std::vector<IOclMat> xmaps, ymaps;
+    IntelMemoryPool pool;
+    typedef ForceWaitRealTimeQueue<std::pair<IOclMat, long long int> > RealTimeQueue;
+    typedef BoundedCompleteQueue<std::pair<IOclMat, long long int> > CompleteQueue;
+    RealTimeQueue rtQueue;
+    CompleteQueue cpQueue;
+    int highQualityBlend;
+    int completeQueue;
+    std::vector<IOclMat> weights;
     int numImages;
     int success;
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Timer.h"
 #include "AudioVideoProcessor.h"
 #include "opencv2/core/cuda.hpp"
 #include <vector>
@@ -74,10 +75,6 @@ public:
             }
             mem.timeStamp = frames[0].timeStamp;
             mem.waiting = 1;
-
-            //for (std::list<int>::const_iterator itr = indexes.cbegin(), itrEnd = indexes.cend(); itr != itrEnd; ++itr)
-            //    printf("%lld ", pool[*itr].timeStamp);
-            //printf("\n");
         }
 
         cvNonEmpty.notify_one();

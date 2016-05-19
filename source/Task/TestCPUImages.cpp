@@ -122,11 +122,12 @@ int main()
 
     cv::Mat r = cv::Mat::zeros(dstSize, CV_32FC3);
     for (int i = 0; i < numImages; i++)
-        reprojectWeightedAccumulateTo32F(src[i], r, maps[i], weights[i]);
+        reprojectWeightedAccumulateParallelTo32F(src[i], r, maps[i], weights[i]);
     cv::Mat rr;
     r.convertTo(rr, CV_8U);
     cv::imshow("r", rr);
     cv::waitKey(0);
+    return 0;
 
     std::vector<cv::cuda::GpuMat> weightsGPU(numImages);
     for (int i = 0; i < numImages; i++)

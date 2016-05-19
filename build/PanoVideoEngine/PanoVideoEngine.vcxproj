@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
+    <ClInclude Include="..\..\source\Task\LiveStreamTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTask.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\PinnedMemoryFrameQueue.h" />
@@ -30,7 +31,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Task\Image.cpp" />
+    <ClCompile Include="..\..\source\Task\LiveStreamTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask.cpp" />
+    <ClCompile Include="..\..\source\Task\PanoramaLiveStreamTask2.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaLocalDiskTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
@@ -115,7 +118,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -161,7 +164,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

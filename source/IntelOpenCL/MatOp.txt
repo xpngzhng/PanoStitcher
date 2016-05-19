@@ -1,0 +1,11 @@
+__kernel void setZeroKernel(__global unsigned char* data, int width, int height, int step, int elemSize)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    if (x >= width || y >= height)
+        return;
+
+    __global unsigned char* ptr = data + y * step + x * elemSize;
+    for (int i = 0; i < elemSize; i++)
+        ptr[i] = 0;
+}

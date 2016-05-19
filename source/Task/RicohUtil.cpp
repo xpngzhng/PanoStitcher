@@ -1,3 +1,4 @@
+#include "Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
@@ -870,6 +871,7 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 }
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+
 bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -938,14 +940,27 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
         return false;
 
     if (src.size() != numImages)
+    {
+        printf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
+    }        
 
     for (int i = 0; i < numImages; i++)
     {
         if (src[i].size() != srcSize)
+        {
+            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height, 
+                srcSize.width, srcSize.height);
             return false;
+        }
+            
         if (src[i].type() != CV_8UC4)
+        {
+            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
+        }
+            
     }
 
     cv::cuda::HostMem blendImageMem;
@@ -1034,10 +1049,331 @@ void CudaPanoramaRender::clear()
     dstSrcYMapsGPU.clear();
     srcImagesGPU.clear();
     reprojImagesGPU.clear();
+    weightsGPU.clear();
     rtQueue.stop();
     cpQueue.stop();
     pool.clear();
     rtQueue.clear();
     cpQueue.clear();
     streams.clear();
+}
+
+bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path_, params);
+        else
+            loadPhotoParamFromXML(path_, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+    if (highQualityBlend)
+    {
+        if (!mbBlender.prepare(masks, 20, 2))
+            return false;
+    }
+    else
+    {
+        getWeightsLinearBlend32F(masks, 50, weights);
+        accum.create(dstSize, CV_32FC3);
+    }
+
+    pool.init(dstSize.height, dstSize.width, CV_8UC3);
+
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
+
+    success = 1;
+    return true;
+}
+
+bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+{
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+            return false;
+        if (src[i].type() != CV_8UC3)
+            return false;
+    }
+
+    cv::Mat blendImage;
+    if (!pool.get(blendImage))
+        return false;
+
+    if (!highQualityBlend)
+    {
+        accum.setTo(0);
+        for (int i = 0; i < numImages; i++)
+            reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
+        accum.convertTo(blendImage, CV_8U);
+    }
+    else
+    {
+        reprojImages.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
+        mbBlender.blend(reprojImages, blendImage);
+    }
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImage, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImage, timeStamp));
+
+    return true;
+}
+
+bool CPUPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<cv::Mat, long long int> item;
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
+    if (ret)
+    {
+        item.first.copyTo(dst);
+        timeStamp = item.second;
+    }
+    return ret;
+}
+
+void CPUPanoramaRender::stop()
+{
+    rtQueue.stop();
+    cpQueue.stop();
+}
+
+void CPUPanoramaRender::resume()
+{
+    rtQueue.resume();
+    cpQueue.resume();
+}
+
+void CPUPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
+void CPUPanoramaRender::clear()
+{
+    maps.clear();
+    reprojImages.clear();
+    weights.clear();
+    rtQueue.stop();
+    cpQueue.stop();
+    pool.clear();
+    rtQueue.clear();
+    cpQueue.clear();
+}
+
+#include "IntelOpenCLInterface.h"
+
+bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
+    const cv::Size& srcSize_, const cv::Size& dstSize_, OpenCLBasic* ocl_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
+        dstSize.height * 2 == dstSize.width))
+        return false;
+
+    highQualityBlend = highQualityBlend_;
+    completeQueue = completeQueue_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+    ocl = ocl_;
+
+    std::string::size_type length = path_.length();
+    std::string fileExt = path_.substr(length - 3, 3);
+    std::vector<PhotoParam> params;
+    try
+    {
+        if (fileExt == "pts")
+            loadPhotoParamFromPTS(path_, params);
+        else
+            loadPhotoParamFromXML(path_, params);
+    }
+    catch (...)
+    {
+        printf("load file error\n");
+        return false;
+    }
+
+    numImages = params.size();
+    std::vector<cv::Mat> masks, maps;
+    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+    xmaps.resize(numImages);
+    ymaps.resize(numImages);
+    cv::Mat map32F;
+    for (int i = 0; i < numImages; i++)
+    {
+        xmaps[i].create(dstSize, CV_32FC1, ocl->context);
+        ymaps[i].create(dstSize, CV_32FC1, ocl->context);
+        cv::Mat arr[] = { xmaps[i].toOpenCVMat(), ymaps[i].toOpenCVMat() };
+        maps[i].convertTo(map32F, CV_32F);
+        cv::split(map32F, arr);
+    }
+    //if (highQualityBlend)
+    //{
+    //}
+    //else
+    {
+        std::vector<cv::Mat> ws;
+        getWeightsLinearBlend32F(masks, 50, ws);
+        weights.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            weights[i].create(dstSize, CV_32FC1, ocl->context);
+            cv::Mat header = weights[i].toOpenCVMat();
+            ws[i].copyTo(header);
+        }
+    }
+
+    pool.init(dstSize.height, dstSize.width, CV_32FC4, ocl->context);
+
+    setZeroKern.reset(new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel"));
+    rprjKern.reset(new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel"));
+
+    if (completeQueue)
+        cpQueue.setMaxSize(4);
+
+    success = 1;
+    return true;
+}
+
+bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+{
+    ztool::Timer t, tt;;
+    if (!success)
+        return false;
+
+    if (src.size() != numImages)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+            return false;
+        if (src[i].type() != CV_8UC4)
+            return false;
+    }
+
+    IOclMat blendImage;
+    if (!pool.get(blendImage))
+        return false;
+
+    //if (!highQualityBlend)
+    {
+        tt.start();
+        ioclSetZero(blendImage, *ocl, *setZeroKern);
+        for (int i = 0; i < numImages; i++)
+        {
+            IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, ocl->context);
+            ioclReprojectAccumulateWeightedTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+        }            
+        tt.end();
+    }
+    //else
+    //{
+    //}
+    if (completeQueue)
+        cpQueue.push(std::make_pair(blendImage, timeStamp));
+    else
+        rtQueue.push(std::make_pair(blendImage, timeStamp));
+
+    t.end();
+    //printf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
+    return true;
+}
+
+bool IOclPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
+{
+    std::pair<IOclMat, long long int> item;
+    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
+    if (ret)
+    {
+        cv::Mat header = item.first.toOpenCVMat();
+        header.convertTo(dst, CV_8U);
+        timeStamp = item.second;
+    }
+    return ret;
+}
+
+void IOclPanoramaRender::stop()
+{
+    rtQueue.stop();
+    cpQueue.stop();
+}
+
+void IOclPanoramaRender::resume()
+{
+    rtQueue.resume();
+    cpQueue.resume();
+}
+
+void IOclPanoramaRender::waitForCompletion()
+{
+    if (completeQueue)
+    {
+        while (cpQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    else
+    {
+        while (rtQueue.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+}
+
+void IOclPanoramaRender::clear()
+{
+    xmaps.clear();
+    ymaps.clear();
+    weights.clear();
+    rtQueue.stop();
+    cpQueue.stop();
+    pool.clear();
+    rtQueue.clear();
+    cpQueue.clear();
 }
