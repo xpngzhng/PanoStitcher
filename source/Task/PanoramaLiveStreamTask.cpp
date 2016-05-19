@@ -28,7 +28,7 @@ typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
 
-#define COMPILE_CUDA 1
+#define COMPILE_CUDA 0
 
 struct PanoramaLiveStreamTask::Impl
 {

@@ -1241,8 +1241,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
 
     numImages = params.size();
-    std::vector<cv::Mat> masks, maps;
-    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+    std::vector<cv::Mat> masks, xmaps32F, ymaps32F;
+    getReprojectMaps32FAndMasks(params, srcSize, dstSize, xmaps32F, ymaps32F, masks);
     xmaps.resize(numImages);
     ymaps.resize(numImages);
     cv::Mat map32F;
@@ -1250,9 +1250,10 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     {
         xmaps[i].create(dstSize, CV_32FC1, ocl->context);
         ymaps[i].create(dstSize, CV_32FC1, ocl->context);
-        cv::Mat arr[] = { xmaps[i].toOpenCVMat(), ymaps[i].toOpenCVMat() };
-        maps[i].convertTo(map32F, CV_32F);
-        cv::split(map32F, arr);
+        cv::Mat headx = xmaps[i].toOpenCVMat();
+        cv::Mat heady = ymaps[i].toOpenCVMat();
+        xmaps32F[i].copyTo(headx);
+        ymaps32F[i].copyTo(heady);
     }
     //if (highQualityBlend)
     //{

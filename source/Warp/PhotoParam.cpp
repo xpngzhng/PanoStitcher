@@ -746,6 +746,22 @@ void loadPhotoParamFromPTS(const std::string& fileName, std::vector<PhotoParam>&
     //    params[i].hfov = fov;
 }
 
+bool loadPhotoParams(const std::string& cameraParamFile, std::vector<PhotoParam>& params)
+{
+    std::string::size_type pos = cameraParamFile.find_last_of(".");
+    if (pos == std::string::npos)
+    {
+        printf("Error in %s, file does not have extention\n", __FUNCTION__);
+        return false;
+    }
+    std::string ext = cameraParamFile.substr(pos + 1);
+    if (ext == "pts")
+        loadPhotoParamFromPTS(cameraParamFile, params);
+    else
+        loadPhotoParamFromXML(cameraParamFile, params);
+    return params.size() > 0;
+}
+
 void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoParam>& params)
 {
     Document doc;

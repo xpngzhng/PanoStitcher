@@ -50,6 +50,8 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
 
 void loadPhotoParamFromPTS(const std::string& fileName, std::vector<PhotoParam>& params);
 
+bool loadPhotoParams(const std::string& fileName, std::vector<PhotoParam>& params);
+
 void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoParam>& params);
 
 void rotateCamera(PhotoParam& param, double yaw, double pitch, double roll);
@@ -97,6 +99,12 @@ void getReprojectMapAndMask(const PhotoParam& param,
 
 void getReprojectMapsAndMasks(const std::vector<PhotoParam>& params,
     const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::Mat>& dstSrcMaps, std::vector<cv::Mat>& masks);
+
+void getReprojectMap32FAndMask(const PhotoParam& param, const cv::Size& srcSize, const cv::Size& dstSize,
+    cv::Mat& dstSrcXMap, cv::Mat& dstSrcYMap, cv::Mat& mask);
+
+void getReprojectMaps32FAndMasks(const std::vector<PhotoParam>& params, const cv::Size& srcSize, const cv::Size& dstSize,
+    std::vector<cv::Mat>& dstSrcXMaps, std::vector<cv::Mat>& dstSrcYMaps, std::vector<cv::Mat>& masks);
 
 void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask, 
     const PhotoParam& param, const cv::Size& dstSize);

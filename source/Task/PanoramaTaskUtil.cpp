@@ -3,22 +3,6 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-bool loadPhotoParams(const std::string& cameraParamFile, std::vector<PhotoParam>& params)
-{
-    std::string::size_type pos = cameraParamFile.find_last_of(".");
-    if (pos == std::string::npos)
-    {
-        printf("Error in %s, file does not have extention\n", __FUNCTION__);
-        return false;
-    }
-    std::string ext = cameraParamFile.substr(pos + 1);
-    if (ext == "pts")
-        loadPhotoParamFromPTS(cameraParamFile, params);
-    else
-        loadPhotoParamFromXML(cameraParamFile, params);
-    return true;
-}
-
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)
 {
