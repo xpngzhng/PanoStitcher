@@ -238,6 +238,12 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
+    if (render.getNumImages() != numVideos)
+    {
+        printf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        return false;
+    }
+
     renderPrepareSuccess = procFramePool.initAsVideoFramePool(pixelType, width, height);
     if (!renderPrepareSuccess)
     {

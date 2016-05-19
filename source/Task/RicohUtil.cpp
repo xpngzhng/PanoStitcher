@@ -881,28 +881,23 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
         dstSize.height * 2 == dstSize.width))
+    {
+        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
+    }
+
+    std::vector<PhotoParam> params;
+    bool ok = loadPhotoParams(path_, params);
+    if (!ok || params.empty())
+    {
+        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        return false;
+    }
 
     highQualityBlend = highQualityBlend_;
     completeQueue = completeQueue_;
     srcSize = srcSize_;
     dstSize = dstSize_;
-
-    std::string::size_type length = path_.length();
-    std::string fileExt = path_.substr(length - 3, 3);
-    std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path_, params);
-        else
-            loadPhotoParamFromXML(path_, params);
-    }
-    catch (...)
-    {
-        printf("load file error\n");
-        return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
@@ -1058,6 +1053,11 @@ void CudaPanoramaRender::clear()
     streams.clear();
 }
 
+int CudaPanoramaRender::getNumImages() const
+{
+    return success ? numImages : 0;
+}
+
 bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -1067,28 +1067,23 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
 
     if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
         dstSize.height * 2 == dstSize.width))
+    {
+        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
+    }
+
+    std::vector<PhotoParam> params;
+    bool ok = loadPhotoParams(path_, params);
+    if (!ok || params.empty())
+    {
+        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        return false;
+    }
 
     highQualityBlend = highQualityBlend_;
     completeQueue = completeQueue_;
     srcSize = srcSize_;
     dstSize = dstSize_;
-
-    std::string::size_type length = path_.length();
-    std::string fileExt = path_.substr(length - 3, 3);
-    std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path_, params);
-        else
-            loadPhotoParamFromXML(path_, params);
-    }
-    catch (...)
-    {
-        printf("load file error\n");
-        return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks;
@@ -1205,6 +1200,11 @@ void CPUPanoramaRender::clear()
     cpQueue.clear();
 }
 
+int CPUPanoramaRender::getNumImages() const
+{
+    return success ? numImages : 0;
+}
+
 #include "CompileControl.h"
 
 #if COMPILE_INTEL_OPENCL
@@ -1219,29 +1219,24 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
         dstSize.height * 2 == dstSize.width))
+    {
+        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
+    }
+
+    std::vector<PhotoParam> params;
+    bool ok = loadPhotoParams(path_, params);
+    if (!ok || params.empty())
+    {
+        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        return false;
+    }
 
     highQualityBlend = highQualityBlend_;
     completeQueue = completeQueue_;
     srcSize = srcSize_;
     dstSize = dstSize_;
     ocl = ocl_;
-
-    std::string::size_type length = path_.length();
-    std::string fileExt = path_.substr(length - 3, 3);
-    std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path_, params);
-        else
-            loadPhotoParamFromXML(path_, params);
-    }
-    catch (...)
-    {
-        printf("load file error\n");
-        return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks, xmaps32F, ymaps32F;
@@ -1380,6 +1375,11 @@ void IOclPanoramaRender::clear()
     pool.clear();
     rtQueue.clear();
     cpQueue.clear();
+}
+
+int IOclPanoramaRender::getNumImages() const
+{
+    return success ? numImages : 0;
 }
 
 #endif

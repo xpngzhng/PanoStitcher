@@ -161,6 +161,7 @@ public:
     void resume();
     void waitForCompletion();
     void clear();
+    int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
@@ -194,6 +195,7 @@ public:
     void resume();
     void waitForCompletion();
     void clear();
+    int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
     std::vector<cv::Mat> maps;
@@ -228,6 +230,7 @@ public:
     void resume();
     void waitForCompletion();
     void clear();
+    int getNumImages() const;
 private:
     OpenCLBasic* ocl;
     std::unique_ptr<OpenCLProgramOneKernel> setZeroKern;
