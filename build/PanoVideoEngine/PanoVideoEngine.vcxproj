@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\source\Task\CompileControl.h" />
     <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
     <ClInclude Include="..\..\source\Task\LiveStreamTaskUtil.h" />

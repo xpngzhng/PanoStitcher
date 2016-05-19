@@ -1205,6 +1205,9 @@ void CPUPanoramaRender::clear()
     cpQueue.clear();
 }
 
+#include "CompileControl.h"
+
+#if COMPILE_INTEL_OPENCL
 #include "IntelOpenCLInterface.h"
 
 bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
@@ -1378,3 +1381,5 @@ void IOclPanoramaRender::clear()
     rtQueue.clear();
     cpQueue.clear();
 }
+
+#endif

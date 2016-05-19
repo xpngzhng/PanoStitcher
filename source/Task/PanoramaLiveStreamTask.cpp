@@ -1,3 +1,4 @@
+#include "CompileControl.h"
 #include "PanoramaTask.h"
 #include "ConcurrentQueue.h"
 #include "PinnedMemoryFrameQueue.h"
@@ -27,8 +28,6 @@ typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForceWa
 typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
-
-#define COMPILE_CUDA 0
 
 struct PanoramaLiveStreamTask::Impl
 {

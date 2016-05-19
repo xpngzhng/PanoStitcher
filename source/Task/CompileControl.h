@@ -1,0 +1,4 @@
+#pragma once
+
+#define COMPILE_INTEL_OPENCL 0
+#define COMPILE_CUDA (!COMPILE_INTEL_OPENCL)

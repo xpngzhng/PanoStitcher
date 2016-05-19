@@ -1,6 +1,5 @@
 #pragma once
 
-#include "IntelOpenCLMat.h"
 #include "opencv2/core/cuda.hpp"
 #include <vector>
 #include <mutex>
@@ -257,6 +256,9 @@ private:
     int hasInit;
 };
 
+#include "CompileControl.h"
+#if COMPILE_INTEL_OPENCL
+#include "IntelOpenCLMat.h"
 class IntelMemoryPool
 {
 public:
@@ -341,3 +343,4 @@ private:
     cl_context ctx;
     int hasInit;
 };
+#endif

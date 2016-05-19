@@ -212,8 +212,9 @@ private:
     int success;
 };
 
+#include "CompileControl.h"
+#if COMPILE_INTEL_OPENCL
 #include "oclobject.hpp"
-
 class IOclPanoramaRender
 {
 public:
@@ -244,3 +245,4 @@ private:
     int numImages;
     int success;
 };
+#endif

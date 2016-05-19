@@ -1,3 +1,4 @@
+#include "CompileControl.h"
 #include "PanoramaTask.h"
 #include "ConcurrentQueue.h"
 #include "PinnedMemoryFrameQueue.h"
@@ -12,8 +13,6 @@
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
-
-#define COMPILE_CUDA 1
 
 struct PanoramaLiveStreamTask2::Impl
 {
