@@ -14,7 +14,7 @@ public:
     bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
     void render(const cv::Mat& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     cv::Mat dstSrcMap1, dstSrcMap2;
     cv::Mat from1, from2, intersect;
     cv::Mat weight1, weight2;
@@ -28,7 +28,7 @@ public:
     bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
     void render(const cv::Mat& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     cv::Mat dstSrcMap;
     int success;
 };
@@ -55,7 +55,7 @@ public:
     bool render(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     cv::Mat dstSrcMap1, dstSrcMap2;
     cv::Mat mask1, mask2;
     cv::Mat from1, from2, intersect;
@@ -71,7 +71,7 @@ public:
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     std::vector<cv::Mat> dstSrcMaps;
     std::vector<cv::Mat> masks;
     std::vector<cv::Mat> reprojImages;
@@ -88,7 +88,7 @@ public:
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::HostMem> srcMems;
     std::vector<cv::Mat> srcImages;
@@ -111,7 +111,7 @@ public:
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
@@ -134,7 +134,7 @@ public:
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
 private:
-    cv::Size srcFullSize;
+    cv::Size srcSize, dstSize;
     std::vector<std::vector<unsigned char> > luts;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;

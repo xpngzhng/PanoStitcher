@@ -15,6 +15,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestStatic", "TestStatic\Te
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IntelOpenCL", "IntelOpenCL\IntelOpenCL.vcxproj", "{F050029B-E059-4B74-905A-5DCA99B55077}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{30F07DF7-19F0-4525-8D11-5141AFBFD9CA}"
+	ProjectSection(SolutionItems) = preProject
+		Performance1.psess = Performance1.psess
+		Performance2.psess = Performance2.psess
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -100,5 +106,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

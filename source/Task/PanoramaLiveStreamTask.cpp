@@ -249,7 +249,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoDevices(const std::vector<avp::Devic
     videoSinkThread.reset(new std::thread(&PanoramaLiveStreamTask::Impl::videoSink, this));
 
     if (logCallbackFunc)
-        logCallbackFunc("Video sources related threads create success\n", logCallbackData);
+        logCallbackFunc("Video sources related threads create success", logCallbackData);
 
     return true;
 }

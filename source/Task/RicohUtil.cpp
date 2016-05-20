@@ -407,19 +407,20 @@ void reprojectAndBlendParallel(const cv::Mat& src1, const cv::Mat& src2,
 #include "RicohUtil.h"
 #include "ZReproject.h"
 
-bool RicohPanoramaRender::prepare(const std::string& path, 
-    const cv::Size& srcSize, const cv::Size& dstSize)
+bool RicohPanoramaRender::prepare(const std::string& path_, 
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML(path, params);
+    loadPhotoParamFromXML(path_, params);
     if (params.size() != 2)
         return false;
 
@@ -438,24 +439,25 @@ void RicohPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
     if (!success)
         return;
 
-    CV_Assert(src.data && src.type() == CV_8UC3 && src.size() == srcFullSize);
+    CV_Assert(src.data && src.type() == CV_8UC3 && src.size() == srcSize);
 
     reprojectAndBlendParallel(src, src, dstSrcMap1, dstSrcMap2,
         from1, from2, intersect, weight1, weight2, dst);
 }
 
-bool DetuPanoramaRender::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+bool DetuPanoramaRender::prepare(const std::string& path_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
     PhotoParam param;
-    loadPhotoParamFromXML(path, param);
+    loadPhotoParamFromXML(path_, param);
 
     cv::Mat mask;
     getReprojectMapAndMask(param, srcSize, dstSize, dstSrcMap, mask);
@@ -469,25 +471,26 @@ void DetuPanoramaRender::render(const cv::Mat& src, cv::Mat& dst)
     if (!success)
         return;
 
-    CV_Assert(src.size() == srcFullSize);
+    CV_Assert(src.size() == srcSize);
     
     dst.create(dstSrcMap.size(), CV_8UC3);
     
     reprojectParallel(src, dst, dstSrcMap);
 }
 
-bool DualGoProPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
+bool DualGoProPanoramaRender::prepare(const std::string& path_, int blendType_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromPTS(path, params);
+    loadPhotoParamFromPTS(path_, params);
     if (params.size() != 2)
         return false;
 
@@ -508,7 +511,7 @@ bool DualGoProPanoramaRender::render(const cv::Mat& src1, const cv::Mat& src2, c
         return false;
 
     if (!(src1.data && src2.data && src1.type() == CV_8UC3 && src2.type() == CV_8UC3 &&
-        src1.size() == srcFullSize && src2.size() == srcFullSize))
+        src1.size() == srcSize && src2.size() == srcSize))
         return false;
 
     reprojectAndBlendParallel(src1, src2, dstSrcMap1, dstSrcMap2,
@@ -524,33 +527,20 @@ bool DualGoProPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& d
     return render(src[0], src[1], dst);
 }
 
-bool CPUMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CPUMultiCameraPanoramaRender::prepare(const std::string& path_, int blendType_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
-    std::string::size_type length = path.length();
-    std::string fileExt = path.substr(length - 3, 3);
     std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path, params);
-        else /*if (fileExt == "xml")*/
-            loadPhotoParamFromXML(path, params);
-        /*else
-            return false;*/
-    }
-    catch (...)
-    {
-        printf("load file error\n");
+    if (!loadPhotoParams(path_, params) || params.empty())
         return false;
-    }
 
     numImages = params.size();
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
@@ -571,7 +561,7 @@ bool CPUMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::M
 
     for (int i = 0; i < numImages; i++)
     {
-        if (src[i].size() != srcFullSize)
+        if (src[i].size() != srcSize)
             return false;
     }
 
@@ -583,33 +573,20 @@ bool CPUMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::M
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender::prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaMultiCameraPanoramaRender::prepare(const std::string& path_, int blendType_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
-    std::string::size_type length = path.length();
-    std::string fileExt = path.substr(length - 3, 3);
     std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path, params);
-        else /*if (fileExt == "xml")*/
-            loadPhotoParamFromXML(path, params);
-        /*else
-            return false;*/
-    }
-    catch (...)
-    {
-        printf("load file error\n");
+    if (!loadPhotoParams(path_, params) || params.empty())
         return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
@@ -622,7 +599,7 @@ bool CudaMultiCameraPanoramaRender::prepare(const std::string& path, int blendTy
     srcImages.resize(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        srcMems[i].create(srcFullSize, CV_8UC4);
+        srcMems[i].create(srcSize, CV_8UC4);
         srcImages[i] = srcMems[i].createMatHeader();
     }
 
@@ -642,7 +619,7 @@ bool CudaMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::
 
     for (int i = 0; i < numImages; i++)
     {
-        if (src[i].size() != srcFullSize)
+        if (src[i].size() != srcSize)
             return false;
         if (src[i].type() != CV_8UC3 && src[i].type() != CV_8UC4)
             return false;
@@ -674,37 +651,24 @@ bool CudaMultiCameraPanoramaRender::render(const std::vector<cv::Mat>& src, cv::
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path_, int type_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (type != BlendTypeLinear && type != BlendTypeMultiband)
+    if (type_ != BlendTypeLinear && type_ != BlendTypeMultiband)
         return false;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    blendType = type;
-    srcFullSize = srcSize;
+    blendType = type_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
-    std::string::size_type length = path.length();
-    std::string fileExt = path.substr(length - 3, 3);
     std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path, params);
-        else /*if (fileExt == "xml")*/
-            loadPhotoParamFromXML(path, params);
-        /*else
-        return false;*/
-    }
-    catch (...)
-    {
-        printf("load file error\n");
+    if (!loadPhotoParams(path_, params) || params.empty())
         return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
@@ -742,7 +706,7 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
 
     for (int i = 0; i < numImages; i++)
     {
-        if (src[i].size() != srcFullSize)
+        if (src[i].size() != srcSize)
             return false;
         if (src[i].type() != CV_8UC4)
             return false;
@@ -782,31 +746,20 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender3::prepare(const std::string& path, int type, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaMultiCameraPanoramaRender3::prepare(const std::string& path_, int type_, const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
         return false;
 
-    srcFullSize = srcSize;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
 
-    std::string::size_type length = path.length();
-    std::string fileExt = path.substr(length - 3, 3);
     std::vector<PhotoParam> params;
-    try
-    {
-        if (fileExt == "pts")
-            loadPhotoParamFromPTS(path, params);
-        else 
-            loadPhotoParamFromXML(path, params);
-    }
-    catch (...)
-    {
-        printf("load file error\n");
+    if (!loadPhotoParams(path_, params) || params.empty())
         return false;
-    }
 
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
@@ -835,7 +788,7 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 
     for (int i = 0; i < numImages; i++)
     {
-        if (src[i].size() != srcFullSize)
+        if (src[i].size() != srcSize)
             return false;
         if (src[i].type() != CV_8UC4)
             return false;
@@ -879,8 +832,8 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
     {
         printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
@@ -932,13 +885,16 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
 {
     if (!success)
+    {
+        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
+    }
 
     if (src.size() != numImages)
     {
         printf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
-    }        
+    }
 
     for (int i = 0; i < numImages; i++)
     {
@@ -1070,8 +1026,8 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
 
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
     {
         printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
@@ -1116,17 +1072,33 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
 bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
 {
     if (!success)
+    {
+        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
+    }
 
     if (src.size() != numImages)
+    {
+        printf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
+    }
 
     for (int i = 0; i < numImages; i++)
     {
         if (src[i].size() != srcSize)
+        {
+            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height,
+                srcSize.width, srcSize.height);
             return false;
+        }
+
         if (src[i].type() != CV_8UC3)
+        {
+            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
             return false;
+        }
+
     }
 
     cv::Mat blendImage;
@@ -1222,8 +1194,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     success = 0;
 
-    if (!((dstSize.width & 1) == 0 && (dstSize.height & 1) == 0 &&
-        dstSize.height * 2 == dstSize.width))
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
     {
         printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
         return false;
@@ -1290,17 +1262,33 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
 {
     ztool::Timer t, tt;;
     if (!success)
+    {
+        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
+    }
 
     if (src.size() != numImages)
+    {
+        printf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
+    }
 
     for (int i = 0; i < numImages; i++)
     {
         if (src[i].size() != srcSize)
+        {
+            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height, 
+                srcSize.width, srcSize.height);
             return false;
+        }
+
         if (src[i].type() != CV_8UC4)
+        {
+            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
+        }
+
     }
 
     IOclMat blendImage;
