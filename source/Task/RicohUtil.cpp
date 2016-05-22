@@ -3,6 +3,7 @@
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include <exception>
 
 static const int UNIT_SHIFT = 10;
 static const int UNIT = 1 << UNIT_SHIFT;
@@ -835,7 +836,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
+        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -852,31 +853,39 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     srcSize = srcSize_;
     dstSize = dstSize_;
 
-    numImages = params.size();
-    std::vector<cv::Mat> masks, dstSrcMaps;
-    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
-    if (highQualityBlend)
+    try
     {
-        if (!mbBlender.prepare(masks, 20, 2))
-            return false;
+        numImages = params.size();
+        std::vector<cv::Mat> masks, dstSrcMaps;
+        getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+        if (highQualityBlend)
+        {
+            if (!mbBlender.prepare(masks, 20, 2))
+                return false;
+        }
+        else
+        {
+            std::vector<cv::Mat> weights;
+            getWeightsLinearBlend32F(masks, 50, weights);
+            weightsGPU.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                weightsGPU[i].upload(weights[i]);
+            accumGPU.create(dstSize, CV_32FC4);
+        }
+
+        cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+        streams.resize(numImages);
+
+        pool.init(dstSize.height, dstSize.width, CV_8UC4, cv::cuda::HostMem::SHARED);
+
+        if (completeQueue)
+            cpQueue.setMaxSize(4);
     }
-    else
+    catch (std::exception& e)
     {
-        std::vector<cv::Mat> weights;
-        getWeightsLinearBlend32F(masks, 50, weights);
-        weightsGPU.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-            weightsGPU[i].upload(weights[i]);
-        accumGPU.create(dstSize, CV_32FC4);
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
     }
-
-    cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
-    streams.resize(numImages);
-
-    pool.init(dstSize.height, dstSize.width, CV_8UC4, cv::cuda::HostMem::SHARED);
-    
-    if (completeQueue)
-        cpQueue.setMaxSize(4);
 
     success = 1;
     return true;
@@ -914,48 +923,56 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
             
     }
 
-    cv::cuda::HostMem blendImageMem;
-    if (!pool.get(blendImageMem))
-        return false;
+    try
+    {
+        cv::cuda::HostMem blendImageMem;
+        if (!pool.get(blendImageMem))
+            return false;
 
-    cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
-    if (!highQualityBlend)
-    {
-        accumGPU.setTo(0);
-        srcImagesGPU.resize(numImages);
-        reprojImagesGPU.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-            srcImagesGPU[i].upload(src[i], streams[i]);
-        for (int i = 0; i < numImages; i++)
-            cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
-        for (int i = 0; i < numImages; i++)
-            streams[i].waitForCompletion();
-        accumGPU.convertTo(blendImageGPU, CV_8U);
+        cv::cuda::GpuMat blendImageGPU = blendImageMem.createGpuMatHeader();
+        if (!highQualityBlend)
+        {
+            accumGPU.setTo(0);
+            srcImagesGPU.resize(numImages);
+            reprojImagesGPU.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                srcImagesGPU[i].upload(src[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                streams[i].waitForCompletion();
+            accumGPU.convertTo(blendImageGPU, CV_8U);
+        }
+        else
+        {
+            srcImagesGPU.resize(numImages);
+            reprojImagesGPU.resize(numImages);
+            // Add the following two lines to prevent exception if dstSize is around (1200, 600)
+            //for (int i = 0; i < numImages; i++)
+            //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
+            // Further test shows that the above two lines cannot prevent cuda runtime
+            // from throwing exception, so they are commented.
+            // It seems that the only way to avoid exception is to call 
+            // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
+            // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
+            for (int i = 0; i < numImages; i++)
+                srcImagesGPU[i].upload(src[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                streams[i].waitForCompletion();
+            mbBlender.blend(reprojImagesGPU, blendImageGPU);
+        }
+        if (completeQueue)
+            cpQueue.push(std::make_pair(blendImageMem, timeStamp));
+        else
+            rtQueue.push(std::make_pair(blendImageMem, timeStamp));
     }
-    else
+    catch (std::exception& e)
     {
-        srcImagesGPU.resize(numImages);
-        reprojImagesGPU.resize(numImages);
-        // Add the following two lines to prevent exception if dstSize is around (1200, 600)
-        //for (int i = 0; i < numImages; i++)
-        //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
-        // Further test shows that the above two lines cannot prevent cuda runtime
-        // from throwing exception, so they are commented.
-        // It seems that the only way to avoid exception is to call 
-        // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
-        // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
-        for (int i = 0; i < numImages; i++)
-            srcImagesGPU[i].upload(src[i], streams[i]);
-        for (int i = 0; i < numImages; i++)
-            cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
-        for (int i = 0; i < numImages; i++)
-            streams[i].waitForCompletion();
-        mbBlender.blend(reprojImagesGPU, blendImageGPU);
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
     }
-    if (completeQueue)
-        cpQueue.push(std::make_pair(blendImageMem, timeStamp));
-    else
-        rtQueue.push(std::make_pair(blendImageMem, timeStamp));
 
     return true;
 }
@@ -1029,7 +1046,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
+        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1046,24 +1063,32 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     srcSize = srcSize_;
     dstSize = dstSize_;
 
-    numImages = params.size();
-    std::vector<cv::Mat> masks;
-    getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
-    if (highQualityBlend)
+    try
     {
-        if (!mbBlender.prepare(masks, 20, 2))
-            return false;
+        numImages = params.size();
+        std::vector<cv::Mat> masks;
+        getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
+        if (highQualityBlend)
+        {
+            if (!mbBlender.prepare(masks, 20, 2))
+                return false;
+        }
+        else
+        {
+            getWeightsLinearBlend32F(masks, 50, weights);
+            accum.create(dstSize, CV_32FC3);
+        }
+
+        pool.init(dstSize.height, dstSize.width, CV_8UC3);
+
+        if (completeQueue)
+            cpQueue.setMaxSize(4);
     }
-    else
+    catch (std::exception& e)
     {
-        getWeightsLinearBlend32F(masks, 50, weights);
-        accum.create(dstSize, CV_32FC3);
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
     }
-
-    pool.init(dstSize.height, dstSize.width, CV_8UC3);
-
-    if (completeQueue)
-        cpQueue.setMaxSize(4);
 
     success = 1;
     return true;
@@ -1101,28 +1126,36 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
 
     }
 
-    cv::Mat blendImage;
-    if (!pool.get(blendImage))
-        return false;
+    try
+    {
+        cv::Mat blendImage;
+        if (!pool.get(blendImage))
+            return false;
 
-    if (!highQualityBlend)
-    {
-        accum.setTo(0);
-        for (int i = 0; i < numImages; i++)
-            reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
-        accum.convertTo(blendImage, CV_8U);
+        if (!highQualityBlend)
+        {
+            accum.setTo(0);
+            for (int i = 0; i < numImages; i++)
+                reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
+            accum.convertTo(blendImage, CV_8U);
+        }
+        else
+        {
+            reprojImages.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
+            mbBlender.blend(reprojImages, blendImage);
+        }
+        if (completeQueue)
+            cpQueue.push(std::make_pair(blendImage, timeStamp));
+        else
+            rtQueue.push(std::make_pair(blendImage, timeStamp));
     }
-    else
+    catch (std::exception& e)
     {
-        reprojImages.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-            reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
-        mbBlender.blend(reprojImages, blendImage);
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
     }
-    if (completeQueue)
-        cpQueue.push(std::make_pair(blendImage, timeStamp));
-    else
-        rtQueue.push(std::make_pair(blendImage, timeStamp));
 
     return true;
 }
@@ -1197,7 +1230,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, srcSize or dstSize not qualified\n", __FUNCTION__);
+        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1215,44 +1248,52 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     dstSize = dstSize_;
     ocl = ocl_;
 
-    numImages = params.size();
-    std::vector<cv::Mat> masks, xmaps32F, ymaps32F;
-    getReprojectMaps32FAndMasks(params, srcSize, dstSize, xmaps32F, ymaps32F, masks);
-    xmaps.resize(numImages);
-    ymaps.resize(numImages);
-    cv::Mat map32F;
-    for (int i = 0; i < numImages; i++)
+    try
     {
-        xmaps[i].create(dstSize, CV_32FC1, ocl->context);
-        ymaps[i].create(dstSize, CV_32FC1, ocl->context);
-        cv::Mat headx = xmaps[i].toOpenCVMat();
-        cv::Mat heady = ymaps[i].toOpenCVMat();
-        xmaps32F[i].copyTo(headx);
-        ymaps32F[i].copyTo(heady);
-    }
-    //if (highQualityBlend)
-    //{
-    //}
-    //else
-    {
-        std::vector<cv::Mat> ws;
-        getWeightsLinearBlend32F(masks, 50, ws);
-        weights.resize(numImages);
+        numImages = params.size();
+        std::vector<cv::Mat> masks, xmaps32F, ymaps32F;
+        getReprojectMaps32FAndMasks(params, srcSize, dstSize, xmaps32F, ymaps32F, masks);
+        xmaps.resize(numImages);
+        ymaps.resize(numImages);
+        cv::Mat map32F;
         for (int i = 0; i < numImages; i++)
         {
-            weights[i].create(dstSize, CV_32FC1, ocl->context);
-            cv::Mat header = weights[i].toOpenCVMat();
-            ws[i].copyTo(header);
+            xmaps[i].create(dstSize, CV_32FC1, ocl->context);
+            ymaps[i].create(dstSize, CV_32FC1, ocl->context);
+            cv::Mat headx = xmaps[i].toOpenCVMat();
+            cv::Mat heady = ymaps[i].toOpenCVMat();
+            xmaps32F[i].copyTo(headx);
+            ymaps32F[i].copyTo(heady);
         }
+        //if (highQualityBlend)
+        //{
+        //}
+        //else
+        {
+            std::vector<cv::Mat> ws;
+            getWeightsLinearBlend32F(masks, 50, ws);
+            weights.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+            {
+                weights[i].create(dstSize, CV_32FC1, ocl->context);
+                cv::Mat header = weights[i].toOpenCVMat();
+                ws[i].copyTo(header);
+            }
+        }
+
+        pool.init(dstSize.height, dstSize.width, CV_32FC4, ocl->context);
+
+        setZeroKern.reset(new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel"));
+        rprjKern.reset(new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel"));
+
+        if (completeQueue)
+            cpQueue.setMaxSize(4);
     }
-
-    pool.init(dstSize.height, dstSize.width, CV_32FC4, ocl->context);
-
-    setZeroKern.reset(new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel"));
-    rprjKern.reset(new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel"));
-
-    if (completeQueue)
-        cpQueue.setMaxSize(4);
+    catch (std::exception& e)
+    {
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
+    }
 
     success = 1;
     return true;
@@ -1291,31 +1332,39 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
 
     }
 
-    IOclMat blendImage;
-    if (!pool.get(blendImage))
-        return false;
-
-    //if (!highQualityBlend)
+    try
     {
-        tt.start();
-        ioclSetZero(blendImage, *ocl, *setZeroKern);
-        for (int i = 0; i < numImages; i++)
-        {
-            IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, ocl->context);
-            ioclReprojectAccumulateWeightedTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
-        }            
-        tt.end();
-    }
-    //else
-    //{
-    //}
-    if (completeQueue)
-        cpQueue.push(std::make_pair(blendImage, timeStamp));
-    else
-        rtQueue.push(std::make_pair(blendImage, timeStamp));
+        IOclMat blendImage;
+        if (!pool.get(blendImage))
+            return false;
 
-    t.end();
-    //printf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
+        //if (!highQualityBlend)
+        {
+            tt.start();
+            ioclSetZero(blendImage, *ocl, *setZeroKern);
+            for (int i = 0; i < numImages; i++)
+            {
+                IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, ocl->context);
+                ioclReprojectAccumulateWeightedTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+            }
+            tt.end();
+        }
+        //else
+        //{
+        //}
+        if (completeQueue)
+            cpQueue.push(std::make_pair(blendImage, timeStamp));
+        else
+            rtQueue.push(std::make_pair(blendImage, timeStamp));
+
+        t.end();
+        //printf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
+    }
+    catch (std::exception& e)
+    {
+        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
+    }
     return true;
 }
 
