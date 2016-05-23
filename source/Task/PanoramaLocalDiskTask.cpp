@@ -69,7 +69,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        printf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         return false;
     }
 
@@ -78,36 +78,36 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
     {
-        printf("Error in %s, failed to load params\n", __FUNCTION__);
+        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
     }
     if (params.size() < numVideos)
     {
-        printf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
+        ptlprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
         return false;
     }
     else if (params.size() > numVideos)
     {
-        printf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
+        ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
 
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
 
-    printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
 
     bool ok = false;
     ok = prepareSrcVideos(srcVideoFiles, true, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
 
     if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
         validFrameCount = dstVideoMaxFrameCount;
 
-    printf("Info in %s, open videos done\n", __FUNCTION__);
-    printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
 
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
@@ -115,20 +115,20 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     //ok = blender.prepare(dstMasks, 50);
     if (!ok)
     {
-        printf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
         return false;
     }
 
     ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC3);
     if (!ok)
     {
-        printf("Error in %s, init logo filter failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
         return false;
     }
 
-    printf("Info in %s, prepare finish\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
-    printf("Info in %s, open dst video\n", __FUNCTION__);
+    ptlprintf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
     std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
@@ -146,11 +146,11 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     }
     if (!ok)
     {
-        printf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         return false;
     }
     else
-        printf("Info in %s, video writer open success\n", __FUNCTION__);
+        ptlprintf("Info in %s, video writer open success\n", __FUNCTION__);
 
     finishPercent.store(0);
     progressCallbackFunc = func;
@@ -169,7 +169,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
     if (finish)
         return;
 
-    printf("Info in %s, write video begin\n", __FUNCTION__);
+    ptlprintf("Info in %s, write video begin\n", __FUNCTION__);
 
     int count = 0;
     int step = 1;
@@ -177,7 +177,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    printf("validFrameCount = %d, step = %d\n", validFrameCount, step);
+    ptlprintf("validFrameCount = %d, step = %d\n", validFrameCount, step);
 
     std::vector<avp::AudioVideoFrame> frames(numVideos);
     std::vector<cv::Mat> images(numVideos);
@@ -186,27 +186,27 @@ void CPUPanoramaLocalDiskTask::Impl::run()
     while (true)
     {
         ok = true;
-        //printf("begin ");
+        //ptlprintf("begin ");
         if (audioIndex >= 0 && audioIndex < numVideos)
         {
             if (!readers[audioIndex].read(frames[audioIndex]))
                 break;
 
-            //printf("[%d] ", audioIndex);
+            //ptlprintf("[%d] ", audioIndex);
             if (frames[audioIndex].mediaType == avp::AUDIO)
             {
-                //printf("audio ");
+                //ptlprintf("audio ");
                 ok = writer.write(frames[audioIndex]);
                 if (!ok)
                 {
-                    printf("write fail\n");
+                    ptlprintf("write fail\n");
                     break;
                 }
                 continue;
             }
             else
             {
-                //printf("video ");
+                //ptlprintf("video ");
                 images[audioIndex] = cv::Mat(frames[audioIndex].height, frames[audioIndex].width, CV_8UC3, 
                     frames[audioIndex].data, frames[audioIndex].step);
             }
@@ -216,7 +216,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
             if (i == audioIndex)
                 continue;
 
-            //printf("[%d] ", i);
+            //ptlprintf("[%d] ", i);
             if (!readers[i].read(frames[i]))
             {
                 ok = false;
@@ -225,13 +225,13 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
             images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
         }
-        //printf("\n");
+        //ptlprintf("\n");
         if (!ok || endFlag)
             break;
 
         reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
         blender.blend(reprojImages, blendImage);
-        //printf("blend finish\n");
+        //ptlprintf("blend finish\n");
         if (addLogo)
             logoFilter.addLogo(blendImage);
         avp::AudioVideoFrame frame = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24, 
@@ -240,12 +240,12 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
         if (!ok)
         {
-            printf("write fail\n");
+            ptlprintf("write fail\n");
             break;
         }
 
         count++;
-        //printf("write count = %d\n", count);
+        //ptlprintf("write count = %d\n", count);
         //if (progressCallbackFunc && (count % step == 0))
         //    progressCallbackFunc(double(count) / (validFrameCount > 0 ? validFrameCount : 100), progressCallbackData);
         if (count % step == 0)
@@ -254,7 +254,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         if (count >= validFrameCount)
             break;
 
-        //printf("finish\n");
+        //ptlprintf("finish\n");
     }
 
     for (int i = 0; i < numVideos; i++)
@@ -265,7 +265,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
     //    progressCallbackFunc(1.0, progressCallbackData);
     finishPercent.store(100);
 
-    printf("Info in %s, write video finish\n", __FUNCTION__);
+    ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -446,7 +446,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        printf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         return false;
     }
 
@@ -455,13 +455,13 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
 
-    printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
 
     bool ok = false;
     ok = prepareSrcVideos(srcVideoFiles, false, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
 
@@ -471,7 +471,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
     if (!ok)
     {
-        printf("Error in %s, could not init memory pool\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
         return false;
     }
 
@@ -482,44 +482,44 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            printf("Error in %s, could not init memory pool\n", __FUNCTION__);
+            ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
             return false;
         }
     }
 
-    printf("Info in %s, open videos done\n", __FUNCTION__);
-    printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
 
     ok = render.prepare(cameraParamFile, true, true, srcSize, dstSize);
     if (!ok)
     {
-        printf("Error in %s, render prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         return false;
     }
 
     if (render.getNumImages() != numVideos)
     {
-        printf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         return false;
     }
 
     ok = dstFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
     if (!ok)
     {
-        printf("Error in %s, could not init memory pool\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
         return false;
     }
 
     ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC4);
     if (!ok)
     {
-        printf("Error in %s, init logo filter failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
         return false;
     }
 
-    printf("Info in %s, prepare finish\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
-    printf("Info in %s, open dst video\n", __FUNCTION__);
+    ptlprintf("Info in %s, open dst video\n", __FUNCTION__);
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
     std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
@@ -536,11 +536,11 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     }
     if (!ok)
     {
-        printf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         return false;
     }
     else
-        printf("Info in %s, video writer open success\n", __FUNCTION__);
+        ptlprintf("Info in %s, video writer open success\n", __FUNCTION__);
 
     decodeFramesBuffer.setMaxSize(4);
     procFrameBuffer.setMaxSize(8);
@@ -562,7 +562,7 @@ bool CudaPanoramaLocalDiskTask::Impl::start()
     if (finish)
         return false;
 
-    printf("Info in %s, write video begin\n", __FUNCTION__);
+    ptlprintf("Info in %s, write video begin\n", __FUNCTION__);
 
     decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::decode, this));
     procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::proc, this));
@@ -588,7 +588,7 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
     encodeThread.reset(0);
 
     if (!finish)
-        printf("Info in %s, write video finish\n", __FUNCTION__);
+        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -649,7 +649,7 @@ void CudaPanoramaLocalDiskTask::Impl::cancel()
 void CudaPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
     std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
@@ -699,7 +699,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
 
         decodeFramesBuffer.push(deepFrames);
         decodeCount++;
-        //printf("decode count = %d\n", decodeCount);
+        //ptlprintf("decode count = %d\n", decodeCount);
 
         if (decodeCount >= validFrameCount)
             break;
@@ -712,14 +712,14 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
 
-    printf("total decode %d\n", decodeCount);
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("total decode %d\n", decodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
     StampedPinnedMemoryVector srcFrames;
@@ -733,20 +733,20 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             images[i] = srcFrames.frames[i].createMatHeader();        
         render.render(images, srcFrames.timeStamp);
         procCount++;
-        //printf("proc count = %d\n", procCount);
+        //ptlprintf("proc count = %d\n", procCount);
     }
     
     render.waitForCompletion();
     render.stop();
 
-    printf("total proc %d\n", procCount);
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("total proc %d\n", procCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::postProc()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     avp::SharedAudioVideoFrame dstFrame;
     while (true)
@@ -767,14 +767,14 @@ void CudaPanoramaLocalDiskTask::Impl::postProc()
         std::this_thread::sleep_for(std::chrono::microseconds(25));
     procFrameBuffer.stop();
 
-    printf("total proc %d\n", procCount);
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("total proc %d\n", procCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     encodeCount = 0;
     int step = 1;
@@ -782,7 +782,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    printf("validFrameCount = %d, step = %d\n", validFrameCount, step);
+    ptlprintf("validFrameCount = %d, step = %d\n", validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
     avp::SharedAudioVideoFrame deepFrame;
@@ -798,7 +798,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         // Only when the frame is of type video can we increase encodeCount
         if (deepFrame.mediaType == avp::VIDEO)
             encodeCount++;
-        printf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+        ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
         //if (progressCallbackFunc && (encodeCount % step == 0))
         //    progressCallbackFunc(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100), progressCallbackData);
@@ -810,8 +810,8 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
 
     finishPercent.store(100);
 
-    printf("total encode %d\n", encodeCount);
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("total encode %d\n", encodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 CudaPanoramaLocalDiskTask::CudaPanoramaLocalDiskTask()

@@ -1,4 +1,6 @@
+#include "AudioVideoProcessor.h"
 #include "PanoramaTask.h"
+#include "Log.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -243,6 +245,11 @@ int main(int argc, char* argv[])
     cv::CommandLineParser parser(argc, argv, keys);
 
     cameraModel = parser.get<std::string>("camera_model");
+
+    initLog();
+    setPanoTaskLogCallback(bstLogVlPrintf);
+    avp::setFFmpegLogCallback(bstLogVlPrintf);
+    avp::setLogCallback(bstLogVlPrintf);
 
     if (cameraModel == "dualgopro")
         numCameras = 2;

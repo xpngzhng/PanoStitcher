@@ -1,3 +1,4 @@
+#include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
@@ -122,7 +123,7 @@ void prepareSmart(const cv::Mat& mask1, const cv::Mat& mask2, int initRadius,
         int numInside2 = cv::countNonZero(binaryBlurMask2 & region2);
         if (numInside1 == 0 && numInside2 == 0)
         {
-            printf("final radius = %d\n", radius);
+            ptlprintf("final radius = %d\n", radius);
             break;
         }
     }
@@ -836,7 +837,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -844,7 +845,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -883,7 +884,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -895,13 +896,13 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
 {
     if (!success)
     {
-        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        printf("Error in %s, size not equal\n", __FUNCTION__);
+        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -909,7 +910,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     {
         if (src[i].size() != srcSize)
         {
-            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height, 
                 srcSize.width, srcSize.height);
             return false;
@@ -917,7 +918,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
             
         if (src[i].type() != CV_8UC4)
         {
-            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
             
@@ -970,7 +971,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1046,7 +1047,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1054,7 +1055,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1086,7 +1087,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1098,13 +1099,13 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
 {
     if (!success)
     {
-        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        printf("Error in %s, size not equal\n", __FUNCTION__);
+        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1112,7 +1113,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
     {
         if (src[i].size() != srcSize)
         {
-            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height,
                 srcSize.width, srcSize.height);
             return false;
@@ -1120,7 +1121,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
 
         if (src[i].type() != CV_8UC3)
         {
-            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
+            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
             return false;
         }
 
@@ -1153,7 +1154,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1230,7 +1231,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        printf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1238,7 +1239,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        printf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1291,7 +1292,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1304,13 +1305,13 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     ztool::Timer t, tt;;
     if (!success)
     {
-        printf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        printf("Error in %s, size not equal\n", __FUNCTION__);
+        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1318,7 +1319,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
     {
         if (src[i].size() != srcSize)
         {
-            printf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height, 
                 srcSize.width, srcSize.height);
             return false;
@@ -1326,7 +1327,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
 
         if (src[i].type() != CV_8UC4)
         {
-            printf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
 
@@ -1358,11 +1359,11 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
             rtQueue.push(std::make_pair(blendImage, timeStamp));
 
         t.end();
-        //printf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
+        //ptlprintf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
     }
     catch (std::exception& e)
     {
-        printf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
     return true;

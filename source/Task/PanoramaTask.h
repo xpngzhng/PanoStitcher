@@ -7,6 +7,10 @@
 
 void setAddLogo(bool addLogo);
 
+typedef void(*PanoTaskLogCallbackFunc)(const char*, va_list);
+
+PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func);
+
 class PanoramaPreviewTask
 {
 public:
@@ -120,9 +124,6 @@ private:
     std::unique_ptr<Impl> ptrImpl;
 };
 
-typedef void (*LogCallbackFunction)(const std::string& line, void* data);
-typedef void (*FrameRateCallbackFunction)(double fps, void* data);
-
 class PanoramaLiveStreamTask
 {
 public:
@@ -169,6 +170,9 @@ private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
 };
+
+typedef void(*LogCallbackFunction)(const std::string& line, void* data);
+typedef void(*FrameRateCallbackFunction)(double fps, void* data);
 
 class PanoramaLiveStreamTask2
 {

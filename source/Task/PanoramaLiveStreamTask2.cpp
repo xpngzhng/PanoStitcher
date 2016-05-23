@@ -139,7 +139,6 @@ PanoramaLiveStreamTask2::Impl::Impl()
 PanoramaLiveStreamTask2::Impl::~Impl()
 {
     closeAll();
-    printf("live stream task destructor called\n");
 }
 
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
@@ -147,7 +146,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
 {
     if (audioVideoSource)
     {
-        printf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
         return false;
     }
 
@@ -171,7 +170,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
 {
     if (audioVideoSource)
     {
-        printf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
         return false;
     }
 
@@ -207,13 +206,13 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         return false;
     }
 
     if (!renderThreadJoined)
     {
-        printf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
+        ptlprintf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
         return false;
     }
 
@@ -230,7 +229,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
 #endif
     if (!renderPrepareSuccess)
     {
-        printf("Could not prepare for video stitch\n");
+        ptlprintf("Could not prepare for video stitch\n");
 
         if (logCallbackFunc)
             logCallbackFunc("Video stitch prepare failed", logCallbackData);
@@ -240,14 +239,14 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
 
     if (render.getNumImages() != numVideos)
     {
-        printf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         return false;
     }
 
     renderPrepareSuccess = procFramePool.initAsVideoFramePool(pixelType, width, height);
     if (!renderPrepareSuccess)
     {
-        printf("Could not init proc frame pool\n");
+        ptlprintf("Could not init proc frame pool\n");
 
         if (logCallbackFunc)
             logCallbackFunc("Video stitch prepare failed", logCallbackData);
@@ -259,7 +258,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         renderPrepareSuccess = logoFilter.init(width, height, elemType);
     if (!renderPrepareSuccess)
     {
-        printf("Could not init logo filter\n");
+        ptlprintf("Could not init logo filter\n");
 
         if (logCallbackFunc)
             logCallbackFunc("Video stitch prepare failed", logCallbackData);
@@ -347,19 +346,19 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
-        printf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
+        ptlprintf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
         return false;
     }
 
     if (!streamThreadJoined)
     {
-        printf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
         return false;
     }
 
@@ -384,7 +383,7 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
     {
-        printf("Could not open streaming url with frame rate = %f and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
+        ptlprintf("Could not open streaming url with frame rate = %f and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
 
         if (logCallbackFunc)
             logCallbackFunc("Live stream open failed", logCallbackData);
@@ -430,19 +429,19 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        printf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
-        printf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
+        ptlprintf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
         return false;
     }
 
     if (!fileThreadJoined)
     {
-        printf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
         return false;
     }
 
@@ -524,7 +523,7 @@ void PanoramaLiveStreamTask2::Impl::closeAll()
 
     finish = 1;
 
-    printf("Live stream task's all threads closed\n");
+    //ptlprintf("Live stream task's all threads closed\n");
 
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
@@ -533,7 +532,7 @@ void PanoramaLiveStreamTask2::Impl::closeAll()
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
 
-    printf("Live stream task's all buffer cleared\n");
+    //ptlprintf("Live stream task's all buffer cleared\n");
 }
 
 bool PanoramaLiveStreamTask2::Impl::hasFinished() const
@@ -544,7 +543,7 @@ bool PanoramaLiveStreamTask2::Impl::hasFinished() const
 void PanoramaLiveStreamTask2::Impl::procVideo()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
 #if COMPILE_CUDA
     std::vector<cv::cuda::HostMem> mems;
@@ -562,7 +561,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
         ztool::Timer localTimer, procTimer;
         if (finish || renderEndFlag)
             break;
-        //printf("show\n");
+        //ptlprintf("show\n");
 #if COMPILE_CUDA
         if (!syncedFramesBufferForProc.pull(mems, timeStamp))
         {
@@ -575,8 +574,8 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             continue;
         }
 #endif
-        //printf("ts %lld\n", timeStamp);
-        //printf("before check size\n");
+        //ptlprintf("ts %lld\n", timeStamp);
+        //ptlprintf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
 #if COMPILE_CUDA
         if (mems.size() == numVideos)
@@ -598,7 +597,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
                 {
                     double r = count / elapse;
-                    printf("%d  %f, %f\n", count, elapse, r);
+                    ptlprintf("%d  %f, %f\n", count, elapse, r);
                     timer.start();
                     count = 0;
 
@@ -624,25 +623,25 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
 #endif
             if (!ok)
             {
-                printf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
+                ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
 
             localTimer.end();
-            //printf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
+            //ptlprintf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
         }
     }
 
     render.stop();
 
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::postProc()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     avp::SharedAudioVideoFrame frame;
     while (true)
@@ -664,20 +663,20 @@ void PanoramaLiveStreamTask2::Impl::postProc()
         if (fileConfigSet)
             procFrameBufferForSave.push(frame);
         //timer.end();
-        //printf("%f\n", timer.elapse());
+        //ptlprintf("%f\n", timer.elapse());
     }
 
     //procFrameBufferForShow.stop();
     procFrameBufferForSend.stop();
     procFrameBufferForSave.stop();
 
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::streamSend()
 {
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     cv::Mat dstMat;
     avp::SharedAudioVideoFrame frame;
@@ -689,7 +688,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
         if (frame.data)
         {
             avp::AudioVideoFrame shallow;
-            //printf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
+            //ptlprintf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
             if (frame.mediaType == avp::VIDEO && streamFrameSize != renderFrameSize)
             {
                 cv::Mat srcMat(renderFrameSize, elemType, frame.data, frame.step);
@@ -701,7 +700,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
             bool ok = streamWriter.write(shallow);
             if (!ok)
             {
-                printf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
+                ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
                 finish = 1;
                 break;
             }
@@ -709,7 +708,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
     }
     streamWriter.close();
 
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::fileSave()
@@ -718,7 +717,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         return;
 
     size_t id = std::this_thread::get_id().hash();
-    printf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     char buf[1024];
     int count = 0;
@@ -735,7 +734,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         videoFrameRate, fileVideoBitRate, writerOpts);
     if (!ok)
     {
-        printf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
+        ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
         if (logCallbackFunc)
             logCallbackFunc(std::string("Could not write local file ") + buf, logCallbackData);
         return;
@@ -769,7 +768,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
                     videoFrameRate, fileVideoBitRate, writerOpts);
                 if (!ok)
                 {
-                    printf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
+                    ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
                     if (logCallbackFunc)
                         logCallbackFunc(std::string("Could not write local file ") + buf, logCallbackData);
                     break;
@@ -793,7 +792,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             ok = writer.write(shallow);
             if (!ok)
             {
-                printf("Error in %s [%d], could not write current frame\n", __FUNCTION__, id);
+                ptlprintf("Error in %s [%d], could not write current frame\n", __FUNCTION__, id);
                 break;
             }
         }
@@ -802,7 +801,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         logCallbackFunc(std::string("Finish write local file ") + buf, logCallbackData);
     writer.close();
 
-    printf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)

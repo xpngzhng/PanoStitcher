@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PanoramaTask.h"
 #include "AudioVideoProcessor.h"
 #include "opencv2/core.hpp"
 #include <vector>
@@ -18,3 +19,7 @@ struct LogoFilter
     std::vector<cv::Rect> rects;
     bool initSuccess;
 };
+
+// PanoTask Log Printf
+void ptlprintf(const char* format, ...);
+

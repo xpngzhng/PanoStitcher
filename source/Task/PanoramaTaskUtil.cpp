@@ -2,6 +2,7 @@
 #include "Image.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
+#include <stdarg.h>
 
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)
@@ -22,7 +23,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
 
     if (tryAudioIndex < 0 || tryAudioIndex >= numVideos)
     {
-        printf("Info in %s, no audio will be opened\n", __FUNCTION__);
+        ptlprintf("Info in %s, no audio will be opened\n", __FUNCTION__);
         audioIndex = -1;
     }
 
@@ -55,7 +56,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
             srcSize.height != readers[i].getVideoHeight())
         {
             ok = false;
-            printf("Error in %s, video size unmatch\n", __FUNCTION__);
+            ptlprintf("Error in %s, video size unmatch\n", __FUNCTION__);
             break;
         }
 
@@ -63,7 +64,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
             fps = readers[i].getVideoFps();
         if (abs(fps - readers[i].getVideoFps()) > 0.1)
         {
-            printf("Error in %s, video fps not consistent\n", __FUNCTION__);
+            ptlprintf("Error in %s, video fps not consistent\n", __FUNCTION__);
             ok = false;
             break;
         }
@@ -77,7 +78,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
             currValidFrameCount -= count;
             if (currValidFrameCount <= 0)
             {
-                printf("Error in %s, video not long enough\n", __FUNCTION__);
+                ptlprintf("Error in %s, video not long enough\n", __FUNCTION__);
                 ok = false;
                 break;
             }
@@ -92,7 +93,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
         {
             if (!readers[i].seek(1000000.0 * count / fps + 0.5, avp::VIDEO))
             {
-                printf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
+                ptlprintf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
                 ok = false;
                 break;
             }
@@ -102,7 +103,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
                 ok = readers[i].read(frame);
                 if (!ok)
                 {
-                    printf("Error in %s, cannot go to target frame\n", __FUNCTION__);
+                    ptlprintf("Error in %s, cannot go to target frame\n", __FUNCTION__);
                     break;
                 }
             }*/
@@ -205,4 +206,29 @@ bool LogoFilter::addLogo(cv::Mat& image)
     }
 
     return true;
+}
+
+void ptLogDefaultCallback(const char* format, va_list vl)
+{
+    vprintf(format, vl);
+}
+
+PanoTaskLogCallbackFunc ptLogCallback = ptLogDefaultCallback;
+
+void ptlprintf(const char* format, ...)
+{
+    if (ptLogCallback)
+    {
+        va_list vl;
+        va_start(vl, format);
+        ptLogCallback(format, vl);
+        va_end(vl);
+    }    
+}
+
+PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
+{
+    PanoTaskLogCallbackFunc oldFunc = ptLogCallback;
+    ptLogCallback = func;
+    return oldFunc;
 }

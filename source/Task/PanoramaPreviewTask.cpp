@@ -49,51 +49,51 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
 
     if (srcVideoFiles.empty())
     {
-        printf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
+        ptlprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
         return false;
     }
 
     numVideos = srcVideoFiles.size();
 
-    printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
     int audioIndex;
     ok = prepareSrcVideos(srcVideoFiles, true, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
-    printf("Info in %s, open videos done\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
     
-    printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
     {
-        printf("Error in %s, failed to load params\n", __FUNCTION__);
+        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
         return false;
     }
     if (params.size() < numVideos)
     {
-        printf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
+        ptlprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
         return false;
     }
     else if (params.size() > numVideos)
     {
-        printf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
+        ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
     ok = blender.prepare(dstMasks, 16, 2);
     //ok = blender.prepare(dstMasks, 50);
     if (!ok)
     {
-        printf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
         return false;
     }
-    printf("Info in %s, prepare finish\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
     initSuccess = true;
     return true;
@@ -107,17 +107,17 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
     {
-        printf("Error in %s, failed to load params\n", __FUNCTION__);
+        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
         return false;
     }
     if (params.size() < numVideos)
     {
-        printf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
+        ptlprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
         return false;
     }
     else if (params.size() > numVideos)
     {
-        printf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
+        ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
@@ -125,7 +125,7 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     //ok = blender.prepare(dstMasks, 50);
     if (!ok)
     {
-        printf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
         return false;
     }
 
@@ -160,7 +160,7 @@ bool CPUPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long
     if (frameIncrement <= 0 || frameIncrement > 10)
         frameIncrement = 1;
 
-    //printf("In %s, begin read frame\n", __FUNCTION__);
+    //ptlprintf("In %s, begin read frame\n", __FUNCTION__);
     frames.resize(numVideos);
     images.resize(numVideos);
     timeStamps.resize(numVideos);
@@ -184,12 +184,12 @@ bool CPUPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long
     if (!ok)
         return false;
 
-    //printf("In %s, read frame success\n", __FUNCTION__);
+    //ptlprintf("In %s, read frame success\n", __FUNCTION__);
     reprojectParallel(images, reprojImages, dstSrcMaps);
-    //printf("In %s, reproject success\n", __FUNCTION__);
+    //ptlprintf("In %s, reproject success\n", __FUNCTION__);
     blender.blend(reprojImages, blendImage);
     result = blendImage;
-    //printf("In %s, stitch success\n", __FUNCTION__);
+    //ptlprintf("In %s, stitch success\n", __FUNCTION__);
     return true;
 }
 
@@ -222,7 +222,7 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
     if (!ok)
         return false;
 
-    //printf("In %s, read frame success\n", __FUNCTION__);
+    //ptlprintf("In %s, read frame success\n", __FUNCTION__);
     reprojectParallel(images, reprojImages, dstSrcMaps);
     dst = reprojImages;
     return true;
@@ -379,34 +379,34 @@ bool CudaPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVide
 
     if (srcVideoFiles.empty())
     {
-        printf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
+        ptlprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
         return false;
     }
     numVideos = srcVideoFiles.size();
 
-    printf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
     int audioIndex;
     ok = prepareSrcVideos(srcVideoFiles, false, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        printf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
-    printf("Info in %s, open videos done\n", __FUNCTION__);
+    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
 
-    printf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
     ptrRender.reset(new CudaMultiCameraPanoramaRender);
     ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
-        printf("Error in %s, prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, prepare failed\n", __FUNCTION__);
         return false;
     }
-    printf("Info in %s, prepare finish\n", __FUNCTION__);
+    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
     initSuccess = true;
     return true;
@@ -420,7 +420,7 @@ bool CudaPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     bool ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
-        printf("Error in %s, prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, prepare failed\n", __FUNCTION__);
         return false;
     }
 
