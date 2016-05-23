@@ -16,7 +16,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -41,9 +41,6 @@ struct CPUPanoramaLocalDiskTask::Impl
 
     int validFrameCount;
 
-    ProgressCallbackFunction progressCallbackFunc;
-    void* progressCallbackData;
-
     std::unique_ptr<std::thread> thread;
 
     bool initSuccess;
@@ -63,7 +60,7 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
-    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount)
 {
     clear();
 
@@ -153,8 +150,6 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         ptlprintf("Info in %s, video writer open success\n", __FUNCTION__);
 
     finishPercent.store(0);
-    progressCallbackFunc = func;
-    progressCallbackData = data;
 
     initSuccess = true;
     finish = false;
@@ -186,16 +181,13 @@ void CPUPanoramaLocalDiskTask::Impl::run()
     while (true)
     {
         ok = true;
-        //ptlprintf("begin ");
         if (audioIndex >= 0 && audioIndex < numVideos)
         {
             if (!readers[audioIndex].read(frames[audioIndex]))
                 break;
 
-            //ptlprintf("[%d] ", audioIndex);
             if (frames[audioIndex].mediaType == avp::AUDIO)
             {
-                //ptlprintf("audio ");
                 ok = writer.write(frames[audioIndex]);
                 if (!ok)
                 {
@@ -206,7 +198,6 @@ void CPUPanoramaLocalDiskTask::Impl::run()
             }
             else
             {
-                //ptlprintf("video ");
                 images[audioIndex] = cv::Mat(frames[audioIndex].height, frames[audioIndex].width, CV_8UC3, 
                     frames[audioIndex].data, frames[audioIndex].step);
             }
@@ -216,7 +207,6 @@ void CPUPanoramaLocalDiskTask::Impl::run()
             if (i == audioIndex)
                 continue;
 
-            //ptlprintf("[%d] ", i);
             if (!readers[i].read(frames[i]))
             {
                 ok = false;
@@ -225,13 +215,11 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
             images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
         }
-        //ptlprintf("\n");
         if (!ok || endFlag)
             break;
 
         reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
         blender.blend(reprojImages, blendImage);
-        //ptlprintf("blend finish\n");
         if (addLogo)
             logoFilter.addLogo(blendImage);
         avp::AudioVideoFrame frame = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24, 
@@ -245,24 +233,17 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         }
 
         count++;
-        //ptlprintf("write count = %d\n", count);
-        //if (progressCallbackFunc && (count % step == 0))
-        //    progressCallbackFunc(double(count) / (validFrameCount > 0 ? validFrameCount : 100), progressCallbackData);
         if (count % step == 0)
             finishPercent.store(double(count) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
 
         if (count >= validFrameCount)
             break;
-
-        //ptlprintf("finish\n");
     }
 
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
     writer.close();
 
-    //if (progressCallbackFunc)
-    //    progressCallbackFunc(1.0, progressCallbackData);
     finishPercent.store(100);
 
     ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
@@ -315,9 +296,6 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
 
     validFrameCount = 0;
 
-    progressCallbackFunc = 0;
-    progressCallbackData = 0;
-
     if (thread && thread->joinable())
         thread->join();
     thread.reset(0);
@@ -339,10 +317,10 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, dstVideoFile, dstWidth, dstHeight,
-        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount, func, data);
+        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
 bool CPUPanoramaLocalDiskTask::start()
@@ -381,7 +359,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data);
+        int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -408,9 +386,6 @@ struct CudaPanoramaLocalDiskTask::Impl
     std::atomic<int> finishPercent;
 
     int validFrameCount;
-
-    ProgressCallbackFunction progressCallbackFunc;
-    void* progressCallbackData;
 
     void decode();
     void proc();
@@ -440,7 +415,7 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount)
 {
     clear();
 
@@ -546,8 +521,6 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     procFrameBuffer.setMaxSize(8);
 
     finishPercent.store(0);
-    progressCallbackFunc = func;
-    progressCallbackData = data;
 
     initSuccess = true;
     finish = false;
@@ -632,9 +605,6 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
-
-    progressCallbackFunc = 0;
-    progressCallbackData = 0;
 
     initSuccess = false;
     finish = true;
@@ -800,8 +770,6 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
             encodeCount++;
         ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
-        //if (progressCallbackFunc && (encodeCount % step == 0))
-        //    progressCallbackFunc(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100), progressCallbackData);
         if (encodeCount % step == 0)
             finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
     }
@@ -827,10 +795,10 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    int dstVideoMaxFrameCount, ProgressCallbackFunction func, void* data)
+    int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, dstVideoFile, dstWidth, dstHeight,
-        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount, func, data);
+        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
 bool CudaPanoramaLocalDiskTask::start()

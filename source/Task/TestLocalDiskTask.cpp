@@ -1,4 +1,6 @@
 #include "PanoramaTask.h"
+#include "AudioVideoProcessor.h"
+#include "Log.h"
 #include "Timer.h"
 #include <fstream>
 #include <thread>
@@ -25,11 +27,6 @@ static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vect
     }
 }
 
-static void displayProgress(double p, void*)
-{
-    printf("progress %f%\n", p * 100);
-}
-
 static void cancelTask(PanoramaLocalDiskTask* task)
 {
     std::this_thread::sleep_for(std::chrono::seconds(30));
@@ -50,6 +47,11 @@ int main(int argc, char* argv[])
         "{use_cuda               | false       | use gpu to accelerate computation}";
 
     cv::CommandLineParser parser(argc, argv, keys);
+
+    initLog("", "");
+    avp::setFFmpegLogCallback(bstLogVlPrintf);
+    avp::setLogCallback(bstLogVlPrintf);
+    setPanoTaskLogCallback(bstLogVlPrintf);
 
     cv::Size srcSize, dstSize;
     std::vector<std::string> srcVideoNames;
@@ -96,7 +98,7 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     bool ok = task->init(srcVideoNames, offset, 0, cameraParamFile, panoVideoName,
-        dstSize.width, dstSize.height, 12000000, "h264", "medium", 300, displayProgress, 0);
+        dstSize.width, dstSize.height, 12000000, "h264", "medium", 300);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
