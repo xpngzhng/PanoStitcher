@@ -123,7 +123,7 @@ struct PanoramaLiveStreamTask::Impl
     int streamThreadJoined;
     void streamSend();
 
-    std::string fileWriterFormat;
+    std::string fileDir;
     cv::Size fileFrameSize;
     int fileVideoBitRate;
     std::string fileVideoEncoder;
@@ -372,7 +372,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::strin
     if (failExists)
     {
         appendLog("视频源打开失败\n");
-        syncErrorMessage = "视频源打开失败";
+        syncErrorMessage = "视频源打开失败。";
         return false;
     }
 
@@ -706,7 +706,9 @@ bool PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
         return false;
     }
 
-    fileWriterFormat = dir.empty() ? "temp%d.mp4" : dir + "/temp%d.mp4";
+    fileDir = dir;
+    if (fileDir.back() != '\\' && fileDir.back() != '/')
+        fileDir.append("/");
     fileFrameSize.width = width;
     fileFrameSize.height = height;
     fileVideoBitRate = videoBPS;
@@ -1333,14 +1335,20 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     size_t id = std::this_thread::get_id().hash();
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    char buf[1024];
+    time_t rawTime;    
+    tm* ptrTm;
+
+    char buf[1024], shortNameBuf[1024];
     int count = 0;
     cv::Mat dstMat;
     avp::SharedAudioVideoFrame frame;
     avp::AudioVideoWriter2 writer;
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", fileVideoEncodePreset));
-    sprintf(buf, fileWriterFormat.c_str(), count++);
+    time(&rawTime);
+    ptrTm = localtime(&rawTime);
+    strftime(shortNameBuf, 1024, "%Y-%m-%d-%H-%M-%S.mp4", ptrTm);
+    sprintf(buf, "%s%s", fileDir.c_str(), shortNameBuf);
     bool ok = writer.open(buf, "mp4", true,
         audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
         audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
@@ -1349,13 +1357,11 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     if (!ok)
     {
         ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-        appendLog("保存视频 " + std::string(buf) + " 失败\n");
+        appendLog(std::string(buf) + " 无法打开，任务结束\n");
         return;
     }
     else
-    {
-        appendLog("开始保存视频 " + std::string(buf) + "\n");
-    }
+        appendLog(std::string(buf) + " 开始写入\n");
     long long int fileFirstTimeStamp = -1;
     while (true)
     {
@@ -1370,8 +1376,12 @@ void PanoramaLiveStreamTask::Impl::fileSave()
             if (frame.timeStamp - fileFirstTimeStamp > fileDuration * 1000000LL)
             {
                 writer.close();
-                appendLog("保存视频 " + std::string(buf) + " 结束\n");
-                sprintf(buf, fileWriterFormat.c_str(), count++);
+                appendLog(std::string(buf) + " 写入结束\n");
+
+                time(&rawTime);
+                ptrTm = localtime(&rawTime);
+                strftime(shortNameBuf, 1024, "%Y-%m-%d-%H-%M-%S.mp4", ptrTm);
+                sprintf(buf, "%s%s", fileDir.c_str(), shortNameBuf);
                 ok = writer.open(buf, "mp4", true,
                     audioOpenSuccess, "aac", audioReader.getAudioSampleType(),
                     audioReader.getAudioChannelLayout(), audioReader.getAudioSampleRate(), fileAudioBitRate,
@@ -1380,13 +1390,11 @@ void PanoramaLiveStreamTask::Impl::fileSave()
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-                    appendLog("保存视频 " + std::string(buf) + " 失败\n");
+                    appendLog(std::string(buf) + " 无法打开，任务结束\n");
                     break;
                 }
                 else
-                {
-                    appendLog("开始保存视频 " + std::string(buf) + "\n");
-                }
+                    appendLog(std::string(buf) + " 开始写入\n");
                 fileFirstTimeStamp = frame.timeStamp;
             }
             avp::AudioVideoFrame shallow;
@@ -1402,12 +1410,13 @@ void PanoramaLiveStreamTask::Impl::fileSave()
             if (!ok)
             {
                 ptlprintf("Error in %s [%d], could not write current frame\n", __FUNCTION__, id);
-                setAsyncErrorMessage("保存发生错误，任务终止。");
+                setAsyncErrorMessage(std::string(buf) + " 写入发生错误，任务终止。");
                 break;
             }
         }
     }
-    appendLog("保存视频 " + std::string(buf) + " 结束\n");
+    if (ok)
+        appendLog(std::string(buf) + " 写入结束\n");
     writer.close();
 
     ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
