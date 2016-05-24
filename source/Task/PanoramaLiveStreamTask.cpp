@@ -770,8 +770,14 @@ bool PanoramaLiveStreamTask::Impl::hasAsyncErrorMessage() const
 
 void PanoramaLiveStreamTask::Impl::getLastAsyncErrorMessage(std::string& message)
 {
-    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
-    message = asyncErrorMessage;
+    if (hasAsyncError)
+    {
+        std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+        message = asyncErrorMessage;
+        hasAsyncError = 0;
+    }
+    else
+        message.clear();
 }
 
 void PanoramaLiveStreamTask::Impl::getLog(std::string& logInfo)

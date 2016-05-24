@@ -84,6 +84,9 @@ public:
     virtual void waitForCompletion() = 0;
     virtual int getProgress() const = 0;
     virtual void cancel() = 0;
+    virtual void getLastSyncErrorMessage(std::string& message) const = 0;
+    virtual bool hasAsyncErrorMessage() const = 0;
+    virtual void getLastAsyncErrorMessage(std::string& message) = 0;
 };
 
 class CPUPanoramaLocalDiskTask : public PanoramaLocalDiskTask
@@ -99,6 +102,9 @@ public:
     void waitForCompletion();
     int getProgress() const;
     void cancel();
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
@@ -117,6 +123,9 @@ public:
     void waitForCompletion();
     int getProgress() const;
     void cancel();
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;

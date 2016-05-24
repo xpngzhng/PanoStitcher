@@ -97,16 +97,6 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
                 ok = false;
                 break;
             }
-            /*avp::AudioVideoFrame frame;
-            for (int j = 0; j < count; j++)
-            {
-                ok = readers[i].read(frame);
-                if (!ok)
-                {
-                    ptlprintf("Error in %s, cannot go to target frame\n", __FUNCTION__);
-                    break;
-                }
-            }*/
             if (!ok)
                 break;
         }

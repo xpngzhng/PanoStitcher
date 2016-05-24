@@ -29,7 +29,7 @@ static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vect
 
 static void cancelTask(PanoramaLocalDiskTask* task)
 {
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    std::this_thread::sleep_for(std::chrono::seconds(25));
     if (task)
         task->cancel();
 }
@@ -102,12 +102,14 @@ int main(int argc, char* argv[])
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
+        std::string msg;
+        task->getLastSyncErrorMessage(msg);
+        printf("Error message: %s\n", msg.c_str());
         return 0;
     }
 
-    //std::thread t(cancelTask, task.get());
+    std::thread t(cancelTask, task.get());
     ztool::Timer timer;
-    //task->run();
     task->start();
     int progress;
     while (true)
@@ -123,7 +125,7 @@ int main(int argc, char* argv[])
     timer.end();
     printf("%f\n", timer.elapse());
 
-    //t.join();
+    t.join();
 
     return 0;
 }
