@@ -85,13 +85,13 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!loadPhotoParams(cameraParamFile, params))
     {
         ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
-        syncErrorMessage = "导入配置文件失败。";
+        syncErrorMessage = "初始化拼接失败。";
         return false;
     }
     if (params.size() != numVideos)
     {
         ptlprintf("Error in %s, params.size() != numVideos\n", __FUNCTION__);
-        syncErrorMessage = "配置文件无效。";
+        syncErrorMessage = "初始化拼接失败。";
         return false;
     }
 
