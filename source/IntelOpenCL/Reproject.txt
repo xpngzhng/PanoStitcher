@@ -97,6 +97,44 @@ void reprojectLinearLocal(__global const unsigned char* srcData, int srcWidth, i
     result[3] = 0;
 }
 
+void reprojectLinearLocal2(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep, int srcx, int srcy, 
+    __global const int* weightData, unsigned char* result)
+{
+    int x0 = srcx, y0 = srcy;
+    int x1 = x0 + (x0 < srcWidth - 1), y1 = y0 + (y0 < srcHeight - 1);
+    int b = 0, g = 0, r = 0, w = 0;
+    uchar4 val;
+        
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x0);
+    w = weightData[0];
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+        
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x1);
+    w = weightData[1];
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x0);
+    w = weightData[2];
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x1);
+    w = weightData[3];
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    result[0] = b >> BILINEAR_INTER_BACK_SHIFT;
+    result[1] = g >> BILINEAR_INTER_BACK_SHIFT;
+    result[2] = r >> BILINEAR_INTER_BACK_SHIFT;
+    result[3] = 0;
+}
+
 inline uint bicubic(const uint rgb[4], const float w[4]) 
 {
 	int res = (int)(rgb[0] * w[0] + rgb[1] * w[1] + rgb[2] * w[2] + rgb[3] * w[3] + 0.5F);
@@ -287,6 +325,36 @@ __kernel void reprojectWeighedAccumulateTo32FKernel(__global const unsigned char
         reprojectLinearLocal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, temp);
         //resamplingLocal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, temp);
         float w = *((__global const float*)(weightData + dsty * weightStep) + dstx);
+        __global float* ptrDst = (__global float*)(dstData + dsty * dstStep) + dstx * 4;
+        ptrDst[0] += temp[0] * w;
+        ptrDst[1] += temp[1] * w;
+        ptrDst[2] += temp[2] * w;
+        ptrDst[3] = 0;
+    }        
+}
+
+__kernel void reprojectWeighedAccumulateTo32FKernel2(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
+    __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
+    __global const unsigned char* mapData, int mapStep, __global const unsigned char* interpWeightData, int interpWeightStep,
+    __global const unsigned char* blendWeightData, int blendWeightStep)
+{
+    int dstx = get_global_id(0);
+    int dsty = get_global_id(1);
+    if (dstx >= dstWidth || dsty >= dstHeight)
+        return;
+
+	__global const short* ptr = (__global const short*)(mapData + dsty * mapStep) + dstx * 2;
+    int srcx = ptr[0];
+    int srcy = ptr[1];
+    
+    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
+        ;
+    else
+    {        
+        unsigned char temp[4];
+		__global const int* ptrInterpWeight = (__global const int*)(interpWeightData + dsty * interpWeightStep) + dstx * 4;
+        reprojectLinearLocal2(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, ptrInterpWeight, temp);
+        float w = *((__global const float*)(blendWeightData + dsty * blendWeightStep) + dstx);
         __global float* ptrDst = (__global float*)(dstData + dsty * dstStep) + dstx * 4;
         ptrDst[0] += temp[0] * w;
         ptrDst[1] += temp[1] * w;

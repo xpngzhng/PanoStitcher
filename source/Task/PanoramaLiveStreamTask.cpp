@@ -340,7 +340,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::strin
     if (videoOpenSuccess || !videoThreadsJoined)
     {
         ptlprintf("Error in %s, video sources should be closed first before open again\n", __FUNCTION__);
-        syncErrorMessage = "推流任务正在进行中，先关闭当前运行的任务，再启动新的推流任务。";
+        syncErrorMessage = "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务。";
         return false;
     }
 
@@ -1357,7 +1357,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
     if (!ok)
     {
         ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-        appendLog(std::string(buf) + " 无法打开，任务结束\n");
+        appendLog(std::string(buf) + " 无法打开，任务终止\n");
         return;
     }
     else
@@ -1390,7 +1390,7 @@ void PanoramaLiveStreamTask::Impl::fileSave()
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-                    appendLog(std::string(buf) + " 无法打开，任务结束\n");
+                    appendLog(std::string(buf) + " 无法打开，任务终止\n");
                     break;
                 }
                 else

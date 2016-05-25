@@ -95,3 +95,53 @@ void ioclReprojectAccumulateWeightedTo32F(const IOclMat& src, IOclMat& dst, cons
     err = clFinish(ocl.queue);
     SAMPLE_CHECK_ERRORS(err);
 }
+
+void ioclReprojectAccumulateWeightedTo32F2(const IOclMat& src, IOclMat& dst, const IOclMat& map,
+    const IOclMat& interpWeight, const IOclMat& blendWeight, OpenCLBasic& ocl, OpenCLProgramOneKernel& executable)
+{
+    CV_Assert(src.data && src.type == CV_8UC4 && dst.data && dst.type == CV_32FC4 &&
+        map.data && map.type == CV_16SC2 && interpWeight.data && interpWeight.type == CV_32SC4 &&
+        blendWeight.data && blendWeight.type == CV_32FC1 && dst.size() == map.size() &&
+        interpWeight.size() == dst.size() && blendWeight.size() == dst.size() &&
+        ocl.context && ocl.queue && executable.kernel);
+
+    cl_int err = CL_SUCCESS;
+
+    err = clSetKernelArg(executable.kernel, 0, sizeof(cl_mem), (void *)&src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 1, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 2, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 3, sizeof(int), &src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 4, sizeof(cl_mem), (void *)&dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 5, sizeof(int), &dst.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 6, sizeof(int), &dst.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 7, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 8, sizeof(cl_mem), (void *)&map.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 9, sizeof(int), &map.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 10, sizeof(cl_mem), (void *)&interpWeight.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 11, sizeof(int), &interpWeight.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 12, sizeof(cl_mem), (void *)&blendWeight.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(executable.kernel, 13, sizeof(int), &blendWeight.step);
+    SAMPLE_CHECK_ERRORS(err);
+
+    size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
+    size_t localWorkSize[2] = { 16, 16 };
+    size_t offset[2] = { 0, 0 };
+
+    err = clEnqueueNDRangeKernel(ocl.queue, executable.kernel, 2, offset, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clFinish(ocl.queue);
+    SAMPLE_CHECK_ERRORS(err);
+}

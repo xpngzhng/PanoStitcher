@@ -106,6 +106,12 @@ void getReprojectMap32FAndMask(const PhotoParam& param, const cv::Size& srcSize,
 void getReprojectMaps32FAndMasks(const std::vector<PhotoParam>& params, const cv::Size& srcSize, const cv::Size& dstSize,
     std::vector<cv::Mat>& dstSrcXMaps, std::vector<cv::Mat>& dstSrcYMaps, std::vector<cv::Mat>& masks);
 
+void getReprojectMap16SAndWeight32SAndMask(const PhotoParam& param, const cv::Size& srcSize, const cv::Size& dstSize,
+    cv::Mat& dstSrcMap, cv::Mat& weight, cv::Mat& mask);
+
+void getReprojectMaps16SAndWeights32SAndMasks(const std::vector<PhotoParam>& params, const cv::Size& srcSize, const cv::Size& dstSize,
+    std::vector<cv::Mat>& dstSrcMaps, std::vector<cv::Mat>& weights, std::vector<cv::Mat>& masks);
+
 void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask, 
     const PhotoParam& param, const cv::Size& dstSize);
 

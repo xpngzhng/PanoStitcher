@@ -218,10 +218,67 @@ void getReprojectMaps32FAndMasks(const std::vector<PhotoParam>& params, const cv
         getReprojectMap32FAndMask(params[i], srcSize, dstSize, xmaps[i], ymaps[i], masks[i]);
 }
 
+static const int BILINEAR_INTER_SHIFT = 10;
+static const int BILINEAR_INTER_BACK_SHIFT = BILINEAR_INTER_SHIFT * 2;
+static const int BILINEAR_UNIT = 1 << BILINEAR_INTER_SHIFT;
+
+void getReprojectMap16SAndWeight32SAndMask(const PhotoParam& param, const cv::Size& srcSize, const cv::Size& dstSize,
+    cv::Mat& map, cv::Mat& weight, cv::Mat& mask)
+{
+    cv::Mat map64F;
+    getReprojectMapAndMask(param, srcSize, dstSize, map64F, mask);
+    map.create(dstSize, CV_16SC2);
+    weight.create(dstSize, CV_32SC4);
+    for (int i = 0; i < dstSize.height; i++)
+    {
+        const double* ptrMap64F = map64F.ptr<double>(i);
+        short* ptrMap = map.ptr<short>(i);
+        int* ptrWeight = weight.ptr<int>(i);
+        for (int j = 0; j < dstSize.width; j++)
+        {
+            if (ptrMap64F[0] < 0 || ptrMap64F[1] < 0)
+            {
+                ptrMap[0] = -1;
+                ptrMap[1] = -1;
+                ptrWeight[0] = 0;
+                ptrWeight[1] = 0;
+                ptrWeight[2] = 0;
+                ptrWeight[3] = 0;
+            }
+            else
+            {
+                double x = ptrMap64F[0], y = ptrMap64F[1];
+                short x0 = x, y0 = y;
+                int deltax0 = (x - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
+                int deltay0 = (y - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
+                ptrMap[0] = x0;
+                ptrMap[1] = y0;
+                ptrWeight[0] = deltax1 * deltay1;
+                ptrWeight[1] = deltax0 * deltay1;
+                ptrWeight[2] = deltax1 * deltay0;
+                ptrWeight[3] = deltax0 * deltay0;
+            }
+            ptrMap64F += 2;
+            ptrMap += 2;
+            ptrWeight += 4;
+        }
+    }
+}
+
+void getReprojectMaps16SAndWeights32SAndMasks(const std::vector<PhotoParam>& params, const cv::Size& srcSize, const cv::Size& dstSize,
+    std::vector<cv::Mat>& maps, std::vector<cv::Mat>& weights, std::vector<cv::Mat>& masks)
+{
+    int num = params.size();
+    maps.resize(num);
+    weights.resize(num);
+    masks.resize(num);
+    for (int i = 0; i < num; i++)
+        getReprojectMap16SAndWeight32SAndMask(params[i], srcSize, dstSize, maps[i], weights[i], masks[i]);
+}
+
 void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask, 
     const PhotoParam& param, const cv::Size& dstSize)
-{
-    
+{    
     cv::Point max = cv::Point(dstSize.width, dstSize.height);
     cv::Point min = cv::Point(0, 0);
 

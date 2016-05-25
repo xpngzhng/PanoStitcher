@@ -75,9 +75,9 @@ void mapNearestNeighborParallel(const cv::Mat& src, cv::Mat& dst, const cv::Matx
     cv::parallel_for_(cv::Range(0, src.rows), loop, src.total() / (double)(1 << 16));
 }
 
-const int BILINEAR_INTER_SHIFT = 10;
-const int BILINEAR_INTER_BACK_SHIFT = BILINEAR_INTER_SHIFT * 2;
-const int BILINEAR_UNIT = 1 << BILINEAR_INTER_SHIFT;
+static const int BILINEAR_INTER_SHIFT = 10;
+static const int BILINEAR_INTER_BACK_SHIFT = BILINEAR_INTER_SHIFT * 2;
+static const int BILINEAR_UNIT = 1 << BILINEAR_INTER_SHIFT;
 void mapBilinear(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot)
 {
     cv::Matx33d invRot = rot.t();
