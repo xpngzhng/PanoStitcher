@@ -192,6 +192,17 @@ inline cv::Point2d findRotateEquiRectangularSrc(const cv::Point& dst, double hal
     phi = atan2(pt.x, pt.z) / PI;
     return cv::Point2d(halfWidth + phi * halfWidth - 0.5, halfHeight * (2 - theta) - 0.5);
 }
+
+inline cv::Point2d findRotateEquiRectangularSrc(const cv::Point2d& dst, double halfWidth, double halfHeight, const cv::Matx33d& invRot)
+{
+    double theta = PI - (dst.y + 0.5) / halfHeight * HALF_PI;
+    double phi = ((dst.x + 0.5) - halfWidth) / halfWidth * PI;
+    cv::Point3d pt(sin(theta) * sin(phi), cos(theta), sin(theta) * cos(phi));
+    pt = invRot * pt;
+    theta = acos(pt.y) / HALF_PI;
+    phi = atan2(pt.x, pt.z) / PI;
+    return cv::Point2d(halfWidth + phi * halfWidth - 0.5, halfHeight * (2 - theta) - 0.5);
+}
 #endif
 
 inline cv::Point2d findTransEquiRectangularSrc(const cv::Point& dst, double halfWidth, double halfHeight, const cv::Point3d& negTrans)
@@ -242,3 +253,89 @@ inline cv::Point2d findTransEquiRectangularSrc(const cv::Point& dst, double half
     phi = atan2(pt.x, pt.z) / PI;
     return cv::Point2d(halfWidth + phi * halfWidth - 0.5, halfHeight * (2 - theta) - 0.5);
 }
+
+// src equirect, dst fisheye
+struct FishEyeBackToEquiRect
+{
+    FishEyeBackToEquiRect(int srcWidth, int srcHeight, int dstWidth, int dstHeight,
+        double dstHFov, double srcDeltaAngleX, double srcDeltaAngleY)
+    { 
+        fullSrcWidth = srcWidth;
+        fullSrcHeight = srcHeight;
+        halfSrcWidth = srcWidth * 0.5;
+        halfSrcHeight = srcHeight * 0.5;
+        halfDstWidth = dstWidth * 0.5;
+        halfDstHeight = dstHeight * 0.5;
+        halfDstHFov = dstHFov * 0.5;
+        srcR = halfSrcHeight;
+        dstR = dstWidth / (2 * sin(halfDstHFov));
+        dstRSqr = dstR * dstR;
+        srcDeltaAX = srcDeltaAngleX;
+        srcDeltaAY = srcDeltaAngleY;
+        setRotationRM(invRot, srcDeltaAngleX, srcDeltaAngleY, 0);
+        invRot = invRot.t();
+    }
+
+    cv::Point2d operator()(double dstx, double dsty)
+    {
+        double dstxx = dstx - halfDstWidth;
+        double dstyy = dsty - halfDstHeight;
+        double dstxxSqr = dstxx * dstxx;
+        double dstyySqr = dstyy * dstyy;
+        if (dstxxSqr + dstyySqr > dstRSqr)
+            return cv::Point2d(-1, -1);
+        double horiR = sqrt(dstRSqr - dstyySqr);
+        double alphaX = asin(dstxx / horiR);
+        double alphaY = asin(dstyy / dstR);
+        double srcx = (alphaX) / PI * halfSrcWidth + halfSrcWidth;
+        double srcy = (alphaY) / PI * fullSrcHeight + halfSrcHeight;
+        return findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
+    }
+
+    double fullSrcWidth, fullSrcHeight;
+    double halfSrcWidth, halfSrcHeight, halfDstWidth, halfDstHeight, halfDstHFov;
+    double srcR, dstR, dstRSqr;
+    double srcDeltaAX, srcDeltaAY;
+    cv::Matx33d invRot;
+};
+
+// src equirect, dst rectlinear
+struct RectLinearBackToEquiRect
+{
+    RectLinearBackToEquiRect(int srcWidth, int srcHeight, int dstWidth, int dstHeight,
+        double dstHFov, double srcDeltaAngleX, double srcDeltaAngleY)
+    {
+        fullSrcWidth = srcWidth;
+        fullSrcHeight = srcHeight;
+        halfSrcWidth = srcWidth * 0.5;
+        halfSrcHeight = srcHeight * 0.5;
+        halfDstWidth = dstWidth * 0.5;
+        halfDstHeight = dstHeight * 0.5;
+        halfDstHFov = dstHFov * 0.5;
+        srcR = halfSrcHeight;
+        dstR = dstWidth / (2 * tan(halfDstHFov));
+        dstRSqr = dstR * dstR;
+        srcDeltaAX = srcDeltaAngleX;
+        srcDeltaAY = srcDeltaAngleY;
+        setRotationRM(invRot, srcDeltaAngleX, srcDeltaAngleY, 0);
+        invRot = invRot.t();
+    }
+
+    cv::Point2d operator()(double dstx, double dsty)
+    {
+        double dstxx = dstx - halfDstWidth;
+        double dstyy = dsty - halfDstHeight;
+        double d = sqrt(dstxx * dstxx + dstyy * dstyy + dstRSqr);
+        double alphaX = atan2(dstxx, dstR);
+        double alphaY = asin(dstyy / d);
+        double srcx = (alphaX) / PI * halfSrcWidth + halfSrcWidth;
+        double srcy = (alphaY) / PI * fullSrcHeight + halfSrcHeight;
+        return findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
+    }
+
+    double fullSrcWidth, fullSrcHeight;
+    double halfSrcWidth, halfSrcHeight, halfDstWidth, halfDstHeight, halfDstHFov;
+    double srcR, dstR, dstRSqr;
+    double srcDeltaAX, srcDeltaAY;
+    cv::Matx33d invRot;
+};

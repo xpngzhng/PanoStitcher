@@ -439,6 +439,7 @@ bool PanoramaLiveStreamTask::Impl::openAudioStream(const std::string& url)
     if (audioOpenSuccess || !audioThreadJoined)
     {
         ptlprintf("Error in %s, audio source should be closed first before open again\n", __FUNCTION__);
+        syncErrorMessage = "音频源任务正在运行中，先关闭当前运行的任务，再启动新的任务。";
         return false;
     }
 
@@ -688,7 +689,7 @@ bool PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
     if (!videoOpenSuccess)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
-        syncErrorMessage = "尚未打开音视频源，无法启动推流任务。";
+        syncErrorMessage = "尚未打开音视频源，无法启动保存任务。";
         return false;
     }
 

@@ -29,6 +29,7 @@
     <ClInclude Include="..\..\source\Task\PinnedMemoryPool.h" />
     <ClInclude Include="..\..\source\Task\RicohUtil.h" />
     <ClInclude Include="..\..\source\Task\SharedAudioVideoFramePool.h" />
+    <ClInclude Include="..\..\source\Task\Text.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Task\Image.cpp" />
@@ -39,6 +40,7 @@
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
+    <ClCompile Include="..\..\source\Task\Text.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}</ProjectGuid>

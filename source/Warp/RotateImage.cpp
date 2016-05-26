@@ -262,3 +262,43 @@ void mapBilinearParallel(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& ro
     MapBilinearLoop loop(src, dst, rot);
     cv::parallel_for_(cv::Range(0, src.rows), loop, src.total() / (double)(1 << 16));
 }
+
+void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSize,
+    double dstHFov, double srcHoriAngleOffset, double srcVertAngleOffset, bool isRectLinear)
+{
+    int rows = src.rows, cols = src.cols;
+    dst.create(dstSize, CV_8UC3);
+    dst.setTo(0);
+    if (isRectLinear)
+    {
+        RectLinearBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
+            dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
+        for (int i = 0; i < dstSize.height; i++)
+        {
+            cv::Vec3b* ptrDstRow = dst.ptr<cv::Vec3b>(i);
+            for (int j = 0; j < dstSize.width; j++)
+            {
+                cv::Point2d srcPoint = transform(j, i);
+                int x = cvFloor(srcPoint.x), y = cvFloor(srcPoint.y);
+                if (x >= 0 && x < cols && y >= 0 && y < rows)
+                    ptrDstRow[j] = src.at<cv::Vec3b>(y, x);
+            }
+        }
+    }
+    else
+    {
+        FishEyeBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
+            dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
+        for (int i = 0; i < dstSize.height; i++)
+        {
+            cv::Vec3b* ptrDstRow = dst.ptr<cv::Vec3b>(i);
+            for (int j = 0; j < dstSize.width; j++)
+            {
+                cv::Point2d srcPoint = transform(j, i);
+                int x = cvFloor(srcPoint.x), y = cvFloor(srcPoint.y);
+                if (x >= 0 && x < cols && y >= 0 && y < rows)
+                    ptrDstRow[j] = src.at<cv::Vec3b>(y, x);
+            }
+        }
+    }
+}
