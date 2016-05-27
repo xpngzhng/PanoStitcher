@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     std::string cameraParamFile, videoPathAndOffsetFile;
     std::string panoVideoName;
 
-    cameraParamFile = parser.get<std::string>("camera_param_file");
+    cameraParamFile = "F:\\panovideo\\test\\test6\\changtai.xml"/*parser.get<std::string>("camera_param_file")*/;
     if (cameraParamFile.empty())
     {
         printf("Could not find camera_param_file\n");
@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
 
     dstSize = cv::Size(1024, 512);
 
-    videoPathAndOffsetFile = parser.get<std::string>("video_path_offset_file");
+    videoPathAndOffsetFile = "F:\\panovideo\\test\\test6\\synchro_param_copy.txt"/*parser.get<std::string>("video_path_offset_file")*/;
     if (videoPathAndOffsetFile.empty())
     {
         printf("Could not find video_path_offset_file\n");
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
         printf("stitch failed\n");
         return 0;
     }
-    while (task->stitch(image, timeStamps, 4))
+    while (task->stitch(image, timeStamps, 1))
     {
         cv::imshow("render", image);
         int key = cv::waitKey(1);

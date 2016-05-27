@@ -29,7 +29,7 @@ static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vect
 
 static void cancelTask(PanoramaLocalDiskTask* task)
 {
-    std::this_thread::sleep_for(std::chrono::seconds(25));
+    std::this_thread::sleep_for(std::chrono::seconds(105));
     if (task)
         task->cancel();
 }

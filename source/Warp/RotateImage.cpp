@@ -282,6 +282,8 @@ void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSiz
                 int x = cvFloor(srcPoint.x), y = cvFloor(srcPoint.y);
                 if (x >= 0 && x < cols && y >= 0 && y < rows)
                     ptrDstRow[j] = src.at<cv::Vec3b>(y, x);
+                //else if (x != -1 && y != -1)
+                //    printf("(%d, %d)\n", x, y);
             }
         }
     }
@@ -298,6 +300,8 @@ void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSiz
                 int x = cvFloor(srcPoint.x), y = cvFloor(srcPoint.y);
                 if (x >= 0 && x < cols && y >= 0 && y < rows)
                     ptrDstRow[j] = src.at<cv::Vec3b>(y, x);
+                //else 
+                //    printf("(%d, %d)\n", x, y);
             }
         }
     }

@@ -45,10 +45,10 @@ int main1()
     return 0;
 }
 
-int main()
+int main2()
 {
     cv::Mat src = cv::imread("F:\\panoimage\\detuoffice\\blendmultiband.bmp");
-    double hfov = 150.0 * radOverDegree, horiOffset = 150 * radOverDegree, vertOffset = 70 * radOverDegree;
+    double hfov = 175.0 * radOverDegree, horiOffset = 120 * radOverDegree, vertOffset = 50 * radOverDegree;
     cv::Size dstSize(720, 720);
     //FishEyeBackToEquiRect fishEye(src.cols, src.rows, dstSize.width, dstSize.height, hfov, horiOffset, vertOffset);
     //RectLinearBackToEquiRect rectLinear(src.cols, src.rows, dstSize.width, dstSize.height, hfov, horiOffset, vertOffset);
@@ -57,6 +57,47 @@ int main()
     mapNearestNeighbor(src, dstRectLinear, dstSize, hfov, horiOffset, vertOffset, true);
     cv::imshow("fisheye", dstFishEye);
     cv::imshow("rectlinear", dstRectLinear);
+    cv::waitKey(0);
+    return 0;
+}
+
+cv::Mat image, show;
+cv::Point beg, end;
+int accumX, accumY;
+double scale = 3.1415926 / 2000;
+cv::Size dstSize(720, 360);
+double hfov = 90 * 3.1415927 / 180;
+void onMouse(int event, int x, int y, int flags, void*)
+{
+    if (event == CV_EVENT_LBUTTONDOWN)
+    {
+        beg = cv::Point(x, y);
+    }
+    else if (event == CV_EVENT_MOUSEMOVE && (flags & CV_EVENT_FLAG_LBUTTON))
+    {
+        end = cv::Point(x, y);
+        accumX += (end.x - beg.x);
+        accumY += (end.y - beg.y);
+        mapNearestNeighbor(image, show, dstSize, hfov, accumX * scale, accumY * scale, true);
+        cv::imshow("image", show);
+    }
+    else if (event == CV_EVENT_LBUTTONUP)
+    {
+
+        cv::imshow("image", show);
+    }
+}
+
+int main()
+{
+    const char* controlWinName = "image";
+    cv::namedWindow(controlWinName);
+    cv::setMouseCallback(controlWinName, onMouse);
+    image = cv::imread("F:\\panoimage\\2\\1\\1 - 6 small.jpg");
+    accumX = 0;
+    accumY = 0;
+    mapNearestNeighbor(image, show, dstSize, hfov, accumX * scale, accumY * scale, true);
+    cv::imshow("image", show);
     cv::waitKey(0);
     return 0;
 }
