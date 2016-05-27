@@ -389,3 +389,83 @@ struct RectLinearBackToEquiRect
     double srcR, dstR, dstRSqr;
     double srcDeltaAX, srcDeltaAY;
 };
+
+struct RectLinearBackToEquiRect2
+{
+    RectLinearBackToEquiRect2(int srcWidth, int srcHeight, int dstWidth, int dstHeight,
+        double dstHFov, double srcDeltaAngleX, double srcDeltaAngleY)
+    {
+        fullSrcWidth = srcWidth;
+        fullSrcHeight = srcHeight;
+        halfSrcWidth = srcWidth * 0.5;
+        halfSrcHeight = srcHeight * 0.5;
+        halfDstWidth = dstWidth * 0.5;
+        halfDstHeight = dstHeight * 0.5;
+        halfDstHFov = dstHFov * 0.5;
+        srcR = halfSrcHeight;
+        dstR = dstWidth / (2 * tan(halfDstHFov));
+        dstRSqr = dstR * dstR;
+        srcDeltaAX = -srcDeltaAngleX;
+        srcDeltaAY = -srcDeltaAngleY;
+
+        setRotationRM(invRot, 0, srcDeltaAngleY, 0);
+        invRot = invRot.t();
+    }
+
+    cv::Point2d operator()(double dstx, double dsty)
+    {
+        double dstxx = dstx - halfDstWidth;
+        double dstyy = dsty - halfDstHeight;
+        double d = sqrt(dstxx * dstxx + dstyy * dstyy + dstRSqr);
+        double alphaX = atan2(dstxx, dstR);
+        double alphaY = asin(dstyy / d);
+        double srcx = (alphaX) / PI * halfSrcWidth + halfSrcWidth;
+        double srcy = (alphaY) / PI * fullSrcHeight + halfSrcHeight;
+        cv::Point2d dd = findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
+        srcx = dd.x;
+        srcy = dd.y;
+        srcx += srcDeltaAX / PI * halfSrcWidth;
+        while (srcx < 0)
+            srcx += fullSrcWidth;
+        while (srcx >= fullSrcWidth)
+            srcx -= fullSrcWidth;
+        //double srcx = (alphaX + srcDeltaAX) / PI * halfSrcWidth + halfSrcWidth;
+        //double srcy = (alphaY + srcDeltaAY) / PI * fullSrcHeight + halfSrcHeight;
+        //while (srcx < 0)
+        //    srcx += fullSrcWidth;
+        //while (srcx >= fullSrcWidth)
+        //    srcx -= fullSrcWidth;
+        //if (srcy < 0)
+        //{
+        //    int count = fabs(srcy) / fullSrcHeight;
+        //    if (count & 1)
+        //        srcy += fullSrcHeight * (count + 1);
+        //    else
+        //    {
+        //        srcy += (count > 0 ? fullSrcHeight * (count - 2) : 0);
+        //        srcy = -srcy;
+        //    }
+        //    srcx = fullSrcWidth - srcx;
+        //}
+        //if (srcy >= fullSrcHeight)
+        //{
+        //    int count = srcy / fullSrcHeight;
+        //    if (count & 1)
+        //    {
+        //        srcy -= (count > 1 ? fullSrcHeight * (count - 2) : 0);
+        //        srcy = fullSrcWidth - srcy;
+        //    }
+        //    else
+        //        srcy -= count * fullSrcHeight;
+        //    srcx = fullSrcWidth - srcx;
+        //}
+        return cv::Point2d(srcx, srcy);
+    }
+
+    double fullSrcWidth, fullSrcHeight;
+    double halfSrcWidth, halfSrcHeight, halfDstWidth, halfDstHeight, halfDstHFov;
+    double srcR, dstR, dstRSqr;
+    double srcDeltaAX, srcDeltaAY;
+
+    cv::Matx33d invRot;
+};

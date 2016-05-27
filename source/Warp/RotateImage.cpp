@@ -271,7 +271,7 @@ void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSiz
     dst.setTo(0);
     if (isRectLinear)
     {
-        RectLinearBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
+        RectLinearBackToEquiRect2 transform(cols, rows, dstSize.width, dstSize.height,
             dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
         for (int i = 0; i < dstSize.height; i++)
         {

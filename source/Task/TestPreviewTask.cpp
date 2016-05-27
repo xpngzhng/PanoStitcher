@@ -1,4 +1,5 @@
 #include "PanoramaTask.h"
+#include "Timer.h"
 #include "opencv2/highgui/highgui.hpp"
 #include <fstream>
 
@@ -89,6 +90,8 @@ int main(int argc, char* argv[])
     }
 
     int numVideos = srcVideoNames.size();
+    ztool::Timer t;
+    int stitchCount = 0;
 
     cv::Mat image;
     std::vector<long long int> timeStamps, tempTimeStamps;
@@ -98,12 +101,19 @@ int main(int argc, char* argv[])
         printf("stitch failed\n");
         return 0;
     }
+    t.start();
     while (task->stitch(image, timeStamps, 1))
     {
         cv::imshow("render", image);
         int key = cv::waitKey(1);
         if (key == 'q')
             break;
+        stitchCount++;
+        if (stitchCount % 20 == 0)
+        {
+            t.end();
+            printf("fps %f\n", stitchCount / t.elapse());
+        }
     }
     return 0;
 
