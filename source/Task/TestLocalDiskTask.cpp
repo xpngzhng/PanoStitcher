@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     std::string cameraParamFile, videoPathAndOffsetFile;
     std::string panoVideoName;
 
-    cameraParamFile = parser.get<std::string>("camera_param_file");
+    cameraParamFile = "F:\\panovideo\\test\\test6\\changtai.xml"/*parser.get<std::string>("camera_param_file")*/;
     if (cameraParamFile.empty())
     {
         printf("Could not find camera_param_file\n");
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
 
-    videoPathAndOffsetFile = parser.get<std::string>("video_path_offset_file");
+    videoPathAndOffsetFile = "F:\\panovideo\\test\\test6\\synchro_param_copy.txt"/*parser.get<std::string>("video_path_offset_file")*/;
     if (videoPathAndOffsetFile.empty())
     {
         printf("Could not find video_path_offset_file\n");
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     bool ok = task->init(srcVideoNames, offset, 0, cameraParamFile, panoVideoName,
-        dstSize.width, dstSize.height, 12000000, "h264", "medium", 300);
+        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    std::thread t(cancelTask, task.get());
+    //std::thread t(cancelTask, task.get());
     ztool::Timer timer;
     task->start();
     int progress;
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
     timer.end();
     printf("%f\n", timer.elapse());
 
-    t.join();
+    //t.join();
 
     return 0;
 }

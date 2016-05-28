@@ -605,8 +605,7 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
             images[i].copyTo(imagePyr[0]);
         for (int j = 0; j < numLevels; j++)
         {
-            //pyramidDown16SC4To32SC4(imagePyr[j], image32SPyr[j + 1], cv::Size(), true);
-            //divide32SC4To16SC4(image32SPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
+            //pyramidDown16SC4To16SC4(imagePyr[j], imagePyr[j + 1], cv::Size(), true);
             pyramidDown16SC4To16SC4(imagePyr[j], alphaPyrs[i][j + 1], imagePyr[j + 1], true);
         }
         for (int j = 0; j < numLevels; j++)
