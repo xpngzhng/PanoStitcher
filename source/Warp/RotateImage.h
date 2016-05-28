@@ -12,3 +12,6 @@ void mapBilinearParallel(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& ro
 
 void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSize,
     double dstHFov, double srcHoriAngleOffset, double srcVertAngleOffset, bool isRectLinear);
+
+void mapNearestNeighborParallel(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSize,
+    double dstHFov, double srcHoriAngleOffset, double srcVertAngleOffset, bool isRectLinear);

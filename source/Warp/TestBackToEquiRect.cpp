@@ -65,7 +65,7 @@ cv::Mat image, show;
 cv::Point beg, end;
 int accumX, accumY;
 double scale = 3.1415926 / 2000;
-cv::Size dstSize(720, 360);
+cv::Size dstSize(720, 720);
 double hfov = 90 * 3.1415927 / 180;
 void onMouse(int event, int x, int y, int flags, void*)
 {
@@ -96,7 +96,7 @@ int main()
     image = cv::imread("F:\\panoimage\\2\\1\\1 - 6 small.jpg");
     accumX = 0;
     accumY = 0;
-    mapNearestNeighbor(image, show, dstSize, hfov, accumX * scale, accumY * scale, true);
+    mapNearestNeighborParallel(image, show, dstSize, hfov, accumX * scale, accumY * scale, true);
     cv::imshow("image", show);
     cv::waitKey(0);
     return 0;

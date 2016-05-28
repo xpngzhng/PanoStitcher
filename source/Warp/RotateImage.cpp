@@ -271,7 +271,7 @@ void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSiz
     dst.setTo(0);
     if (isRectLinear)
     {
-        RectLinearBackToEquiRect2 transform(cols, rows, dstSize.width, dstSize.height,
+        RectLinearBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
             dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
         for (int i = 0; i < dstSize.height; i++)
         {
@@ -304,5 +304,61 @@ void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSiz
                 //    printf("(%d, %d)\n", x, y);
             }
         }
+    }
+}
+
+template<typename TransformType>
+struct ViewTransformLoop : public cv::ParallelLoopBody
+{
+    ViewTransformLoop(const cv::Mat& src_, cv::Mat& dst_, const TransformType& transform_)
+    : src(src_), dst(dst_), transform(transform_)
+    {
+        rows = src.rows;
+        cols = src.cols;
+        dstCols = dst.cols;
+    }
+
+    ~ViewTransformLoop() {}
+
+    void operator()(const cv::Range& r) const
+    {
+        for (int i = r.start; i < r.end; i++)
+        {
+            cv::Vec3b* ptrDstRow = dst.ptr<cv::Vec3b>(i);
+            for (int j = 0; j < dstCols; j++)
+            {
+                cv::Point2d srcPoint = transform(j, i);
+                int x = cvFloor(srcPoint.x), y = cvFloor(srcPoint.y);
+                if (x >= 0 && x < cols && y >= 0 && y < rows)
+                    ptrDstRow[j] = src.at<cv::Vec3b>(y, x);
+            }
+        }
+    }
+
+    const cv::Mat& src;
+    cv::Mat& dst;
+    const TransformType& transform;
+    int rows, cols, dstCols;
+};
+
+void mapNearestNeighborParallel(const cv::Mat& src, cv::Mat& dst, const cv::Size& dstSize,
+    double dstHFov, double srcHoriAngleOffset, double srcVertAngleOffset, bool isRectLinear)
+{
+    int rows = src.rows, cols = src.cols;
+    dst.create(dstSize, CV_8UC3);
+    dst.setTo(0);
+    if (isRectLinear)
+    {
+        RectLinearBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
+            dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
+        ViewTransformLoop<RectLinearBackToEquiRect> loop(src, dst, transform);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop, dst.total() / (double)(1 << 16));
+    }
+    else
+    {
+        FishEyeBackToEquiRect transform(cols, rows, dstSize.width, dstSize.height,
+            dstHFov, srcHoriAngleOffset, srcVertAngleOffset);
+        ViewTransformLoop<FishEyeBackToEquiRect> loop(src, dst, transform);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop, dst.total() / (double)(1 << 16));
     }
 }
