@@ -1132,7 +1132,7 @@ void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images,
 
     {
         std::unique_lock<std::mutex> lk(mtxAccum);
-        cvAccum.wait(lk);
+        cvAccum.wait(lk, [this] { return buildCount.load() == numImages; });
     }
 
     for (int i = 0; i <= numLevels; i++)
