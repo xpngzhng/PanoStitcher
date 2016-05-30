@@ -168,6 +168,10 @@ void showVideoResult()
 int main(int argc, char* argv[])
 {
     const char* keys =
+        "{@url0                       |               |}"
+        "{@url1                       |               |}"
+        "{@url2                       |               |}"
+        "{@url3                       |               |}"
         "{camera_model                | dualgopro     | camera model}"
         "{camera_param_path           | null          | camera parameter file path, may be xml file path or ptgui pts file path}"
         "{num_cameras                 | 2             | number of cameras}"
@@ -208,10 +212,40 @@ int main(int argc, char* argv[])
 
     bool ok;
     std::vector<std::string> urls;
-    urls.push_back("192.168.1.204");
-    urls.push_back("192.168.1.205");
-    urls.push_back("192.168.1.206");
-    urls.push_back("192.168.1.207");
+    //urls.push_back("192.168.1.204");
+    //urls.push_back("192.168.1.205");
+    //urls.push_back("192.168.1.206");
+    //urls.push_back("192.168.1.207");
+    std::string url;
+    url = parser.get<std::string>("@url0");
+    if (url.empty())
+    {
+        printf("url empty\n");
+        return 0;
+    }
+    urls.push_back(url);
+    url = parser.get<std::string>("@url1");
+    if (url.empty())
+    {
+        printf("url empty\n");
+        return 0;
+    }
+    urls.push_back(url);
+    url = parser.get<std::string>("@url2");
+    if (url.empty())
+    {
+        printf("url empty\n");
+        return 0;
+    }
+    urls.push_back(url);
+    url = parser.get<std::string>("@url3");
+    if (url.empty())
+    {
+        printf("url empty\n");
+        return 0;
+    }
+    urls.push_back(url);
+
     ok = task.openAudioVideoSources(urls);
     if (!ok)
     {
