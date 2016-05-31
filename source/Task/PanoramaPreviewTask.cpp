@@ -25,7 +25,7 @@ struct CPUPanoramaPreviewTask::Impl
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
     std::vector<cv::Mat> dstSrcMaps, dstMasks;
-    TilingMultibandBlendFastParallel blender;
+    TilingMultibandBlendFast blender;
     std::vector<cv::Mat> images, reprojImages;
     std::vector<avp::AudioVideoFrame> frames;
     cv::Mat blendImage;

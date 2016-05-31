@@ -142,6 +142,8 @@ private:
     bool success;
 };
 
+// DEPRECATED
+// Just only a little faster than TilingMultibandBlendFast at the expense of more memory
 class TilingMultibandBlendFastParallel
 {
 public:
@@ -228,7 +230,6 @@ private:
     bool fullMask;
     bool success;
 };
-
 
 class CudaTilingMultibandBlendFast32F
 {

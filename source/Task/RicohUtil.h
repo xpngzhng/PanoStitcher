@@ -75,7 +75,7 @@ private:
     std::vector<cv::Mat> dstSrcMaps;
     std::vector<cv::Mat> masks;
     std::vector<cv::Mat> reprojImages;
-    TilingMultibandBlendFastParallel blender;
+    TilingMultibandBlendFast blender;
     int numImages;
     int success;
 };
@@ -207,7 +207,7 @@ private:
     CompleteQueue cpQueue;
     int highQualityBlend;
     int completeQueue;
-    TilingMultibandBlendFastParallel mbBlender;
+    TilingMultibandBlendFast mbBlender;
     std::vector<cv::Mat> weights;
     cv::Mat accum;
     int numImages;

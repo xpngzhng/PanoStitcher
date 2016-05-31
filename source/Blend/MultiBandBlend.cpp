@@ -1130,6 +1130,14 @@ void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images,
     buildCount.store(0);
     cvBuildPyr.notify_all();
 
+    // It seems that unconditional waiting causes deadlock if this library
+    // runs on a less powerful CPU.
+    // After I used conditional wait, deadlock no longer happened.
+    // The cause of deadlock has not been really discovered.
+    // I do not recommend using TilingMultibandBlendFastParallel,
+    // it runs just a little faster than TilingMultibandBlendFast but 
+    // consumes more memory.
+    // I want to mark this class as DEPRECATED.
     {
         std::unique_lock<std::mutex> lk(mtxAccum);
         cvAccum.wait(lk, [this] { return buildCount.load() == numImages; });
