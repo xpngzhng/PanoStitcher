@@ -93,18 +93,28 @@ int main(int argc, char* argv[])
     ztool::Timer t;
     int stitchCount = 0;
 
-    cv::Mat image;
+    char buf[64];
+    std::vector<std::string> srcNames(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        sprintf(buf, "src%d", i);
+        srcNames[i] = buf;
+    }
+    std::vector<cv::Mat> src;
+    cv::Mat dst;
     std::vector<long long int> timeStamps, tempTimeStamps;
-    ok = task->stitch(image, timeStamps, 1);
+    ok = task->stitch(src, timeStamps, dst, 1);
     if (!ok)
     {
         printf("stitch failed\n");
         return 0;
     }
     t.start();
-    while (task->stitch(image, timeStamps, 1))
+    while (task->stitch(src, timeStamps, dst, 1))
     {
-        cv::imshow("render", image);
+        //for (int i = 0; i < numVideos; i++)
+        //    cv::imshow(srcNames[i], src[i]);
+        cv::imshow("render", dst);
         int key = cv::waitKey(1);
         if (key == 'q')
             break;
@@ -117,7 +127,7 @@ int main(int argc, char* argv[])
     }
     return 0;
 
-    cv::imshow("render", image);
+    cv::imshow("render", dst);
     while (true)
     {
         int key = cv::waitKey(0);
@@ -133,9 +143,9 @@ int main(int argc, char* argv[])
             if (ok)
             {
                 timeStamps = tempTimeStamps;
-                ok = task->stitch(image, timeStamps, 1);
+                ok = task->stitch(src, timeStamps, dst, 1);
                 if (ok)
-                    cv::imshow("render", image);
+                    cv::imshow("render", dst);
             }
         }
         else if (key == 'l')
@@ -148,9 +158,9 @@ int main(int argc, char* argv[])
             if (ok)
             {
                 timeStamps = tempTimeStamps;
-                ok = task->stitch(image, timeStamps, 1);
+                ok = task->stitch(src, timeStamps, dst, 1);
                 if (ok)
-                    cv::imshow("render", image);
+                    cv::imshow("render", dst);
             }
         }
     }

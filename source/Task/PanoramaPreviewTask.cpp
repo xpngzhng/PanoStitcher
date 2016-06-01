@@ -12,7 +12,7 @@ struct CPUPanoramaPreviewTask::Impl
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
-    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement);
+    bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement);
 
     bool getMasks(std::vector<cv::Mat>& masks);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
@@ -152,7 +152,7 @@ bool CPUPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeSt
     return ok;
 }
 
-bool CPUPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement)
 {
     if (!initSuccess)
         return false;
@@ -188,7 +188,8 @@ bool CPUPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long
     reprojectParallel(images, reprojImages, dstSrcMaps);
     //ptlprintf("In %s, reproject success\n", __FUNCTION__);
     blender.blend(reprojImages, blendImage);
-    result = blendImage;
+    src = images;
+    dst = blendImage;
     //ptlprintf("In %s, stitch success\n", __FUNCTION__);
     return true;
 }
@@ -317,9 +318,9 @@ bool CPUPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
     return ptrImpl->seek(timeStamps);
 }
 
-bool CPUPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CPUPanoramaPreviewTask::stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement)
 {
-    return ptrImpl->stitch(result, timeStamps, frameIncrement);
+    return ptrImpl->stitch(src, timeStamps, dst, frameIncrement);
 }
 
 bool CPUPanoramaPreviewTask::getMasks(std::vector<cv::Mat>& masks)
@@ -350,7 +351,7 @@ struct CudaPanoramaPreviewTask::Impl
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
-    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
+    bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);
 
     void clear();
 
@@ -447,7 +448,7 @@ bool CudaPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeS
     return ok;
 }
 
-bool CudaPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CudaPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement)
 {
     if (!initSuccess)
         return false;
@@ -481,7 +482,8 @@ bool CudaPanoramaPreviewTask::Impl::stitch(cv::Mat& result, std::vector<long lon
    ok = ptrRender->render(images, blendImage);
    if (!ok)
        return false;
-   result = blendImage;
+   src = images;
+   dst = blendImage;
    return true;
 }
 
@@ -519,7 +521,7 @@ bool CudaPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)
     return ptrImpl->seek(timeStamps);
 }
 
-bool CudaPanoramaPreviewTask::stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement)
+bool CudaPanoramaPreviewTask::stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement)
 {
-    return ptrImpl->stitch(result, timeStamps, frameIncrement);
+    return ptrImpl->stitch(src, timeStamps, dst, frameIncrement);
 }

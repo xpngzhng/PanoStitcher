@@ -628,6 +628,9 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
 void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
     cv::cuda::GpuMat& blendImage)
 {
+    blend(images, blendImage);
+    return;
+
     if (!success)
         return;
 

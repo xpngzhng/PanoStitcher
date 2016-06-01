@@ -9,6 +9,7 @@
 #define UTIL_BLOCK_WIDTH 32
 #define UTIL_BLOCK_HEIGHT 8
 
+/*
 __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
 {
     __shared__ int ssum[UTIL_BLOCK_HEIGHT][UTIL_BLOCK_WIDTH];
@@ -47,6 +48,45 @@ int countNonZero8UC1(const cv::cuda::GpuMat& mat)
 
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(mat.cols, block.x), cv::cuda::device::divUp(mat.rows, block.y));
+    countNonZero8UC1<<<grid, block>>>(mat.data, mat.step, mat.rows, mat.cols, (int*)dst.data);
+
+    int count;
+    dst.download(cv::Mat(1, 1, CV_32SC1, &count));
+    return count;
+}
+*/
+
+__global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
+{
+    __shared__ int ssum[COUNT_NON_ZERO_BLOCK_SIZE];
+
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y;
+    const int tidx = threadIdx.x;
+
+    ssum[tidx] = ((x < cols && y < rows) && getElem<unsigned char>(data, step, y, x) != 0) ? 1 : 0;
+    __syncthreads();
+
+    for (int gap = COUNT_NON_ZERO_BLOCK_SIZE / 2; gap > 0; gap /= 2)
+    {
+        if (tidx < gap)
+            ssum[tidx] += ssum[tidx + gap];
+        __syncthreads();
+    }
+
+    if (tidx == 0)
+        atomicAdd(sum, ssum[0]);
+}
+
+int countNonZero8UC1(const cv::cuda::GpuMat& mat)
+{
+    CV_Assert(mat.data && mat.type() == CV_8UC1);
+
+    cv::cuda::GpuMat dst(1, 1, CV_32SC1);
+    dst.setTo(0);
+
+    const dim3 block(COUNT_NON_ZERO_BLOCK_SIZE);
+    const dim3 grid(cv::cuda::device::divUp(mat.cols, block.x), mat.rows);
     countNonZero8UC1<<<grid, block>>>(mat.data, mat.step, mat.rows, mat.cols, (int*)dst.data);
 
     int count;

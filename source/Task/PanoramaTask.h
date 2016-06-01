@@ -19,7 +19,7 @@ public:
         int dstWidth, int dstHeight) = 0;
     virtual bool reset(const std::string& cameraParamFile) = 0;
     virtual bool seek(const std::vector<long long int>& timeStamps) = 0;
-    virtual bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement) = 0;
+    virtual bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement) = 0;
 };
 
 class CPUPanoramaPreviewTask : public PanoramaPreviewTask
@@ -31,7 +31,7 @@ public:
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
-    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
+    bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);
 
     bool getMasks(std::vector<cv::Mat>& masks);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
@@ -51,7 +51,7 @@ public:
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
-    bool stitch(cv::Mat& result, std::vector<long long int>& timeStamps, int frameIncrement = 1);
+    bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;
