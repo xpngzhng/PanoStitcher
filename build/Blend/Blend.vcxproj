@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\source\Blend\CudaArithm.h" />
     <ClInclude Include="..\..\source\Blend\CudaPyramid.h" />
     <ClInclude Include="..\..\source\Blend\CudaUtil.cuh" />
     <ClInclude Include="..\..\source\Blend\gcgraph.hpp" />
@@ -46,6 +47,7 @@
     <ClCompile Include="..\..\source\Blend\ZBlend.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="..\..\source\Blend\CudaArithm.cu" />
     <CudaCompile Include="..\..\source\Blend\CudaFeatherBlend.cu" />
     <CudaCompile Include="..\..\source\Blend\CudaPyramid2.cu" />
     <CudaCompile Include="..\..\source\Blend\CudaGainAdjust.cu" />

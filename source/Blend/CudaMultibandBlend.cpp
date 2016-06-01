@@ -531,7 +531,7 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     // IMPORTANT NOTE!!!!
     // The following lines of code is not necessary but can help reduce memory consumption.
     // image32SPyr and imageUpPyr are temporary image pyramids for building the final imagePyrs, 
-    // athe use of image32SPyr[j] is independent of the use of image32SPyr[k], 
+    // and the use of image32SPyr[j] is independent of the use of image32SPyr[k], 
     // which means that for a certain image, the processing of different levels of 32SPyr do not interfere each other,
     // they can actually SHARE THE SAME MEMORY.
     // The SAME HAPPENS to imageUpPyrs.
@@ -541,9 +541,9 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     // image32SPyr only use the levels indexed by 1, 2, 3, ..., numLevels,
     // and imageUpPyr only use the levels indexed by 0, 1, 2, ..., numLevels - 1.
     // By some computation we can determine that the largest amount of memory lies in imageUpPyr[0], 
-    // so we just allocate the amount of memory fot that level,
+    // so we just allocate the amount of memory for that level,
     // and imageUpPyr[i], i = 1, 2, ..., numLevels - 1 and image32SPyr[i], i = 1, 2, 3, ..., numLevels - 1
-    // can reused that alloced memory.
+    // can reused that alloced piece of memory.
     std::vector<cv::Size> sizes;
     getPyramidLevelSizes(sizes, rows, cols, numLevels);
 
@@ -623,6 +623,36 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
     resultPyr[0].convertTo(blendImage, CV_8U);
     if (!fullMask)
         blendImage.setTo(0, maskNot);
+}
+
+void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
+    cv::cuda::GpuMat& blendImage)
+{
+    if (!success)
+        return;
+
+    CV_Assert(images.size() == numImages && masks.size() == numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        CV_Assert(images[i].rows == rows && images[i].cols == cols &&
+            (images[i].type() == CV_8UC4 || images[i].type() == CV_16SC4));
+        CV_Assert(masks[i].rows == rows && masks[i].cols == cols && masks[i].type() == CV_8UC1);
+    }
+
+    customMaskNot.create(rows, cols, CV_8UC1);
+    customMaskNot.setTo(0);
+    for (int i = 0; i < numImages; i++)
+        ;
+    //bool customFullMask = cv::cuda::countNonZero(customMaskNot) == rows * cols;
+
+    customAux.create(rows, cols, CV_16SC1);
+    customWeightPyrs.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        customAux.setTo(0);
+        customAux.setTo(256, masks[i]);
+    }
+
 }
 
 static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)

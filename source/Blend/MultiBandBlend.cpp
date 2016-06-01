@@ -897,7 +897,6 @@ bool TilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int ma
     cols = currCols;
     numImages = currNumMasks;
 
-    std::vector<cv::Mat> uniqueMasks;
     getNonIntersectingMasks(masks, uniqueMasks);
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
@@ -1003,6 +1002,77 @@ void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, cv::Mat
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
     if (!fullMask)
+        blendImage.setTo(0, maskNot);
+}
+
+void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage)
+{
+    if (!success)
+        return;
+
+    CV_Assert(images.size() == numImages && masks.size() == numImages);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        CV_Assert(images[i].data && (images[i].type() == CV_8UC3 || images[i].type() == CV_16SC3) &&
+            images[i].rows == rows && images[i].cols == cols);
+        CV_Assert(masks[i].data && masks[i].type() == CV_8UC1 &&
+            masks[i].rows == rows && masks[i].cols == cols);
+    }
+
+    customMaskNot.create(rows, cols, CV_8UC1);
+    customMaskNot.setTo(0);
+    for (int i = 0; i < numImages; i++)
+        customMaskNot |= masks[i];
+    bool customFullMask = cv::countNonZero(customMaskNot) == rows * cols;
+
+    customAux.create(rows, cols, CV_16SC1);
+    customWeightPyrs.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        customAux.setTo(0);
+        customAux.setTo(256, masks[i]);
+        cv::Mat base = customAux.clone();
+        createGaussPyramid(base, numLevels, true, customWeightPyrs[i]);
+    }
+
+    customResultWeightPyr.resize(numLevels + 1);
+    for (int i = 0; i < numLevels + 1; i++)
+    {
+        customResultWeightPyr[i].create(customWeightPyrs[0][i].size(), CV_32SC1);
+        customResultWeightPyr[i].setTo(0);
+    }
+    for (int i = 0; i < numImages; i++)
+        accumulateWeight(customWeightPyrs[i], customResultWeightPyr);
+    cv::bitwise_not(customMaskNot, customMaskNot);
+
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].setTo(0);
+
+    imagePyr.resize(numLevels + 1);
+    for (int i = 0; i < numImages; i++)
+    {
+        if (images[i].type() == CV_8UC3)
+            images[i].convertTo(imagePyr[0], CV_16S);
+        else if (images[i].type() == CV_16SC3)
+            imagePyr[0] = images[i];
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidDownTo32S(imagePyr[j], image32SPyr[j + 1], cv::Size(), cv::BORDER_WRAP);
+            calcDstImage(image32SPyr[j + 1], alphaPyrs[i][j + 1], imagePyr[j + 1]);
+        }
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidUp(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size(), cv::BORDER_WRAP);
+            cv::subtract(imagePyr[j], imageUpPyr[j], imagePyr[j]);
+        }
+        accumulate(imagePyr, customWeightPyrs[i], resultPyr);
+    }
+
+    normalize(resultPyr, customResultWeightPyr);
+    restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
+    resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!customFullMask)
         blendImage.setTo(0, maskNot);
 }
 

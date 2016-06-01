@@ -724,7 +724,7 @@ SOCKET ConnectTCP(const char *pszIP, int nPort)
     // Connect to server.
     iResult = connect(ConnectSocket, (SOCKADDR *)& clientService, sizeof (clientService));
     if (iResult == SOCKET_ERROR) {
-        ptlprintf("connect function failed with error: %ld\n", WSAGetLastError());
+        ptlprintf("connect function failed with error: %ld, ip is %s\n", WSAGetLastError(), pszIP);
         iResult = closesocket(ConnectSocket);
         if (iResult == SOCKET_ERROR)
             ptlprintf("closesocket function failed with error: %ld\n", WSAGetLastError());

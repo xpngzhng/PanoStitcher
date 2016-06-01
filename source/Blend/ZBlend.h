@@ -129,21 +129,27 @@ public:
     TilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
+    void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
 
 private:
+    std::vector<cv::Mat> uniqueMasks;
     std::vector<cv::Mat> resultPyr, resultUpPyr, resultWeightPyr;
     std::vector<cv::Mat> imagePyr, image32SPyr, imageUpPyr;
-    std::vector<std::vector<cv::Mat> > alphaPyrs, weightPyrs;
+    std::vector<std::vector<cv::Mat> > alphaPyrs, weightPyrs;    
     cv::Mat maskNot;
     int numImages;
     int rows, cols;
     int numLevels;
     bool fullMask;
     bool success;
+
+    std::vector<cv::Mat> customResultWeightPyr;
+    std::vector<std::vector<cv::Mat> > customWeightPyrs;
+    cv::Mat customAux, customMaskNot;
 };
 
 // DEPRECATED
-// Just only a little faster than TilingMultibandBlendFast at the expense of more memory
+// Just only a little faster than TilingMultibandBlendFast at the expense of more memory consumption
 class TilingMultibandBlendFastParallel
 {
 public:
@@ -218,6 +224,8 @@ public:
     CudaTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
+    void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks, 
+        cv::cuda::GpuMat& blendImage);
 
 private:
     std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
@@ -229,6 +237,10 @@ private:
     int numLevels;
     bool fullMask;
     bool success;
+
+    std::vector<cv::cuda::GpuMat> customResultWeightPyr;
+    std::vector<std::vector<cv::cuda::GpuMat> > customWeightPyrs;
+    cv::cuda::GpuMat customAux, customMaskNot;
 };
 
 class CudaTilingMultibandBlendFast32F

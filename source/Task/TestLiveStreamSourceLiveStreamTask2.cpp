@@ -102,6 +102,7 @@ bool highQualityBlend = true;
 ShowTiledImages showTiledImages;
 PanoramaLiveStreamTask2 task;
 
+//int prevCount = 0;
 void showVideoSources()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -115,12 +116,22 @@ void showVideoSources()
             break;
         task.getVideoSourceFrames(frames);
         if (frames.size() == numCameras)
-        {
+        {            
             for (int i = 0; i < numCameras; i++)
             {
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
                     frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data, frames[i].step);
             }
+            //prevCount++;
+            //if (prevCount == 200)
+            //{
+            //    char buf[64];
+            //    for (int i = 0; i < numCameras; i++)
+            //    {
+            //        sprintf(buf, "snapshot%d.bmp", i);
+            //        cv::imwrite(buf, images[i]);
+            //    }                
+            //}
             showTiledImages.show("src images", images);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
@@ -255,8 +266,6 @@ int main(int argc, char* argv[])
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
     cameraParamPath = parser.get<std::string>("camera_param_path");
-    //cameraParamPath = "dualgopro.pts";
-    highQualityBlend = true;
     if (cameraParamPath.size() && cameraParamPath != "null")
     {
         ok = task.beginVideoStitch(cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
