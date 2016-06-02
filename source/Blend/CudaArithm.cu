@@ -5,10 +5,11 @@
 #include "device_launch_parameters.h"
 #include "device_functions.h"
 
+#define COUNT_NON_ZERO_THREAD_SIZE 4
 #define COUNT_NON_ZERO_BLOCK_SIZE 256
 #define UTIL_BLOCK_WIDTH 32
 #define UTIL_BLOCK_HEIGHT 8
-
+#define UTIL_THREAD_SIZE 4
 /*
 __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
 {
@@ -56,6 +57,63 @@ int countNonZero8UC1(const cv::cuda::GpuMat& mat)
 }
 */
 
+
+__global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
+{
+    __shared__ int ssum[UTIL_BLOCK_HEIGHT][UTIL_BLOCK_WIDTH];
+
+    const int x = blockIdx.x * blockDim.x * UTIL_THREAD_SIZE + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y * UTIL_THREAD_SIZE + threadIdx.y;
+    const int tidx = threadIdx.x, tidy = threadIdx.y;
+
+    int threadSum = 0;
+    for (int yy = y, i = 0; yy < rows && i < UTIL_THREAD_SIZE; yy += UTIL_BLOCK_HEIGHT, i++)
+    {
+        for (int xx = x, j = 0; xx < cols && j < UTIL_THREAD_SIZE; xx += UTIL_BLOCK_WIDTH, j++)
+        {
+            threadSum += (getElem<unsigned char>(data, step, yy, xx) != 0) ? 1 : 0;
+        }
+    }
+    ssum[tidy][tidx] = threadSum;
+    __syncthreads();
+
+    for (int gap = UTIL_BLOCK_WIDTH / 2; gap > 0; gap /= 2)
+    {
+        if (tidx < gap)
+            ssum[tidy][tidx] += ssum[tidy][tidx + gap];
+        __syncthreads();
+    }
+
+    for (int gap = UTIL_BLOCK_HEIGHT / 2; gap > 0; gap /= 2)
+    {
+        if (tidy < gap && tidx == 0)
+            ssum[tidy][0] += ssum[tidy + gap][0];
+        __syncthreads();
+    }
+
+    if (tidx == 0 && tidy == 0)
+        atomicAdd(sum, ssum[0][0]);
+}
+
+int countNonZero8UC1(const cv::cuda::GpuMat& mat)
+{
+    CV_Assert(mat.data && mat.type() == CV_8UC1);
+
+    cv::cuda::GpuMat dst(1, 1, CV_32SC1);
+    dst.setTo(0);
+
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(mat.cols, block.x * UTIL_THREAD_SIZE), 
+                    cv::cuda::device::divUp(mat.rows, block.y * UTIL_THREAD_SIZE));
+    countNonZero8UC1<<<grid, block>>>(mat.data, mat.step, mat.rows, mat.cols, (int*)dst.data);
+
+    int count;
+    dst.download(cv::Mat(1, 1, CV_32SC1, &count));
+    return count;
+}
+
+
+/*
 __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
 {
     __shared__ int ssum[COUNT_NON_ZERO_BLOCK_SIZE];
@@ -93,6 +151,7 @@ int countNonZero8UC1(const cv::cuda::GpuMat& mat)
     dst.download(cv::Mat(1, 1, CV_32SC1, &count));
     return count;
 }
+*/
 
 __global__ void or8UC1(const unsigned char* aData, int aStep, const unsigned char* bData, int bStep,
     unsigned char* cData, int cStep, int rows, int cols)
