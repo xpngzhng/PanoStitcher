@@ -14,7 +14,7 @@ struct ShowTiledImages
         origHeight = height_;
         numImages = numImages_;
 
-        showWidth = 480;
+        showWidth = 960;
         showHeight = origHeight * double(showWidth) / double(origWidth) + 0.5;
 
         int totalWidth = numImages * showWidth;
@@ -102,7 +102,7 @@ bool highQualityBlend = true;
 ShowTiledImages showTiledImages;
 PanoramaLiveStreamTask2 task;
 
-//int prevCount = 0;
+int prevCount = 0;
 void showVideoSources()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -122,16 +122,16 @@ void showVideoSources()
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
                     frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data, frames[i].step);
             }
-            //prevCount++;
-            //if (prevCount == 200)
-            //{
-            //    char buf[64];
-            //    for (int i = 0; i < numCameras; i++)
-            //    {
-            //        sprintf(buf, "snapshot%d.bmp", i);
-            //        cv::imwrite(buf, images[i]);
-            //    }                
-            //}
+            prevCount++;
+            if (prevCount == 200)
+            {
+                char buf[64];
+                for (int i = 0; i < numCameras; i++)
+                {
+                    sprintf(buf, "snapshot%d.bmp", i);
+                    cv::imwrite(buf, images[i]);
+                }                
+            }
             showTiledImages.show("src images", images);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)

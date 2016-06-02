@@ -89,6 +89,18 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    CPUPanoramaPreviewTask* cpuTask = dynamic_cast<CPUPanoramaPreviewTask*>(task.get());
+    if (cpuTask)
+    {
+        std::vector<cv::Mat> uniqueMasks;
+        cpuTask->getUniqueMasks(uniqueMasks);
+        for (int i = 0; i < uniqueMasks.size(); i++)
+        {
+            cv::imshow("unique mask", uniqueMasks[i]);
+            cv::waitKey(0);
+        }
+    }
+
     int numVideos = srcVideoNames.size();
     ztool::Timer t;
     int stitchCount = 0;

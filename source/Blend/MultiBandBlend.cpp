@@ -1076,6 +1076,14 @@ void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, const s
         blendImage.setTo(0, maskNot);
 }
 
+void TilingMultibandBlendFast::getUniqueMasks(std::vector<cv::Mat>& masks)
+{
+    if (success)
+        masks = uniqueMasks;
+    else
+        masks.clear();
+}
+
 TilingMultibandBlendFastParallel::~TilingMultibandBlendFastParallel()
 {
     endThreads();

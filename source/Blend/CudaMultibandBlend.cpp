@@ -7,6 +7,7 @@
 #include "ZBlendAlgo.h"
 #include "ZBlend.h"
 #include "Pyramid.h"
+#include "CudaArithm.h"
 #include "CudaPyramid.h"
 #include "cuda_runtime.h"
 #include <iostream>
@@ -628,9 +629,6 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
 void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
     cv::cuda::GpuMat& blendImage)
 {
-    blend(images, blendImage);
-    return;
-
     if (!success)
         return;
 
@@ -645,8 +643,8 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
     customMaskNot.create(rows, cols, CV_8UC1);
     customMaskNot.setTo(0);
     for (int i = 0; i < numImages; i++)
-        ;
-    //bool customFullMask = cv::cuda::countNonZero(customMaskNot) == rows * cols;
+        or8UC1(customMaskNot, masks[i], customMaskNot);
+    not8UC1(customMaskNot, customMaskNot);
 
     customAux.create(rows, cols, CV_16SC1);
     customWeightPyrs.resize(numImages);
@@ -654,8 +652,48 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
     {
         customAux.setTo(0);
         customAux.setTo(256, masks[i]);
+        customWeightPyrs[i].resize(numLevels + 1);
+        customAux.copyTo(customWeightPyrs[i][0]);
+        for (int j = 0; j < numLevels; j++)
+            pyramidDown16SC1To16SC1(customWeightPyrs[i][j], customWeightPyrs[i][j + 1], cv::Size(), true);
     }
 
+    customResultWeightPyr.resize(numLevels + 1);
+    for (int i = 0; i < numLevels + 1; i++)
+    {
+        customResultWeightPyr[i].create(customWeightPyrs[0][i].size(), CV_32SC1);
+        customResultWeightPyr[i].setTo(0);
+    }
+    for (int i = 0; i < numImages; i++)
+        accumulateWeight(customWeightPyrs[i], customResultWeightPyr);
+
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].setTo(0);
+
+    imagePyr.resize(numLevels + 1);
+    for (int i = 0; i < numImages; i++)
+    {
+        if (images[i].type() == CV_8UC4)
+            images[i].convertTo(imagePyr[0], CV_16S);
+        else if (images[i].type() == CV_16SC4)
+            images[i].copyTo(imagePyr[0]);
+        for (int j = 0; j < numLevels; j++)
+        {
+            //pyramidDown16SC4To16SC4(imagePyr[j], imagePyr[j + 1], cv::Size(), true);
+            pyramidDown16SC4To16SC4(imagePyr[j], alphaPyrs[i][j + 1], imagePyr[j + 1], true);
+        }
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidUp16SC4To16SC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size(), true);
+            subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
+        }
+        accumulate(imagePyr, customWeightPyrs[i], resultPyr);
+    }
+
+    normalize(resultPyr, customResultWeightPyr);
+    restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
+    resultPyr[0].convertTo(blendImage, CV_8U);
+    blendImage.setTo(0, customMaskNot);
 }
 
 static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)

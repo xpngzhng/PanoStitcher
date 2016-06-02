@@ -10,6 +10,17 @@
 #define UTIL_BLOCK_WIDTH 32
 #define UTIL_BLOCK_HEIGHT 8
 #define UTIL_THREAD_SIZE 4
+
+__device__ void warpReduce(volatile int* sdata, int tid) 
+{
+    sdata[tid] += sdata[tid + 32];
+    sdata[tid] += sdata[tid + 16];
+    sdata[tid] += sdata[tid + 8];
+    sdata[tid] += sdata[tid + 4];
+    sdata[tid] += sdata[tid + 2];
+    sdata[tid] += sdata[tid + 1];
+}
+
 /*
 __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
 {
@@ -57,7 +68,7 @@ int countNonZero8UC1(const cv::cuda::GpuMat& mat)
 }
 */
 
-
+/*
 __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
 {
     __shared__ int ssum[UTIL_BLOCK_HEIGHT][UTIL_BLOCK_WIDTH];
@@ -93,6 +104,41 @@ __global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, 
 
     if (tidx == 0 && tidy == 0)
         atomicAdd(sum, ssum[0][0]);
+}
+*/
+
+__global__ void countNonZero8UC1(const unsigned char* data, int step, int rows, int cols, int* sum)
+{
+    __shared__ int ssum[UTIL_BLOCK_HEIGHT * UTIL_BLOCK_WIDTH];
+
+    const int x = blockIdx.x * blockDim.x * UTIL_THREAD_SIZE + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y * UTIL_THREAD_SIZE + threadIdx.y;
+    const int tidx = threadIdx.x, tidy = threadIdx.y;
+    const int tid = tidy * blockDim.x + tidx;
+
+    int threadSum = 0;
+    for (int yy = y, i = 0; yy < rows && i < UTIL_THREAD_SIZE; yy += UTIL_BLOCK_HEIGHT, i++)
+    {
+        for (int xx = x, j = 0; xx < cols && j < UTIL_THREAD_SIZE; xx += UTIL_BLOCK_WIDTH, j++)
+        {
+            threadSum += (getElem<unsigned char>(data, step, yy, xx) != 0) ? 1 : 0;
+        }
+    }
+    ssum[tid] = threadSum;
+    __syncthreads();
+
+    for (int gap = UTIL_BLOCK_WIDTH * UTIL_BLOCK_HEIGHT / 2; gap > 32; gap /= 2)
+    {
+        if (tid < gap)
+            ssum[tid] += ssum[tid + gap];
+        __syncthreads();
+    }
+
+    if (tid < 32)
+        warpReduce(ssum, tid);
+
+    if (tid == 0)
+        atomicAdd(sum, ssum[0]);
 }
 
 int countNonZero8UC1(const cv::cuda::GpuMat& mat)
@@ -174,6 +220,30 @@ void or8UC1(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuM
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
     or8UC1<<<grid, block>>>(a.data, a.step, b.data, b.step, c.data, c.step, a.rows, a.cols);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+__global__ void not8UC1(const unsigned char* srcData, int srcStep, unsigned char* dstData, int dstStep,
+    int rows, int cols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < cols && y < rows)
+    {
+        getRowPtr<unsigned char>(dstData, dstStep, y)[x] = ~getElem<unsigned char>(srcData, srcStep, y, x);
+    }
+}
+
+void not8UC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst)
+{
+    CV_Assert(src.data && src.type() == CV_8UC1);
+
+    dst.create(src.size(), CV_8UC1);
+
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
+    not8UC1<<<grid, block>>>(src.data, src.step, dst.data, dst.step, src.rows, src.cols);
     //cudaSafeCall(cudaGetLastError());
     //cudaSafeCall(cudaDeviceSynchronize());
 }

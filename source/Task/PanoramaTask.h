@@ -34,6 +34,7 @@ public:
     bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);
 
     bool getMasks(std::vector<cv::Mat>& masks);
+    bool getUniqueMasks(std::vector<cv::Mat>& masks);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
     bool readNextAndReprojectForOne(int index, cv::Mat& image);
     bool readPrevAndReprojectForOne(int index, cv::Mat& image);

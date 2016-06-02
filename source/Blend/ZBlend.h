@@ -130,6 +130,7 @@ public:
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
     void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
+    void getUniqueMasks(std::vector<cv::Mat>& masks);
 
 private:
     std::vector<cv::Mat> uniqueMasks;

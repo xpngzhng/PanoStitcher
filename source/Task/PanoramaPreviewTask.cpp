@@ -15,6 +15,7 @@ struct CPUPanoramaPreviewTask::Impl
     bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement);
 
     bool getMasks(std::vector<cv::Mat>& masks);
+    bool getUniqueMasks(std::vector<cv::Mat>& masks);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
     bool readNextAndReprojectForOne(int index, cv::Mat& image);
     bool readPrevAndReprojectForOne(int index, cv::Mat& image);
@@ -203,6 +204,15 @@ bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks)
     return true;
 }
 
+bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks)
+{
+    if (!initSuccess)
+        return false;
+
+    blender.getUniqueMasks(masks);
+    return masks.size() == numVideos;
+}
+
 bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Mat>& dst)
 {
     if (!initSuccess)
@@ -326,6 +336,11 @@ bool CPUPanoramaPreviewTask::stitch(std::vector<cv::Mat>& src, std::vector<long 
 bool CPUPanoramaPreviewTask::getMasks(std::vector<cv::Mat>& masks)
 {
     return ptrImpl->getMasks(masks);
+}
+
+bool CPUPanoramaPreviewTask::getUniqueMasks(std::vector<cv::Mat>& masks)
+{
+    return ptrImpl->getUniqueMasks(masks);
 }
 
 bool CPUPanoramaPreviewTask::readNextAndReprojectForAll(std::vector<cv::Mat>& images)
