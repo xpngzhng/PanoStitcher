@@ -27,6 +27,7 @@ class CPUPanoramaPreviewTask : public PanoramaPreviewTask
 public:
     CPUPanoramaPreviewTask();
     ~CPUPanoramaPreviewTask();
+
     bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
@@ -35,9 +36,16 @@ public:
 
     bool getMasks(std::vector<cv::Mat>& masks);
     bool getUniqueMasks(std::vector<cv::Mat>& masks);
-    bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
-    bool readNextAndReprojectForOne(int index, cv::Mat& image);
-    bool readPrevAndReprojectForOne(int index, cv::Mat& image);
+
+    bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
+    bool readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
+    bool readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
+    bool readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
+
+    bool setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask);
+    void eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision = 1000);
+    void eraseAllMasksForOne(int index);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> ptrImpl;

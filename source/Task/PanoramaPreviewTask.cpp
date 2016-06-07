@@ -3,11 +3,13 @@
 #include "ZReproject.h"
 #include "ZBlend.h"
 #include "RicohUtil.h"
+#include "opencv2/highgui.hpp"
 
 struct CPUPanoramaPreviewTask::Impl
 {
     Impl();
     ~Impl();
+
     bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
         int dstWidth, int dstHeight);
     bool reset(const std::string& cameraParamFile);
@@ -16,16 +18,23 @@ struct CPUPanoramaPreviewTask::Impl
 
     bool getMasks(std::vector<cv::Mat>& masks);
     bool getUniqueMasks(std::vector<cv::Mat>& masks);
-    bool readNextAndReprojectForAll(std::vector<cv::Mat>& images);
-    bool readNextAndReprojectForOne(int index, cv::Mat& image);
-    bool readPrevAndReprojectForOne(int index, cv::Mat& image);
+
+    bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
+    bool readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
+    bool readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
+    bool readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
+
+    bool setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask);
+    void eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision = 1000);
+    void eraseAllMasksForOne(int index);
 
     void clear();
 
     int numVideos;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader> readers;
-    std::vector<cv::Mat> dstSrcMaps, dstMasks;
+    std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
+    std::vector<CustomIntervaledMasks> customMasks;
     TilingMultibandBlendFast blender;
     std::vector<cv::Mat> images, reprojImages;
     std::vector<avp::AudioVideoFrame> frames;
@@ -87,8 +96,14 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
         ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
+
+    customMasks.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        customMasks[i].init(dstSize.width, dstSize.height);
+
     ok = blender.prepare(dstMasks, 16, 2);
     //ok = blender.prepare(dstMasks, 50);
+    blender.getUniqueMasks(dstUniqueMasks);
     if (!ok)
     {
         ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
@@ -185,13 +200,24 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
     if (!ok)
         return false;
 
-    //ptlprintf("In %s, read frame success\n", __FUNCTION__);
     reprojectParallel(images, reprojImages, dstSrcMaps);
-    //ptlprintf("In %s, reproject success\n", __FUNCTION__);
-    blender.blend(reprojImages, blendImage);
+
+    bool useCustomMask = false;
+    currMasks.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        if (customMasks[i].getMask(frames[i].timeStamp, currMasks[i]))
+            useCustomMask = true;
+        else
+            currMasks[i] = dstUniqueMasks[i];
+    }
+
+    if (useCustomMask)
+        blender.blend(reprojImages, currMasks, blendImage);
+    else
+        blender.blend(reprojImages, blendImage);
     src = images;
     dst = blendImage;
-    //ptlprintf("In %s, stitch success\n", __FUNCTION__);
     return true;
 }
 
@@ -213,13 +239,32 @@ bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks)
     return masks.size() == numVideos;
 }
 
-bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Mat>& dst)
+bool CPUPanoramaPreviewTask::Impl::getCurrReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
+{
+    if (!initSuccess)
+        return false;
+
+    if (images.empty() || frames.empty() || reprojImages.empty())
+        return false;
+
+    if (reprojImages.size() != numVideos)
+        return false;
+
+    dst = reprojImages;
+    timeStamps.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        timeStamps[i] = frames[i].timeStamp;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
         return false;
 
     frames.resize(numVideos);
     images.resize(numVideos);
+    timeStamps.resize(numVideos);
     bool ok = true;
     for (int i = 0; i < numVideos; i++)
     {
@@ -229,17 +274,17 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
             break;
         }
         images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
+        timeStamps[i] = frames[i].timeStamp;
     }
     if (!ok)
         return false;
 
-    //ptlprintf("In %s, read frame success\n", __FUNCTION__);
     reprojectParallel(images, reprojImages, dstSrcMaps);
     dst = reprojImages;
     return true;
 }
 
-bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat& image)
+bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
 {
     if (!initSuccess)
         return false;
@@ -262,10 +307,11 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat
     images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data, frames[index].step);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
     image = reprojImages[index];
+    timeStamp = frames[index].timeStamp;
     return true;
 }
 
-bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat& image)
+bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
 {
     if (!initSuccess)
         return false;
@@ -292,7 +338,41 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat
     images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data, frames[index].step);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
     image = reprojImages[index];
+    timeStamp = frames[index].timeStamp;
     return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask)
+{
+    if (!initSuccess)
+        return false;
+
+    if (index < 0 || index >= numVideos)
+        return false;
+
+    return customMasks[index].addMask(begInc, endExc, mask);
+}
+
+void CPUPanoramaPreviewTask::Impl::eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision)
+{
+    if (!initSuccess)
+        return;
+
+    if (index < 0 || index >= numVideos)
+        return;
+
+    customMasks[index].clearMask(begInc, endExc, precision);
+}
+
+void CPUPanoramaPreviewTask::Impl::eraseAllMasksForOne(int index)
+{
+    if (!initSuccess)
+        return;
+
+    if (index < 0 || index >= numVideos)
+        return;
+
+    customMasks[index].clearAllMasks();
 }
 
 void CPUPanoramaPreviewTask::Impl::clear()
@@ -300,6 +380,15 @@ void CPUPanoramaPreviewTask::Impl::clear()
     numVideos = 0;
     readers.clear();
     initSuccess = false;
+
+    dstSrcMaps.clear(); 
+    dstMasks.clear();
+    dstUniqueMasks.clear();
+    currMasks.clear();
+    customMasks.clear();
+    images.clear();
+    reprojImages.clear();
+    frames.clear();
 }
 
 CPUPanoramaPreviewTask::CPUPanoramaPreviewTask()
@@ -343,19 +432,39 @@ bool CPUPanoramaPreviewTask::getUniqueMasks(std::vector<cv::Mat>& masks)
     return ptrImpl->getUniqueMasks(masks);
 }
 
-bool CPUPanoramaPreviewTask::readNextAndReprojectForAll(std::vector<cv::Mat>& images)
+bool CPUPanoramaPreviewTask::getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps)
 {
-    return ptrImpl->readNextAndReprojectForAll(images);
+    return ptrImpl->getCurrReprojectForAll(images, timeStamps);
 }
 
-bool CPUPanoramaPreviewTask::readNextAndReprojectForOne(int index, cv::Mat& image)
+bool CPUPanoramaPreviewTask::readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps)
 {
-    return ptrImpl->readNextAndReprojectForOne(index, image);
+    return ptrImpl->readNextAndReprojectForAll(images, timeStamps);
 }
 
-bool CPUPanoramaPreviewTask::readPrevAndReprojectForOne(int index, cv::Mat& image)
+bool CPUPanoramaPreviewTask::readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
 {
-    return ptrImpl->readPrevAndReprojectForOne(index, image);
+    return ptrImpl->readNextAndReprojectForOne(index, image, timeStamp);
+}
+
+bool CPUPanoramaPreviewTask::readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
+{
+    return ptrImpl->readPrevAndReprojectForOne(index, image, timeStamp);
+}
+
+bool CPUPanoramaPreviewTask::setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask)
+{
+    return ptrImpl->setCustomMaskForOne(index, begInc, endExc, mask);
+}
+
+void CPUPanoramaPreviewTask::eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision)
+{
+    ptrImpl->eraseCustomMaskForOne(index, begInc, endExc, precision);
+}
+
+void CPUPanoramaPreviewTask::eraseAllMasksForOne(int index)
+{
+    ptrImpl->eraseAllMasksForOne(index);
 }
 
 struct CudaPanoramaPreviewTask::Impl

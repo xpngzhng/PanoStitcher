@@ -222,3 +222,78 @@ PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
     ptLogCallback = func;
     return oldFunc;
 }
+
+void CustomIntervaledMasks::reset()
+{
+    clearAllMasks();
+    width = 0;
+    height = 0;
+    initSuccess = 0;
+}
+
+bool CustomIntervaledMasks::init(int width_, int height_)
+{
+    clearAllMasks();
+
+    initSuccess = 0;
+    if (width_ < 0 || height_ < 0)
+        return false;
+
+    width = width_;
+    height = height_;
+    initSuccess = 1;
+    return true;
+}
+
+bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask)
+{
+    if (!initSuccess)
+    {
+        mask = cv::Mat();
+        return false;
+    }
+
+    int size = masks.size();
+    for (int i = 0; i < size; i++)
+    {
+        IntervaledMask& currMask = masks[i];
+        if (time >= currMask.begInc && time < currMask.endExc)
+        {
+            mask = currMask.mask;
+            return true;
+        }
+    }
+    mask = cv::Mat();
+    return false;
+}
+
+bool CustomIntervaledMasks::addMask(long long int begInc, long long int endExc, const cv::Mat& mask)
+{
+    if (!initSuccess)
+        return false;
+    
+    if (!mask.data || mask.type() != CV_8UC1 || mask.cols != width || mask.rows != height)
+        return false;
+
+    masks.push_back(IntervaledMask(begInc, endExc, mask.clone()));
+    return true;
+}
+
+void CustomIntervaledMasks::clearMask(long long int begInc, long long int endExc, long long int precision)
+{
+    if (precision < 0)
+        precision = 0;
+    for (std::vector<IntervaledMask>::iterator itr = masks.begin(); itr != masks.end();)
+    {
+        if (abs(itr->begInc - begInc) <= precision &&
+            abs(itr->endExc - endExc) <= precision)
+            itr = masks.erase(itr);
+        else
+            ++itr;
+    }
+}
+
+void CustomIntervaledMasks::clearAllMasks()
+{
+    masks.clear();
+}

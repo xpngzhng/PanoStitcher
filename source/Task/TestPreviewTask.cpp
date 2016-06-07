@@ -92,13 +92,11 @@ int main(int argc, char* argv[])
     CPUPanoramaPreviewTask* cpuTask = dynamic_cast<CPUPanoramaPreviewTask*>(task.get());
     if (cpuTask)
     {
-        std::vector<cv::Mat> uniqueMasks;
+        std::vector<cv::Mat> masks, uniqueMasks;
+        cpuTask->getMasks(masks);
         cpuTask->getUniqueMasks(uniqueMasks);
-        for (int i = 0; i < uniqueMasks.size(); i++)
-        {
-            cv::imshow("unique mask", uniqueMasks[i]);
-            cv::waitKey(0);
-        }
+        for (int i = 0; i < masks.size(); i++)
+            cpuTask->setCustomMaskForOne(i, -1000000.0 / 48 * 200, 1000000.0 / 48 * 100, masks[i]);
     }
 
     int numVideos = srcVideoNames.size();

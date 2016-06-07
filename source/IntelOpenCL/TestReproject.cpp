@@ -147,7 +147,7 @@ int main(int argc, char** argv)
         OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel");
         OpenCLProgramOneKernel setZeroKern(oclobjects, L"MatOp.txt", "", "setZeroKernel");
 
-        int numIters = 100;
+        int numIters = 1000;
         ztool::Timer t;
 
         for (int k = 0; k < numIters; k++)
@@ -183,6 +183,7 @@ int main(int argc, char** argv)
         ret = EXIT_FAILURE;
     }
 
+    /*
     try
     {
         OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel2");
@@ -223,6 +224,7 @@ int main(int argc, char** argv)
         cerr << "[ ERROR ] Unknown/internal error happened.\n";
         ret = EXIT_FAILURE;
     }
+    */
 
     return ret;
 }

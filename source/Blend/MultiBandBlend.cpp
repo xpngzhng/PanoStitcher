@@ -1073,7 +1073,7 @@ void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, const s
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
     if (!customFullMask)
-        blendImage.setTo(0, maskNot);
+        blendImage.setTo(0, customMaskNot);
 }
 
 void TilingMultibandBlendFast::getUniqueMasks(std::vector<cv::Mat>& masks)
