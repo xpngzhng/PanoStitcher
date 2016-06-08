@@ -134,6 +134,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
 copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
+copy "$(SolutionDir)..\source\Task\PanoramaTaskUtil.h" ..\include
 copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>
@@ -182,6 +183,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
 copy "$(SolutionDir)..\source\Task\PanoramaTask.h" ..\include
+copy "$(SolutionDir)..\source\Task\PanoramaTaskUtil.h" ..\include
 copy "$(SolutionDir)..\source\Task\QtPanoramaLocalDiskTask.h" ..\include</Command>
     </PostBuildEvent>
     <CudaCompile>
