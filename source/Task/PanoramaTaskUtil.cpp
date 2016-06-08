@@ -245,7 +245,7 @@ bool CustomIntervaledMasks::init(int width_, int height_)
     return true;
 }
 
-bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask)
+bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask) const
 {
     if (!initSuccess)
     {
@@ -256,7 +256,7 @@ bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask)
     int size = masks.size();
     for (int i = 0; i < size; i++)
     {
-        IntervaledMask& currMask = masks[i];
+        const IntervaledMask& currMask = masks[i];
         if (time >= currMask.begInc && time < currMask.endExc)
         {
             mask = currMask.mask;
@@ -296,4 +296,198 @@ void CustomIntervaledMasks::clearMask(long long int begInc, long long int endExc
 void CustomIntervaledMasks::clearAllMasks()
 {
     masks.clear();
+}
+
+bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
+{
+    return false;
+}
+
+bool cvtMaskToContour(const IntervaledMask& mask, IntervaledContour& contour)
+{
+    if (!mask.mask.data || mask.mask.type() != CV_8UC1)
+    {
+        contour = IntervaledContour();
+        return false;
+    }
+
+    contour.begIncInMilliSec = mask.begInc * 0.001;
+    contour.endExcInMilliSec = mask.endExc * 0.001;
+
+    int rows = mask.mask.rows, cols = mask.mask.cols;
+    int pad = 4;
+    std::vector<std::vector<cv::Point> > contours;
+    if (cv::countNonZero(mask.mask.row(0)) || cv::countNonZero(mask.mask.row(rows - 1)) ||
+        cv::countNonZero(mask.mask.col(0)) || cv::countNonZero(mask.mask.col(cols - 1)))
+    {
+        cv::Mat extendMask(rows + 2 * pad, cols + 2 * pad, CV_8UC1);
+        extendMask.setTo(0);
+        cv::Mat roi = extendMask(cv::Rect(pad, pad, cols, rows));
+        mask.mask.copyTo(roi);
+        cv::findContours(extendMask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+        int numCountors = contours.size();
+        cv::Point offset(pad, pad);
+        for (int i = 0; i < numCountors; i++)
+        {
+            int len = contours[i].size();
+            for (int j = 0; j < len; j++)
+                contours[i][j] -= offset;
+        }
+    }
+    else
+    {
+        cv::Mat nonExtendMask;
+        mask.mask.copyTo(nonExtendMask);
+        cv::findContours(nonExtendMask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+    }
+    contour.contours = contours;
+    contour.width = cols;
+    contour.height = rows;
+
+    return true;
+}
+
+bool cvtContourToMask(const IntervaledContour& contour, const cv::Mat& boundedMask, IntervaledMask& customMask)
+{
+    if (contour.width <= 0 || contour.height <= 0 || 
+        !boundedMask.data || boundedMask.type() != CV_8UC1)
+    {
+        customMask = IntervaledMask();
+        return false;
+    }
+
+    customMask.begInc = (long long int)contour.begIncInMilliSec * 1000LL;
+    customMask.endExc = (long long int)contour.endExcInMilliSec * 1000LL;
+    customMask.mask.create(boundedMask.size(), CV_8UC1);
+    customMask.mask.setTo(0);
+    if (contour.contours.size())
+    {
+        if (contour.width == boundedMask.cols &&
+            contour.height == boundedMask.rows)
+            cv::drawContours(customMask.mask, contour.contours, -1, 255, CV_FILLED);
+        else
+        {
+            cv::Mat temp;
+            cv::drawContours(temp, contour.contours, -1, 255, CV_FILLED);
+            cv::resize(temp, customMask.mask, customMask.mask.size());
+            customMask.mask.setTo(255, customMask.mask);
+        }
+        customMask.mask &= boundedMask;
+    }
+    return true;
+}
+
+bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& contours,
+    const std::vector<cv::Mat>& boundedMasks, std::vector<CustomIntervaledMasks>& customMasks)
+{
+    customMasks.clear();
+    if (contours.size() != boundedMasks.size())
+        return false;
+
+    if (boundedMasks.empty())
+        return true;
+
+    int size = boundedMasks.size();
+    int width = boundedMasks[0].cols, height = boundedMasks[0].rows;
+    for (int i = 1; i < size; i++)
+    {
+        if (boundedMasks[i].cols != width || boundedMasks[i].rows != height)
+            return false;
+    }
+
+    bool success = true;
+    customMasks.resize(size);
+    IntervaledMask currItvMask;
+    for (int i = 0; i < size; i++)
+    {
+        customMasks[i].init(width, height);
+        int num = contours[i].size();
+        for (int j = 0; j < num; j++)
+        {
+            if (!cvtContourToMask(contours[i][j], boundedMasks[i], currItvMask))
+            {
+                success = false;
+                break;
+            }
+            customMasks[i].addMask(currItvMask.begInc, currItvMask.endExc, currItvMask.mask);
+        }
+        if (!success)
+            break;
+    }
+    if (!success)
+        customMasks.clear();
+
+    return success;
+}
+
+bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,
+    CPUPanoramaPreviewTask& task)
+{
+    std::vector<cv::Mat> boundedMasks;
+    if (!task.getMasks(boundedMasks))
+        return false;
+
+    if (contours.size() != boundedMasks.size())
+        return false;
+
+    int size = boundedMasks.size();
+    bool success = true;
+    IntervaledMask currItvMask;
+    for (int i = 0; i < size; i++)
+    {
+        int num = contours[i].size();
+        for (int j = 0; j < num; j++)
+        {
+            if (!cvtContourToMask(contours[i][j], boundedMasks[i], currItvMask))
+            {
+                success = false;
+                break;
+            }
+            task.setCustomMaskForOne(i, currItvMask.begInc, currItvMask.endExc, currItvMask.mask);
+        }
+        if (!success)
+            break;
+    }
+
+    return success;
+}
+
+bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task,
+    std::vector<std::vector<IntervaledContour> >& contours)
+{
+    contours.clear();
+    if (!task.isValid())
+        return false;
+
+    int size = task.getNumSourceVideos();
+    contours.resize(size);
+    std::vector<long long int> begIncs, endExcs;
+    std::vector<cv::Mat> masks;
+    bool success = true;
+    for (int i = 0; i < size; i++)
+    {
+        if (task.getAllCustomMasksForOne(i, begIncs, endExcs, masks))
+        {
+            int len = begIncs.size();
+            contours[i].resize(len);
+            for (int j = 0; j < len; j++)
+            {
+                if (!cvtMaskToContour(IntervaledMask(begIncs[j], endExcs[j], masks[j]), contours[i][j]))
+                {
+                    success = false;
+                    break;
+                }
+            }
+            if (!success)
+                break;
+        }
+        else
+        {
+            success = false;
+            break;
+        }
+    }
+    if (!success)
+        contours.clear();
+    return success;
 }

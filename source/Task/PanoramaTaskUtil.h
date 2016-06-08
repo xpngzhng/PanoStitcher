@@ -23,6 +23,15 @@ struct LogoFilter
 // PanoTask Log Printf
 void ptlprintf(const char* format, ...);
 
+struct IntervaledContour
+{
+    int width;
+    int height;
+    double begIncInMilliSec;
+    double endExcInMilliSec;
+    std::vector<std::vector<cv::Point> > contours;
+};
+
 struct IntervaledMask
 {
     IntervaledMask() : begInc(-1LL), endExc(-1LL) {};
@@ -38,7 +47,7 @@ struct CustomIntervaledMasks
     CustomIntervaledMasks() : width(0), height(0), initSuccess(0) {};
     void reset();
     bool init(int width, int height);
-    bool getMask(long long int time, cv::Mat& mask);
+    bool getMask(long long int time, cv::Mat& mask) const;
     bool addMask(long long int begInc, long long int endExc, const cv::Mat& mask);
     void clearMask(long long int begInc, long long int endExc, long long int precision = 1000);
     void clearAllMasks();
@@ -48,3 +57,13 @@ struct CustomIntervaledMasks
     int initSuccess;
 };
 
+bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours);
+
+bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& contours, 
+    const std::vector<cv::Mat>& boundedMasks, std::vector<CustomIntervaledMasks>& customMasks);
+
+bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,
+    CPUPanoramaPreviewTask& task);
+
+bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task,
+    std::vector<std::vector<IntervaledContour> >& contours);

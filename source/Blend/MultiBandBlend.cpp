@@ -1076,7 +1076,7 @@ void TilingMultibandBlendFast::blend(const std::vector<cv::Mat>& images, const s
         blendImage.setTo(0, customMaskNot);
 }
 
-void TilingMultibandBlendFast::getUniqueMasks(std::vector<cv::Mat>& masks)
+void TilingMultibandBlendFast::getUniqueMasks(std::vector<cv::Mat>& masks) const
 {
     if (success)
         masks = uniqueMasks;

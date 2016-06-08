@@ -1,4 +1,5 @@
 #include "PanoramaTask.h"
+#include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "opencv2/highgui/highgui.hpp"
 #include <fstream>
@@ -92,11 +93,14 @@ int main(int argc, char* argv[])
     CPUPanoramaPreviewTask* cpuTask = dynamic_cast<CPUPanoramaPreviewTask*>(task.get());
     if (cpuTask)
     {
+        std::vector<std::vector<IntervaledContour> > contours;
+        getIntervaledContoursFromPreviewTask(*cpuTask, contours);
         std::vector<cv::Mat> masks, uniqueMasks;
         cpuTask->getMasks(masks);
         cpuTask->getUniqueMasks(uniqueMasks);
         for (int i = 0; i < masks.size(); i++)
             cpuTask->setCustomMaskForOne(i, -1000000.0 / 48 * 200, 1000000.0 / 48 * 100, masks[i]);
+        getIntervaledContoursFromPreviewTask(*cpuTask, contours);
     }
 
     int numVideos = srcVideoNames.size();

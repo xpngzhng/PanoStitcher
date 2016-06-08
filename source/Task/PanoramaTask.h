@@ -33,11 +33,14 @@ public:
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);
+    bool restitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst);
 
-    bool getMasks(std::vector<cv::Mat>& masks);
-    bool getUniqueMasks(std::vector<cv::Mat>& masks);
+    bool isValid() const;
+    int getNumSourceVideos() const;
+    bool getMasks(std::vector<cv::Mat>& masks) const;
+    bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
-    bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
+    bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps) const;
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
     bool readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
     bool readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
@@ -45,6 +48,10 @@ public:
     bool setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask);
     void eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision = 1000);
     void eraseAllMasksForOne(int index);
+
+    bool getCustomMaskIfHasOrUniqueMaskForOne(int index, long long int timeStamp, cv::Mat& mask) const;
+    bool getAllCustomMasksForOne(int index, std::vector<long long int>& begIncs, std::vector<long long int>& endExcs,
+        std::vector<cv::Mat>& masks) const;
 
 private:
     struct Impl;

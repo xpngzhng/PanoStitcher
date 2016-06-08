@@ -45,7 +45,7 @@ int main()
 
     cv::Size dstSize = cv::Size(2048, 1024);
 
-    {
+    /*{
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
         paths.push_back("F:\\panoimage\\vrdloffice\\image1.bmp");
@@ -80,7 +80,7 @@ int main()
             cv::waitKey(0);
         }
     }
-    return 0;
+    return 0;*/
 
     {
         std::vector<std::string> paths;
@@ -100,6 +100,7 @@ int main()
         loadPhotoParamFromXML("E:\\Projects\\Reprojecting\\Reproject\\stitchparam\\zhanxiang.xml", params);
         //rotatePhotoParamInXML("F:\\panoimage\\circular\\param.xml", "F:\\panoimage\\circular\\new.xml", 1.57, 0.0, 0.0);
         //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+        exportPhotoParamToXML("a.xml", params);
 
         cv::Size srcSize = src[0].size();
         Remap remap, remapInverse;
