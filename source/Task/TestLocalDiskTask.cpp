@@ -1,4 +1,5 @@
 #include "PanoramaTask.h"
+#include "PanoramaTaskUtil.h"
 #include "AudioVideoProcessor.h"
 #include "Log.h"
 #include "Timer.h"
@@ -42,7 +43,7 @@ int main(int argc, char* argv[])
         "{num_frames_skip        | 100         | number of frames to skip}"
         "{pano_width             | 2048        | pano picture width}"
         "{pano_height            | 1024        | pano picture height}"
-        "{pano_video_name        | panocpu0.mp4 | xml param file path}"
+        "{pano_video_name        | panogpu.mp4 | xml param file path}"
         "{pano_video_num_frames  | 1000        | number of frames to write}"
         "{use_cuda               | false       | use gpu to accelerate computation}";
 
@@ -91,13 +92,16 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
+    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguan.xml";
+    loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
         task.reset(new CudaPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
     
-    bool ok = task->init(srcVideoNames, offset, 0, cameraParamFile, panoVideoName,
+    bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
         dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {

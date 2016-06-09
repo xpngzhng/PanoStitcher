@@ -827,7 +827,7 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
-bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_, 
+bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& customMaskPath_, int highQualityBlend_, int completeQueue_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -854,10 +854,10 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     srcSize = srcSize_;
     dstSize = dstSize_;
 
+    std::vector<cv::Mat> masks, dstSrcMaps;
     try
     {
-        numImages = params.size();
-        std::vector<cv::Mat> masks, dstSrcMaps;
+        numImages = params.size();        
         getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
         if (highQualityBlend)
         {
@@ -888,11 +888,40 @@ bool CudaPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         return false;
     }
 
+    useCustomMasks = 0;
+    if (customMaskPath_.size())
+    {
+        if (highQualityBlend)
+        {
+            std::vector<std::vector<IntervaledContour> > contours;
+            ok = loadIntervaledContours(customMaskPath_, contours);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
+                return false;
+            }
+            if (contours.size() != numImages)
+            {
+                ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+                return false;
+            }
+            if (!cvtContoursToCudaMasks(contours, masks, customMasks))
+            {
+                ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
+                return false;
+            }
+            mbBlender.getUniqueMasks(dstUniqueMasksGPU);
+            useCustomMasks = 1;
+        }
+        else
+            ptlprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
+    }
+
     success = 1;
     return true;
 }
 
-bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps)
 {
     if (!success)
     {
@@ -900,7 +929,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
         return false;
     }
 
-    if (src.size() != numImages)
+    if (src.size() != numImages || timeStamps.size() != numImages)
     {
         ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
@@ -962,12 +991,34 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
                 cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
             for (int i = 0; i < numImages; i++)
                 streams[i].waitForCompletion();
-            mbBlender.blend(reprojImagesGPU, blendImageGPU);
+
+            if (useCustomMasks)
+            {
+                bool custom = false;
+                currMasksGPU.resize(numImages);
+                for (int i = 0; i < numImages; i++)
+                {
+                    if (customMasks[i].getMask(timeStamps[i], currMasksGPU[i]))
+                        custom = true;
+                    else
+                        currMasksGPU[i] = dstUniqueMasksGPU[i];
+                }
+
+                if (custom)
+                {
+                    printf("custom masks\n");
+                    mbBlender.blend(reprojImagesGPU, currMasksGPU, blendImageGPU);
+                }                    
+                else
+                    mbBlender.blend(reprojImagesGPU, blendImageGPU);
+            }
+            else
+                mbBlender.blend(reprojImagesGPU, blendImageGPU);
         }
         if (completeQueue)
-            cpQueue.push(std::make_pair(blendImageMem, timeStamp));
+            cpQueue.push(std::make_pair(blendImageMem, timeStamps[0]));
         else
-            rtQueue.push(std::make_pair(blendImageMem, timeStamp));
+            rtQueue.push(std::make_pair(blendImageMem, timeStamps[0]));
     }
     catch (std::exception& e)
     {
@@ -1019,6 +1070,10 @@ void CudaPanoramaRender::waitForCompletion()
 
 void CudaPanoramaRender::clear()
 {
+    dstUniqueMasksGPU.clear();
+    currMasksGPU.clear();
+    useCustomMasks = 0;
+    customMasks.clear();
     dstSrcXMapsGPU.clear();
     dstSrcYMapsGPU.clear();
     srcImagesGPU.clear();
@@ -1030,6 +1085,10 @@ void CudaPanoramaRender::clear()
     rtQueue.clear();
     cpQueue.clear();
     streams.clear();
+    highQualityBlend = 0;
+    completeQueue = 0;
+    numImages = 0;
+    success = 0;
 }
 
 int CudaPanoramaRender::getNumImages() const

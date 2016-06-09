@@ -65,14 +65,15 @@ public:
             StampedPinnedMemory& mem = pool[availIndex];
             int num = frames.size();
             mem.buffer.resize(num);
+            mem.timeStamps.resize(num);
             for (int i = 0; i < num; i++)
             {
                 mem.buffer[i].create(frames[i].height, frames[i].width, CV_8UC4);
                 cv::Mat src(frames[i].height, frames[i].width, CV_8UC4, frames[i].data, frames[i].step);
                 cv::Mat dst = mem.buffer[i].createMatHeader();
                 src.copyTo(dst);
-            }
-            mem.timeStamp = frames[0].timeStamp;
+                mem.timeStamps[i] = frames[i].timeStamp;
+            }            
             mem.waiting = 1;
         }
 
@@ -81,22 +82,22 @@ public:
         return true;
     }
 
-    bool pull(std::vector<cv::cuda::HostMem>& mems, long long int& timeStamp)
+    bool pull(std::vector<cv::cuda::HostMem>& mems, std::vector<long long int>& timeStamps)
     {
         std::unique_lock<std::mutex> lock(mtxBuffer);
         cvNonEmpty.wait(lock, [this] {return !indexes.empty() || pass; });
 
         if (pass)
         {
-            mems = std::vector<cv::cuda::HostMem>();
-            timeStamp = -1LL;
+            mems.clear();
+            timeStamps.clear();
             return false;
         }
 
         int index = indexes.front();
         StampedPinnedMemory& mem = pool[index];
         mems = mem.buffer;
-        timeStamp = mem.timeStamp;
+        timeStamps = mem.timeStamps;
         mem.waiting = 0;
         indexes.pop_front();
 
@@ -117,9 +118,9 @@ public:
 private:
     struct StampedPinnedMemory
     {
-        StampedPinnedMemory() : timeStamp(-1LL), waiting(0) {}
+        StampedPinnedMemory() : waiting(0) {}
         std::vector<cv::cuda::HostMem> buffer;
-        long long int timeStamp;
+        std::vector<long long int> timeStamps;
         int waiting;
     };
     std::vector<StampedPinnedMemory> pool;

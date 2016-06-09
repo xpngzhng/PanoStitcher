@@ -3,6 +3,7 @@
 #include "ZBlend.h"
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
+#include "CustomMask.h"
 #include "opencv2/core.hpp"
 #include <memory>
 #include <string>
@@ -154,8 +155,9 @@ class CudaPanoramaRender
 public:
     CudaPanoramaRender() : success(0) {};
     ~CudaPanoramaRender() { clear(); };
-    bool prepare(const std::string& path, int highQualityBlend, int completeQueue, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, long long int timeStamp);
+    bool prepare(const std::string& path, const std::string& customMaskPath,
+        int highQualityBlend, int completeQueue, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps);
     bool getResult(cv::Mat& dst, long long int& timeStamp);
     void stop();
     void resume();
@@ -164,6 +166,9 @@ public:
     int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
+    std::vector<cv::cuda::GpuMat> dstUniqueMasksGPU, currMasksGPU;
+    int useCustomMasks;
+    std::vector<CudaCustomIntervaledMasks> customMasks;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;

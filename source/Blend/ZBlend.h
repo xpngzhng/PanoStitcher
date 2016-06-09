@@ -227,8 +227,10 @@ public:
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks, 
         cv::cuda::GpuMat& blendImage);
+    void getUniqueMasks(std::vector<cv::cuda::GpuMat>& masks) const;
 
 private:
+    std::vector<cv::cuda::GpuMat> uniqueMasks;
     std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
     std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr, imageUpPyr;
     std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;

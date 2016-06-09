@@ -221,7 +221,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderFrameSize.height = height;
 
 #if COMPILE_CUDA
-    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
+    renderPrepareSuccess = render.prepare(renderConfigName, "", highQualityBlend, false,
         videoFrameSize, renderFrameSize);
 #else
     renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
@@ -547,7 +547,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
 
 #if COMPILE_CUDA
     std::vector<cv::cuda::HostMem> mems;
-    long long int timeStamp;
+    std::vector<long long int> timeStamps;
 #else
     std::vector<avp::SharedAudioVideoFrame> frames;
 #endif
@@ -563,7 +563,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             break;
         //ptlprintf("show\n");
 #if COMPILE_CUDA
-        if (!syncedFramesBufferForProc.pull(mems, timeStamp))
+        if (!syncedFramesBufferForProc.pull(mems, timeStamps))
         {
             //std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
@@ -611,7 +611,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
             //procTimer.start();
-            ok = render.render(src, timeStamp);
+            ok = render.render(src, timeStamps);
             //procTimer.end();
 #else
             src.resize(numVideos);

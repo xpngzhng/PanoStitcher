@@ -491,13 +491,12 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     cols = currCols;
     numImages = currNumMasks;
 
-    std::vector<cv::Mat> uniqueMasks;
-    getNonIntersectingMasks(masks, uniqueMasks);
+    std::vector<cv::Mat> uniqueMasksCpu;
+    getNonIntersectingMasks(masks, uniqueMasksCpu);
 
-    std::vector<cv::cuda::GpuMat> uniqueMasksGpu(numImages);
+    uniqueMasks.resize(numImages);
     for (int i = 0; i < numImages; i++)
-        uniqueMasksGpu[i].upload(uniqueMasks[i]);
-    uniqueMasks.clear();
+        uniqueMasks[i].upload(uniqueMasksCpu[i]);
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
 
@@ -518,7 +517,7 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
         aux16S.setTo(256, masksGpu[i]);
         tempAlphaPyr[0] = aux16S.clone();
         aux16S.setTo(0);
-        aux16S.setTo(256, uniqueMasksGpu[i]);
+        aux16S.setTo(256, uniqueMasks[i]);
         weightPyrs[i][0] = aux16S.clone();
         for (int j = 0; j < numLevels; j++)
         {
@@ -694,6 +693,14 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
     restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
     resultPyr[0].convertTo(blendImage, CV_8U);
     blendImage.setTo(0, customMaskNot);
+}
+
+void CudaTilingMultibandBlendFast::getUniqueMasks(std::vector<cv::cuda::GpuMat>& masks) const
+{
+    if (success)
+        masks = uniqueMasks;
+    else
+        masks.clear();
 }
 
 static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
