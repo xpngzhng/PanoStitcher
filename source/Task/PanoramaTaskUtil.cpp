@@ -298,11 +298,6 @@ void CustomIntervaledMasks::clearAllMasks()
     masks.clear();
 }
 
-bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
-{
-    return false;
-}
-
 bool cvtMaskToContour(const IntervaledMask& mask, IntervaledContour& contour)
 {
     if (!mask.mask.data || mask.mask.type() != CV_8UC1)
@@ -486,6 +481,183 @@ bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task,
             success = false;
             break;
         }
+    }
+    if (!success)
+        contours.clear();
+    return success;
+}
+
+#include "ticpp.h"
+
+using ticpp::Element;
+using ticpp::Document;
+
+#include <sstream>
+bool cvtStringToPoints(const std::string& text, std::vector<cv::Point>& points)
+{
+    points.clear();
+    if (text.empty())
+        return false;
+
+    std::istringstream strm(text);
+    bool success = true;
+    while (!strm.eof())
+    {
+        int x, y;
+        strm >> x;
+        // Failing to satisty following if condition cannot set success to false
+        // because the final charactor may be space
+        if (strm.fail() || strm.bad())
+            break;
+        strm >> y;
+        if (strm.fail() || strm.bad())
+        {
+            success = false;
+            break;
+        }
+        points.push_back(cv::Point(x, y));
+    }
+    if (!success)
+        points.clear();
+    return success;
+}
+
+bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::string>& videoNames, std::vector<int>& offsets)
+{
+    videoNames.clear();
+    offsets.clear();
+
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* ptrRoot = doc.FirstChildElement("Root", false);
+    if (ptrRoot == NULL)
+        return false;
+
+    Element* ptrPos = ptrRoot->FirstChildElement("VIDEO", false);
+    if (ptrPos == NULL)
+        return false;
+
+    bool success = true;
+    for (ticpp::Iterator<ticpp::Element> itrVideo(ptrPos, "VIDEO"); itrVideo != itrVideo.end(); itrVideo++)
+    {
+        Element* ptrVideoName = itrVideo->FirstChildElement("VIDEONAME");
+        Element* ptrSyncFrame = itrVideo->FirstChildElement("SYNCFRAME");
+        std::string name;
+        int offset;
+        try
+        {
+            name = ptrVideoName->GetText();
+            ptrSyncFrame->GetText(&offset);
+        }
+        catch (...)
+        {
+            success = false;
+            break;
+        }
+        videoNames.push_back(name);
+        offsets.push_back(offset);
+    }
+    if (!success)
+    {
+        videoNames.clear();
+        offsets.clear();
+    }
+    return success;
+}
+
+bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
+{
+    contours.clear();
+
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* ptrRoot = doc.FirstChildElement("Root", false);
+    if (ptrRoot == NULL)
+        return false;
+
+    Element* ptrPos = ptrRoot->FirstChildElement("VIDEO", false);
+    if (ptrPos == NULL)
+        return false;
+
+    bool success = true;
+    for (ticpp::Iterator<ticpp::Element> itrVideo(ptrPos, "VIDEO"); itrVideo != itrVideo.end(); itrVideo++)
+    {
+        Element* ptrContours = NULL;
+        std::vector<IntervaledContour> currContours;
+        ptrContours = itrVideo->FirstChildElement("Contours", false);
+        if (ptrContours == NULL)
+        {
+            contours.push_back(currContours);
+            continue;
+        }
+        Element* ptrContour = ptrContours->FirstChildElement("Contour", false);
+        if (ptrContour == NULL)
+        {
+            contours.push_back(currContours);
+            continue;
+        }
+
+        for (ticpp::Iterator<ticpp::Element> itrContour(ptrContour, "Contour"); itrContour != itrContour.end(); ++itrContour)
+        {
+            IntervaledContour currContour;
+            try
+            {
+                Element* ptrElement = NULL;
+                ptrElement = itrContour->FirstChildElement("Width");
+                ptrElement->GetText(&currContour.width);
+                ptrElement = itrContour->FirstChildElement("Height");
+                ptrElement->GetText(&currContour.height);
+                ptrElement = itrContour->FirstChildElement("Begin");
+                ptrElement->GetText(&currContour.begIncInMilliSec);
+                ptrElement = itrContour->FirstChildElement("End");
+                ptrElement->GetText(&currContour.endExcInMilliSec);
+
+                Element* ptrPoints = itrContour->FirstChildElement("Points", false);
+                if (ptrPoints == NULL)
+                    continue;
+                for (ticpp::Iterator<ticpp::Element> itrPoints(ptrPoints, "Points"); itrPoints != itrPoints.end(); ++itrPoints)
+                {
+                    std::string text = itrPoints->GetText(false);
+                    if (text.empty())
+                        continue;
+                    currContour.contours.resize(currContour.contours.size() + 1);
+                    if (!cvtStringToPoints(text, currContour.contours.back()))
+                    {
+                        success = false;
+                        break;
+                    }
+                }
+                if (!success)
+                    break;
+            }
+            catch (...)
+            {
+                success = false;
+                break;
+            }
+
+            currContours.push_back(currContour);
+        }
+        if (!success)
+            break;
+
+        contours.push_back(currContours);
     }
     if (!success)
         contours.clear();

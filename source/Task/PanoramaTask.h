@@ -37,6 +37,7 @@ public:
 
     bool isValid() const;
     int getNumSourceVideos() const;
+    double getVideoFrameRate() const;
     bool getMasks(std::vector<cv::Mat>& masks) const;
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
@@ -50,6 +51,7 @@ public:
     void eraseAllMasksForOne(int index);
 
     bool getCustomMaskIfHasOrUniqueMaskForOne(int index, long long int timeStamp, cv::Mat& mask) const;
+    bool getCustomMasksIfHaveOrUniqueMasksForAll(const std::vector<long long int>& timeStamps, std::vector<cv::Mat>& masks) const;
     bool getAllCustomMasksForOne(int index, std::vector<long long int>& begIncs, std::vector<long long int>& endExcs,
         std::vector<cv::Mat>& masks) const;
 

@@ -57,6 +57,8 @@ struct CustomIntervaledMasks
     int initSuccess;
 };
 
+bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::string>& videoFileNames, std::vector<int>& offsets);
+
 bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours);
 
 bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& contours, 

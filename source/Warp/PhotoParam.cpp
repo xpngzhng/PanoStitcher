@@ -422,13 +422,14 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         param.shearY = nTemp;
 
         Element* pPos = pRoot->FirstChildElement("POSITION", false);
-        if (pPos == NULL)
+        Element* pVideo = pRoot->FirstChildElement("VIDEO", false);
+        if (pPos == NULL && pVideo == NULL)
         {
             params.clear();
             return;
         }
 
-        for (ticpp::Iterator<ticpp::Element> child(pPos, "POSITION"); child != child.end(); child++)
+        for (ticpp::Iterator<ticpp::Element> child(pPos ? pPos : pVideo, pPos ? "POSITION" : "VIDEO"); child != child.end(); child++)
         {
             const Element* pEle = NULL;
 

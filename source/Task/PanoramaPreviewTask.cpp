@@ -19,6 +19,7 @@ struct CPUPanoramaPreviewTask::Impl
 
     bool isValid() const;
     int getNumSourceVideos() const;
+    double getVideoFrameRate() const;
     bool getMasks(std::vector<cv::Mat>& masks) const;
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
@@ -32,6 +33,7 @@ struct CPUPanoramaPreviewTask::Impl
     void eraseAllMasksForOne(int index);
 
     bool getCustomMaskIfHasOrUniqueMaskForOne(int index, long long int timeStamp, cv::Mat& mask) const;
+    bool getCustomMasksIfHaveOrUniqueMasksForAll(const std::vector<long long int>& timeStamps, std::vector<cv::Mat>& masks) const;
     bool getAllCustomMasksForOne(int index, std::vector<long long int>& begIncs, std::vector<long long int>& endExcs,
         std::vector<cv::Mat>& masks);
 
@@ -269,6 +271,13 @@ int CPUPanoramaPreviewTask::Impl::getNumSourceVideos() const
     return numVideos;
 }
 
+double CPUPanoramaPreviewTask::Impl::getVideoFrameRate() const
+{
+    if (!initSuccess)
+        return 0;
+    return readers[0].getVideoFps();
+}
+
 bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
 {
     if (!initSuccess)
@@ -436,6 +445,23 @@ bool CPUPanoramaPreviewTask::Impl::getCustomMaskIfHasOrUniqueMaskForOne(int inde
     return true;
 }
 
+bool CPUPanoramaPreviewTask::Impl::getCustomMasksIfHaveOrUniqueMasksForAll(const std::vector<long long int>& timeStamps, std::vector<cv::Mat>& masks) const
+{
+    if (!initSuccess)
+        return false;
+
+    if (timeStamps.size() != numVideos)
+        return false;
+
+    masks.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        if (!customMasks[i].getMask(timeStamps[i], masks[i]))
+            masks[i] = dstUniqueMasks[i];
+    }
+    return true;
+}
+
 bool CPUPanoramaPreviewTask::Impl::getAllCustomMasksForOne(int index, std::vector<long long int>& begIncs, 
     std::vector<long long int>& endExcs, std::vector<cv::Mat>& masks)
 {
@@ -524,6 +550,11 @@ int CPUPanoramaPreviewTask::getNumSourceVideos() const
     return ptrImpl->getNumSourceVideos();
 }
 
+double CPUPanoramaPreviewTask::getVideoFrameRate() const
+{
+    return ptrImpl->getVideoFrameRate();
+}
+
 bool CPUPanoramaPreviewTask::getMasks(std::vector<cv::Mat>& masks) const
 {
     return ptrImpl->getMasks(masks);
@@ -572,6 +603,11 @@ void CPUPanoramaPreviewTask::eraseAllMasksForOne(int index)
 bool CPUPanoramaPreviewTask::getCustomMaskIfHasOrUniqueMaskForOne(int index, long long int timeStamp, cv::Mat& mask) const
 {
     return ptrImpl->getCustomMaskIfHasOrUniqueMaskForOne(index, timeStamp, mask);
+}
+
+bool CPUPanoramaPreviewTask::getCustomMasksIfHaveOrUniqueMasksForAll(const std::vector<long long int>& timeStamps, std::vector<cv::Mat>& masks) const
+{
+    return ptrImpl->getCustomMasksIfHaveOrUniqueMasksForAll(timeStamps, masks);
 }
 
 bool CPUPanoramaPreviewTask::getAllCustomMasksForOne(int index, std::vector<long long int>& begIncs, std::vector<long long int>& endExcs,

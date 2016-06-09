@@ -77,13 +77,16 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
+    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguan.xml";
+    loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+
     std::unique_ptr<PanoramaPreviewTask> task;
     if (parser.get<bool>("use_cuda"))
         task.reset(new CudaPanoramaPreviewTask);
     else
         task.reset(new CPUPanoramaPreviewTask);
 
-    bool ok = task->init(srcVideoNames, cameraParamFile, dstSize.width, dstSize.height);
+    bool ok = task->init(srcVideoNames, projFileName, dstSize.width, dstSize.height);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
@@ -94,13 +97,24 @@ int main(int argc, char* argv[])
     if (cpuTask)
     {
         std::vector<std::vector<IntervaledContour> > contours;
-        getIntervaledContoursFromPreviewTask(*cpuTask, contours);
+        //getIntervaledContoursFromPreviewTask(*cpuTask, contours);
+        loadIntervaledContours(projFileName, contours);
+
+        double fps = cpuTask->getVideoFrameRate();
+        int numVideos = cpuTask->getNumSourceVideos();
+        std::vector<long long int> timeStamps(numVideos);
+        for (int i = 0; i < numVideos; i++)
+            timeStamps[i] = 1000000.0 / fps * offset[i];
+        cpuTask->seek(timeStamps);
+
         std::vector<cv::Mat> masks, uniqueMasks;
         cpuTask->getMasks(masks);
         cpuTask->getUniqueMasks(uniqueMasks);
-        for (int i = 0; i < masks.size(); i++)
-            cpuTask->setCustomMaskForOne(i, -1000000.0 / 48 * 200, 1000000.0 / 48 * 100, masks[i]);
-        getIntervaledContoursFromPreviewTask(*cpuTask, contours);
+
+        setIntervaledContoursToPreviewTask(contours, *cpuTask);
+        //for (int i = 0; i < masks.size(); i++)
+        //    cpuTask->setCustomMaskForOne(i, -1000000.0 / 48 * 200, 1000000.0 / 48 * 100, masks[i]);
+        //getIntervaledContoursFromPreviewTask(*cpuTask, contours);
     }
 
     int numVideos = srcVideoNames.size();
