@@ -1359,7 +1359,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     return true;
 }
 
-bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps)
 {
     ztool::Timer t, tt;;
     if (!success)
@@ -1413,9 +1413,9 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, long long int t
         //{
         //}
         if (completeQueue)
-            cpQueue.push(std::make_pair(blendImage, timeStamp));
+            cpQueue.push(std::make_pair(blendImage, timeStamps[0]));
         else
-            rtQueue.push(std::make_pair(blendImage, timeStamp));
+            rtQueue.push(std::make_pair(blendImage, timeStamps[0]));
 
         t.end();
         //ptlprintf("t = %f, tt = %f\n", t.elapse(), tt.elapse());

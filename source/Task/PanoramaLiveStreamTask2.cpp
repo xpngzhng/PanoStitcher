@@ -550,6 +550,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     std::vector<long long int> timeStamps;
 #else
     std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<long long int> timeStamps;
 #endif
     std::vector<cv::Mat> src;
     bool ok;
@@ -615,10 +616,14 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             //procTimer.end();
 #else
             src.resize(numVideos);
+            timeStamps.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
+            {
                 src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data, frames[i].step);
+                timeStamps[i] = frames[i].timeStamp;
+            }
             procTimer.start();
-            ok = render.render(src, frames[0].timeStamp);
+            ok = render.render(src, timeStamps);
             procTimer.end();
 #endif
             if (!ok)
