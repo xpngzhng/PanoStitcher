@@ -1359,7 +1359,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     return true;
 }
 
-bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps)
+bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vector<long long int>& timeStamps)
 {
     ztool::Timer t, tt;;
     if (!success)

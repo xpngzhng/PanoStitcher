@@ -783,7 +783,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
     std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
     avp::SharedAudioVideoFrame audioFrame;
 
-    while (true)
+    /*while (true)
     {
         if (audioIndex >= 0 && audioIndex < numVideos)
         {
@@ -817,6 +817,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
         StampedPinnedMemoryVector deepFrames;
         deepFrames.timeStamps.resize(numVideos);
         deepFrames.frames.resize(numVideos);
+        ztool::Timer t;
         for (int i = 0; i < numVideos; i++)
         {
             srcFramesMemoryPool.get(deepFrames.frames[i]);
@@ -825,6 +826,71 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
             src.copyTo(dst);
             deepFrames.timeStamps[i] = shallowFrames[i].timeStamp;
         }
+        t.end();
+        printf("copy time = %f\n", t.elapse());
+
+        decodeFramesBuffer.push(deepFrames);
+        decodeCount++;
+        //ptlprintf("decode count = %d\n", decodeCount);
+
+        if (decodeCount >= validFrameCount)
+            break;
+    }*/
+
+    avp::AudioVideoFrame shallowAudioFrame;
+    avp::AudioVideoFrame shallowVideoFrame;
+    int mediaType;
+    while (true)
+    {
+        StampedPinnedMemoryVector deepFrames;
+        deepFrames.timeStamps.resize(numVideos);
+        deepFrames.frames.resize(numVideos);
+
+        if (audioIndex >= 0 && audioIndex < numVideos)
+        {
+            audioFramesMemoryPool.get(audioFrame);
+            srcFramesMemoryPool.get(deepFrames.frames[audioIndex]);
+            shallowAudioFrame = audioFrame;
+            shallowVideoFrame = avp::videoFrame(deepFrames.frames[audioIndex].data, deepFrames.frames[audioIndex].step,
+                avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
+            if (!readers[audioIndex].readTo(shallowAudioFrame, shallowVideoFrame, mediaType))
+                break;
+            if (mediaType == avp::AUDIO)
+            {
+                audioFrame.timeStamp = shallowAudioFrame.timeStamp;
+                procFrameBuffer.push(audioFrame);
+                continue;
+            }
+            else if (mediaType == avp::VIDEO)
+                deepFrames.timeStamps[audioIndex] = shallowVideoFrame.timeStamp;
+            else
+                break;
+        }
+
+        bool successRead = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (i == audioIndex)
+                continue;
+
+            srcFramesMemoryPool.get(deepFrames.frames[i]);
+            shallowVideoFrame = avp::videoFrame(deepFrames.frames[i].data, deepFrames.frames[i].step,
+                avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
+            if (!readers[i].readTo(shallowAudioFrame, shallowVideoFrame, mediaType))
+            {
+                successRead = false;
+                break;
+            }
+            if (mediaType == avp::VIDEO)
+                deepFrames.timeStamps[i] = shallowVideoFrame.timeStamp;
+            else
+            {
+                successRead = false;
+                break;
+            }
+        }
+        if (!successRead || isCanceled)
+            break;
 
         decodeFramesBuffer.push(deepFrames);
         decodeCount++;

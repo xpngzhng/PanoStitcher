@@ -114,16 +114,16 @@ int main()
     //maskPaths.push_back("E:\\Projects\\Reprojecting\\Reproject\\mask2.bmp");
     //maskPaths.push_back("E:\\Projects\\Reprojecting\\Reproject\\mask3.bmp");
 
-    std::vector<std::string> contentPaths;
-    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image0.bmp");
-    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image1.bmp");
-    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image2.bmp");
-    contentPaths.push_back("F:\\panoimage\\detuoffice2\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask3.bmp");
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\detuoffice2\\image0.bmp");
+    //contentPaths.push_back("F:\\panoimage\\detuoffice2\\image1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\detuoffice2\\image2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\detuoffice2\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice2\\mask3.bmp");
 
     //std::vector<std::string> contentPaths;
     //contentPaths.push_back("E:\\Projects\\Stitching\\build\\Stitching\\PanoAll\\pano0000.tif");
@@ -150,6 +150,28 @@ int main()
     //std::vector<std::string> maskPaths;
     //maskPaths.push_back("F:\\panoimage\\sky\\mask1.bmp");
     //maskPaths.push_back("F:\\panoimage\\sky\\mask2.bmp");
+
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
+
+    std::vector<std::string> contentPaths;
+    contentPaths.push_back("F:\\panoimage\\blackwhite\\image0.bmp");
+    contentPaths.push_back("F:\\panoimage\\blackwhite\\image1.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\blackwhite\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\blackwhite\\mask1.bmp");
 
     ztool::Timer timer;
     timer.start();
@@ -182,9 +204,8 @@ int main()
     //cfg.setBlendPaste();
     cfg.setSeamDistanceTransform();
     //cfg.setSeamGraphCut(8, 4, 1, 2);
-    cfg.setBlendMultiBand();
+    cfg.setBlendMultiBand(16, 4);
     //cfg.setBlendLinear(50);
-    masks[2].setTo(0);
     for (int i = 0; i < numImages; i++)
     {
         printf("image index = %d\n", i);
@@ -201,7 +222,7 @@ int main()
     //parallelBlend(cfg, /*compensateImages*/images, masks, blendImage);
 
     //TilingMultibandBlend blender;
-    //blender.prepare(masks, 20, 2);
+    //blender.prepare(masks, 20, 8);
     //for (int i = 0; i < numImages; i++)
     //    blender.tile(images[i], masks[i], i);
     //blender.composite(blendImage);
@@ -210,6 +231,7 @@ int main()
 
     printf("time used = %f\n", timer.elapse());
     cv::imshow("blend image", blendImage);
+    cv::imwrite("blendimage1.bmp", blendImage);
     //cv::imshow("blend mask", blendMask);
     //cv::imshow("belonging", indexImage);
     //cv::imwrite("blendmultibanddetu2new.bmp", blendImage);
