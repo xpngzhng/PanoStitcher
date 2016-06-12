@@ -103,6 +103,55 @@ public:
         return true;
     }
 
+    void shrink(int minSize)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (!hasInit)
+            return;
+
+        int size = pool.size();
+        if (size < minSize)
+            return;
+
+        int numNotInUse = 0;        
+        for (int i = 0; i < size; i++)
+        {
+            if (pool[i].sharedData.use_count() == 1)
+                numNotInUse++;
+        }
+        if (numNotInUse == 0)
+            return;
+
+        int numInUse = size - numNotInUse;
+        int numDelete = 0;
+        if (numInUse >= minSize)
+            numDelete = numNotInUse;
+        else
+            numDelete = size - minSize;
+        if (numDelete == 0)
+            return;
+
+        std::vector<avp::SharedAudioVideoFrame>::iterator itr = pool.begin();
+        for (; itr != pool.end();)
+        {
+            if (itr->sharedData.use_count() == 1)
+            {
+                itr = pool.erase(itr);
+                numDelete--;
+                if (numDelete == 0)
+                    return;
+            }
+            else
+                ++itr;
+        }
+    }
+
+    int size()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return pool.size();
+    }
+
 private:
     avp::SharedAudioVideoFrame deep;
     std::vector<avp::SharedAudioVideoFrame> pool;
