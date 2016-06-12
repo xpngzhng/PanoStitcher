@@ -24,6 +24,7 @@ struct CPUPanoramaPreviewTask::Impl
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
     bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps) const;
+    bool reReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
     bool readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
     bool readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
@@ -314,6 +315,37 @@ bool CPUPanoramaPreviewTask::Impl::getCurrReprojectForAll(std::vector<cv::Mat>& 
     return true;
 }
 
+bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
+{
+    if (!initSuccess)
+        return false;
+
+    if (images.empty() || frames.empty() || reprojImages.empty())
+        return false;
+
+    reprojectParallel(images, reprojImages, dstSrcMaps);
+
+    bool useCustomMask = false;
+    currMasks.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        if (customMasks[i].getMask(frames[i].timeStamp, currMasks[i]))
+            useCustomMask = true;
+        else
+            currMasks[i] = dstUniqueMasks[i];
+    }
+
+    if (useCustomMask)
+        blender.blend(reprojImages, currMasks, blendImage);
+    else
+        blender.blend(reprojImages, blendImage);
+    dst = reprojImages;
+    timeStamps.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        timeStamps[i] = frames[i].timeStamp;
+    return true;
+}
+
 bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
@@ -568,6 +600,11 @@ bool CPUPanoramaPreviewTask::getUniqueMasks(std::vector<cv::Mat>& masks) const
 bool CPUPanoramaPreviewTask::getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps) const
 {
     return ptrImpl->getCurrReprojectForAll(images, timeStamps);
+}
+
+bool CPUPanoramaPreviewTask::reReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps)
+{
+    return ptrImpl->reReprojectForAll(images, timeStamps);
 }
 
 bool CPUPanoramaPreviewTask::readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps)

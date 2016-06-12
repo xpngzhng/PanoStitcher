@@ -42,6 +42,7 @@ public:
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
     bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps) const;
+    bool reReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
     bool readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<long long int>& timeStamps);
     bool readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
     bool readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp);
