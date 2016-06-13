@@ -717,7 +717,7 @@ __global__ void divide32SC4To16SC4(const unsigned char* srcImageData, int srcIma
         int srcAlphaVal = getElem<int>(srcAlphaData, srcAlphaStep, y, x);
         if (srcAlphaVal)
         {
-            getRowPtr<short4>(dstImageData, dstImageStep, y)[x] = ((srcImageVal << 8) - srcImageVal) / srcAlphaVal;
+            getRowPtr<short4>(dstImageData, dstImageStep, y)[x] = (srcImageVal << 8) / srcAlphaVal;
             getRowPtr<short>(dstAlphaData, dstAlphaStep, y)[x] = 256;
         }
         else

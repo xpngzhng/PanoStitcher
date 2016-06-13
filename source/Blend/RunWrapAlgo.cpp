@@ -151,27 +151,27 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\sky\\mask1.bmp");
     //maskPaths.push_back("F:\\panoimage\\sky\\mask2.bmp");
 
-    //std::vector<std::string> contentPaths;
-    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
-    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
-    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
-    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
-    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
-    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
-    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
-
     std::vector<std::string> contentPaths;
-    contentPaths.push_back("F:\\panoimage\\blackwhite\\image0.bmp");
-    contentPaths.push_back("F:\\panoimage\\blackwhite\\image1.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
+    contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\blackwhite\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\blackwhite\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
+    maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
+
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\blackwhite\\image0.bmp");
+    //contentPaths.push_back("F:\\panoimage\\blackwhite\\image1.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\blackwhite\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\blackwhite\\mask1.bmp");
 
     ztool::Timer timer;
     timer.start();
@@ -206,20 +206,20 @@ int main()
     //cfg.setSeamGraphCut(8, 4, 1, 2);
     cfg.setBlendMultiBand(16, 4);
     //cfg.setBlendLinear(50);
-    for (int i = 0; i < numImages; i++)
-    {
-        printf("image index = %d\n", i);
-        //cv::Mat image = cv::imread(contentPaths[i], -1);
-        //cv::Mat mask = cv::imread(maskPaths[i], -1);
-        cv::imshow("image", images[i]);
-        cv::imshow("mask", masks[i]);
-        serialBlend(cfg, images[i]/*compensateImages[i]*/, masks[i], blendImage, blendMask);
-        cv::imshow("blend image", blendImage);
-        cv::imshow("blend mask", blendMask);
-        cv::waitKey(0);
-    }
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    printf("image index = %d\n", i);
+    //    //cv::Mat image = cv::imread(contentPaths[i], -1);
+    //    //cv::Mat mask = cv::imread(maskPaths[i], -1);
+    //    cv::imshow("image", images[i]);
+    //    cv::imshow("mask", masks[i]);
+    //    serialBlend(cfg, images[i]/*compensateImages[i]*/, masks[i], blendImage, blendMask);
+    //    cv::imshow("blend image", blendImage);
+    //    cv::imshow("blend mask", blendMask);
+    //    cv::waitKey(0);
+    //}
 
-    //parallelBlend(cfg, /*compensateImages*/images, masks, blendImage);
+    parallelBlend(cfg, /*compensateImages*/images, masks, blendImage);
 
     //TilingMultibandBlend blender;
     //blender.prepare(masks, 20, 8);
@@ -234,7 +234,7 @@ int main()
     cv::imwrite("blendimage1.bmp", blendImage);
     //cv::imshow("blend mask", blendMask);
     //cv::imshow("belonging", indexImage);
-    //cv::imwrite("blendmultibanddetu2new.bmp", blendImage);
+    cv::imwrite("img.bmp", blendImage);
     //return 0;
     cv::waitKey(0);
     //cv::imwrite("resultsky.bmp", blendImage);

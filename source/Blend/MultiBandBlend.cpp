@@ -3,6 +3,7 @@
 #include "Pyramid.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
+#include <fstream>
 
 void convert16STo16U(const cv::Mat& src, cv::Mat& dst)
 {
@@ -42,6 +43,21 @@ void savePyramid(const std::vector<cv::Mat>& pyr, const std::string& prefix, con
         char name[256];
         sprintf_s(name, "%s%d.%s", prefix.c_str(), i, ext.c_str());
         cv::imwrite(name, temp);
+    }
+}
+
+void savePyramidToFiles(const std::vector<cv::Mat>& pyr, const std::string& prefix)
+{
+    if (pyr.empty())
+        return;
+
+    int size = pyr.size();
+    char name[256];
+    for (int i = 0; i < size; i++)
+    {
+        sprintf_s(name, "%s%d.txt", prefix.c_str(), i);
+        std::ofstream fstrm(name);
+        fstrm << pyr[i];
     }
 }
 
@@ -131,7 +147,7 @@ void normalize(cv::Mat& image)
         int* ptr = image.ptr<int>(i);
         for (int j = 0; j < cols; j++)
         {
-            *ptr = (*ptr + 128) >> 8;
+            *ptr = (*ptr/* + 128*/) >> 8;
             ptr++;
         }
     }
@@ -243,11 +259,11 @@ void calcDstImageAndAlpha(const cv::Mat& srcImage32S, const cv::Mat& srcAlpha32S
         {
             if (*ptrSrcAlpha)
             {
-                int alpha = *ptrSrcAlpha, halfAlpha = alpha >> 1;                
+                int alpha = *ptrSrcAlpha;
                 int val0, val1, val2;
-                val0 = ((ptrSrcImage[0] << 8) - ptrSrcImage[0]/* + halfAlpha*/) / alpha;
-                val1 = ((ptrSrcImage[1] << 8) - ptrSrcImage[1]/* + halfAlpha*/) / alpha;
-                val2 = ((ptrSrcImage[2] << 8) - ptrSrcImage[2]/* + halfAlpha*/) / alpha;
+                val0 = (ptrSrcImage[0] << 8) / alpha;
+                val1 = (ptrSrcImage[1] << 8) / alpha;
+                val2 = (ptrSrcImage[2] << 8) / alpha;
                 ptrDstImage[0] = val0;
                 ptrDstImage[1] = val1;
                 ptrDstImage[2] = val2;
@@ -348,8 +364,6 @@ void multibandBlend(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat&
     cv::Mat mask(size, CV_16SC1);
     std::vector<cv::Mat> imagePyr, weightPyr;
 
-    //static int count = 0;
-    //count++;
     //char name[256];
 
     mask.setTo(0);
@@ -359,10 +373,12 @@ void multibandBlend(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat&
     mask.setTo(256, mask1);
     createGaussPyramid(mask, numLevels, horiWrap, weightPyr);
     accumulate(imagePyr, weightPyr, resultPyr);
-    //sprintf_s(name, "image1_number%d_level", count);
+    //sprintf_s(name, "image1_level");
     //savePyramid(imagePyr, name, "tif");
-    //sprintf_s(name, "mask1_number%d_level", count);
+    //sprintf_s(name, "mask1_level");
     //savePyramid(weightPyr, name, "tif");
+    //savePyramidToFiles(imagePyr, "image1_level");
+    //savePyramidToFiles(weightPyr, "mask1_level");    
 
     mask.setTo(0);
     mask.setTo(256, alpha2);
@@ -371,12 +387,16 @@ void multibandBlend(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat&
     mask.setTo(256, mask2);
     createGaussPyramid(mask, numLevels, horiWrap, weightPyr);
     accumulate(imagePyr, weightPyr, resultPyr);
-    //sprintf_s(name, "image2_number%d_level", count);
+    //sprintf_s(name, "image2_level");
     //savePyramid(imagePyr, name, "tif");
-    //sprintf_s(name, "mask2_number%d_level", count);
+    //sprintf_s(name, "mask2_level");
     //savePyramid(weightPyr, name, "tif");
+    //savePyramidToFiles(imagePyr, "image2_level");
+    //savePyramidToFiles(weightPyr, "mask2_level");
 
+    //savePyramidToFiles(resultPyr, "result");
     normalize(resultPyr);
+    //savePyramidToFiles(resultPyr, "result_norm");
     restoreImageFromLaplacePyramid(resultPyr, horiWrap);
     resultPyr[0].convertTo(result, CV_8U);
 }
