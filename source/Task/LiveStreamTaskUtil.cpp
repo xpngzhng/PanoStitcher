@@ -196,7 +196,10 @@ void AudioVideoSource::videoSink()
         if (finish || videoEndFlag)
             break;
 
-        long long int currMaxTS = -1;
+        // Initialize currMaxTS to the smallest value,
+        // if video sources are local video files, the first several frames may
+        // have negative time stamps
+        long long int currMaxTS = 0x8000000000000000;
         int currMaxIndex = -1;
         for (int i = 0; i < numVideos; i++)
         {
@@ -213,6 +216,11 @@ void AudioVideoSource::videoSink()
                 currMaxIndex = i;
                 currMaxTS = sharedFrame.timeStamp;
             }
+        }
+        if (currMaxIndex < 0)
+        {
+            ptlprintf("Error in %s [%8x], failed to find the frame with smallest time stamp\n", __FUNCTION__, id);
+            finish = 1;
         }
 
         if (finish || videoEndFlag)
@@ -703,13 +711,8 @@ void FFmpegAudioVideoSource::videoSource(int index)
     avp::AudioVideoReader& reader = videoReaders[index];
 
     int waitTime = 0;
-    // if we open videos on local disk, videos' first several frames may contain
-    // negative pts, to avoid error in videoSink(), we discard first few frames.
     if (areSourceFiles)
     {
-        avp::AudioVideoFrame frame;
-        for (int i = 0; i < 10; i++)
-            reader.read(frame);
         waitTime = 1000 / videoFrameRate - 5;
         if (waitTime <= 0)
             waitTime = 1;
