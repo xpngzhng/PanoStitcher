@@ -378,7 +378,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::strin
 
     videoFrameSize.width = videoReaders[0].getVideoWidth();
     videoFrameSize.height = videoReaders[0].getVideoHeight();
-    videoFrameRate = videoReaders[0].getVideoFps();
+    videoFrameRate = videoReaders[0].getVideoFrameRate();
     roundedVideoFrameRate = videoFrameRate + 0.5;
     for (int i = 1; i < numVideos; i++)
     {
@@ -396,7 +396,7 @@ bool PanoramaLiveStreamTask::Impl::openVideoStreams(const std::vector<std::strin
             syncErrorMessage = "所有视频源需要有同样的分辨率和帧率。";
             break;
         }
-        if (fabs(videoReaders[i].getVideoFps() - videoFrameRate) > 0.001)
+        if (fabs(videoReaders[i].getVideoFrameRate() - videoFrameRate) > 0.001)
         {
             failExists = true;
             ptlprintf("Error, video streams frame rate not match\n");

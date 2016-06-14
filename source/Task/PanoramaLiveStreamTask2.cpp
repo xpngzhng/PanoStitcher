@@ -174,15 +174,26 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
         return false;
     }
 
-    audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
-        &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
-        videoFrameRateCallbackFunc, videoFrameRateCallbackData));
-    bool ok = ((JuJingAudioVideoSource*)audioVideoSource.get())->open(urls);
+    bool ok = false;
+    if (areAllIPAdresses(urls))
+    {
+        audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
+            &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
+            videoFrameRateCallbackFunc, videoFrameRateCallbackData));
+        ok = ((JuJingAudioVideoSource*)audioVideoSource.get())->open(urls);
+    }
+    else
+    {
+        audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
+            &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
+            videoFrameRateCallbackFunc, videoFrameRateCallbackData));
+        ok = ((FFmpegAudioVideoSource*)audioVideoSource.get())->open(urls);
+    }
     if (!ok)
         return false;
-    videoFrameSize.width = 1920;
-    videoFrameSize.height = 1080;
-    videoFrameRate = 25;
+    videoFrameSize.width = audioVideoSource->getVideoFrameWidth();
+    videoFrameSize.height = audioVideoSource->getVideoFrameHeight();
+    videoFrameRate = audioVideoSource->getVideoFrameRate();
     numVideos = urls.size();
     audioSampleRate = 0;
     videoOpenSuccess = 1;

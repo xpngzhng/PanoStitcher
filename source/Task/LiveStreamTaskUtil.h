@@ -7,6 +7,21 @@
 #include <memory>
 #include <thread>
 
+// Check whether text has ip address form xxx.xxx.xxx.xxx
+bool isIPAddress(const std::string& text);
+
+bool areAllIPAdresses(const std::vector<std::string>& texts);
+
+bool areAllNotIPAdresses(const std::vector<std::string>& texts);
+
+// Just detect whether text begins with http/rtsp/rtmp,
+// all letters lower case
+bool isURL(const std::string& text);
+
+bool areAllURLs(const std::vector<std::string>& texts);
+
+bool areAllNotURLs(const std::vector<std::string>& texts);
+
 // for video source
 //typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> CompleteFrameQueue;
 // for synced video source
@@ -117,6 +132,8 @@ private:
     avp::Device audioDevice;    
     std::unique_ptr<std::thread> audioThread;    
     void audioSource();
+
+    int areSourceFiles;
 };
 
 struct DataPacket

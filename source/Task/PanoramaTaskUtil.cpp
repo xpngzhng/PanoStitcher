@@ -61,8 +61,8 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
         }
 
         if (fps < 0)
-            fps = readers[i].getVideoFps();
-        if (abs(fps - readers[i].getVideoFps()) > 0.1)
+            fps = readers[i].getVideoFrameRate();
+        if (abs(fps - readers[i].getVideoFrameRate()) > 0.1)
         {
             ptlprintf("Error in %s, video fps not consistent\n", __FUNCTION__);
             ok = false;

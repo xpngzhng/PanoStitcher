@@ -276,7 +276,7 @@ double CPUPanoramaPreviewTask::Impl::getVideoFrameRate() const
 {
     if (!initSuccess)
         return 0;
-    return readers[0].getVideoFps();
+    return readers[0].getVideoFrameRate();
 }
 
 bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
@@ -417,7 +417,7 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat
             return false;
     }
 
-    long long int timeIncUnit = 1000000 / readers[index].getVideoFps() + 0.5;
+    long long int timeIncUnit = 1000000 / readers[index].getVideoFrameRate() + 0.5;
     if (!readers[index].seek(frames[index].timeStamp - timeIncUnit, avp::VIDEO))
         return false;
 

@@ -2,6 +2,101 @@
 #include "LiveStreamTaskUtil.h"
 #include "Timer.h"
 
+bool isIPAddress(const std::string& text)
+{
+    if (text.empty())
+        return false;
+
+    std::string::size_type size = text.size();
+    // Assuming we use ipv4
+    if (size > 15)
+        return false;
+
+    const char* ptr = text.data();
+    int numDots = 0;
+    std::string::size_type pos[3];
+    for (std::string::size_type i = 0; i < size; i++)
+    {
+        if (isdigit(ptr[i]))
+            continue;
+        if (ptr[i] == '.')
+        {
+            if (numDots == 3)
+                return false;
+            pos[numDots] = i;
+            numDots++;
+        }
+        else
+            return false;
+    }
+    if (numDots != 3)
+        return false;
+    if (pos[0] > 3 || pos[1] - pos[0] > 4 || pos[2] - pos[1] > 4 || size - pos[3] > 4)
+        return false;
+    return true;
+}
+
+bool areAllIPAdresses(const std::vector<std::string>& texts)
+{
+    if (texts.empty())
+        return false;
+    int size = texts.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (!isIPAddress(texts[i]))
+            return false;
+    }
+    return true;
+}
+
+bool areAllNotIPAdresses(const std::vector<std::string>& texts)
+{
+    if (texts.empty())
+        return true;
+    int size = texts.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (isIPAddress(texts[i]))
+            return false;
+    }
+    return true;
+}
+
+bool isURL(const std::string& text)
+{
+    std::string::size_type size = text.size();
+    if (size <= 4)
+        return false;
+    std::string beg = text.substr(0, 4);
+    return (beg == "http") || (beg == "rtsp") || (beg == "rtmp");
+}
+
+bool areAllURLs(const std::vector<std::string>& texts)
+{
+    if (texts.empty())
+        return false;
+    int size = texts.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (!isURL(texts[i]))
+            return false;
+    }
+    return true;
+}
+
+bool areAllNotURLs(const std::vector<std::string>& texts)
+{
+    if (texts.empty())
+        return true;
+    int size = texts.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (isURL(texts[i]))
+            return false;
+    }
+    return true;
+}
+
 AudioVideoSource::AudioVideoSource()
 {
 
@@ -250,6 +345,7 @@ FFmpegAudioVideoSource::FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSynce
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave,
         ptrFinish, logCallbackFunc, logCallbackData,
         videoFrameRateCallbackFunc, videoFrameRateCallbackData);
+    areSourceFiles = 0;
 }
 
 FFmpegAudioVideoSource::~FFmpegAudioVideoSource()
@@ -365,6 +461,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
         }        
     }
 
+    areSourceFiles = 0;
     finish = 0;
     running = 1;
 
@@ -375,6 +472,14 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
 {
     if (urls.empty())
         return false;
+
+    if (!areAllURLs(urls) && !areAllNotURLs(urls))
+    {
+        ptlprintf("All input string in urls should be all URLs, or disk files\n");
+        return false;
+    }
+
+    areSourceFiles = areAllNotURLs(urls);
 
     bool ok;
     bool failExists = false;
@@ -404,7 +509,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
 
     videoFrameSize.width = videoReaders[0].getVideoWidth();
     videoFrameSize.height = videoReaders[0].getVideoHeight();
-    videoFrameRate = videoReaders[0].getVideoFps();
+    videoFrameRate = videoReaders[0].getVideoFrameRate();
     roundedVideoFrameRate = videoFrameRate + 0.5;
     for (int i = 1; i < numVideos; i++)
     {
@@ -420,7 +525,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
             ptlprintf("Error, video streams height not match\n");
             break;
         }
-        if (fabs(videoReaders[i].getVideoFps() - videoFrameRate) > 0.001)
+        if (fabs(videoReaders[i].getVideoFrameRate() - videoFrameRate) > 0.001)
         {
             failExists = true;
             ptlprintf("Error, video streams frame rate not match\n");
@@ -462,6 +567,11 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
 
     if (openAudio)
     {
+        if (areSourceFiles && isURL(url) || (!areSourceFiles && !isURL(url)))
+        {
+            ptlprintf("Audio input type does not match with video input type, should be all URLs or all files\n");
+            return false;
+        }
         audioOpenSuccess = audioReader.open(url, true, false, avp::PixelTypeUnknown);
         if (!audioOpenSuccess)
         {
@@ -592,6 +702,19 @@ void FFmpegAudioVideoSource::videoSource(int index)
     ForceWaitFrameQueue& buffer = frameBuffers[index];
     avp::AudioVideoReader& reader = videoReaders[index];
 
+    int waitTime = 0;
+    // if we open videos on local disk, videos' first several frames may contain
+    // negative pts, to avoid error in videoSink(), we discard first few frames.
+    if (areSourceFiles)
+    {
+        avp::AudioVideoFrame frame;
+        for (int i = 0; i < 10; i++)
+            reader.read(frame);
+        waitTime = 1000 / videoFrameRate - 5;
+        if (waitTime <= 0)
+            waitTime = 1;
+    }
+
     long long int count = 0, beginCheckCount = roundedVideoFrameRate * 5;
     ztool::Timer timer;
     avp::AudioVideoFrame frame;
@@ -599,6 +722,8 @@ void FFmpegAudioVideoSource::videoSource(int index)
     while (true)
     {
         ok = reader.read(frame);
+        if (areSourceFiles)
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
         if (!ok)
         {
             ptlprintf("Error in %s [%8x], cannot read video frame\n", __FUNCTION__, id);
