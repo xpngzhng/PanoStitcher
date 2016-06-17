@@ -46,6 +46,7 @@ void read()
             StampedFrame f;
             f.frame = shallow.clone();
             f.timeStamp = rawImage.timeStamp;
+            //printf("ts = %lld\n", rawImage.timeStamp);
             displayQueue.push(f);
             writeQueue.push(f);
         }            
@@ -161,10 +162,15 @@ int main(int argc, char* argv[])
     }
 
     std::string url = parser.get<std::string>("pano_url");
+    printf("pano url is %s\n", url.c_str());
     int frameRate = parser.get<int>("frames_per_second");
     int bitRate = parser.get<int>("pano_bits_per_second");
-    ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
-        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000);
+    opts.clear();
+    opts.push_back(std::make_pair("bf", "0"));
+    //ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
+    //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
+    ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
+        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
     if (!ok)
     {
         printf("could not open url %s\n", url.c_str());

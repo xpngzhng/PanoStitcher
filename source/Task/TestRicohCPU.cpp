@@ -1,40 +1,40 @@
 #include "RicohUtil.h"
 #include "ZBlend.h"
-#include "ReprojectionParam.h"
-#include "Reprojection.h"
 #include "ZReproject.h"
 #include "AudioVideoProcessor.h"
 #include "Timer.h"
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/gpumat.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 int main()
 {
-    cv::Size dstSize = cv::Size(2048, 1024);
-    cv::Size srcSize = cv::Size(1920, 1080);
-    cv::Size srcSizeLeft = cv::Size(960, 1080);
-    cv::Size srcSizeRight = cv::Size(960, 1080);
-
-    RicohPanoramaRender render;
-    render.prepare("paramricoh.xml", srcSize, dstSize);
+    
 
     int frameCount = 0;
-    avp::BGRImage rawImage;
+    avp::AudioVideoFrame frame;
     cv::Mat image, image1, image2;
     cv::Mat blendImage;
 
     ztool::Timer timerAll, timerTotal, timerDecode, timerReproject, timerBlend, timerEncode;
 
-    avp::VideoReader reader;
-    reader.open("F:\\panovideo\\ricoh\\R0010008.MP4", avp::PixelTypeBGR24);
-    avp::VideoWriter writer;
-    writer.open("R0010008_our.mp4", avp::PixelTypeBGR24, dstSize.width, dstSize.height, 48, 8000000, avp::EncodeSpeedSlow);
+    avp::AudioVideoReader reader;
+    //reader.open("F:\\QQRecord\\452103256\\FileRecv\\vlc-record-2016-06-16-13h42m11s-rtsp___192.168.1.254-.mp4", false, true, avp::PixelTypeBGR24);
+    reader.open("F:\\panovideo\\ricoh\\R0010113.MP4", false, true, avp::PixelTypeBGR24);
 
-    for (int i = 0; i < 200; i++)
-        reader.read(rawImage);
+    cv::Size dstSize = cv::Size(2048, 1024);
+    cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
 
+    RicohPanoramaRender render;
+    //render.prepare("F:\\QQRecord\\452103256\\FileRecv\\45678-mod.xml", srcSize, dstSize);
+    render.prepare("F:\\panovideo\\ricoh\\paramricoh.xml", srcSize, dstSize);
+
+    avp::AudioVideoWriter writer;
+    writer.open("ricohout2.mp4", "", false, 
+        false, "", 0, 0, 0, 0, 
+        true, "", avp::PixelTypeBGR24, dstSize.width, dstSize.height, reader.getVideoFrameRate(), 8000000);
+
+    int failCount = 0;
     timerAll.start();
     while (true)
     {
@@ -46,12 +46,16 @@ int main()
 
         bool success = true;
         timerDecode.start();
-        success = reader.read(rawImage);
+        success = reader.read(frame);
         timerDecode.end();
         if (!success)
+        {
+            if (++failCount < 100)
+                continue;
             break;
+        }
 
-        cv::Mat raw(rawImage.height, rawImage.width, CV_8UC3, rawImage.data, rawImage.step);
+        cv::Mat raw(frame.height, frame.width, CV_8UC3, frame.data, frame.step);
 
         timerReproject.start();
         render.render(raw, blendImage);
@@ -64,7 +68,8 @@ int main()
         timerBlend.end();
 
         timerEncode.start();
-        avp::BGRImage image(blendImage.data, blendImage.cols, blendImage.rows, blendImage.step);
+        avp::AudioVideoFrame image = avp::videoFrame(blendImage.data, blendImage.step, 
+            avp::PixelTypeBGR24, blendImage.cols, blendImage.rows);
         writer.write(image);
         timerEncode.end();
 
