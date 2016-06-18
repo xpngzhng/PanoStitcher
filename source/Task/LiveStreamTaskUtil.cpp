@@ -203,7 +203,7 @@ void AudioVideoSource::videoSink()
         int currMaxIndex = -1;
         for (int i = 0; i < numVideos; i++)
         {
-            avp::SharedAudioVideoFrame sharedFrame;
+            avp::AudioVideoFrame2 sharedFrame;
             bool ok = frameBuffers[i].pull(sharedFrame);
             if (!ok)
             {
@@ -226,8 +226,8 @@ void AudioVideoSource::videoSink()
         if (finish || videoEndFlag)
             break;
 
-        std::vector<avp::SharedAudioVideoFrame> syncedFrames(numVideos);
-        avp::SharedAudioVideoFrame slowestFrame;
+        std::vector<avp::AudioVideoFrame2> syncedFrames(numVideos);
+        avp::AudioVideoFrame2 slowestFrame;
         frameBuffers[currMaxIndex].pull(slowestFrame);
         syncedFrames[currMaxIndex] = slowestFrame;
         ptlprintf("slowest ts = %lld\n", slowestFrame.timeStamp);
@@ -239,7 +239,7 @@ void AudioVideoSource::videoSink()
             if (i == currMaxIndex)
                 continue;
 
-            avp::SharedAudioVideoFrame sharedFrame;
+            avp::AudioVideoFrame2 sharedFrame;
             while (true)
             {
                 if (finish || videoEndFlag)
@@ -274,7 +274,7 @@ void AudioVideoSource::videoSink()
             videoCheckFrameRate = 1;
 
         int pullCount = 0;
-        std::vector<avp::SharedAudioVideoFrame> frames(numVideos);
+        std::vector<avp::AudioVideoFrame2> frames(numVideos);
         while (true)
         {
             if (finish || videoEndFlag)
@@ -388,7 +388,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
         opts.resize(2);
         opts.push_back(std::make_pair("video_device_number", videoDevices[i].numString));
         ok = videoReaders[i].open("video=" + videoDevices[i].shortName,
-            false, true, pixelType, "dshow", opts);
+            false, avp::SampleTypeUnknown, true, pixelType, "dshow", opts);
         if (!ok)
         {
             ptlprintf("Could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
@@ -442,7 +442,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
         std::string sampleRateStr = std::to_string(audioSampleRate);
         audioOpts.push_back(std::make_pair("ar", sampleRateStr));
         audioOpts.push_back(std::make_pair("audio_device_number", audioDevice.numString));
-        audioOpenSuccess = audioReader.open("audio=" + audioDevice.shortName, true,
+        audioOpenSuccess = audioReader.open("audio=" + audioDevice.shortName, true, avp::SampleTypeUnknown,
             false, avp::PixelTypeUnknown, "dshow", audioOpts);
         if (!audioOpenSuccess)
         {
@@ -495,7 +495,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
     videoReaders.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
-        ok = videoReaders[i].open(urls[i], false, true, avp::PixelTypeBGR32);
+        ok = videoReaders[i].open(urls[i], false, avp::SampleTypeUnknown, true, avp::PixelTypeBGR32);
         if (!ok)
         {
             ptlprintf("Could not open video stream %s\n", urls[i].c_str());
@@ -580,7 +580,7 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
             ptlprintf("Audio input type does not match with video input type, should be all URLs or all files\n");
             return false;
         }
-        audioOpenSuccess = audioReader.open(url, true, false, avp::PixelTypeUnknown);
+        audioOpenSuccess = audioReader.open(url, true, avp::SampleTypeUnknown, false, avp::PixelTypeUnknown);
         if (!audioOpenSuccess)
         {
             ptlprintf("Could not open DirectShow audio device %s[%s], skip\n",
@@ -708,7 +708,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
 
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     ForceWaitFrameQueue& buffer = frameBuffers[index];
-    avp::AudioVideoReader& reader = videoReaders[index];
+    avp::AudioVideoReader3& reader = videoReaders[index];
 
     int waitTime = 0;
     if (areSourceFiles)
@@ -720,7 +720,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
 
     long long int count = 0, beginCheckCount = roundedVideoFrameRate * 5;
     ztool::Timer timer;
-    avp::AudioVideoFrame frame;
+    avp::AudioVideoFrame2 frame;
     bool ok;
     while (true)
     {
@@ -759,7 +759,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
         // NOTICE, for simplicity, I do not check whether the frame has the right property.
         // For the sake of program robustness, we should at least check whether the frame
         // is of type VIDEO, and is not empty, and has the correct pixel type and width and height.
-        buffer.push(frame);
+        buffer.push(frame.clone());
 
         if (finish || videoEndFlag)
         {
@@ -784,7 +784,7 @@ void FFmpegAudioVideoSource::audioSource()
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     ztool::Timer timer;
-    avp::AudioVideoFrame frame;
+    avp::AudioVideoFrame2 frame;
     bool ok;
     while (true)
     {
@@ -800,7 +800,7 @@ void FFmpegAudioVideoSource::audioSource()
             break;
         }
 
-        avp::SharedAudioVideoFrame deep(frame);
+        avp::AudioVideoFrame2 deep = frame.clone();
         ptrProcFrameBufferForSend->push(deep);
         ptrProcFrameBufferForSave->push(deep);
     }
@@ -1202,7 +1202,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
     ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
     avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", pixelType);
     DataPacket pkt;
-    avp::AudioVideoFrame frame;
+    avp::AudioVideoFrame2 frame;
     bool ok;
     while (!videoEndFlag && !finish)
     {
@@ -1213,7 +1213,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
             if (ok && frame.data)
             {
                 frame.timeStamp = pkt.pts;
-                frameQueue.push(frame);
+                frameQueue.push(frame.clone());
             }
         }
     }

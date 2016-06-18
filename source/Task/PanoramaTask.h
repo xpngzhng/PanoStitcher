@@ -183,8 +183,8 @@ public:
     void getLastAsyncErrorMessage(std::string& message);
     void getLog(std::string& logInfo);
 
-    bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
-    bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
+    bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);
+    bool getStitchedVideoFrame(avp::AudioVideoFrame2& frame);
     void cancelGetVideoSourceFrames();
     void cancelGetStitchedVideoFrame();
 
@@ -228,8 +228,8 @@ public:
     void setLogCallback(LogCallbackFunction func, void* data);
     void initCallback();
 
-    bool getVideoSourceFrames(std::vector<avp::SharedAudioVideoFrame>& frames);
-    bool getStitchedVideoFrame(avp::SharedAudioVideoFrame& frame);
+    bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);
+    bool getStitchedVideoFrame(avp::AudioVideoFrame2& frame);
     void cancelGetVideoSourceFrames();
     void cancelGetStitchedVideoFrame();
 

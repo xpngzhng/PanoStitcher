@@ -29,7 +29,7 @@ public:
         pass = 0;
     }
 
-    bool push(const std::vector<avp::SharedAudioVideoFrame>& frames)
+    bool push(const std::vector<avp::AudioVideoFrame2>& frames)
     {
         {
             std::lock_guard<std::mutex> lock(mtxBuffer);
@@ -69,7 +69,7 @@ public:
             for (int i = 0; i < num; i++)
             {
                 mem.buffer[i].create(frames[i].height, frames[i].width, CV_8UC4);
-                cv::Mat src(frames[i].height, frames[i].width, CV_8UC4, frames[i].data, frames[i].step);
+                cv::Mat src(frames[i].height, frames[i].width, CV_8UC4, frames[i].data[0], frames[i].steps[0]);
                 cv::Mat dst = mem.buffer[i].createMatHeader();
                 src.copyTo(dst);
                 mem.timeStamps[i] = frames[i].timeStamp;

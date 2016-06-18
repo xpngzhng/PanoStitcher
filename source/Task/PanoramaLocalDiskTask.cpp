@@ -32,7 +32,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     int numVideos;
     int audioIndex;
     cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
+    std::vector<avp::AudioVideoReader3> readers;
     std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
     int useCustomMasks;
     std::vector<CustomIntervaledMasks> customMasks;
@@ -40,7 +40,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     std::vector<cv::Mat> reprojImages;
     cv::Mat blendImage;
     LogoFilter logoFilter;
-    avp::AudioVideoWriter2 writer;
+    avp::AudioVideoWriter3 writer;
     bool endFlag;
     std::atomic<int> finishPercent;
     int validFrameCount;
@@ -207,7 +207,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
     try
     {
-        std::vector<avp::AudioVideoFrame> frames(numVideos);
+        std::vector<avp::AudioVideoFrame2> frames(numVideos);
         std::vector<cv::Mat> images(numVideos);
         bool ok = true;
         blendImage.create(dstSize, CV_8UC3);
@@ -233,7 +233,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
                 else
                 {
                     images[audioIndex] = cv::Mat(frames[audioIndex].height, frames[audioIndex].width, CV_8UC3,
-                        frames[audioIndex].data, frames[audioIndex].step);
+                        frames[audioIndex].data[0], frames[audioIndex].steps[0]);
                 }
             }
             for (int i = 0; i < numVideos; i++)
@@ -247,7 +247,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
                     break;
                 }
 
-                images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
+                images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
             }
             if (!ok || endFlag)
                 break;
@@ -285,8 +285,9 @@ void CPUPanoramaLocalDiskTask::Impl::run()
                 setAsyncErrorMessage("写入视频失败，任务终止。");
                 break;
             }
-            avp::AudioVideoFrame frame = avp::videoFrame(blendImage.data, blendImage.step, avp::PixelTypeBGR24,
-                blendImage.cols, blendImage.rows, frames[0].timeStamp);
+            unsigned char* data[4] = { blendImage.data, 0, 0, 0 };
+            int steps[4] = { blendImage.step, 0, 0, 0 };
+            avp::AudioVideoFrame2 frame(data, steps, avp::PixelTypeBGR24, blendImage.cols, blendImage.rows, frames[0].timeStamp);
             ok = writer.write(frame);
             if (!ok)
             {
@@ -476,7 +477,7 @@ struct StampedPinnedMemoryVector
     std::vector<long long int> timeStamps;
 };
 
-typedef BoundedCompleteQueue<avp::SharedAudioVideoFrame> FrameBuffer;
+typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBuffer;
 typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
 
 struct CudaPanoramaLocalDiskTask::Impl
@@ -501,15 +502,15 @@ struct CudaPanoramaLocalDiskTask::Impl
     int numVideos;
     int audioIndex;
     cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
+    std::vector<avp::AudioVideoReader3> readers;
     CudaPanoramaRender render;
     PinnedMemoryPool srcFramesMemoryPool;
-    SharedAudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
+    AudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
     FrameVectorBuffer decodeFramesBuffer;
     FrameBuffer procFrameBuffer;
     cv::Mat blendImageCpu;
     LogoFilter logoFilter;
-    avp::AudioVideoWriter2 writer;
+    avp::AudioVideoWriter3 writer;
 
     int decodeCount;
     int procCount;
@@ -780,8 +781,8 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
-    std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
-    avp::SharedAudioVideoFrame audioFrame;
+    //std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
+    //avp::SharedAudioVideoFrame audioFrame;
 
     /*while (true)
     {
@@ -837,32 +838,35 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
             break;
     }*/
 
-    avp::AudioVideoFrame shallowAudioFrame;
-    avp::AudioVideoFrame shallowVideoFrame;
+    //avp::AudioVideoFrame shallowAudioFrame;
+    //avp::AudioVideoFrame shallowVideoFrame;
     int mediaType;
     while (true)
     {
-        StampedPinnedMemoryVector deepFrames;
-        deepFrames.timeStamps.resize(numVideos);
-        deepFrames.frames.resize(numVideos);
+        StampedPinnedMemoryVector videoFrames;
+        avp::AudioVideoFrame2 audioFrame;
+        unsigned char* data[4] = { 0 };
+        int steps[4] = { 0 };
+
+        videoFrames.timeStamps.resize(numVideos);
+        videoFrames.frames.resize(numVideos);
 
         if (audioIndex >= 0 && audioIndex < numVideos)
         {
             audioFramesMemoryPool.get(audioFrame);
-            srcFramesMemoryPool.get(deepFrames.frames[audioIndex]);
-            shallowAudioFrame = audioFrame;
-            shallowVideoFrame = avp::videoFrame(deepFrames.frames[audioIndex].data, deepFrames.frames[audioIndex].step,
-                avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
-            if (!readers[audioIndex].readTo(shallowAudioFrame, shallowVideoFrame, mediaType))
+            srcFramesMemoryPool.get(videoFrames.frames[audioIndex]);
+            data[0] = videoFrames.frames[audioIndex].data;
+            steps[0] = videoFrames.frames[audioIndex].step;
+            avp::AudioVideoFrame2 videoFrame(data, steps, avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
+            if (!readers[audioIndex].readTo(audioFrame, videoFrame, mediaType))
                 break;
             if (mediaType == avp::AUDIO)
             {
-                audioFrame.timeStamp = shallowAudioFrame.timeStamp;
                 procFrameBuffer.push(audioFrame);
                 continue;
             }
             else if (mediaType == avp::VIDEO)
-                deepFrames.timeStamps[audioIndex] = shallowVideoFrame.timeStamp;
+                videoFrames.timeStamps[audioIndex] = videoFrame.timeStamp;
             else
                 break;
         }
@@ -873,16 +877,17 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
             if (i == audioIndex)
                 continue;
 
-            srcFramesMemoryPool.get(deepFrames.frames[i]);
-            shallowVideoFrame = avp::videoFrame(deepFrames.frames[i].data, deepFrames.frames[i].step,
-                avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
-            if (!readers[i].readTo(shallowAudioFrame, shallowVideoFrame, mediaType))
+            srcFramesMemoryPool.get(videoFrames.frames[i]);
+            data[0] = videoFrames.frames[i].data;
+            steps[0] = videoFrames.frames[i].step;
+            avp::AudioVideoFrame2 videoFrame(data, steps, avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL);
+            if (!readers[i].readTo(audioFrame, videoFrame, mediaType))
             {
                 successRead = false;
                 break;
             }
             if (mediaType == avp::VIDEO)
-                deepFrames.timeStamps[i] = shallowVideoFrame.timeStamp;
+                videoFrames.timeStamps[i] = videoFrame.timeStamp;
             else
             {
                 successRead = false;
@@ -892,7 +897,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
         if (!successRead || isCanceled)
             break;
 
-        decodeFramesBuffer.push(deepFrames);
+        decodeFramesBuffer.push(videoFrames);
         decodeCount++;
         //ptlprintf("decode count = %d\n", decodeCount);
 
@@ -957,18 +962,18 @@ void CudaPanoramaLocalDiskTask::Impl::postProc()
     size_t id = std::this_thread::get_id().hash();
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    avp::SharedAudioVideoFrame dstFrame;
+    avp::AudioVideoFrame2 dstFrame;
     while (true)
     {
         dstFramesMemoryPool.get(dstFrame);
-        cv::Mat result(dstSize, CV_8UC4, dstFrame.data, dstFrame.step);
+        cv::Mat result(dstSize, CV_8UC4, dstFrame.data[0], dstFrame.steps[0]);
         if (!render.getResult(result, dstFrame.timeStamp))
             break;
 
         if (isCanceled)
             break;
 
-        cv::Mat image(dstFrame.height, dstFrame.width, CV_8UC4, dstFrame.data, dstFrame.step);
+        cv::Mat image(dstFrame.height, dstFrame.width, CV_8UC4, dstFrame.data[0], dstFrame.steps[0]);
         if (addLogo)
         {
             bool ok = logoFilter.addLogo(image);
@@ -1009,7 +1014,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
     ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
-    avp::SharedAudioVideoFrame deepFrame;
+    avp::AudioVideoFrame2 deepFrame;
     while (true)
     {
         if (!procFrameBuffer.pull(deepFrame))
@@ -1019,7 +1024,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
             break;
 
         //timerEncode.start();
-        bool ok = writer.write(avp::AudioVideoFrame(deepFrame));
+        bool ok = writer.write(deepFrame);
         //timerEncode.end();
         if (!ok)
         {

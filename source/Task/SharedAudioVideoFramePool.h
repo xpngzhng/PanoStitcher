@@ -5,11 +5,11 @@
 #include <memory>
 #include <mutex>
 
-class SharedAudioVideoFramePool
+class AudioVideoFramePool
 {
 public:
 
-    SharedAudioVideoFramePool() :
+    AudioVideoFramePool() :
         hasInit(0)
     {}
 
@@ -17,7 +17,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mtx);
         pool.clear();
-        deep = avp::SharedAudioVideoFrame();
+        deep = avp::AudioVideoFrame2();
         hasInit = 0;
     }
 
@@ -27,7 +27,7 @@ public:
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        deep = avp::sharedAudioFrame(sampleType, numChannels, channelLayout, numSamples, -1LL);
+        deep.create(sampleType, numChannels, channelLayout, numSamples, -1LL, -1);
 
         if (deep.data)
         {
@@ -47,7 +47,7 @@ public:
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        deep = avp::sharedVideoFrame(pixelType, width, height, -1LL);
+        deep.create(pixelType, width, height, -1LL, -1);
 
         if (deep.data)
         {
@@ -61,12 +61,12 @@ public:
         }
     }
 
-    bool get(avp::SharedAudioVideoFrame& frame)
+    bool get(avp::AudioVideoFrame2& frame)
     {
         std::lock_guard<std::mutex> lock(mtx);
         if (!hasInit)
         {
-            frame = avp::SharedAudioVideoFrame();
+            frame = avp::AudioVideoFrame2();
             return false;
         }
 
@@ -74,7 +74,7 @@ public:
         int index = -1;
         for (int i = 0; i < size; i++)
         {
-            if (pool[i].sharedData.use_count() == 1)
+            if (pool[i].sdata.use_count() == 1)
             {
                 index = i;
                 break;
@@ -86,15 +86,15 @@ public:
             return true;
         }
 
-        avp::SharedAudioVideoFrame newFrame;
+        avp::AudioVideoFrame2 newFrame;
         if (deep.mediaType == avp::AUDIO)
-            newFrame = avp::sharedAudioFrame(deep.sampleType, deep.numChannels, deep.channelLayout, deep.numSamples, -1LL);
+            newFrame.create(deep.sampleType, deep.numChannels, deep.channelLayout, deep.numSamples, -1LL, -1);
         else
-            newFrame = avp::sharedVideoFrame(deep.pixelType, deep.width, deep.height, -1LL);
+            newFrame.create(deep.pixelType, deep.width, deep.height, -1LL, -1);
 
         if (!newFrame.data)
         {
-            frame = avp::SharedAudioVideoFrame();
+            frame = avp::AudioVideoFrame2();
             return false;
         }
 
@@ -116,7 +116,7 @@ public:
         int numNotInUse = 0;        
         for (int i = 0; i < size; i++)
         {
-            if (pool[i].sharedData.use_count() == 1)
+            if (pool[i].sdata.use_count() == 1)
                 numNotInUse++;
         }
         if (numNotInUse == 0)
@@ -131,10 +131,10 @@ public:
         if (numDelete == 0)
             return;
 
-        std::vector<avp::SharedAudioVideoFrame>::iterator itr = pool.begin();
+        std::vector<avp::AudioVideoFrame2>::iterator itr = pool.begin();
         for (; itr != pool.end();)
         {
-            if (itr->sharedData.use_count() == 1)
+            if (itr->sdata.use_count() == 1)
             {
                 itr = pool.erase(itr);
                 numDelete--;
@@ -153,8 +153,8 @@ public:
     }
 
 private:
-    avp::SharedAudioVideoFrame deep;
-    std::vector<avp::SharedAudioVideoFrame> pool;
+    avp::AudioVideoFrame2 deep;
+    std::vector<avp::AudioVideoFrame2> pool;
     std::mutex mtx;
     int hasInit;
 };

@@ -30,13 +30,13 @@ bool areAllNotURLs(const std::vector<std::string>& texts);
 //typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> RealTimeFrameQueue;
 
 // for individual video and audio sources and proc result
-typedef ForceWaitRealTimeQueue<avp::SharedAudioVideoFrame> ForceWaitFrameQueue;
+typedef ForceWaitRealTimeQueue<avp::AudioVideoFrame2> ForceWaitFrameQueue;
 // for synced video source frames
-typedef ForceWaitRealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForceWaitFrameVectorQueue;
+typedef ForceWaitRealTimeQueue<std::vector<avp::AudioVideoFrame2> > ForceWaitFrameVectorQueue;
 // for video frame for show
-typedef RealTimeQueue<avp::SharedAudioVideoFrame> ForShowFrameQueue;
+typedef RealTimeQueue<avp::AudioVideoFrame2> ForShowFrameQueue;
 // for video frames for show
-typedef RealTimeQueue<std::vector<avp::SharedAudioVideoFrame> > ForShowFrameVectorQueue;
+typedef RealTimeQueue<std::vector<avp::AudioVideoFrame2> > ForShowFrameVectorQueue;
 
 class AudioVideoSource
 {
@@ -122,13 +122,13 @@ public:
     int getAudioChannelLayout() const;
 
 private:
-    std::vector<avp::AudioVideoReader> videoReaders;
+    std::vector<avp::AudioVideoReader3> videoReaders;
     std::vector<avp::Device> videoDevices;
     std::vector<std::unique_ptr<std::thread> > videoSourceThreads;
     std::unique_ptr<std::thread> videoSinkThread;    
     void videoSource(int index);
 
-    avp::AudioVideoReader audioReader;
+    avp::AudioVideoReader3 audioReader;
     avp::Device audioDevice;    
     std::unique_ptr<std::thread> audioThread;    
     void audioSource();

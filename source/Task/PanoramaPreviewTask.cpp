@@ -42,12 +42,12 @@ struct CPUPanoramaPreviewTask::Impl
 
     int numVideos;
     cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
+    std::vector<avp::AudioVideoReader3> readers;
     std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
     std::vector<CustomIntervaledMasks> customMasks;
     TilingMultibandBlendFast blender;
     std::vector<cv::Mat> images, reprojImages;
-    std::vector<avp::AudioVideoFrame> frames;
+    std::vector<avp::AudioVideoFrame2> frames;
     cv::Mat blendImage;
     bool initSuccess;
 };
@@ -204,7 +204,7 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
         if (!ok)
             break;
 
-        images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
+        images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
         timeStamps[i] = frames[i].timeStamp;
     }
     if (!ok)
@@ -362,7 +362,7 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
             ok = false;
             break;
         }
-        images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data, frames[i].step);
+        images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
         timeStamps[i] = frames[i].timeStamp;
     }
     if (!ok)
@@ -393,7 +393,7 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat
     if (!readers[index].read(frames[index]))
         return false;
 
-    images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data, frames[index].step);
+    images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data[0], frames[index].steps[0]);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
     image = reprojImages[index];
     timeStamp = frames[index].timeStamp;
@@ -424,7 +424,7 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat
     if (!readers[index].read(frames[index]))
         return false;
 
-    images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data, frames[index].step);
+    images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data[0], frames[index].steps[0]);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
     image = reprojImages[index];
     timeStamp = frames[index].timeStamp;
@@ -667,7 +667,7 @@ struct CudaPanoramaPreviewTask::Impl
 
     int numVideos;
     cv::Size srcSize, dstSize;
-    std::vector<avp::AudioVideoReader> readers;
+    std::vector<avp::AudioVideoReader3> readers;
     std::unique_ptr<PanoramaRender> ptrRender;
     cv::Mat blendImage;
     bool initSuccess;
@@ -771,7 +771,7 @@ bool CudaPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vecto
     bool ok = true;
     for (int i = 0; i < numVideos; i++)
     {
-        avp::AudioVideoFrame frame;
+        avp::AudioVideoFrame2 frame;
         for (int j = 0; j < frameIncrement; j++)
         {
             if (!readers[i].read(frame))
@@ -783,7 +783,7 @@ bool CudaPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vecto
         if (!ok)
             break;
 
-        images[i] = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data, frame.step);
+        images[i] = cv::Mat(frame.height, frame.width, CV_8UC4, frame.data[0], frame.steps[0]);
         timeStamps[i] = frame.timeStamp;
     }
     if (!ok)
