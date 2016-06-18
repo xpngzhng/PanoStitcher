@@ -1,4 +1,5 @@
 #include "PanoramaTaskUtil.h"
+#include "CudaPanoramaTaskUtil.h"
 #include "Image.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -182,7 +183,7 @@ bool LogoFilter::init(int width_, int height_, int type_)
     return true;
 }
 
-bool LogoFilter::addLogo(cv::Mat& image)
+bool LogoFilter::addLogo(cv::Mat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != type)
         return false;
@@ -195,6 +196,61 @@ bool LogoFilter::addLogo(cv::Mat& image)
         alphaBlend(imagePart, logoPart);
     }
 
+    return true;
+}
+
+bool CudaLogoFilter::init(int width_, int height_)
+{
+    initSuccess = false;
+    if (width_ < 0 || height_ < 0)
+        return false;
+
+    width = width_;
+    height = height_;
+
+    cv::Mat origLogo(logoHeight, logoWidth, CV_8UC4, logoData);
+    cv::Mat fullLogo;
+
+    int blockWidth = 512, blockHeight = 512;
+    if (width < logoWidth || height < logoHeight)
+    {
+        cv::Rect logoRect(logoWidth / 2 - width / 2, logoHeight / 2 - height / 2, width, height);
+        fullLogo = origLogo(logoRect);
+    }
+    else
+    {
+        fullLogo = cv::Mat::zeros(height, width, CV_8UC4);
+        int w = (width + blockWidth - 1) / blockWidth, h = (height + blockHeight - 1) / blockHeight;
+        cv::Rect full(0, 0, width, height);
+        for (int i = 0; i < h; i++)
+        {
+            for (int j = 0; j < w; j++)
+            {
+                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - logoWidth / 2,
+                    i * blockHeight + blockHeight / 2 - logoHeight / 2,
+                    logoWidth, logoHeight) &
+                    full;
+                cv::Mat fullLogoPart = fullLogo(thisRect);
+                cv::Mat origLogoPart = origLogo(cv::Rect(0, 0, thisRect.width, thisRect.height));
+                origLogoPart.copyTo(fullLogoPart);
+            }
+        }
+    }
+    logo.upload(fullLogo);
+
+    initSuccess = true;
+    return true;
+}
+
+bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
+{
+    if (!initSuccess)
+        return false;
+
+    if (!image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
+        return false;
+
+    alphaBlend8UC4(image, logo);
     return true;
 }
 

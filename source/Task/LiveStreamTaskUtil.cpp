@@ -31,7 +31,7 @@ bool isIPAddress(const std::string& text)
     }
     if (numDots != 3)
         return false;
-    if (pos[0] > 3 || pos[1] - pos[0] > 4 || pos[2] - pos[1] > 4 || size - pos[3] > 4)
+    if (pos[0] > 3 || pos[1] - pos[0] > 4 || pos[2] - pos[1] > 4 || size - pos[2] > 4)
         return false;
     return true;
 }

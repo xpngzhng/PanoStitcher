@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\source\Task\CompileControl.h" />
     <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
+    <ClInclude Include="..\..\source\Task\CudaPanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\CustomMask.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
     <ClInclude Include="..\..\source\Task\LiveStreamTaskUtil.h" />
@@ -43,6 +44,9 @@
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
     <ClCompile Include="..\..\source\Task\Text.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="..\..\source\Task\CudaPanoramaTaskUtil.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}</ProjectGuid>

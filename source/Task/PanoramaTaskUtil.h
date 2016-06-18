@@ -12,7 +12,7 @@ struct LogoFilter
 {
     LogoFilter() : initSuccess(false), width(0), height(0), type(0) {}
     bool init(int width, int height, int type);
-    bool addLogo(cv::Mat& image);
+    bool addLogo(cv::Mat& image) const;
     
     int width, height, type;
     cv::Mat logo;
