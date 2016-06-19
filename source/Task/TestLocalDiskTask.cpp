@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
+    dstSize = cv::Size(4096, 2048);
 
     videoPathAndOffsetFile = "F:\\panovideo\\test\\test6\\synchro_param_copy.txt"/*parser.get<std::string>("video_path_offset_file")*/;
     if (videoPathAndOffsetFile.empty())
@@ -102,7 +103,7 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
-        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+        dstSize.width, dstSize.height, 8000000, "h264_qsv", "medium", 40 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

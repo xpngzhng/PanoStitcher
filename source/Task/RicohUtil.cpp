@@ -711,7 +711,7 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             return false;
     }
 
-    ztool::Timer blendTime, uploadTime, reprjTime;
+    //ztool::Timer blendTime, uploadTime, reprjTime;
 
     if (blendType == PanoramaRender::BlendTypeLinear)
     {
@@ -729,20 +729,20 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
     {
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
-        uploadTime.start();
+        //uploadTime.start();
         for (int i = 0; i < numImages; i++)
             srcImagesGPU[i].upload(src[i], streams[i]);
-        uploadTime.end();
-        reprjTime.start();
+        //uploadTime.end();
+        //reprjTime.start();
         for (int i = 0; i < numImages; i++)
             cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
-        reprjTime.end();
-        blendTime.start();
+        //reprjTime.end();
+        //blendTime.start();
         mbBlender.blend(reprojImagesGPU, dst);
-        blendTime.end();
-        printf("upload %f, reprj %f, mb blend %f\n", uploadTime.elapse(), reprjTime.elapse(), blendTime.elapse());
+        //blendTime.end();
+        //printf("upload %f, reprj %f, mb blend %f\n", uploadTime.elapse(), reprjTime.elapse(), blendTime.elapse());
     }
     
     return true;
