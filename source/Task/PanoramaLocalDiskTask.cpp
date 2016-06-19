@@ -659,8 +659,6 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    
-
     decodeFramesBuffer.setMaxSize(4);
     procFrameBuffer.setMaxSize(8);
 
