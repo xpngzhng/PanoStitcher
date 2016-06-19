@@ -872,6 +872,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     cv::Mat bgr32Cpu;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
+    ztool::Timer t;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
@@ -891,7 +892,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-
         ok = logoFilter.addLogo(bgr32);
         if (!ok)
         {
@@ -903,6 +903,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
 
         dstFramesMemoryPool.get(videoFrame);
         videoFrame.frame.timeStamp = srcFrames.timeStamps[0];
+        t.start();
         if (isLibX264)
         {
             y = videoFrame.planes[0].createGpuMatHeader();
@@ -916,8 +917,10 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             uv = videoFrame.planes[1].createGpuMatHeader();
             cvtBGR32ToNV12(bgr32, y, uv);
         }
+        t.end();
+        printf("cvt color %f\n", t.elapse());
 
-        procFrameBuffer.push(videoFrame);
+        //procFrameBuffer.push(videoFrame);
         procCount++;
         //ptlprintf("proc count = %d\n", procCount);
     }
