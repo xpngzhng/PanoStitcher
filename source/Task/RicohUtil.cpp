@@ -711,6 +711,8 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             return false;
     }
 
+    ztool::Timer blendTime;
+
     if (blendType == PanoramaRender::BlendTypeLinear)
     {
         srcImagesGPU.resize(numImages);
@@ -733,7 +735,10 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
+        blendTime.start();
         mbBlender.blend(reprojImagesGPU, dst);
+        blendTime.end();
+        printf("mb blend %f\n", blendTime.elapse());
     }
     
     return true;
