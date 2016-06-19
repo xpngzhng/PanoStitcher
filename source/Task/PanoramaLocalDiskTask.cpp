@@ -906,21 +906,31 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         t.start();
         if (isLibX264)
         {
-            y = videoFrame.planes[0].createGpuMatHeader();
-            u = videoFrame.planes[1].createGpuMatHeader();
-            v = videoFrame.planes[2].createGpuMatHeader();
+            //y = videoFrame.planes[0].createGpuMatHeader();
+            //u = videoFrame.planes[1].createGpuMatHeader();
+            //v = videoFrame.planes[2].createGpuMatHeader();
             cvtBGR32ToYUV420P(bgr32, y, u, v);
+            cv::Mat yy = videoFrame.planes[0].createMatHeader();
+            cv::Mat uu = videoFrame.planes[1].createMatHeader();
+            cv::Mat vv = videoFrame.planes[2].createMatHeader();
+            y.download(yy);
+            u.download(uu);
+            v.download(vv);
         }
         else
         {
-            y = videoFrame.planes[0].createGpuMatHeader();
-            uv = videoFrame.planes[1].createGpuMatHeader();
+            //y = videoFrame.planes[0].createGpuMatHeader();
+            //uv = videoFrame.planes[1].createGpuMatHeader();
             cvtBGR32ToNV12(bgr32, y, uv);
+            cv::Mat yy = videoFrame.planes[0].createMatHeader();
+            cv::Mat uvuv = videoFrame.planes[1].createMatHeader();
+            y.download(yy);
+            uv.download(uvuv);
         }
         t.end();
-        printf("cvt color %f\n", t.elapse());
+        //printf("cvt color %f\n", t.elapse());
 
-        //procFrameBuffer.push(videoFrame);
+        procFrameBuffer.push(videoFrame);
         procCount++;
         //ptlprintf("proc count = %d\n", procCount);
     }
