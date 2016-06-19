@@ -9,6 +9,7 @@
 #include "CudaPanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
+#include "opencv2/highgui.hpp"
 
 struct CPUPanoramaLocalDiskTask::Impl
 {
@@ -868,6 +869,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     StampedPinnedMemoryVector srcFrames;
     std::vector<cv::Mat> images(numVideos);
     cv::cuda::GpuMat bgr32;
+    cv::Mat bgr32Cpu;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
     ztool::Timer tRender, tLogo, tCvt;
@@ -891,6 +893,10 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             isCanceled = true;
             break;
         }
+
+        //bgr32.download(bgr32Cpu);
+        //cv::imshow("blend", bgr32Cpu);
+        //cv::waitKey(2);
 
         tLogo.start();
         ok = logoFilter.addLogo(bgr32);
@@ -921,7 +927,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         }
         tCvt.end();
 
-        printf("%f, %f, %f\n", tRender.elapse(), tLogo.elapse(), tCvt.elapse());
+        //printf("%f, %f, %f\n", tRender.elapse(), tLogo.elapse(), tCvt.elapse());
         
         procFrameBuffer.push(videoFrame);
 
@@ -962,6 +968,13 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
 
         if (isCanceled)
             break;
+
+        //if (frame.frame.mediaType == avp::VIDEO)
+        //{
+        //    cv::Mat image(frame.frame.height, frame.frame.width, CV_8UC1, frame.frame.data[0], frame.frame.steps[0]);
+        //    cv::imshow("dst", image);
+        //    cv::waitKey(5);
+        //}
 
         //timerEncode.start();
         bool ok = writer.write(frame.frame);

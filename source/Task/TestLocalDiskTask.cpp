@@ -49,10 +49,10 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
-    initLog("", "");
-    avp::setFFmpegLogCallback(bstLogVlPrintf);
-    avp::setLogCallback(bstLogVlPrintf);
-    setPanoTaskLogCallback(bstLogVlPrintf);
+    //initLog("", "");
+    //avp::setFFmpegLogCallback(bstLogVlPrintf);
+    //avp::setLogCallback(bstLogVlPrintf);
+    //setPanoTaskLogCallback(bstLogVlPrintf);
 
     cv::Size srcSize, dstSize;
     std::vector<std::string> srcVideoNames;
