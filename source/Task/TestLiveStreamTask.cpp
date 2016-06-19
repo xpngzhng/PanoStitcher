@@ -246,10 +246,10 @@ int main(int argc, char* argv[])
 
     cameraModel = parser.get<std::string>("camera_model");
 
-    initLog();
-    setPanoTaskLogCallback(bstLogVlPrintf);
-    avp::setFFmpegLogCallback(bstLogVlPrintf);
-    avp::setLogCallback(bstLogVlPrintf);
+    //initLog();
+    //setPanoTaskLogCallback(bstLogVlPrintf);
+    //avp::setFFmpegLogCallback(bstLogVlPrintf);
+    //avp::setLogCallback(bstLogVlPrintf);
 
     if (cameraModel == "dualgopro")
         numCameras = 2;
@@ -265,6 +265,7 @@ int main(int argc, char* argv[])
 
     stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
     stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
+    stitchFrameSize = cv::Size(4096, 2048);
     if (stitchFrameSize.width <= 0 || stitchFrameSize.height <= 0 ||
         (stitchFrameSize.width & 1) || (stitchFrameSize.height & 1) ||
         (stitchFrameSize.width != stitchFrameSize.height * 2))
