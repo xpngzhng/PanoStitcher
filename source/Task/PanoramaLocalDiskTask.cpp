@@ -6,6 +6,7 @@
 #include "RicohUtil.h"
 #include "PinnedMemoryPool.h"
 #include "SharedAudioVideoFramePool.h"
+#include "CudaPanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
 
@@ -479,6 +480,7 @@ struct StampedPinnedMemoryVector
 
 typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBuffer;
 typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
+typedef BoundedCompleteQueue<MixedAudioVideoFrame> MixedFrameBuffer;
 
 struct CudaPanoramaLocalDiskTask::Impl
 {
@@ -503,14 +505,16 @@ struct CudaPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
-    CudaPanoramaRender render;
+    CudaMultiCameraPanoramaRender2 render;
     PinnedMemoryPool srcFramesMemoryPool;
-    AudioVideoFramePool audioFramesMemoryPool, dstFramesMemoryPool;
+    AudioVideoFramePool audioFramesMemoryPool;
     FrameVectorBuffer decodeFramesBuffer;
-    FrameBuffer procFrameBuffer;
+    CudaHostMemVideoFrameMemoryPool dstFramesMemoryPool;
+    MixedFrameBuffer procFrameBuffer;
     cv::Mat blendImageCpu;
-    LogoFilter logoFilter;
+    CudaLogoFilter logoFilter;
     avp::AudioVideoWriter3 writer;
+    int isLibX264;
 
     int decodeCount;
     int procCount;
@@ -520,11 +524,9 @@ struct CudaPanoramaLocalDiskTask::Impl
 
     void decode();
     void proc();
-    void postProc();
     void encode();
     std::unique_ptr<std::thread> decodeThread;
     std::unique_ptr<std::thread> procThread;
-    std::unique_ptr<std::thread> postProcThread;
     std::unique_ptr<std::thread> encodeThread;
 
     std::string syncErrorMessage;
@@ -601,7 +603,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         }
     }
 
-    ok = render.prepare(cameraParamFile, customMaskFile, true, true, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, PanoramaRender::BlendType::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
         ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -616,7 +618,9 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    ok = dstFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
+    isLibX264 = dstVideoEncoder == "h264_qsv" ? 1 : 0;
+
+    ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
@@ -624,7 +628,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC4);
+    ok = logoFilter.init(dstSize.width, dstSize.height);
     if (!ok)
     {
         ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
@@ -639,12 +643,14 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     {
         ok = writer.open(dstVideoFile, "", true, true, "aac", readers[audioIndex].getAudioSampleType(),
             readers[audioIndex].getAudioChannelLayout(), readers[audioIndex].getAudioSampleRate(), 128000,
-            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
+            true, format, isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, 
+            dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
     }
     else
     {
         ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
-            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
+            true, format, isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12,
+            dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
     }
     if (!ok)
     {
@@ -652,6 +658,8 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         syncErrorMessage = "无法创建拼接视频。";
         return false;
     }
+
+    
 
     decodeFramesBuffer.setMaxSize(4);
     procFrameBuffer.setMaxSize(8);
@@ -673,7 +681,6 @@ bool CudaPanoramaLocalDiskTask::Impl::start()
 
     decodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::decode, this));
     procThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::proc, this));
-    postProcThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::postProc, this));
     encodeThread.reset(new std::thread(&CudaPanoramaLocalDiskTask::Impl::encode, this));
 
     return true;
@@ -687,9 +694,6 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
     if (procThread && procThread->joinable())
         procThread->join();
     procThread.reset(0);
-    if (postProcThread && postProcThread->joinable())
-        postProcThread->join();
-    postProcThread.reset(0);
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
@@ -755,9 +759,6 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
     if (procThread && procThread->joinable())
         procThread->join();
     procThread.reset(0);
-    if (postProcThread && postProcThread->joinable())
-        postProcThread->join();
-    postProcThread.reset(0);
     if (encodeThread && encodeThread->joinable())
         encodeThread->join();
     encodeThread.reset(0);
@@ -781,65 +782,6 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
-    //std::vector<avp::AudioVideoFrame> shallowFrames(numVideos);
-    //avp::SharedAudioVideoFrame audioFrame;
-
-    /*while (true)
-    {
-        if (audioIndex >= 0 && audioIndex < numVideos)
-        {
-            if (!readers[audioIndex].read(shallowFrames[audioIndex]))
-                break;
-
-            if (shallowFrames[audioIndex].mediaType == avp::AUDIO)
-            {
-                audioFramesMemoryPool.get(audioFrame);
-                avp::copy(shallowFrames[audioIndex], audioFrame);
-                procFrameBuffer.push(audioFrame);
-                continue;
-            }
-        }
-
-        bool successRead = true;
-        for (int i = 0; i < numVideos; i++)
-        {
-            if (i == audioIndex)
-                continue;
-
-            if (!readers[i].read(shallowFrames[i]))
-            {
-                successRead = false;
-                break;
-            }
-        }
-        if (!successRead || isCanceled)
-            break;
-
-        StampedPinnedMemoryVector deepFrames;
-        deepFrames.timeStamps.resize(numVideos);
-        deepFrames.frames.resize(numVideos);
-        ztool::Timer t;
-        for (int i = 0; i < numVideos; i++)
-        {
-            srcFramesMemoryPool.get(deepFrames.frames[i]);
-            cv::Mat src(shallowFrames[i].height, shallowFrames[i].width, CV_8UC4, shallowFrames[i].data, shallowFrames[i].step);
-            cv::Mat dst = deepFrames.frames[i].createMatHeader();
-            src.copyTo(dst);
-            deepFrames.timeStamps[i] = shallowFrames[i].timeStamp;
-        }
-        t.end();
-        printf("copy time = %f\n", t.elapse());
-
-        decodeFramesBuffer.push(deepFrames);
-        decodeCount++;
-        //ptlprintf("decode count = %d\n", decodeCount);
-
-        if (decodeCount >= validFrameCount)
-            break;
-    }*/
-
-    //avp::AudioVideoFrame shallowAudioFrame;
-    //avp::AudioVideoFrame shallowVideoFrame;
     int mediaType;
     while (true)
     {
@@ -927,6 +869,10 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     procCount = 0;
     StampedPinnedMemoryVector srcFrames;
     std::vector<cv::Mat> images(numVideos);
+    cv::cuda::GpuMat bgr32;
+    MixedAudioVideoFrame videoFrame;
+    cv::cuda::GpuMat y, u, v, uv;
+    ztool::Timer tRender, tLogo, tCvt;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
@@ -935,9 +881,11 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         if (isCanceled)
             break;
         
+        tRender.start();
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
-        bool ok = render.render(images, srcFrames.timeStamps);
+        bool ok = render.render(images, bgr32);
+        tRender.end();
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
@@ -945,55 +893,49 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             isCanceled = true;
             break;
         }
+
+        tLogo.start();
+        ok = logoFilter.addLogo(bgr32);
+        tLogo.end();
+        if (!ok)
+        {
+            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            setAsyncErrorMessage("视频拼接发生错误，任务终止。");
+            isCanceled = true;
+            break;
+        }
+
+        tCvt.start();
+        dstFramesMemoryPool.get(videoFrame);
+        videoFrame.frame.timeStamp = srcFrames.timeStamps[0];
+        if (isLibX264)
+        {
+            y = videoFrame.planes[0].createGpuMatHeader();
+            u = videoFrame.planes[1].createGpuMatHeader();
+            v = videoFrame.planes[1].createGpuMatHeader();
+            cvtBGR32ToYUV420P(bgr32, y, u, v);
+        }
+        else
+        {
+            y = videoFrame.planes[0].createGpuMatHeader();
+            uv = videoFrame.planes[1].createGpuMatHeader();
+            cvtBGR32ToNV12(bgr32, y, uv);
+        }
+        tCvt.end();
+
+        printf("%f, %f, %f\n", tRender.elapse(), tLogo.elapse(), tCvt.elapse());
+        
+        procFrameBuffer.push(videoFrame);
+
         procCount++;
         //ptlprintf("proc count = %d\n", procCount);
     }
     
     if (!isCanceled)
-        render.waitForCompletion();
-    render.stop();
-
-    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
-}
-
-void CudaPanoramaLocalDiskTask::Impl::postProc()
-{
-    size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
-
-    avp::AudioVideoFrame2 dstFrame;
-    while (true)
-    {
-        dstFramesMemoryPool.get(dstFrame);
-        cv::Mat result(dstSize, CV_8UC4, dstFrame.data[0], dstFrame.steps[0]);
-        if (!render.getResult(result, dstFrame.timeStamp))
-            break;
-
-        if (isCanceled)
-            break;
-
-        cv::Mat image(dstFrame.height, dstFrame.width, CV_8UC4, dstFrame.data[0], dstFrame.steps[0]);
-        if (addLogo)
-        {
-            bool ok = logoFilter.addLogo(image);
-            if (!ok)
-            {
-                ptlprintf("Error in %s, render failed\n", __FUNCTION__);
-                setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-                isCanceled = true;
-                break;
-            }
-        }            
-
-        procFrameBuffer.push(dstFrame);
-    }
-
-    if (!isCanceled)
     {
         while (procFrameBuffer.size())
-            std::this_thread::sleep_for(std::chrono::microseconds(25));
-    }    
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
     procFrameBuffer.stop();
 
     ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
@@ -1014,17 +956,17 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
     ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
-    avp::AudioVideoFrame2 deepFrame;
+    MixedAudioVideoFrame frame;
     while (true)
     {
-        if (!procFrameBuffer.pull(deepFrame))
+        if (!procFrameBuffer.pull(frame))
             break;
 
         if (isCanceled)
             break;
 
         //timerEncode.start();
-        bool ok = writer.write(deepFrame);
+        bool ok = writer.write(frame.frame);
         //timerEncode.end();
         if (!ok)
         {
@@ -1035,7 +977,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         }
 
         // Only when the frame is of type video can we increase encodeCount
-        if (deepFrame.mediaType == avp::VIDEO)
+        if (frame.frame.mediaType == avp::VIDEO)
             encodeCount++;
         //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 

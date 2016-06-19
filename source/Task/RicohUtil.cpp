@@ -657,7 +657,7 @@ bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path_, int type_
 {
     success = 0;
 
-    if (type_ != BlendTypeLinear && type_ != BlendTypeMultiband)
+    if (type_ != PanoramaRender::BlendTypeLinear && type_ != PanoramaRender::BlendTypeMultiband)
         return false;
 
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
@@ -675,21 +675,18 @@ bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path_, int type_
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
-    if (blendType == BlendTypeLinear)
+    if (blendType == PanoramaRender::BlendTypeLinear)
     {
         if (!lBlender.prepare(masks, 50))
             return false;
     }
-    else if (blendType == BlendTypeMultiband)
+    else if (blendType == PanoramaRender::BlendTypeMultiband)
     {
         if (!mbBlender.prepare(masks, 20, 2))
             return false;
     }
     else
         return false;
-
-    blendImage = cv::cuda::HostMem(dstSize, CV_8UC4, cv::cuda::HostMem::SHARED);
-    blendImageGPU = blendImage.createGpuMatHeader();
 
     cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
     streams.resize(numImages);
@@ -698,7 +695,7 @@ bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path_, int type_
     return true;
 }
 
-bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst)
 {
     if (!success)
         return false;
@@ -714,7 +711,7 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             return false;
     }
 
-    if (blendType == BlendTypeLinear)
+    if (blendType == PanoramaRender::BlendTypeLinear)
     {
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
@@ -724,12 +721,9 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             cudaReproject(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
-        lBlender.blend(reprojImagesGPU, blendImageGPU);
-        //blendImageGPU.download(dst);
-        cv::Mat temp = blendImage.createMatHeader();
-        temp.copyTo(dst);
+        lBlender.blend(reprojImagesGPU, dst);
     }
-    else if (blendType == BlendTypeMultiband)
+    else if (blendType == PanoramaRender::BlendTypeMultiband)
     {
         srcImagesGPU.resize(numImages);
         reprojImagesGPU.resize(numImages);
@@ -739,13 +733,15 @@ bool CudaMultiCameraPanoramaRender2::render(const std::vector<cv::Mat>& src, cv:
             cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
         for (int i = 0; i < numImages; i++)
             streams[i].waitForCompletion();
-        mbBlender.blend(reprojImagesGPU, blendImageGPU);
-        //blendImageGPU.download(dst);
-        cv::Mat temp = blendImage.createMatHeader();
-        temp.copyTo(dst);
+        mbBlender.blend(reprojImagesGPU, dst);
     }
     
     return true;
+}
+
+int CudaMultiCameraPanoramaRender2::getNumImages() const
+{
+    return numImages;
 }
 
 bool CudaMultiCameraPanoramaRender3::prepare(const std::string& path_, int type_, const cv::Size& srcSize_, const cv::Size& dstSize_)

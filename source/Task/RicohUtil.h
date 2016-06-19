@@ -104,20 +104,19 @@ private:
 };
 
 // render accepts pinned memory cv::Mat
-class CudaMultiCameraPanoramaRender2 : public PanoramaRender
+class CudaMultiCameraPanoramaRender2
 {
 public:
     CudaMultiCameraPanoramaRender2() : success(0) {};
     ~CudaMultiCameraPanoramaRender2() {};
     bool prepare(const std::string& path, int blendType, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+    bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst);
+    int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
-    cv::cuda::GpuMat blendImageGPU;
-    cv::cuda::HostMem blendImage;
     std::vector<cv::cuda::Stream> streams;
     int blendType;
     CudaTilingMultibandBlendFast mbBlender;
