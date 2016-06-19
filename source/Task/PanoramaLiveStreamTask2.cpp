@@ -701,7 +701,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
         if (finish || streamEndFlag)
             break;
         procFrameBufferForSend.pull(frame);
-        if (frame.data)
+        if (frame.data[0])
         {
             avp::AudioVideoFrame2 shallow;
             //ptlprintf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
@@ -768,7 +768,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         if (finish || fileEndFlag)
             break;
         procFrameBufferForSave.pull(frame);
-        if (frame.data)
+        if (frame.data[0])
         {
             if (fileFirstTimeStamp < 0)
                 fileFirstTimeStamp = frame.timeStamp;

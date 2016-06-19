@@ -108,7 +108,7 @@ void showVideoSources()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<avp::AudioVideoFrame2> frames;
     std::vector<cv::Mat> images(numCameras);
     while (true)
     {
@@ -120,7 +120,7 @@ void showVideoSources()
             for (int i = 0; i < numCameras; i++)
             {
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
-                    frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data, frames[i].step);
+                    frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data[0], frames[i].steps[0]);
             }
             prevCount++;
             if (prevCount == 200)
@@ -152,15 +152,15 @@ void showVideoResult()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    avp::SharedAudioVideoFrame frame;
+    avp::AudioVideoFrame2 frame;
     while (true)
     {
         if (task.hasFinished())
             break;
         task.getStitchedVideoFrame(frame);
-        if (frame.data)
+        if (frame.data[0])
         {
-            cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data, frame.step);
+            cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
             cv::imshow("result", show);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)

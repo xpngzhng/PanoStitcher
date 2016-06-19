@@ -1210,7 +1210,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
         if (pkt.data.get())
         {
             ok = decoder->decode(pkt.data.get(), pkt.dataSize, pkt.pts, frame);
-            if (ok && frame.data)
+            if (ok && frame.data[0])
             {
                 frame.timeStamp = pkt.pts;
                 frameQueue.push(frame.clone());

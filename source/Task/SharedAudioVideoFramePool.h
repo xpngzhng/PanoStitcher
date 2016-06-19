@@ -29,7 +29,7 @@ public:
 
         deep.create(sampleType, numChannels, channelLayout, numSamples, -1LL, -1);
 
-        if (deep.data)
+        if (deep.data[0])
         {
             hasInit = 1;
             return true;
@@ -49,7 +49,7 @@ public:
 
         deep.create(pixelType, width, height, -1LL, -1);
 
-        if (deep.data)
+        if (deep.data[0])
         {
             hasInit = 1;
             return true;
@@ -92,7 +92,7 @@ public:
         else
             newFrame.create(deep.pixelType, deep.width, deep.height, -1LL, -1);
 
-        if (!newFrame.data)
+        if (!newFrame.data[0])
         {
             frame = avp::AudioVideoFrame2();
             return false;
