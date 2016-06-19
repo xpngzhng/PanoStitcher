@@ -872,7 +872,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     cv::Mat bgr32Cpu;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
-    ztool::Timer tRender, tLogo, tCvt;
+    //ztool::Timer tRender, tLogo, tCvt;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
@@ -881,11 +881,11 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         if (isCanceled)
             break;
         
-        tRender.start();
+        //tRender.start();
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
         bool ok = render.render(images, bgr32);
-        tRender.end();
+        //tRender.end();
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
@@ -894,13 +894,13 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-        bgr32.download(bgr32Cpu);
-        cv::imshow("blend", bgr32Cpu);
-        cv::waitKey(2);
+        //bgr32.download(bgr32Cpu);
+        //cv::imshow("blend", bgr32Cpu);
+        //cv::waitKey(2);
 
-        tLogo.start();
+        //tLogo.start();
         ok = logoFilter.addLogo(bgr32);
-        tLogo.end();
+        //tLogo.end();
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
@@ -909,7 +909,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-        tCvt.start();
+        //tCvt.start();
         dstFramesMemoryPool.get(videoFrame);
         videoFrame.frame.timeStamp = srcFrames.timeStamps[0];
         if (isLibX264)
@@ -919,13 +919,13 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             v = videoFrame.planes[2].createGpuMatHeader();
             cvtBGR32ToYUV420P(bgr32, y, u, v);
 
-            cv::Mat yy = videoFrame.planes[0].createMatHeader();
-            cv::Mat uu = videoFrame.planes[1].createMatHeader();
-            cv::Mat vv = videoFrame.planes[2].createMatHeader();
-            cv::imshow("y", yy);
-            cv::imshow("u", uu);
-            cv::imshow("v", vv);
-            cv::waitKey(5);
+            //cv::Mat yy = videoFrame.planes[0].createMatHeader();
+            //cv::Mat uu = videoFrame.planes[1].createMatHeader();
+            //cv::Mat vv = videoFrame.planes[2].createMatHeader();
+            //cv::imshow("y", yy);
+            //cv::imshow("u", uu);
+            //cv::imshow("v", vv);
+            //cv::waitKey(5);
         }
         else
         {
@@ -933,7 +933,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             uv = videoFrame.planes[1].createGpuMatHeader();
             cvtBGR32ToNV12(bgr32, y, uv);
         }
-        tCvt.end();
+        //tCvt.end();
 
         //printf("%f, %f, %f\n", tRender.elapse(), tLogo.elapse(), tCvt.elapse());
         
@@ -987,10 +987,10 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         //    cv::imshow("v", v);
         //    cv::waitKey(5);
         //}
-        if (frame.frame.mediaType == avp::VIDEO)
-        {
-            printf("ts = %lld\n", frame.frame.timeStamp);
-        }
+        //if (frame.frame.mediaType == avp::VIDEO)
+        //{
+        //    printf("ts = %lld\n", frame.frame.timeStamp);
+        //}
 
         //timerEncode.start();
         bool ok = writer.write(frame.frame);

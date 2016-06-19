@@ -37,6 +37,7 @@ void alphaBlend8UC4(cv::cuda::GpuMat& target, const cv::cuda::GpuMat& blender)
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(target.cols, block.x), cv::cuda::device::divUp(target.rows, block.y));
     alphaBlend8UC4<<<grid, block>>>(target.data, target.step, blender.data, blender.step, target.rows, target.cols);
+    cudaSafeCall(cudaDeviceSynchronize());
 }
 
 // Coefficients for RGB to YUV420p conversion
@@ -123,6 +124,7 @@ void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::c
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(u.cols, block.x), cv::cuda::device::divUp(u.rows, block.y));
     cvtBGR32ToYUV420P<<<grid, block>>>(bgr32.data, bgr32.step, y.data, y.step, u.data, u.step, v.data, v.step, rows, cols);
+    cudaSafeCall(cudaDeviceSynchronize());
 }
 
 void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& uv)
@@ -134,4 +136,5 @@ void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(uv.cols / 2, block.x), cv::cuda::device::divUp(uv.rows, block.y));
     cvtBGR32ToNV12<<<grid, block>>>(bgr32.data, bgr32.step, y.data, y.step, uv.data, uv.step, rows, cols);
+    cudaSafeCall(cudaDeviceSynchronize());
 }
