@@ -619,7 +619,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    isLibX264 = dstVideoEncoder == "h264_qsv" ? 1 : 0;
+    isLibX264 = dstVideoEncoder == "h264_qsv" ? 0 : 1;
 
     ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
     if (!ok)
@@ -894,9 +894,9 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-        //bgr32.download(bgr32Cpu);
-        //cv::imshow("blend", bgr32Cpu);
-        //cv::waitKey(2);
+        bgr32.download(bgr32Cpu);
+        cv::imshow("blend", bgr32Cpu);
+        cv::waitKey(2);
 
         tLogo.start();
         ok = logoFilter.addLogo(bgr32);
@@ -916,8 +916,16 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         {
             y = videoFrame.planes[0].createGpuMatHeader();
             u = videoFrame.planes[1].createGpuMatHeader();
-            v = videoFrame.planes[1].createGpuMatHeader();
+            v = videoFrame.planes[2].createGpuMatHeader();
             cvtBGR32ToYUV420P(bgr32, y, u, v);
+
+            cv::Mat yy = videoFrame.planes[0].createMatHeader();
+            cv::Mat uu = videoFrame.planes[1].createMatHeader();
+            cv::Mat vv = videoFrame.planes[2].createMatHeader();
+            cv::imshow("y", yy);
+            cv::imshow("u", uu);
+            cv::imshow("v", vv);
+            cv::waitKey(5);
         }
         else
         {
@@ -969,12 +977,20 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         if (isCanceled)
             break;
 
-        //if (frame.frame.mediaType == avp::VIDEO)
+        //if (frame.frame.mediaType == avp::VIDEO && frame.frame.pixelType == avp::PixelTypeYUV420P)
         //{
-        //    cv::Mat image(frame.frame.height, frame.frame.width, CV_8UC1, frame.frame.data[0], frame.frame.steps[0]);
-        //    cv::imshow("dst", image);
+        //    cv::Mat y(frame.frame.height, frame.frame.width, CV_8UC1, frame.frame.data[0], frame.frame.steps[0]);
+        //    cv::Mat u(frame.frame.height / 2, frame.frame.width / 2, CV_8UC1, frame.frame.data[1], frame.frame.steps[1]);
+        //    cv::Mat v(frame.frame.height / 2, frame.frame.width / 2, CV_8UC1, frame.frame.data[2], frame.frame.steps[2]);
+        //    cv::imshow("y", y);
+        //    cv::imshow("u", u);
+        //    cv::imshow("v", v);
         //    cv::waitKey(5);
         //}
+        if (frame.frame.mediaType == avp::VIDEO)
+        {
+            printf("ts = %lld\n", frame.frame.timeStamp);
+        }
 
         //timerEncode.start();
         bool ok = writer.write(frame.frame);
