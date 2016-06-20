@@ -186,6 +186,34 @@ private:
     int success;
 };
 
+// single thread version of CudaPanoramaRender
+class CudaPanoramaRender2
+{
+public:
+    CudaPanoramaRender2() : success(0) {};
+    ~CudaPanoramaRender2() { };
+    bool prepare(const std::string& path, const std::string& customMaskPath,
+        int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps, cv::cuda::GpuMat& dst);
+    void clear();
+    int getNumImages() const;
+private:
+    cv::Size srcSize, dstSize;
+    std::vector<cv::cuda::GpuMat> dstUniqueMasksGPU, currMasksGPU;
+    int useCustomMasks;
+    std::vector<CudaCustomIntervaledMasks> customMasks;
+    std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
+    std::vector<cv::cuda::GpuMat> srcImagesGPU;
+    std::vector<cv::cuda::GpuMat> reprojImagesGPU;
+    std::vector<cv::cuda::Stream> streams;
+    int highQualityBlend;
+    CudaTilingMultibandBlendFast mbBlender;
+    std::vector<cv::cuda::GpuMat> weightsGPU;
+    cv::cuda::GpuMat accumGPU;
+    int numImages;
+    int success;
+};
+
 // cpu version of CudaPanoramaRender
 class CPUPanoramaRender
 {

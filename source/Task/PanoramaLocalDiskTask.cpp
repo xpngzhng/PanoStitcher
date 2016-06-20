@@ -506,7 +506,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
-    CudaMultiCameraPanoramaRender2 render;
+    CudaPanoramaRender2 render;
     PinnedMemoryPool srcFramesMemoryPool;
     AudioVideoFramePool audioFramesMemoryPool;
     FrameVectorBuffer decodeFramesBuffer;
@@ -604,7 +604,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         }
     }
 
-    ok = render.prepare(cameraParamFile, PanoramaRender::BlendType::BlendTypeMultiband, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, customMaskFile, 1, srcSize, dstSize);
     if (!ok)
     {
         ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -883,7 +883,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
-        bool ok = render.render(images, bgr32);
+        bool ok = render.render(images, srcFrames.timeStamps, bgr32);
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
