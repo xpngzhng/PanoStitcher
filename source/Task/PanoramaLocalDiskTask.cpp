@@ -872,7 +872,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     cv::Mat bgr32Cpu;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
-    ztool::Timer t;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
@@ -892,23 +891,31 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-        ok = logoFilter.addLogo(bgr32);
-        if (!ok)
+        if (addLogo)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
-            setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-            isCanceled = true;
-            break;
+            ok = logoFilter.addLogo(bgr32);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+                setAsyncErrorMessage("视频拼接发生错误，任务终止。");
+                isCanceled = true;
+                break;
+            }
         }
 
+        // IMPORTANT NOTICE!!!
+        // I use cv::cuda::GpuMat::download to copy gpu memory to cpu memory.
+        // If cpu memory is not page-locked, download will take quite a long time.
+        // But in the following, cpu memory is page-locked, which costs just a little time.
+        // NVIDIA's documentation does not mention that calling cudaMemcpy2D to copy
+        // gpu memory to page-locked cpu memory costs less time than pageable memory.
+        // Another implementation is to make the cpu memory as zero-copy,
+        // then gpu color conversion writes result directly to cpu zero-copy memory.
+        // If image size is too large, such writing costs a large amount of time.
         dstFramesMemoryPool.get(videoFrame);
         videoFrame.frame.timeStamp = srcFrames.timeStamps[0];
-        t.start();
         if (isLibX264)
         {
-            //y = videoFrame.planes[0].createGpuMatHeader();
-            //u = videoFrame.planes[1].createGpuMatHeader();
-            //v = videoFrame.planes[2].createGpuMatHeader();
             cvtBGR32ToYUV420P(bgr32, y, u, v);
             cv::Mat yy = videoFrame.planes[0].createMatHeader();
             cv::Mat uu = videoFrame.planes[1].createMatHeader();
@@ -919,16 +926,12 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         }
         else
         {
-            //y = videoFrame.planes[0].createGpuMatHeader();
-            //uv = videoFrame.planes[1].createGpuMatHeader();
             cvtBGR32ToNV12(bgr32, y, uv);
             cv::Mat yy = videoFrame.planes[0].createMatHeader();
             cv::Mat uvuv = videoFrame.planes[1].createMatHeader();
             y.download(yy);
             uv.download(uvuv);
         }
-        t.end();
-        //printf("cvt color %f\n", t.elapse());
 
         procFrameBuffer.push(videoFrame);
         procCount++;

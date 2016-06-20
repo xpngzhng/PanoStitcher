@@ -32,17 +32,17 @@ struct MixedAudioVideoFrame
 
         if (pixelType == avp::PixelTypeYUV420P)
         {
-            planes[0] = cv::cuda::HostMem(height, width, CV_8UC1, cv::cuda::HostMem::SHARED);
-            planes[1] = cv::cuda::HostMem(height / 2, width / 2, CV_8UC1, cv::cuda::HostMem::SHARED);
-            planes[2] = cv::cuda::HostMem(height / 2, width / 2, CV_8UC1, cv::cuda::HostMem::SHARED);
+            planes[0] = cv::cuda::HostMem(height, width, CV_8UC1);
+            planes[1] = cv::cuda::HostMem(height / 2, width / 2, CV_8UC1);
+            planes[2] = cv::cuda::HostMem(height / 2, width / 2, CV_8UC1);
             unsigned char* data[4] = { planes[0].data, planes[1].data, planes[2].data, 0 };
             int steps[4] = { planes[0].step, planes[1].step, planes[2].step, 0 };
             frame = avp::AudioVideoFrame2(data, steps, pixelType, width, height, -1LL);
         }
         else if (pixelType == avp::PixelTypeNV12)
         {
-            planes[0] = cv::cuda::HostMem(height, width, CV_8UC1, cv::cuda::HostMem::SHARED);
-            planes[1] = cv::cuda::HostMem(height / 2, width, CV_8UC1, cv::cuda::HostMem::SHARED);
+            planes[0] = cv::cuda::HostMem(height, width, CV_8UC1);
+            planes[1] = cv::cuda::HostMem(height / 2, width, CV_8UC1);
             unsigned char* data[4] = { planes[0].data, planes[1].data, 0, 0 };
             int steps[4] = { planes[0].step, planes[1].step, 0, 0 };
             frame = avp::AudioVideoFrame2(data, steps, pixelType, width, height, -1LL);
