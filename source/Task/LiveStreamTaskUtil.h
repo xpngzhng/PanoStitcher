@@ -1,6 +1,7 @@
 #include "PanoramaTask.h"
 #include "ConcurrentQueue.h"
 #include "PinnedMemoryFrameQueue.h"
+#include "CudaPanoramaTaskUtil.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <stdio.h>
@@ -38,6 +39,9 @@ typedef RealTimeQueue<avp::AudioVideoFrame2> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::AudioVideoFrame2> > ForShowFrameVectorQueue;
 
+typedef RealTimeQueue<MixedAudioVideoFrame> ForShowMixedFrameQueue;
+typedef ForceWaitRealTimeQueue<MixedAudioVideoFrame> ForceWaitMixedFrameQueue;
+
 class AudioVideoSource
 {
 public:
@@ -61,7 +65,7 @@ public:
 protected:
     void setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave, 
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
         int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
         FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
     void init();
@@ -90,8 +94,8 @@ protected:
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
     void* ptrSyncedFramesBufferForProc;
-    ForceWaitFrameQueue* ptrProcFrameBufferForSend; 
-    ForceWaitFrameQueue* ptrProcFrameBufferForSave;
+    ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend;
+    ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave;
     int* ptrFinish;
     int finish;
     int running;
@@ -103,7 +107,7 @@ struct FFmpegAudioVideoSource : public AudioVideoSource
 public:
     FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
         int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
         FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
     ~FFmpegAudioVideoSource();
@@ -167,7 +171,7 @@ struct JuJingAudioVideoSource : public AudioVideoSource
 public:
     JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
         int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
         FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
     ~JuJingAudioVideoSource();

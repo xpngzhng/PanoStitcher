@@ -1,3 +1,5 @@
+#pragma once
+
 #include "AudioVideoProcessor.h"
 #include "opencv2/core/cuda.hpp"
 #include <mutex>
@@ -45,6 +47,20 @@ struct MixedAudioVideoFrame
             planes[1] = cv::cuda::HostMem(height / 2, width, CV_8UC1);
             unsigned char* data[4] = { planes[0].data, planes[1].data, 0, 0 };
             int steps[4] = { planes[0].step, planes[1].step, 0, 0 };
+            frame = avp::AudioVideoFrame2(data, steps, pixelType, width, height, -1LL);
+        }
+        else if (pixelType == avp::PixelTypeBGR32)
+        {
+            planes[0] = cv::cuda::HostMem(height, width, CV_8UC4);
+            unsigned char* data[4] = { planes[0].data, 0, 0, 0 };
+            int steps[4] = { planes[0].step, 0, 0, 0 };
+            frame = avp::AudioVideoFrame2(data, steps, pixelType, width, height, -1LL);
+        }
+        else if (pixelType == avp::PixelTypeBGR24)
+        {
+            planes[0] = cv::cuda::HostMem(height, width, CV_8UC3);
+            unsigned char* data[4] = { planes[0].data, 0, 0, 0 };
+            int steps[4] = { planes[0].step, 0, 0, 0 };
             frame = avp::AudioVideoFrame2(data, steps, pixelType, width, height, -1LL);
         }
     }

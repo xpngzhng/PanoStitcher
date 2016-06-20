@@ -109,7 +109,7 @@ AudioVideoSource::~AudioVideoSource()
 
 void AudioVideoSource::setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow_,
     void* ptrSyncedFramesBufferForProc_, int forCuda_,
-    ForceWaitFrameQueue* ptrProcFrameBufferForSend_, ForceWaitFrameQueue* ptrProcFrameBufferForSave_, 
+    ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend_, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave_,
     int* ptrFinish_, LogCallbackFunction logCallbackFunc_, void* logCallbackData_,
     FrameRateCallbackFunction videoFrameRateCallbackFunc_, void* videoFrameRateCallbackData_)
 {
@@ -344,7 +344,7 @@ END:
 
 FFmpegAudioVideoSource::FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
     void* ptrSyncedFramesBufferForProc, int forCuda,
-    ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+    ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
     int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData, 
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {
@@ -893,7 +893,7 @@ int RecvbyLen(SOCKET recvSocket, char *pszBuf, int nRecvLen)
 
 JuJingAudioVideoSource::JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
     void* ptrSyncedFramesBufferForProc, int forCuda,
-    ForceWaitFrameQueue* ptrProcFrameBufferForSend, ForceWaitFrameQueue* ptrProcFrameBufferForSave,
+    ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
     int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
     FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData)
 {

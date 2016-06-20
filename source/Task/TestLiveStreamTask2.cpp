@@ -255,8 +255,11 @@ int main(int argc, char* argv[])
     srcSize.width = parser.get<int>("camera_width");
     srcSize.height = parser.get<int>("camera_height");
 
+    cv::Size sz(4096, 2048);
+
     stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
     stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
+    stitchFrameSize = sz;
     if (stitchFrameSize.width <= 0 || stitchFrameSize.height <= 0 ||
         (stitchFrameSize.width & 1) || (stitchFrameSize.height & 1) ||
         (stitchFrameSize.width != stitchFrameSize.height * 2))
@@ -345,7 +348,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < numCameras; i++)
         newVideoDevices[i] = videoDevices[videoIndexes[i]];
     ok = task.openAudioVideoSources(newVideoDevices, srcSize.width, srcSize.height, frameRate, 
-        audioIndex >= 0, audioDevices[audioIndex], 44100);
+        audioIndex >= 0, audioIndex >= 0 ? audioDevices[audioIndex] : avp::Device(), 44100);
     if (!ok)
     {
         printf("DirectShow devices open failed\n");
@@ -404,6 +407,7 @@ int main(int argc, char* argv[])
     {
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");
         fileFrameSize.height = parser.get<int>("pano_file_frame_height");
+        fileFrameSize = sz;
         if (fileFrameSize.width <= 0 || fileFrameSize.height <= 0 ||
             (fileFrameSize.width & 1) || (fileFrameSize.height & 1) ||
             (fileFrameSize.width != fileFrameSize.height * 2))
@@ -415,9 +419,11 @@ int main(int argc, char* argv[])
 
         fileDuration = parser.get<int>("pano_file_duration");
         fileBitRate = parser.get<int>("pano_file_bits_per_second");
+        fileBitRate = 4000000;
         fileEncoder = parser.get<std::string>("pano_file_encoder");
         if (fileEncoder != "h264_qsv")
             fileEncoder = "h264";
+        fileEncoder = "h264_qsv";
         fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
         if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
             fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||
