@@ -5,6 +5,7 @@
 #include "SharedAudioVideoFramePool.h"
 #include "RicohUtil.h"
 #include "PanoramaTaskUtil.h"
+#include "CudaPanoramaTaskUtil.h"
 #include "LiveStreamTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
@@ -35,15 +36,17 @@ struct PanoramaLiveStreamTask2::Impl
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
-    void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
-    void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
-    void setLogCallback(LogCallbackFunction func, void* data);
-    void initCallback();
-
     bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);
     bool getStitchedVideoFrame(avp::AudioVideoFrame2& frame);
     void cancelGetVideoSourceFrames();
     void cancelGetStitchedVideoFrame();
+
+    double getVideoSourceFrameRate() const;
+    double getStitchFrameRate() const;
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
+    void getLog(std::string& logInfo);
 
     void initAll();
     void closeAll();
@@ -86,7 +89,7 @@ struct PanoramaLiveStreamTask2::Impl
     int streamThreadJoined;
     void streamSend();
 
-    std::string fileWriterFormat;
+    std::string fileDir;
     cv::Size fileFrameSize;
     int fileVideoBitRate;
     std::string fileVideoEncoder;
@@ -99,14 +102,21 @@ struct PanoramaLiveStreamTask2::Impl
     int fileThreadJoined;
     void fileSave();
 
-    LogCallbackFunction logCallbackFunc;
-    void* logCallbackData;
+    double videoSourceFrameRate;
+    double stitchVideoFrameRate;
 
-    FrameRateCallbackFunction videoFrameRateCallbackFunc;
-    void* videoFrameRateCallbackData;
+    std::string syncErrorMessage;
 
-    FrameRateCallbackFunction stitchFrameRateCallbackFunc;
-    void* stitchFrameRateCallbackData;
+    std::mutex mtxAsyncErrorMessage;
+    std::string asyncErrorMessage;
+    int hasAsyncError;
+    void setAsyncErrorMessage(const std::string& message);
+    void clearAsyncErrorMessage();
+
+    std::mutex mtxLog;
+    std::string log;
+    void appendLog(const std::string& message);
+    void clearLog();
 
     int pixelType;
     int elemType;
@@ -133,7 +143,6 @@ PanoramaLiveStreamTask2::Impl::Impl()
 #endif
 {
     initAll();
-    initCallback();
 }
 
 PanoramaLiveStreamTask2::Impl::~Impl()
@@ -147,12 +156,12 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
     if (audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        syncErrorMessage = "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务。";
         return false;
     }
 
     audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
-        &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
-        videoFrameRateCallbackFunc, videoFrameRateCallbackData));
+        &procFrameBufferForSend, &procFrameBufferForSave, &finish));
     bool ok = ((FFmpegAudioVideoSource*)audioVideoSource.get())->open(devices, width, height, frameRate, openAudio, device, sampleRate);
     if (!ok)
         return false;
@@ -178,15 +187,13 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
     if (areAllIPAdresses(urls))
     {
         audioVideoSource.reset(new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
-            &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
-            videoFrameRateCallbackFunc, videoFrameRateCallbackData));
+            &procFrameBufferForSend, &procFrameBufferForSave, &finish));
         ok = ((JuJingAudioVideoSource*)audioVideoSource.get())->open(urls);
     }
     else
     {
         audioVideoSource.reset(new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, COMPILE_CUDA,
-            &procFrameBufferForSend, &procFrameBufferForSave, &finish, logCallbackFunc, logCallbackData,
-            videoFrameRateCallbackFunc, videoFrameRateCallbackData));
+            &procFrameBufferForSend, &procFrameBufferForSave, &finish));
         ok = ((FFmpegAudioVideoSource*)audioVideoSource.get())->open(urls);
     }
     if (!ok)
@@ -218,12 +225,14 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        syncErrorMessage = "尚未打开音视频源，无法启动拼接任务。";
         return false;
     }
 
     if (!renderThreadJoined)
     {
         ptlprintf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
+        syncErrorMessage = "视频拼接任务正在进行中，请先关闭正在执行的任务，再启动新的任务。";
         return false;
     }
 
@@ -241,16 +250,16 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Could not prepare for video stitch\n");
-
-        if (logCallbackFunc)
-            logCallbackFunc("Video stitch prepare failed", logCallbackData);
-
+        appendLog("视频拼接初始化失败\n");
+        syncErrorMessage = "视频拼接初始化失败。";
         return false;
     }
 
     if (render.getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        appendLog("视频拼接初始化失败\n");
+        syncErrorMessage = "视频拼接初始化失败。";
         return false;
     }
 
@@ -258,10 +267,8 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Could not init proc frame pool\n");
-
-        if (logCallbackFunc)
-            logCallbackFunc("Video stitch prepare failed", logCallbackData);
-
+        appendLog("视频拼接初始化失败\n");
+        syncErrorMessage = "视频拼接初始化失败。";
         return false;
     }
 
@@ -270,16 +277,13 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Could not init logo filter\n");
-
-        if (logCallbackFunc)
-            logCallbackFunc("Video stitch prepare failed", logCallbackData);
-
+        appendLog("视频拼接初始化失败\n");
+        syncErrorMessage = "视频拼接初始化失败。";
         return false;
     }
 
-    if (logCallbackFunc)
-        logCallbackFunc("Video stitch prepare success", logCallbackData);
-
+    appendLog("视频拼接初始化成功\n");
+    
     syncedFramesBufferForProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
@@ -290,8 +294,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::procVideo, this));
     postProcThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::postProc, this));
 
-    if (logCallbackFunc)
-        logCallbackFunc("Video stitch thread create success", logCallbackData);
+    appendLog("视频拼接任务启动成功\n");
 
     return true;
 }
@@ -312,8 +315,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
 
-        if (logCallbackFunc)
-            logCallbackFunc("Video stitch thread close success", logCallbackData);
+        appendLog("视频拼接任务结束\n");
     }
 }
 
@@ -358,18 +360,21 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        syncErrorMessage = "尚未打开音视频源，无法启动推流任务。";
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
         ptlprintf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
+        syncErrorMessage = "尚未启动拼接任务，无法启动推流任务。";
         return false;
     }
 
     if (!streamThreadJoined)
     {
         ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        syncErrorMessage = "推流任务正在进行中，请先关闭正在执行的任务，再启动新的任务。";
         return false;
     }
 
@@ -395,23 +400,19 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
     if (!streamOpenSuccess)
     {
         ptlprintf("Could not open streaming url with frame rate = %f and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
-
-        if (logCallbackFunc)
-            logCallbackFunc("Live stream open failed", logCallbackData);
-
+        appendLog("流媒体服务器连接失败\n");
+        syncErrorMessage = "流媒体服务器连接失败。";
         return false;
     }
 
-    if (logCallbackFunc)
-        logCallbackFunc("Live stream open success", logCallbackData);
+    appendLog("流媒体服务器连接成功\n");
 
     procFrameBufferForSend.resume();
     streamEndFlag = 0;
     streamThreadJoined = 0;
     streamThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::streamSend, this));
 
-    if (logCallbackFunc)
-        logCallbackFunc("Live stream thread create success", logCallbackData);
+    appendLog("推流任务启动成功\n");
 
     return true;
 }
@@ -427,11 +428,8 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
         streamOpenSuccess = 0;
         streamThreadJoined = 1;
 
-        if (logCallbackFunc)
-        {
-            logCallbackFunc("Live stream close success", logCallbackData);
-            logCallbackFunc("Live stream thread close success", logCallbackData);
-        }
+        appendLog("推流任务结束\n");
+        appendLog("断开与流媒体服务器连接\n");
     }
 }
 
@@ -441,22 +439,27 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        syncErrorMessage = "尚未打开音视频源，无法启动保存任务。";
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
         ptlprintf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
+        syncErrorMessage = "尚未启动拼接任务，无法启动保存任务。";
         return false;
     }
 
     if (!fileThreadJoined)
     {
         ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        syncErrorMessage = "保存任务正在进行中，请先关闭正在执行的任务，再启动新的任务。";
         return false;
     }
 
-    fileWriterFormat = dir.empty() ? "temp%d.mp4" : dir + "/temp%d.mp4";
+    fileDir = dir;
+    if (fileDir.back() != '\\' && fileDir.back() != '/')
+        fileDir.append("/");
     fileFrameSize.width = width;
     fileFrameSize.height = height;
     fileVideoBitRate = videoBPS;
@@ -478,6 +481,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::fileSave, this));
 
+    appendLog("启动保存视频任务\n");
+
     return true;
 }
 
@@ -491,7 +496,53 @@ void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
         fileThread.reset(0);
         fileThreadJoined = 1;
         fileConfigSet = 0;
+
+        appendLog("结束保存视频任务\n");
     }
+}
+
+double PanoramaLiveStreamTask2::Impl::getVideoSourceFrameRate() const
+{
+    return videoSourceFrameRate;
+}
+
+double PanoramaLiveStreamTask2::Impl::getStitchFrameRate() const
+{
+    return stitchVideoFrameRate;
+}
+
+void PanoramaLiveStreamTask2::Impl::getLastSyncErrorMessage(std::string& message) const
+{
+    message = syncErrorMessage;
+}
+
+bool PanoramaLiveStreamTask2::Impl::hasAsyncErrorMessage() const
+{
+    return hasAsyncError;
+}
+
+void PanoramaLiveStreamTask2::Impl::getLastAsyncErrorMessage(std::string& message)
+{
+    if (hasAsyncError)
+    {
+        std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+        message = asyncErrorMessage;
+        hasAsyncError = 0;
+    }
+    else
+        message.clear();
+}
+
+void PanoramaLiveStreamTask2::Impl::getLog(std::string& logInfo)
+{
+    std::lock_guard<std::mutex> lg(mtxLog);
+    if (log.empty())
+    {
+        logInfo.clear();
+        return;
+    }
+    logInfo = log.substr(0, log.size() - 1);
+    log.clear();
 }
 
 void PanoramaLiveStreamTask2::Impl::initAll()
@@ -609,12 +660,10 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 if ((elapse >= 1 && count >= 2) || count == roundedFrameRate)
                 {
                     double r = count / elapse;
-                    ptlprintf("%d  %f, %f\n", count, elapse, r);
+                    printf("%d  %f, %f\n", count, elapse, r);
                     timer.start();
                     count = 0;
-
-                    if (stitchFrameRateCallbackFunc)
-                        stitchFrameRateCallbackFunc(r, stitchFrameRateCallbackData);
+                    stitchVideoFrameRate = r;
                 }
             }
 
@@ -640,6 +689,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
+                setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                 finish = 1;
                 break;
             }
@@ -719,6 +769,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
+                setAsyncErrorMessage("推流发生错误，任务终止。");
                 finish = 1;
                 break;
             }
@@ -737,14 +788,20 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
     size_t id = std::this_thread::get_id().hash();
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    char buf[1024];
+    time_t rawTime;    
+    tm* ptrTm;
+
+    char buf[1024], shortNameBuf[1024];
     int count = 0;
     cv::Mat dstMat;
     avp::AudioVideoFrame2 frame;
     avp::AudioVideoWriter3 writer;
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", fileVideoEncodePreset));
-    sprintf(buf, fileWriterFormat.c_str(), count++);
+    time(&rawTime);
+    ptrTm = localtime(&rawTime);
+    strftime(shortNameBuf, 1024, "%Y-%m-%d-%H-%M-%S.mp4", ptrTm);
+    sprintf(buf, "%s%s", fileDir.c_str(), shortNameBuf);
     bool ok = writer.open(buf, "mp4", true,
         audioOpenSuccess, "aac", audioVideoSource->getAudioSampleType(),
         audioVideoSource->getAudioChannelLayout(), audioVideoSource->getAudioSampleRate(), fileAudioBitRate,
@@ -753,15 +810,11 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
     if (!ok)
     {
         ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-        if (logCallbackFunc)
-            logCallbackFunc(std::string("Could not write local file ") + buf, logCallbackData);
+        appendLog(std::string(buf) + " 无法打开，任务终止\n");
         return;
     }
     else
-    {
-        if (logCallbackFunc)
-            logCallbackFunc(std::string("Begin write local file ") + buf, logCallbackData);
-    }
+        appendLog(std::string(buf) + " 开始写入\n");
     long long int fileFirstTimeStamp = -1;
     while (true)
     {
@@ -776,9 +829,12 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             if (frame.timeStamp - fileFirstTimeStamp > fileDuration * 1000000LL)
             {
                 writer.close();
-                if (logCallbackFunc)
-                    logCallbackFunc(std::string("Finish write local file ") + buf, logCallbackData);
-                sprintf(buf, fileWriterFormat.c_str(), count++);
+                appendLog(std::string(buf) + " 写入结束\n");
+
+                time(&rawTime);
+                ptrTm = localtime(&rawTime);
+                strftime(shortNameBuf, 1024, "%Y-%m-%d-%H-%M-%S.mp4", ptrTm);
+                sprintf(buf, "%s%s", fileDir.c_str(), shortNameBuf);
                 ok = writer.open(buf, "mp4", true,
                     audioOpenSuccess, "aac", audioVideoSource->getAudioSampleType(),
                     audioVideoSource->getAudioChannelLayout(), audioVideoSource->getAudioSampleRate(), fileAudioBitRate,
@@ -787,15 +843,11 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%d], could not save current audio video\n", __FUNCTION__, id);
-                    if (logCallbackFunc)
-                        logCallbackFunc(std::string("Could not write local file ") + buf, logCallbackData);
+                    appendLog(std::string(buf) + " 无法打开，任务终止\n");
                     break;
                 }
                 else
-                {
-                    if (logCallbackFunc)
-                        logCallbackFunc(std::string("Begin write local file ") + buf, logCallbackData);
-                }
+                    appendLog(std::string(buf) + " 开始写入\n");
                 fileFirstTimeStamp = frame.timeStamp;
             }
             avp::AudioVideoFrame2 shallow;
@@ -813,40 +865,42 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             if (!ok)
             {
                 ptlprintf("Error in %s [%d], could not write current frame\n", __FUNCTION__, id);
+                setAsyncErrorMessage(std::string(buf) + " 写入发生错误，任务终止。");
                 break;
             }
         }
     }
-    if (logCallbackFunc)
-        logCallbackFunc(std::string("Finish write local file ") + buf, logCallbackData);
+    if (ok)
+        appendLog(std::string(buf) + " 写入结束\n");
     writer.close();
 
     ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-void PanoramaLiveStreamTask2::Impl::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
+void PanoramaLiveStreamTask2::Impl::setAsyncErrorMessage(const std::string& message)
 {
-    videoFrameRateCallbackFunc = func;
-    videoFrameRateCallbackData = data;
+    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+    hasAsyncError = 1;
+    asyncErrorMessage = message;
 }
 
-void PanoramaLiveStreamTask2::Impl::setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data)
+void PanoramaLiveStreamTask2::Impl::clearAsyncErrorMessage()
 {
-    stitchFrameRateCallbackFunc = func;
-    stitchFrameRateCallbackData = data;
+    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+    hasAsyncError = 0;
+    asyncErrorMessage.clear();
 }
 
-void PanoramaLiveStreamTask2::Impl::setLogCallback(LogCallbackFunction func, void* data)
+void PanoramaLiveStreamTask2::Impl::appendLog(const std::string& msg)
 {
-    logCallbackFunc = func;
-    logCallbackData = data;
+    std::lock_guard<std::mutex> lg(mtxLog);
+    log.append(msg);
 }
 
-void PanoramaLiveStreamTask2::Impl::initCallback()
+void PanoramaLiveStreamTask2::Impl::clearLog()
 {
-    logCallbackFunc = 0;
-    videoFrameRateCallbackFunc = 0;
-    stitchFrameRateCallbackFunc = 0;
+    std::lock_guard<std::mutex> lg(mtxLog);
+    log.clear();
 }
 
 PanoramaLiveStreamTask2::PanoramaLiveStreamTask2()
@@ -908,24 +962,34 @@ void PanoramaLiveStreamTask2::stopSaveToDisk()
     ptrImpl->stopSaveToDisk();
 }
 
-void PanoramaLiveStreamTask2::setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data)
+double PanoramaLiveStreamTask2::getVideoSourceFrameRate() const
 {
-    ptrImpl->setVideoSourceFrameRateCallback(func, data);
+    return ptrImpl->getVideoSourceFrameRate();
 }
 
-void PanoramaLiveStreamTask2::setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data)
+double PanoramaLiveStreamTask2::getStitchFrameRate() const
 {
-    ptrImpl->setStitchFrameRateCallback(func, data);
+    return ptrImpl->getStitchFrameRate();
 }
 
-void PanoramaLiveStreamTask2::setLogCallback(LogCallbackFunction func, void* data)
+void PanoramaLiveStreamTask2::getLastSyncErrorMessage(std::string& message) const
 {
-    ptrImpl->setLogCallback(func, data);
+    ptrImpl->getLastSyncErrorMessage(message);
 }
 
-void PanoramaLiveStreamTask2::initCallback()
+bool PanoramaLiveStreamTask2::hasAsyncErrorMessage() const
 {
-    ptrImpl->initCallback();
+    return ptrImpl->hasAsyncErrorMessage();
+}
+
+void PanoramaLiveStreamTask2::getLastAsyncErrorMessage(std::string& message)
+{
+    return ptrImpl->getLastAsyncErrorMessage(message);
+}
+
+void PanoramaLiveStreamTask2::getLog(std::string& logInfo)
+{
+    ptrImpl->getLog(logInfo);
 }
 
 bool PanoramaLiveStreamTask2::getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames)

@@ -223,10 +223,12 @@ public:
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
-    void setVideoSourceFrameRateCallback(FrameRateCallbackFunction func, void* data);
-    void setStitchFrameRateCallback(FrameRateCallbackFunction func, void* data);
-    void setLogCallback(LogCallbackFunction func, void* data);
-    void initCallback();
+    double getVideoSourceFrameRate() const;
+    double getStitchFrameRate() const;
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
+    void getLog(std::string& logInfo);
 
     bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);
     bool getStitchedVideoFrame(avp::AudioVideoFrame2& frame);
