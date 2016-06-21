@@ -1,6 +1,7 @@
 #include "PanoramaTask.h"
 #include "ConcurrentQueue.h"
 #include "PinnedMemoryFrameQueue.h"
+#include "SharedAudioVideoFramePool.h"
 #include "CudaPanoramaTaskUtil.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -92,6 +93,7 @@ protected:
     void* videoFrameRateCallbackData;
     
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
+    std::unique_ptr<std::vector<AudioVideoFramePool> > ptrVideoFramePools;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
     void* ptrSyncedFramesBufferForProc;
     ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend;

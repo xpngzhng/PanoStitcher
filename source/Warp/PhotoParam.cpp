@@ -851,33 +851,32 @@ void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoP
         delete pGlobalInfo;
     pGlobalInfo = NULL;
 
-
     for (int i = 0; i < params.size(); ++i)
     {
         Element* pPoisitionInfo = new Element("POSITION");
 
         pEle = NULL;
         pEle = new Element("CROPLEFT");
-        pEle->SetText(params[0].cropX);
+        pEle->SetText(params[i].cropX);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("CROPRIGHT");
-        int crop_right = params[0].cropX + params[0].cropWidth;
+        int crop_right = params[i].cropX + params[i].cropWidth;
         pEle->SetText(crop_right);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("CROPTOP");
-        pEle->SetText(params[0].cropY);
+        pEle->SetText(params[i].cropY);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("CROPBOTTOM");
-        int crop_bottom = params[0].cropY + params[0].cropHeight;
+        int crop_bottom = params[i].cropY + params[i].cropHeight;
         pEle->SetText(crop_bottom);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)

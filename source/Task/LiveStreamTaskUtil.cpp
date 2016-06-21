@@ -415,6 +415,11 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
     ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
+
+    ptrVideoFramePools.reset(new std::vector<AudioVideoFramePool>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrVideoFramePools)[i].initAsVideoFramePool(pixelType, width, height);
+
     ptrSyncedFramesBufferForShow->clear();
     if (forCuda)
         ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
@@ -555,6 +560,11 @@ bool FFmpegAudioVideoSource::open(const std::vector<std::string>& urls, bool ope
     ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
+
+    ptrVideoFramePools.reset(new std::vector<AudioVideoFramePool>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrVideoFramePools)[i].initAsVideoFramePool(pixelType, videoFrameSize.width, videoFrameSize.height);
+
     ptrSyncedFramesBufferForShow->clear();
     if (forCuda)
         ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
@@ -708,6 +718,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
 
     std::vector<ForceWaitFrameQueue>& frameBuffers = *ptrFrameBuffers;
     ForceWaitFrameQueue& buffer = frameBuffers[index];
+    AudioVideoFramePool& pool = (*ptrVideoFramePools)[index];
     avp::AudioVideoReader3& reader = videoReaders[index];
 
     int waitTime = 0;
@@ -720,14 +731,16 @@ void FFmpegAudioVideoSource::videoSource(int index)
 
     long long int count = 0, beginCheckCount = roundedVideoFrameRate * 5;
     ztool::Timer timer;
-    avp::AudioVideoFrame2 frame;
+    avp::AudioVideoFrame2 frame, dummyAudioFrame;
+    int mediaType;
     bool ok;
     while (true)
     {
-        ok = reader.read(frame);
+        pool.get(frame);
+        ok = reader.readTo(dummyAudioFrame, frame, mediaType);
         if (areSourceFiles)
             std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
-        if (!ok)
+        if (!ok || mediaType != avp::VIDEO)
         {
             ptlprintf("Error in %s [%8x], cannot read video frame\n", __FUNCTION__, id);
             stopCompleteFrameBuffers(ptrFrameBuffers.get());
@@ -759,7 +772,7 @@ void FFmpegAudioVideoSource::videoSource(int index)
         // NOTICE, for simplicity, I do not check whether the frame has the right property.
         // For the sake of program robustness, we should at least check whether the frame
         // is of type VIDEO, and is not empty, and has the correct pixel type and width and height.
-        buffer.push(frame.clone());
+        buffer.push(frame);
 
         if (finish || videoEndFlag)
         {
