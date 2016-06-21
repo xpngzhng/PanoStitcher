@@ -300,6 +300,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         //postProcThread.reset(0);
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
+        procFramePool.clear();
 
         appendLog("视频拼接任务结束\n");
     }
@@ -405,6 +406,7 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
         streamThread.reset(0);
         streamOpenSuccess = 0;
         streamThreadJoined = 1;
+        sendFramePool.clear();
 
         appendLog("推流任务结束\n");
         appendLog("断开与流媒体服务器连接\n");
@@ -477,6 +479,7 @@ void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
         fileThread.reset(0);
         fileThreadJoined = 1;
         fileConfigSet = 0;
+        saveFramePool.clear();
 
         appendLog("结束保存视频任务\n");
     }

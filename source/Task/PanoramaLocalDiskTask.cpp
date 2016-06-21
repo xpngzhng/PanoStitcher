@@ -869,7 +869,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     StampedPinnedMemoryVector srcFrames;
     std::vector<cv::Mat> images(numVideos);
     cv::cuda::GpuMat bgr32;
-    cv::Mat bgr32Cpu;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
     while (true)
