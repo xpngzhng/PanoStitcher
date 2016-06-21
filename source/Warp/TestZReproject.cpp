@@ -47,8 +47,10 @@ int main()
 
     {
         std::vector<std::string> paths;
-        paths.push_back("F:\\panoimage\\919\\imageL1.png");
-        paths.push_back("F:\\panoimage\\919\\imageR1.png");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -56,13 +58,14 @@ int main()
             src[i] = cv::imread(paths[i]);
 
         std::vector<PhotoParam> params;
-        loadPhotoParamFromXML("F:\\panoimage\\919\\4356.xml", params);
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl1.xml", params);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
         std::vector<cv::Mat> images;
-        reprojectParallel(src, images, maps);
+        //reprojectParallel(src, images, maps);
+        reproject(src, images, masks, params, dstSize);
         for (int i = 0; i < numImages; i++)
         {
             cv::imshow("image", images[i]);

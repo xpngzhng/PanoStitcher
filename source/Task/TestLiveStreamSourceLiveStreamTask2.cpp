@@ -210,6 +210,8 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
+    setAddLogo(false);
+
     stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
     stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
     if (stitchFrameSize.width <= 0 || stitchFrameSize.height <= 0 ||
@@ -264,8 +266,11 @@ int main(int argc, char* argv[])
         return 0;
     }
 
+    cv::Size sz(4096, 2048);
+
     highQualityBlend = parser.get<bool>("high_quality_blend");
     cameraParamPath = parser.get<std::string>("camera_param_path");
+    stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
     {
         ok = task.beginVideoStitch(cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
@@ -281,6 +286,7 @@ int main(int argc, char* argv[])
     }
 
     streamURL = parser.get<std::string>("pano_stream_url");
+    //streamURL = "rtsp://192.168.1.234/test.sdp";
     //streamURL = "rtsp://127.0.0.1/test.sdp";
     streamURL = "null";
     if (streamURL.size() && streamURL != "null")
@@ -300,6 +306,7 @@ int main(int argc, char* argv[])
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
         if (streamEncoder != "h264_qsv")
             streamEncoder = "h264";
+        streamEncoder = "h264_qsv";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
         if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
             streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
@@ -307,11 +314,13 @@ int main(int argc, char* argv[])
             streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
             streamEncodePreset = "veryfast";
 
+        streamFrameSize = sz;
+        streamBitRate = 4000000;
         ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
         {
-            printf("Could not open rtmp streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
+            printf("Could not open streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
             return 0;
         }
     }

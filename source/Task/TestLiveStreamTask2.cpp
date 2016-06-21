@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
     srcSize.width = parser.get<int>("camera_width");
     srcSize.height = parser.get<int>("camera_height");
 
-    cv::Size sz(4096, 2048);
+    cv::Size sz(2048, 1024);
 
     stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
     stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
@@ -365,6 +365,7 @@ int main(int argc, char* argv[])
     //printf("pass render prepare\n");
 
     streamURL = parser.get<std::string>("pano_stream_url");
+    streamURL = "rtsp://127.0.0.1/test.sdp";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");

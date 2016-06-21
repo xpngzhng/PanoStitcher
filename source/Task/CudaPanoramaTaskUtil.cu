@@ -50,7 +50,13 @@ const int ITUR_BT_601_CBU = 460324;
 const int ITUR_BT_601_CGV = -385875;
 const int ITUR_BT_601_CBV = -74448;
 
+const int ITUR_BT_601_CY = 1220542;
+const int ITUR_BT_601_CUB = 2116026;
+const int ITUR_BT_601_CUG = -409993;
+const int ITUR_BT_601_CVG = -852492;
+const int ITUR_BT_601_CVR = 1673527;
 const int ITUR_BT_601_SHIFT = 20;
+
 const int shifted16 = (16 << ITUR_BT_601_SHIFT);
 const int halfShift = (1 << (ITUR_BT_601_SHIFT - 1));
 const int shifted128 = (128 << ITUR_BT_601_SHIFT);
@@ -136,5 +142,87 @@ void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(uv.cols / 2, block.x), cv::cuda::device::divUp(uv.rows, block.y));
     cvtBGR32ToNV12<<<grid, block>>>(bgr32.data, bgr32.step, y.data, y.step, uv.data, uv.step, rows, cols);
+    cudaSafeCall(cudaDeviceSynchronize());
+}
+
+__device__ void cvtYUV2x2BlockToBGR(const unsigned char* yTopData, const unsigned char* yBotData,
+    unsigned char uVal, unsigned char vVal, unsigned char* bgrTopData, unsigned char* bgrBotData)
+{
+    int u = int(uVal) - 128;
+    int v = int(vVal) - 128;
+
+    int ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * v;
+    int guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * v + ITUR_BT_601_CUG * u;
+    int buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * u;
+
+    int y00 = max(0, int(yTopData[0]) - 16) * ITUR_BT_601_CY;
+    bgrTopData[2] = clamp0255((y00 + ruv) >> ITUR_BT_601_SHIFT);
+    bgrTopData[1] = clamp0255((y00 + guv) >> ITUR_BT_601_SHIFT);
+    bgrTopData[0] = clamp0255((y00 + buv) >> ITUR_BT_601_SHIFT);
+
+    int y01 = max(0, int(yTopData[1]) - 16) * ITUR_BT_601_CY;
+    bgrTopData[6] = clamp0255((y01 + ruv) >> ITUR_BT_601_SHIFT);
+    bgrTopData[5] = clamp0255((y01 + guv) >> ITUR_BT_601_SHIFT);
+    bgrTopData[4] = clamp0255((y01 + buv) >> ITUR_BT_601_SHIFT);
+
+    int y10 = max(0, int(yBotData[0]) - 16) * ITUR_BT_601_CY;
+    bgrBotData[2] = clamp0255((y10 + ruv) >> ITUR_BT_601_SHIFT);
+    bgrBotData[1] = clamp0255((y10 + guv) >> ITUR_BT_601_SHIFT);
+    bgrBotData[0] = clamp0255((y10 + buv) >> ITUR_BT_601_SHIFT);
+
+    int y11 = max(0, int(yBotData[1]) - 16) * ITUR_BT_601_CY;
+    bgrBotData[6] = clamp0255((y11 + ruv) >> ITUR_BT_601_SHIFT);
+    bgrBotData[5] = clamp0255((y11 + guv) >> ITUR_BT_601_SHIFT);
+    bgrBotData[4] = clamp0255((y11 + buv) >> ITUR_BT_601_SHIFT);
+}
+
+__global__ void cvtYUV420PToBGR32(const unsigned char* yData, int yStep, const unsigned char* uData, int uStep,
+    const unsigned char* vData, int vStep, unsigned char* bgrData, int bgrStep, int yRows, int yCols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    const int xx = x * 2, yy = y * 2;
+    if (xx < yCols && yy < yRows)
+    {
+        cvtYUV2x2BlockToBGR(yData + yy * yStep + xx, yData + (yy + 1) * yStep + xx,
+            (uData + y * uStep)[x], (vData + y * vStep)[x],
+            bgrData + yy * bgrStep + xx * 4, bgrData + (yy + 1) * bgrStep + xx * 4);
+    }
+}
+
+__global__ void cvtNV12ToBGR32(const unsigned char* yData, int yStep, const unsigned char* uvData, int uvStep,
+    unsigned char* bgrData, int bgrStep, int yRows, int yCols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    const int xx = x * 2, yy = y * 2;
+    if (xx < yCols && yy < yRows)
+    {
+        cvtYUV2x2BlockToBGR(yData + yy * yStep + xx, yData + (yy + 1) * yStep + xx,
+            (uvData + y * uvStep)[xx], (uvData + y * uvStep)[xx + 1],
+            bgrData + yy * bgrStep + xx * 4, bgrData + (yy + 1) * bgrStep + xx * 4);
+    }
+}
+
+void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, const cv::cuda::GpuMat& v, cv::cuda::GpuMat& bgr32)
+{
+    CV_Assert(y.data && y.type() == CV_8UC1 && u.data && u.type() == CV_8UC1 &&
+        v.data && v.type() == CV_8UC1 && y.rows == u.rows * 2 && y.cols == u.cols * 2 &&
+        u.size() == v.size());
+    bgr32.create(y.size(), CV_8UC4);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(u.cols, block.x), cv::cuda::device::divUp(u.rows, block.y));
+    cvtYUV420PToBGR32<<<grid, block>>>(y.data, y.step, u.data, u.step, v.data, v.step, bgr32.data, bgr32.step, y.rows, y.cols);
+    cudaSafeCall(cudaDeviceSynchronize());
+}
+
+void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32)
+{
+    CV_Assert(y.data && y.type() == CV_8UC1 && uv.data && uv.type() == CV_8UC1 &&
+        y.rows == uv.rows * 2 && y.cols == uv.cols);
+    bgr32.create(y.size(), CV_8UC4);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(uv.cols / 2, block.x), cv::cuda::device::divUp(uv.rows, block.y));
+    cvtNV12ToBGR32<<<grid, block>>>(y.data, y.step, uv.data, uv.step, bgr32.data, bgr32.step, y.rows, y.cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }

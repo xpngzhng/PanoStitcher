@@ -353,6 +353,9 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
         return false;
     }
 
+    streamIsLibX264 = (videoEncoder == "h264_qsv") ? 0 : 1;
+    sendFramePool.init(streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
+
     streamURL = name;
     streamFrameSize.width = width;
     streamFrameSize.height = height;
@@ -382,9 +385,6 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
     }
 
     appendLog("流媒体服务器连接成功\n");
-
-    streamIsLibX264 = (videoEncoder == "h264_qsv") ? 0 : 1;
-    sendFramePool.init(streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     procFrameBufferForSend.resume();
     streamEndFlag = 0;
