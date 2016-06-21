@@ -871,6 +871,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     cv::cuda::GpuMat bgr32;
     MixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
+    int index = audioIndex >= 0 ? audioIndex : 0;
     while (true)
     {
         if (!decodeFramesBuffer.pull(srcFrames))
@@ -912,7 +913,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         // then gpu color conversion writes result directly to cpu zero-copy memory.
         // If image size is too large, such writing costs a large amount of time.
         dstFramesMemoryPool.get(videoFrame);
-        videoFrame.frame.timeStamp = srcFrames.timeStamps[0];
+        videoFrame.frame.timeStamp = srcFrames.timeStamps[index];
         if (isLibX264)
         {
             cvtBGR32ToYUV420P(bgr32, y, u, v);
