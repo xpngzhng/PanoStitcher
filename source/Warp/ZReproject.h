@@ -24,12 +24,18 @@ struct PhotoParam
         ImageTypeDrumFishEye = 2,
         ImageTypeCircularFishEye = 3
     };
+
+    PhotoParam();
+
     int imageType;
     int cropMode;
     int cropX;
     int cropY;
     int cropWidth;
     int cropHeight;
+    int circleX;
+    int circleY;
+    int circleR;
     double hfov;
     double vfov;
     double alpha;
@@ -43,8 +49,6 @@ struct PhotoParam
     double pitch;
     double roll;
 };
-
-void loadPhotoParamFromXML(const std::string& fileName, PhotoParam& param);
 
 void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>& params);
 

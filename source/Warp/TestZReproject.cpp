@@ -45,6 +45,33 @@ int main()
 
     cv::Size dstSize = cv::Size(2048, 1024);
 
+    {
+        std::vector<std::string> paths;
+        paths.push_back("F:\\panoimage\\919\\imageL1.png");
+        paths.push_back("F:\\panoimage\\919\\imageR1.png");
+
+        int numImages = paths.size();
+        std::vector<cv::Mat> src(numImages);
+        for (int i = 0; i < numImages; i++)
+            src[i] = cv::imread(paths[i]);
+
+        std::vector<PhotoParam> params;
+        loadPhotoParamFromXML("F:\\panoimage\\919\\4356.xml", params);
+
+        std::vector<cv::Mat> maps, masks;
+        getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+        std::vector<cv::Mat> images;
+        reprojectParallel(src, images, maps);
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::imshow("image", images[i]);
+            cv::waitKey(0);
+        }
+
+        return 0;
+    }
+
     /*{
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\vrdloffice\\image0.bmp");
@@ -101,6 +128,9 @@ int main()
         //rotatePhotoParamInXML("F:\\panoimage\\circular\\param.xml", "F:\\panoimage\\circular\\new.xml", 1.57, 0.0, 0.0);
         //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
         exportPhotoParamToXML("a.xml", params);
+
+        std::vector<PhotoParam> newParams;
+        loadPhotoParamFromXML("a.xml", newParams);
 
         cv::Size srcSize = src[0].size();
         Remap remap, remapInverse;
@@ -314,13 +344,13 @@ int main()
     {
         cv::Size srcSize = cv::Size(1440, 1080);
 
-        PhotoParam param;
-        loadPhotoParamFromXML("F:\\panovideo\\detu\\param.xml", param);
-        rotateCamera(param, 0, 3.14 / 2, 0);
+        std::vector<PhotoParam> params;
+        loadPhotoParamFromXML("F:\\panovideo\\detu\\param.xml", params);
+        rotateCamera(params[0], 0, 3.14 / 2, 0);
 
         cv::Mat dstMask;
         cv::Mat dstSrcMap;
-        getReprojectMapAndMask(param, srcSize, dstSize, dstSrcMap, dstMask);
+        getReprojectMapAndMask(params[0], srcSize, dstSize, dstSrcMap, dstMask);
 
         cv::Mat origImage = cv::imread("F:\\panovideo\\detu\\aab.png");
         cv::Mat src;
@@ -338,9 +368,12 @@ int main()
         cv::Size srcSizeLeft = cv::Size(960, 1080);
         cv::Size srcSizeRight = cv::Size(960, 1080);
 
+        std::vector<PhotoParam> params1, params2;
         PhotoParam paramLeft, paramRight;
-        loadPhotoParamFromXML("F:\\panovideo\\ricoh\\5builtinleft.xml", paramLeft);
-        loadPhotoParamFromXML("F:\\panovideo\\ricoh\\5builtinright.xml", paramRight);
+        loadPhotoParamFromXML("F:\\panovideo\\ricoh\\5builtinleft.xml", params1);
+        loadPhotoParamFromXML("F:\\panovideo\\ricoh\\5builtinright.xml", params2);
+        paramLeft = params1[0];
+        paramRight = params2[0];
 
         cv::Mat dstMaskLeft, dstMaskRight;
         cv::Mat dstSrcMapLeft, dstSrcMapRight;

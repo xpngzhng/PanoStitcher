@@ -458,11 +458,11 @@ bool DetuPanoramaRender::prepare(const std::string& path_, const cv::Size& srcSi
     srcSize = srcSize_;
     dstSize = dstSize_;
 
-    PhotoParam param;
-    loadPhotoParamFromXML(path_, param);
+    std::vector<PhotoParam> params;
+    loadPhotoParamFromXML(path_, params);
 
     cv::Mat mask;
-    getReprojectMapAndMask(param, srcSize, dstSize, dstSrcMap, mask);
+    getReprojectMapAndMask(params[0], srcSize, dstSize, dstSrcMap, mask);
 
     success = 1;
     return true;

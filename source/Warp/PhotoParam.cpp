@@ -5,252 +5,15 @@
 #include <fstream>
 #include <sstream>
 
+PhotoParam::PhotoParam()
+{
+    memset(this, 0, sizeof(PhotoParam));
+}
+
 using ticpp::Element;
 using ticpp::Document;
 
-void loadPhotoParamFromXML(const std::string& fileName, PhotoParam& param)
-{
-    memset(&param, 0, sizeof(PhotoParam));
-
-    Document doc;
-    try
-    {
-        doc.LoadFile(fileName);
-    }
-    catch (...)
-    {
-        return;
-    }
-
-    bool findRectPosInRoot = false;
-
-    Element* pRoot = doc.FirstChildElement("Root", false);
-    if (pRoot == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-
-    float nTemp;
-    Element* pGlobalInfo = pRoot->FirstChildElement("GlobalInfo", false);
-    if (pGlobalInfo == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-
-    Element* pEle = NULL;
-    pEle = pGlobalInfo->FirstChildElement("IMAGETYPE", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.imageType = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("CROPMODE", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.cropMode = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("HFOV", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.hfov = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("VFOV", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.vfov = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("CROPLEFT", false);
-    if (pEle)
-    {
-        findRectPosInRoot = true;
-        pEle->GetText(&nTemp);
-        param.cropX = nTemp;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPRIGHT", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropWidth = nTemp - param.cropX;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPTOP", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropY = nTemp;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPBOTTOM", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropHeight = nTemp - param.cropY;
-    }
-
-    pEle = pGlobalInfo->FirstChildElement("Alpha", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.alpha = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("Beta", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.beta = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("Gamma", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.gamma = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("ShiftX", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.shiftX = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("ShiftY", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.shiftY = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("ShearX", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.shearX = nTemp;
-
-    pEle = pGlobalInfo->FirstChildElement("ShearY", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.shearY = nTemp;
-
-    pEle = pRoot->FirstChildElement("POSITION", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-
-    ticpp::Iterator<ticpp::Element> child(pEle, "POSITION");
-
-    if (!findRectPosInRoot)
-    {
-        pEle = pGlobalInfo->FirstChildElement("CROPLEFT", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropX = nTemp;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPRIGHT", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropWidth = nTemp - param.cropX;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPTOP", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropY = nTemp;
-
-        pEle = pGlobalInfo->FirstChildElement("CROPBOTTOM", false);
-        if (pEle == NULL)
-        {
-            memset(&param, 0, sizeof(PhotoParam));
-            return;
-        }
-        pEle->GetText(&nTemp);
-        param.cropHeight = nTemp - param.cropY;
-    }
-
-    pEle = child->FirstChildElement("YAW", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.yaw = nTemp;
-
-    pEle = child->FirstChildElement("PITCH", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.pitch = nTemp;
-
-    pEle = child->FirstChildElement("ROLL", false);
-    if (pEle == NULL)
-    {
-        memset(&param, 0, sizeof(PhotoParam));
-        return;
-    }
-    pEle->GetText(&nTemp);
-    param.roll = nTemp;
-}
-
-void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>& params)
+static bool loadPhotoParamFromXML1(const std::string& fileName, std::vector<PhotoParam>& params)
 {
     params.clear();
 
@@ -261,14 +24,14 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
     }
     catch (...)
     {
-        return;
+        return false;
     }
 
     Element* pFirstRoot = doc.FirstChildElement("Root", false);
     if (pFirstRoot == NULL)
     {
         params.clear();
-        return;
+        return false;
     }
 
     for (ticpp::Iterator<ticpp::Element> pRoot(pFirstRoot, "Root"); pRoot != pRoot.end(); ++pRoot)
@@ -277,13 +40,13 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         memset(&param, 0, sizeof(PhotoParam));
 
         bool findRectPosInRoot = false;
-        float nTemp;
+        double nTemp;
 
         const Element* pGlobalInfo = pRoot->FirstChildElement("GlobalInfo", false);
         if (pGlobalInfo == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
 
         Element* pEle = NULL;
@@ -291,7 +54,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.imageType = nTemp;
@@ -300,7 +63,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.cropMode = nTemp;
@@ -309,7 +72,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.hfov = nTemp;
@@ -318,7 +81,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.vfov = nTemp;
@@ -334,7 +97,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.cropWidth = nTemp - param.cropX;
@@ -343,7 +106,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.cropY = nTemp;
@@ -352,7 +115,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.cropHeight = nTemp - param.cropY;
@@ -362,7 +125,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.alpha = nTemp;
@@ -371,7 +134,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.beta = nTemp;
@@ -380,7 +143,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.gamma = nTemp;
@@ -389,7 +152,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.shiftX = nTemp;
@@ -398,7 +161,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.shiftY = nTemp;
@@ -407,7 +170,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.shearX = nTemp;
@@ -416,7 +179,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pEle == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
         pEle->GetText(&nTemp);
         param.shearY = nTemp;
@@ -426,7 +189,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
         if (pPos == NULL && pVideo == NULL)
         {
             params.clear();
-            return;
+            return false;
         }
 
         for (ticpp::Iterator<ticpp::Element> child(pPos ? pPos : pVideo, pPos ? "POSITION" : "VIDEO"); child != child.end(); child++)
@@ -439,7 +202,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
                 if (pEle == NULL)
                 {
                     params.clear();
-                    return;
+                    return false;
                 }
                 pEle->GetText(&nTemp);
                 param.cropX = nTemp;
@@ -448,7 +211,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
                 if (pEle == NULL)
                 {
                     params.clear();
-                    return;
+                    return false;
                 }
                 pEle->GetText(&nTemp);
                 param.cropWidth = nTemp - param.cropX;
@@ -457,7 +220,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
                 if (pEle == NULL)
                 {
                     params.clear();
-                    return;
+                    return false;
                 }
                 pEle->GetText(&nTemp);
                 param.cropY = nTemp;
@@ -466,7 +229,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
                 if (pEle == NULL)
                 {
                     params.clear();
-                    return;
+                    return false;
                 }
                 pEle->GetText(&nTemp);
                 param.cropHeight = nTemp - param.cropY;
@@ -476,7 +239,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.yaw = nTemp;
@@ -485,7 +248,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.pitch = nTemp;
@@ -494,7 +257,7 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             if (pEle == NULL)
             {
                 params.clear();
-                return;
+                return false;
             }
             pEle->GetText(&nTemp);
             param.roll = nTemp;
@@ -502,6 +265,248 @@ void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>&
             params.push_back(param);
         }
     }
+
+    return true;
+}
+
+static bool loadPhotoParamFromXML2(const std::string& fileName, std::vector<PhotoParam>& params)
+{
+    params.clear();
+
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* pRoot = doc.FirstChildElement("Root", false);
+    if (pRoot == NULL)
+    {
+        params.clear();
+        return false;
+    }
+
+    Element* pPos = pRoot->FirstChildElement("POSITION", false);
+    Element* pVideo = pRoot->FirstChildElement("VIDEO", false);
+    if (pPos == NULL && pVideo == NULL)
+    {
+        params.clear();
+        return false;
+    }
+
+    for (ticpp::Iterator<ticpp::Element> child(pPos ? pPos : pVideo, pPos ? "POSITION" : "VIDEO"); child != child.end(); child++)
+    {
+        const Element* pEle = NULL;
+
+        PhotoParam param;
+        memset(&param, 0, sizeof(PhotoParam));
+
+        double nTemp;
+
+        pEle = child->FirstChildElement("IMAGETYPE", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.imageType = nTemp;
+
+        pEle = child->FirstChildElement("CROPMODE", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.cropMode = nTemp;
+
+        pEle = child->FirstChildElement("HFOV", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.hfov = nTemp;
+
+        pEle = child->FirstChildElement("VFOV", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.vfov = nTemp;
+
+        pEle = child->FirstChildElement("Alpha", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.alpha = nTemp;
+
+        pEle = child->FirstChildElement("Beta", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.beta = nTemp;
+
+        pEle = child->FirstChildElement("Gamma", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.gamma = nTemp;
+
+        pEle = child->FirstChildElement("ShiftX", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.shiftX = nTemp;
+
+        pEle = child->FirstChildElement("ShiftY", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.shiftY = nTemp;
+
+        pEle = child->FirstChildElement("ShearX", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.shearX = nTemp;
+
+        pEle = child->FirstChildElement("ShearY", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.shearY = nTemp;
+
+        pEle = child->FirstChildElement("CROPLEFT", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.cropX = nTemp;
+
+        pEle = child->FirstChildElement("CROPRIGHT", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.cropWidth = nTemp - param.cropX;
+
+        pEle = child->FirstChildElement("CROPTOP", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.cropY = nTemp;
+
+        pEle = child->FirstChildElement("CROPBOTTOM", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.cropHeight = nTemp - param.cropY;
+
+        pEle = child->FirstChildElement("CircleX", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.circleX = nTemp;
+
+        pEle = child->FirstChildElement("CircleY", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.circleY = nTemp;
+
+        pEle = child->FirstChildElement("CircleR", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.circleR = nTemp;
+
+        pEle = child->FirstChildElement("YAW", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.yaw = nTemp;
+
+        pEle = child->FirstChildElement("PITCH", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.pitch = nTemp;
+
+        pEle = child->FirstChildElement("ROLL", false);
+        if (pEle == NULL)
+        {
+            params.clear();
+            return false;
+        }
+        pEle->GetText(&nTemp);
+        param.roll = nTemp;
+
+        params.push_back(param);
+    }
+
+    return true;
+}
+
+void loadPhotoParamFromXML(const std::string& fileName, std::vector<PhotoParam>& params)
+{
+    if (loadPhotoParamFromXML2(fileName, params))
+        return;
+    loadPhotoParamFromXML1(fileName, params);
 }
 
 inline bool isInfoLine(const std::string& line)
@@ -769,91 +774,78 @@ void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoP
     Element* pElement = new Element("Root");
     doc.LinkEndChild(pElement);
 
-    Element* pGlobalInfo = new Element("GlobalInfo");
-
-    Element* pEle = NULL;
-    pEle = new Element("IMAGETYPE");
-    pEle->SetText(params[0].imageType);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-    pEle = NULL;
-    pEle = new Element("CROPMODE");
-    pEle->SetText(params[0].cropMode);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-    pEle = NULL;
-    pEle = new Element("HFOV");
-    pEle->SetText(params[0].hfov);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-    pEle = NULL;
-    pEle = new Element("VFOV");
-    pEle->SetText(params[0].vfov);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("Alpha");
-    pEle->SetText(params[0].alpha);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("Beta");
-    pEle->SetText(params[0].beta);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("Gamma");
-    pEle->SetText(params[0].gamma);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("ShiftX");
-    pEle->SetText(params[0].shiftX);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("ShiftY");
-    pEle->SetText(params[0].shiftY);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("ShearX");
-    pEle->SetText(params[0].shearX);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pEle = new Element("ShearY");
-    pEle->SetText(params[0].shearY);
-    pGlobalInfo->LinkEndChild(pEle);
-    if (pEle)
-        delete pEle;
-
-    pEle = NULL;
-    pElement->LinkEndChild(pGlobalInfo);
-    if (pGlobalInfo)
-        delete pGlobalInfo;
-    pGlobalInfo = NULL;
-
     for (int i = 0; i < params.size(); ++i)
     {
         Element* pPoisitionInfo = new Element("POSITION");
+
+        Element* pEle = NULL;
+        pEle = new Element("IMAGETYPE");
+        pEle->SetText(params[0].imageType);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("CROPMODE");
+        pEle->SetText(params[0].cropMode);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("HFOV");
+        pEle->SetText(params[0].hfov);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("VFOV");
+        pEle->SetText(params[0].vfov);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+
+        pEle = NULL;
+        pEle = new Element("Alpha");
+        pEle->SetText(params[0].alpha);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("Beta");
+        pEle->SetText(params[0].beta);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("Gamma");
+        pEle->SetText(params[0].gamma);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+
+        pEle = NULL;
+        pEle = new Element("ShiftX");
+        pEle->SetText(params[0].shiftX);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("ShiftY");
+        pEle->SetText(params[0].shiftY);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("ShearX");
+        pEle->SetText(params[0].shearX);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("ShearY");
+        pEle->SetText(params[0].shearY);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
 
         pEle = NULL;
         pEle = new Element("CROPLEFT");
@@ -882,7 +874,26 @@ void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoP
         if (pEle)
             delete pEle;
 
-        Element* pEle = NULL;
+        pEle = NULL;
+        pEle = new Element("CircleX");
+        pEle->SetText(params[i].circleX);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("CircleY");
+        pEle->SetText(params[i].circleY);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+        pEle = NULL;
+        pEle = new Element("CircleR");
+        pEle->SetText(params[i].circleR);
+        pPoisitionInfo->LinkEndChild(pEle);
+        if (pEle)
+            delete pEle;
+
+        pEle = NULL;
         pEle = new Element("YAW");
         pEle->SetText(params[i].yaw);
         pPoisitionInfo->LinkEndChild(pEle);
@@ -900,6 +911,7 @@ void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoP
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
+
         pEle = NULL;
         pElement->LinkEndChild(pPoisitionInfo);
         if (pPoisitionInfo)

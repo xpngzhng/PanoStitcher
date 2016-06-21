@@ -149,11 +149,21 @@ void getReprojectMapAndMask(const PhotoParam& param,
         map.create(dstHeight, dstWidth, CV_64FC2);
         mask.create(dstHeight, dstWidth, CV_8UC1);
         mask.setTo(0);
-        double centx = param.cropX + param.cropWidth / 2;
-        double centy = param.cropY + param.cropHeight / 2;
-        double sqrDist = param.cropWidth > param.cropHeight ? 
-            param.cropWidth * param.cropWidth * 0.25 :
-            param.cropHeight * param.cropHeight * 0.25;
+        double centx, centy, sqrDist;
+        if (param.circleR > 0)
+        {
+            centx = param.circleX;
+            centy = param.circleY;
+            sqrDist = param.circleR * param.circleR;
+        }
+        else
+        {
+            centx = param.cropX + param.cropWidth / 2;
+            centy = param.cropY + param.cropHeight / 2;
+            sqrDist = param.cropWidth > param.cropHeight ?
+                param.cropWidth * param.cropWidth * 0.25 :
+                param.cropHeight * param.cropHeight * 0.25;
+        }
         for (int h = 0; h < dstHeight; h++)
         {
             cv::Point2d* ptrMap = map.ptr<cv::Point2d>(h);
@@ -324,11 +334,21 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
         mask.create(dstSize, CV_8UC1);
         mask.setTo(0);
 
-        double centx = param.cropX + param.cropWidth / 2;
-        double centy = param.cropY + param.cropHeight / 2;
-        double sqrDist = param.cropWidth > param.cropHeight ?
-            param.cropWidth * param.cropWidth * 0.25 :
-            param.cropHeight * param.cropHeight * 0.25;
+        double centx, centy, sqrDist;
+        if (param.circleR > 0)
+        {
+            centx = param.circleX;
+            centy = param.circleY;
+            sqrDist = param.circleR * param.circleR;
+        }
+        else
+        {
+            centx = param.cropX + param.cropWidth / 2;
+            centy = param.cropY + param.cropHeight / 2;
+            sqrDist = param.cropWidth > param.cropHeight ?
+                param.cropWidth * param.cropWidth * 0.25 :
+                param.cropHeight * param.cropHeight * 0.25;
+        }
         int srcWidth = src.cols;
         int srcHeight = src.rows;
         int srcStep = src.step;
