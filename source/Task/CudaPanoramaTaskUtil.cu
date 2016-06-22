@@ -1,6 +1,7 @@
 #include "CudaUtil.cuh"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/core/cuda/common.hpp"
+#include "opencv2/core/cuda_stream_accessor.hpp"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "device_functions.h"
@@ -120,7 +121,8 @@ __global__ void cvtBGR32ToNV12(const unsigned char* bgrData, int bgrStep,
     }
 }
 
-void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& u, cv::cuda::GpuMat& v)
+void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& u, cv::cuda::GpuMat& v,
+    cv::cuda::Stream& stream)
 {
     CV_Assert(bgr32.data && bgr32.type() == CV_8UC4 && ((bgr32.rows & 1) == 0) && ((bgr32.cols & 1) == 0));
     int rows = bgr32.rows, cols = bgr32.cols;
@@ -129,11 +131,18 @@ void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::c
     v.create(rows / 2, cols / 2, CV_8UC1);
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(u.cols, block.x), cv::cuda::device::divUp(u.rows, block.y));
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    if (st)
+    {
+        cvtBGR32ToYUV420P<<<grid, block, 0, st>>>(bgr32.data, bgr32.step, y.data, y.step, u.data, u.step, v.data, v.step, rows, cols);
+        return;
+    }
     cvtBGR32ToYUV420P<<<grid, block>>>(bgr32.data, bgr32.step, y.data, y.step, u.data, u.step, v.data, v.step, rows, cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& uv)
+void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& uv,
+    cv::cuda::Stream& stream)
 {
     CV_Assert(bgr32.data && bgr32.type() == CV_8UC4 && ((bgr32.rows & 1) == 0) && ((bgr32.cols & 1) == 0));
     int rows = bgr32.rows, cols = bgr32.cols;
@@ -141,6 +150,12 @@ void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda
     uv.create(rows / 2, cols , CV_8UC1);
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(uv.cols / 2, block.x), cv::cuda::device::divUp(uv.rows, block.y));
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    if (st)
+    {
+        cvtBGR32ToNV12<<<grid, block, 0, st>>>(bgr32.data, bgr32.step, y.data, y.step, uv.data, uv.step, rows, cols);
+        return;
+    }
     cvtBGR32ToNV12<<<grid, block>>>(bgr32.data, bgr32.step, y.data, y.step, uv.data, uv.step, rows, cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }
@@ -204,7 +219,8 @@ __global__ void cvtNV12ToBGR32(const unsigned char* yData, int yStep, const unsi
     }
 }
 
-void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, const cv::cuda::GpuMat& v, cv::cuda::GpuMat& bgr32)
+void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, const cv::cuda::GpuMat& v, cv::cuda::GpuMat& bgr32,
+    cv::cuda::Stream& stream)
 {
     CV_Assert(y.data && y.type() == CV_8UC1 && u.data && u.type() == CV_8UC1 &&
         v.data && v.type() == CV_8UC1 && y.rows == u.rows * 2 && y.cols == u.cols * 2 &&
@@ -212,17 +228,30 @@ void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, con
     bgr32.create(y.size(), CV_8UC4);
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(u.cols, block.x), cv::cuda::device::divUp(u.rows, block.y));
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    if (st)
+    {
+        cvtYUV420PToBGR32<<<grid, block, 0, st>>>(y.data, y.step, u.data, u.step, v.data, v.step, bgr32.data, bgr32.step, y.rows, y.cols);
+        return;
+    }
     cvtYUV420PToBGR32<<<grid, block>>>(y.data, y.step, u.data, u.step, v.data, v.step, bgr32.data, bgr32.step, y.rows, y.cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }
 
-void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32)
+void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32,
+    cv::cuda::Stream& stream)
 {
     CV_Assert(y.data && y.type() == CV_8UC1 && uv.data && uv.type() == CV_8UC1 &&
         y.rows == uv.rows * 2 && y.cols == uv.cols);
     bgr32.create(y.size(), CV_8UC4);
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(uv.cols / 2, block.x), cv::cuda::device::divUp(uv.rows, block.y));
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    if (st)
+    {
+        cvtNV12ToBGR32<<<grid, block, 0, st>>>(y.data, y.step, uv.data, uv.step, bgr32.data, bgr32.step, y.rows, y.cols);
+        return;
+    }
     cvtNV12ToBGR32<<<grid, block>>>(y.data, y.step, uv.data, uv.step, bgr32.data, bgr32.step, y.rows, y.cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }

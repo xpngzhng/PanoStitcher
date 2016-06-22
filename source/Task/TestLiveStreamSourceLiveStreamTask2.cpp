@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    cv::Size sz(4096, 2048);
+    cv::Size sz(1024, 512);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
     cameraParamPath = parser.get<std::string>("camera_param_path");

@@ -76,7 +76,7 @@ int globalFinish = 0;
 
 ForShowFrameVectorQueue syncedFramesBufferForShow;
 BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
-ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
+ForceWaitMixedFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 //FFmpegAudioVideoSource* ptrSource;
 JuJingAudioVideoSource* ptrSource;
 
@@ -85,7 +85,7 @@ void ShowThread()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
-    std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<avp::AudioVideoFrame2> frames;
     std::vector<cv::Mat> images(numVideos);
     while (true)
     {
@@ -106,7 +106,7 @@ void ShowThread()
             for (int i = 0; i < numVideos; i++)
             {
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
-                    frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data, frames[i].step);
+                    frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data[0], frames[i].steps[0]);
             }
             showTiledImages.show("src images", images);
             int key = cv::waitKey(waitTime / 2);
@@ -134,10 +134,10 @@ int main()
     //showTiledImages.init(1920, 1080, vds.size());
 
     std::vector<std::string> urls;
-    urls.push_back("192.168.1.204");
-    urls.push_back("192.168.1.205");
     urls.push_back("192.168.1.206");
     urls.push_back("192.168.1.207");
+    urls.push_back("192.168.1.209");
+    urls.push_back("192.168.1.210");
     ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
     ptrSource->open(urls);

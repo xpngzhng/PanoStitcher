@@ -780,69 +780,69 @@ void exportPhotoParamToXML(const std::string& fileName, const std::vector<PhotoP
 
         Element* pEle = NULL;
         pEle = new Element("IMAGETYPE");
-        pEle->SetText(params[0].imageType);
+        pEle->SetText(params[i].imageType);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("CROPMODE");
-        pEle->SetText(params[0].cropMode);
+        pEle->SetText(params[i].cropMode);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("HFOV");
-        pEle->SetText(params[0].hfov);
+        pEle->SetText(params[i].hfov);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("VFOV");
-        pEle->SetText(params[0].vfov);
+        pEle->SetText(params[i].vfov);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
 
         pEle = NULL;
         pEle = new Element("Alpha");
-        pEle->SetText(params[0].alpha);
+        pEle->SetText(params[i].alpha);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("Beta");
-        pEle->SetText(params[0].beta);
+        pEle->SetText(params[i].beta);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("Gamma");
-        pEle->SetText(params[0].gamma);
+        pEle->SetText(params[i].gamma);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
 
         pEle = NULL;
         pEle = new Element("ShiftX");
-        pEle->SetText(params[0].shiftX);
+        pEle->SetText(params[i].shiftX);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("ShiftY");
-        pEle->SetText(params[0].shiftY);
+        pEle->SetText(params[i].shiftY);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("ShearX");
-        pEle->SetText(params[0].shearX);
+        pEle->SetText(params[i].shearX);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;
         pEle = NULL;
         pEle = new Element("ShearY");
-        pEle->SetText(params[0].shearY);
+        pEle->SetText(params[i].shearY);
         pPoisitionInfo->LinkEndChild(pEle);
         if (pEle)
             delete pEle;

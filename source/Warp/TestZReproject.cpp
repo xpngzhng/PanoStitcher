@@ -19,7 +19,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main()
+int main1()
 {
     //{
     //    cv::Mat sphere = cv::imread("F:\\panoimage\\detuoffice\\blendmultiband.bmp");
@@ -42,9 +42,12 @@ int main()
     //    std::vector<PhotoParam> params;
     //    loadPhotoParamFromXML("left.xml", params);
     //}
+    return 0;
+}
 
     cv::Size dstSize = cv::Size(2048, 1024);
 
+    int main2()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
@@ -58,6 +61,7 @@ int main()
             src[i] = cv::imread(paths[i]);
 
         std::vector<PhotoParam> params;
+        loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
         loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl1.xml", params);
 
         std::vector<cv::Mat> maps, masks;
@@ -112,6 +116,7 @@ int main()
     }
     return 0;*/
 
+    int main()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\circular\\park1.JPG");
@@ -134,6 +139,8 @@ int main()
 
         std::vector<PhotoParam> newParams;
         loadPhotoParamFromXML("a.xml", newParams);
+
+        rotatePhotoParamInXML("a.xml", "b.xml", 0.1, 0.1, 0.1);
 
         cv::Size srcSize = src[0].size();
         Remap remap, remapInverse;
@@ -174,9 +181,10 @@ int main()
         //    cv::imshow("dst", dst[i]);
         //    cv::waitKey(0);
         //}
+        return 0;
     }
-    return 0;
-
+    
+    int main4()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\outdoor\\1.MOV.tif");
@@ -211,8 +219,9 @@ int main()
             cv::imshow("dst", dst[i]);
             cv::waitKey(0);
         }
+        return 0;
     }
-    return 0;
+    
 
     //{
     //    std::vector<PhotoParam> params;
@@ -251,6 +260,7 @@ int main()
     //}
     //return 0;
 
+    int main5()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
@@ -294,10 +304,11 @@ int main()
         //    cv::imshow("dst", dst[i]);
         //    cv::waitKey(0);
         //}
+        return 0;
     }
 
-    return 0;
-
+    
+    int main6()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
@@ -340,10 +351,11 @@ int main()
         //    cv::imshow("dst", dst[i]);
         //    cv::waitKey(0);
         //}
+        return 0;
     }
 
-    return 0;
-
+    
+    int main7()
     {
         cv::Size srcSize = cv::Size(1440, 1080);
 
@@ -363,10 +375,12 @@ int main()
         reproject(src, dst, dstSrcMap);
         cv::imshow("dst", dst);
         cv::waitKey(0);
+        return 0;
     }
 
     //return 0;
 
+    void main8()
     {
         cv::Size srcSizeLeft = cv::Size(960, 1080);
         cv::Size srcSizeRight = cv::Size(960, 1080);
@@ -396,6 +410,7 @@ int main()
         cv::waitKey(0);
     }
 
+    void main9()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -434,4 +449,4 @@ int main()
             cv::waitKey(0);
         }
     }
-}
+//}
