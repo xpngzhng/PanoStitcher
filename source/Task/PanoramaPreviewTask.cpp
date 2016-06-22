@@ -79,7 +79,7 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
     bool ok = false;
     int validFrameCount;
     int audioIndex;
-    ok = prepareSrcVideos(srcVideoFiles, true, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR24, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -699,7 +699,7 @@ bool CudaPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVide
     bool ok = false;
     int validFrameCount;
     int audioIndex;
-    ok = prepareSrcVideos(srcVideoFiles, false, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);

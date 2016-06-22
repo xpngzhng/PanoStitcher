@@ -5,7 +5,7 @@
 #include "opencv2/highgui.hpp"
 #include <stdarg.h>
 
-bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24, const std::vector<int>& offsets,
+bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader3>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)
 {
     readers.clear();
@@ -34,17 +34,17 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, bool bgr24,
     {
         if (i == tryAudioIndex)
         {
-            ok = readers[i].open(srcVideoFiles[i], true, avp::SampleTypeUnknown, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+            ok = readers[i].open(srcVideoFiles[i], true, avp::SampleTypeUnknown, true, pixelType);
             if (ok)
                 audioIndex = tryAudioIndex;
             else
             {
-                ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+                ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
                 audioIndex = -1;
             }
         }
         else
-            ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, bgr24 ? avp::PixelTypeBGR24 : avp::PixelTypeBGR32);
+            ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
         if (!ok)
             break;
 

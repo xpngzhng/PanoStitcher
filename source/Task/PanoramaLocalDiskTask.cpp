@@ -103,7 +103,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     dstSize.height = dstHeight;
 
     bool ok = false;
-    ok = prepareSrcVideos(srcVideoFiles, true, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR24, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
@@ -572,7 +572,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     dstSize.height = dstHeight;
 
     bool ok = false;
-    ok = prepareSrcVideos(srcVideoFiles, false, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
+    ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
