@@ -128,7 +128,10 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
 bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not reset\n", __FUNCTION__);
         return false;
+    }
 
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
@@ -161,10 +164,17 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
 bool CPUPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not seek\n", __FUNCTION__);
         return false;
+    }
 
     if (timeStamps.size() != numVideos)
+    {
+        ptlprintf("Error in %s, timeStamps.size() = %d, require %d, unmatched, could not seek\n", 
+            __FUNCTION__, timeStamps.size(), numVideos);
         return false;
+    }
 
     bool ok = true;
     for (int i = 0; i < numVideos; i++)
@@ -181,7 +191,10 @@ bool CPUPanoramaPreviewTask::Impl::seek(const std::vector<long long int>& timeSt
 bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
         return false;
+    }
 
     if (frameIncrement <= 0 || frameIncrement > 10)
         frameIncrement = 1;
@@ -208,7 +221,10 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
         timeStamps[i] = frames[i].timeStamp;
     }
     if (!ok)
+    {
+        ptlprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
         return false;
+    }
 
     reprojectParallel(images, reprojImages, dstSrcMaps);
 
@@ -234,10 +250,16 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
 bool CPUPanoramaPreviewTask::Impl::restitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
         return false;
+    }
 
     if (images.size() != numVideos)
+    {
+        ptlprintf("Error in %s, restitch can be called after stitch at least once\n", __FUNCTION__);
         return false;
+    }
 
     reprojectParallel(images, reprojImages, dstSrcMaps);
 
@@ -282,7 +304,10 @@ double CPUPanoramaPreviewTask::Impl::getVideoFrameRate() const
 bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not get masks\n", __FUNCTION__);
         return false;
+    }
 
     masks = dstMasks;
     return true;
@@ -291,7 +316,10 @@ bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
 bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks) const
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not get unique masks\n", __FUNCTION__);
         return false;
+    }
 
     blender.getUniqueMasks(masks);
     return masks.size() == numVideos;
@@ -300,13 +328,23 @@ bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks) c
 bool CPUPanoramaPreviewTask::Impl::getCurrReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps) const
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (images.empty() || frames.empty() || reprojImages.empty())
+    {
+        ptlprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
+            "This function can run correctly only after stitch has been call once\n", __FUNCTION__);
         return false;
+    }
 
     if (reprojImages.size() != numVideos)
+    {
+        ptlprintf("Error in %s, reprojImages.size() != numVideos\n", __FUNCTION__);
         return false;
+    }
 
     dst = reprojImages;
     timeStamps.resize(numVideos);
@@ -318,10 +356,17 @@ bool CPUPanoramaPreviewTask::Impl::getCurrReprojectForAll(std::vector<cv::Mat>& 
 bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (images.empty() || frames.empty() || reprojImages.empty())
+    {
+        ptlprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
+            "This function can run correctly only after stitch has been call once\n", __FUNCTION__);
         return false;
+    }
 
     reprojectParallel(images, reprojImages, dstSrcMaps);
 
@@ -349,7 +394,10 @@ bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, 
 bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Mat>& dst, std::vector<long long int>& timeStamps)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     frames.resize(numVideos);
     images.resize(numVideos);
@@ -366,7 +414,10 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
         timeStamps[i] = frames[i].timeStamp;
     }
     if (!ok)
+    {
+        ptlprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
         return false;
+    }
 
     reprojectParallel(images, reprojImages, dstSrcMaps);
     dst = reprojImages;
@@ -376,22 +427,31 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
 bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
 {
     if (!initSuccess)
-        return false;
-
-    if (index < 0 || index >= numVideos)
-        return false;
-
-    if (images.size() != numVideos)
-        return false;
-
-    for (int i = 0; i < numVideos; i++)
     {
-        if (!images[i].data || images[i].size() != srcSize)
-            return false;
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
     }
 
-    if (!readers[index].read(frames[index]))
+    if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
+    }
+
+    //if (images.size() != numVideos)
+    //    return false;
+
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    if (!images[i].data || images[i].size() != srcSize)
+    //        return false;
+    //}
+
+    if (!readers[index].read(frames[index]))
+    {
+        printf("Error in %s, could not read frames from video source indexed %d, perhaps went to the end\n", __FUNCTION__, index);
+        return false;
+    }
 
     images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data[0], frames[index].steps[0]);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
@@ -403,26 +463,38 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int index, cv::Mat
 bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat& image, long long int& timeStamp)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (index < 0 || index >= numVideos)
-        return false;
-
-    if (images.size() != numVideos)
-        return false;
-
-    for (int i = 0; i < numVideos; i++)
     {
-        if (!images[i].data || images[i].size() != srcSize)
-            return false;
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        return false;
     }
+
+    //if (images.size() != numVideos)
+    //    return false;
+
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    if (!images[i].data || images[i].size() != srcSize)
+    //        return false;
+    //}
 
     long long int timeIncUnit = 1000000 / readers[index].getVideoFrameRate() + 0.5;
     if (!readers[index].seek(frames[index].timeStamp - timeIncUnit, avp::VIDEO))
+    {
+        ptlprintf("Error in %s, could not seek to the prev frame in video source indexed %d\n", __FUNCTION__, index);
         return false;
+    }
 
     if (!readers[index].read(frames[index]))
+    {
+        ptlprintf("Error in %s, could not read frame in video source indexed %d\n", __FUNCTION__, index);
         return false;
+    }
 
     images[index] = cv::Mat(frames[index].height, frames[index].width, CV_8UC3, frames[index].data[0], frames[index].steps[0]);
     reprojectParallel(images[index], reprojImages[index], dstSrcMaps[index]);
@@ -434,10 +506,16 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int index, cv::Mat
 bool CPUPanoramaPreviewTask::Impl::setCustomMaskForOne(int index, long long int begInc, long long int endExc, const cv::Mat& mask)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
+    }
 
     return customMasks[index].addMask(begInc, endExc, mask);
 }
@@ -445,10 +523,16 @@ bool CPUPanoramaPreviewTask::Impl::setCustomMaskForOne(int index, long long int 
 void CPUPanoramaPreviewTask::Impl::eraseCustomMaskForOne(int index, long long int begInc, long long int endExc, long long int precision)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return;
+    }
 
     if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return;
+    }
 
     customMasks[index].clearMask(begInc, endExc, precision);
 }
@@ -456,10 +540,16 @@ void CPUPanoramaPreviewTask::Impl::eraseCustomMaskForOne(int index, long long in
 void CPUPanoramaPreviewTask::Impl::eraseAllMasksForOne(int index)
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return;
+    }
 
     if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return;
+    }
 
     customMasks[index].clearAllMasks();
 }
@@ -467,10 +557,16 @@ void CPUPanoramaPreviewTask::Impl::eraseAllMasksForOne(int index)
 bool CPUPanoramaPreviewTask::Impl::getCustomMaskIfHasOrUniqueMaskForOne(int index, long long int timeStamp, cv::Mat& mask) const
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
+    }
 
     if (!customMasks[index].getMask(timeStamp, mask))
         mask = dstUniqueMasks[index];
@@ -480,10 +576,16 @@ bool CPUPanoramaPreviewTask::Impl::getCustomMaskIfHasOrUniqueMaskForOne(int inde
 bool CPUPanoramaPreviewTask::Impl::getCustomMasksIfHaveOrUniqueMasksForAll(const std::vector<long long int>& timeStamps, std::vector<cv::Mat>& masks) const
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (timeStamps.size() != numVideos)
+    {
+        ptlprintf("Error in %s, timeStamps.size() = %d, required = %d, unmatch\n", __FUNCTION__, timeStamps.size(), numVideos);
         return false;
+    }
 
     masks.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
@@ -502,10 +604,16 @@ bool CPUPanoramaPreviewTask::Impl::getAllCustomMasksForOne(int index, std::vecto
     masks.clear();
 
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
+    }
 
     if (index < 0 || index >= numVideos)
+    {
+        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
+    }
 
     int size = customMasks[index].masks.size();
     begIncs.resize(size);

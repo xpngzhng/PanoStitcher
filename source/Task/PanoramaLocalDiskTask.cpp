@@ -192,7 +192,10 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 void CPUPanoramaLocalDiskTask::Impl::run()
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, could not run because init not success\n", __FUNCTION__);
         return;
+    }
 
     if (finish)
         return;
@@ -271,7 +274,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
                 if (custom)
                 {
-                    printf("custom masks\n");
+                    //printf("custom masks\n");
                     blender.blend(reprojImages, currMasks, blendImage);
                 }
                 else
@@ -328,7 +331,10 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 bool CPUPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
+    }
 
     if (finish)
         return false;
@@ -675,7 +681,10 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 bool CudaPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
+    }
 
     if (finish)
         return false;
