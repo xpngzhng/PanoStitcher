@@ -47,7 +47,7 @@ int main1()
 
     cv::Size dstSize = cv::Size(2048, 1024);
 
-    int main2()
+    int main()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
@@ -116,7 +116,7 @@ int main1()
     }
     return 0;*/
 
-    int main()
+    int main3()
     {
         std::vector<std::string> paths;
         paths.push_back("F:\\panoimage\\circular\\park1.JPG");

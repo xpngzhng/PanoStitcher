@@ -213,6 +213,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
         std::vector<cv::Mat> images(numVideos);
         bool ok = true;
         blendImage.create(dstSize, CV_8UC3);
+        int videoIndex = audioIndex >= 0 ? audioIndex : 0;
         while (true)
         {
             ok = true;
@@ -289,7 +290,8 @@ void CPUPanoramaLocalDiskTask::Impl::run()
             }
             unsigned char* data[4] = { blendImage.data, 0, 0, 0 };
             int steps[4] = { blendImage.step, 0, 0, 0 };
-            avp::AudioVideoFrame2 frame(data, steps, avp::PixelTypeBGR24, blendImage.cols, blendImage.rows, frames[0].timeStamp);
+            avp::AudioVideoFrame2 frame(data, steps, avp::PixelTypeBGR24, 
+                blendImage.cols, blendImage.rows, frames[videoIndex].timeStamp);
             ok = writer.write(frame);
             if (!ok)
             {

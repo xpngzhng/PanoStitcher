@@ -984,6 +984,11 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
+
+    ptrVideoFramePools.reset(new std::vector<AudioVideoFramePool>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrVideoFramePools)[i].initAsVideoFramePool(pixelType, videoFrameSize.width, videoFrameSize.height);
+
     ptrSyncedFramesBufferForShow->clear();
     if (forCuda)
         ((BoundedPinnedMemoryFrameQueue*)ptrSyncedFramesBufferForProc)->clear();
@@ -1213,9 +1218,10 @@ void JuJingAudioVideoSource::videoDecode(int index)
 
     RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
     ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
+    AudioVideoFramePool& pool = (*ptrVideoFramePools)[index];
     avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", pixelType);
     DataPacket pkt;
-    avp::AudioVideoFrame2 frame;
+    avp::AudioVideoFrame2 frame, copyFrame;
     bool ok;
     while (!videoEndFlag && !finish)
     {
@@ -1226,7 +1232,9 @@ void JuJingAudioVideoSource::videoDecode(int index)
             if (ok && frame.data[0])
             {
                 frame.timeStamp = pkt.pts;
-                frameQueue.push(frame.clone());
+                pool.get(copyFrame);
+                frame.copyTo(copyFrame);
+                frameQueue.push(copyFrame);
             }
         }
     }

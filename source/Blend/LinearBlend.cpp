@@ -153,6 +153,43 @@ void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std
     calcWeights32F(dists, weights);
 }
 
+static bool findExternContours(const cv::Mat& mask, std::vector<std::vector<cv::Point> >& contours)
+{
+    if (!mask.data || mask.type() != CV_8UC1)
+    {
+        contours.clear();
+        return false;
+    }
+
+    int rows = mask.rows, cols = mask.cols;
+    int pad = 4;
+    if (cv::countNonZero(mask.row(0)) || cv::countNonZero(mask.row(rows - 1)) ||
+        cv::countNonZero(mask.col(0)) || cv::countNonZero(mask.col(cols - 1)))
+    {
+        cv::Mat extendMask(rows + 2 * pad, cols + 2 * pad, CV_8UC1);
+        extendMask.setTo(0);
+        cv::Mat roi = extendMask(cv::Rect(pad, pad, cols, rows));
+        mask.copyTo(roi);
+        cv::findContours(extendMask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+        int numCountors = contours.size();
+        cv::Point offset(pad, pad);
+        for (int i = 0; i < numCountors; i++)
+        {
+            int len = contours[i].size();
+            for (int j = 0; j < len; j++)
+                contours[i][j] -= offset;
+        }
+    }
+    else
+    {
+        cv::Mat nonExtendMask;
+        mask.copyTo(nonExtendMask);
+        cv::findContours(nonExtendMask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+    }
+
+    return true;
+}
+
 static void accumulate(const cv::Mat& image, const cv::Mat& weight, cv::Mat& accumImage)
 {
     CV_Assert(image.data && image.type() == CV_8UC3 &&

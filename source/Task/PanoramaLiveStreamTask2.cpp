@@ -638,6 +638,10 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     stitchVideoFrameRate = r;
                 }
             }
+            printf("ts: ");
+            for (int i = 0; i < numVideos; i++)
+                printf("%lld ", timeStamps[i]);
+            printf("\n");
 
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
