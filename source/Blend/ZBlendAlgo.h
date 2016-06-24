@@ -256,10 +256,6 @@ void getUniqueMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& uni
 // Second, unions of unqieMasks[i] equals unions of masks[i].
 void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& nonIntersectingMasks);
 
-// This is a variant of getNonIntersectingMasks,
-// it also returns the distant transform results of original masks for future use
-void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& dists, std::vector<cv::Mat>& notIntMasks);
-
 // Blend two images using multiband blend.
 // image1 and image2 should be the same size, and type CV_8UC3.
 // alpha1 and alpha2 act as the alpha channels for image1 and image2, respectively.
@@ -301,8 +297,18 @@ void multibandBlendAnyMask(const std::vector<cv::Mat>& images, const std::vector
 // The resulting weights have integral type CV_32SC1
 void getWeightsLinearBlend(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
-// This is a variant of the above function except that the weight have floating type CV_32FC1
+// This is a variant of getWeightsLinearBlend except that the weight have floating point type CV_32FC1
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+
+int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
+    const std::vector<cv::Mat>& dists, int distBound);
+
+// This is an overloaded getWeightsLinearBlend without assigning radius.
+// This function internally computes the maximum valid radius and then compute weights.
+void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights);
+
+// This is a variant of getWeightsLinearBlend except that the weight have floating point type CV_32FC1
+void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights);
 
 // Blend two images using linear blend.
 // image1 and image2 should be the same size, and type CV_8UC3.

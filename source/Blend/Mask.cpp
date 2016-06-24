@@ -396,30 +396,3 @@ void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::
         mask |= notIntMasks[i];
     }
 }
-
-void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& dists, std::vector<cv::Mat>& notIntMasks)
-{
-    CV_Assert(checkType(masks, CV_8UC1) && checkSize(masks));
-
-    int numImages = masks.size();
-    notIntMasks.resize(numImages);
-    dists.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        masks[i].copyTo(notIntMasks[i]);
-    cv::Mat dist, currDist;
-    cv::distanceTransform(notIntMasks[0], dist, CV_DIST_L1, 3);
-    cv::Mat mask = notIntMasks[0].clone();
-    dist.copyTo(dists[0]);
-    for (int i = 1; i < numImages; i++)
-    {
-        cv::distanceTransform(mask, dist, CV_DIST_L1, 3);
-        cv::distanceTransform(notIntMasks[i], currDist, CV_DIST_L1, 3);
-        dist.copyTo(dists[i]);
-        notIntMasks[i] = currDist > dist;
-        //cv::imshow("curr mask", notIntMasks[i]);
-        //cv::waitKey(0);
-        for (int j = 0; j < i; j++)
-            notIntMasks[j].setTo(0, notIntMasks[i]);
-        mask |= notIntMasks[i];
-    }
-}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ZBlend.h"
+#include "ZReproject.h"
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
 #include "CustomMask.h"
@@ -194,11 +195,13 @@ public:
     ~CudaPanoramaRender2() { };
     bool prepare(const std::string& path, const std::string& customMaskPath,
         int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool exposureCorrect(const std::vector<cv::Mat>& images);
     bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps, cv::cuda::GpuMat& dst);
     void clear();
     int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
+    std::vector<PhotoParam> params;
     std::vector<cv::cuda::GpuMat> dstUniqueMasksGPU, currMasksGPU;
     int useCustomMasks;
     std::vector<CudaCustomIntervaledMasks> customMasks;
@@ -210,6 +213,7 @@ private:
     CudaTilingMultibandBlendFast mbBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;
     cv::cuda::GpuMat accumGPU;
+    std::vector<std::vector<unsigned char> > luts;
     int numImages;
     int success;
 };

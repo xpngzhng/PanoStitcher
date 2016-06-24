@@ -233,10 +233,28 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Could not prepare for video stitch\n");
+        ptlprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);
         appendLog("视频拼接初始化失败\n");
         syncErrorMessage = "视频拼接初始化失败。";
         return false;
+    }
+
+    if (!highQualityBlend)
+    {
+        std::vector<cv::cuda::HostMem> mems;
+        std::vector<long long int> timeStamps;
+        syncedFramesBufferForProc.pull(mems, timeStamps);
+        std::vector<cv::Mat> images(numVideos);
+        for (int i = 0; i < numVideos; i++)
+            images[i] = mems[i].createMatHeader();
+        renderPrepareSuccess = render.exposureCorrect(images);
+        if (!renderPrepareSuccess)
+        {
+            ptlprintf("Error in %s, exposure correction failed\n", __FUNCTION__);
+            appendLog("视频拼接初始化失败\n");
+            syncErrorMessage = "视频拼接初始化失败。";
+            return false;
+        }
     }
 
     if (render.getNumImages() != numVideos)
@@ -250,7 +268,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderPrepareSuccess = procFramePool.init(pixelType, width, height);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Could not init proc frame pool\n");
+        ptlprintf("Error in %s, could not init proc frame pool\n", __FUNCTION__);
         appendLog("视频拼接初始化失败\n");
         syncErrorMessage = "视频拼接初始化失败。";
         return false;
@@ -260,7 +278,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         renderPrepareSuccess = logoFilter.init(width, height);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Could not init logo filter\n");
+        ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
         appendLog("视频拼接初始化失败\n");
         syncErrorMessage = "视频拼接初始化失败。";
         return false;
@@ -638,10 +656,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     stitchVideoFrameRate = r;
                 }
             }
-            printf("ts: ");
-            for (int i = 0; i < numVideos; i++)
-                printf("%lld ", timeStamps[i]);
-            printf("\n");
 
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();

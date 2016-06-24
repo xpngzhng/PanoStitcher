@@ -1115,7 +1115,6 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
         return false;
     }
 
-    std::vector<PhotoParam> params;
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
@@ -1127,11 +1126,11 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
     srcSize = srcSize_;
     dstSize = dstSize_;
 
-    std::vector<cv::Mat> masks, dstSrcMaps;
+    std::vector<cv::Mat> masks, dstSrcMaps, dstSrcXMaps, dstSrcYMaps;
     try
     {
         numImages = params.size();
-        getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
+        getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
         if (highQualityBlend)
         {
             if (!mbBlender.prepare(masks, 20, 2))
@@ -1147,7 +1146,14 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
             accumGPU.create(dstSize, CV_32FC4);
         }
 
-        cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
+        dstSrcXMapsGPU.resize(numImages);
+        dstSrcYMapsGPU.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            dstSrcXMapsGPU[i].upload(dstSrcXMaps[i]);
+            dstSrcYMapsGPU[i].upload(dstSrcYMaps[i]);
+        }
+
         streams.resize(numImages);
     }
     catch (std::exception& e)
@@ -1186,6 +1192,77 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
     }
 
     success = 1;
+    return true;
+}
+
+bool CudaPanoramaRender2::exposureCorrect(const std::vector<cv::Mat>& images)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (highQualityBlend)
+    {
+        ptlprintf("Error in %s, this function only used for linear blend, not high quality blend\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != numImages)
+    {
+        ptlprintf("Error in %s, images.size %d, required %d, unmatch\n", images.size(), numImages);
+        return false;
+    }
+
+    luts.clear();
+
+    std::vector<cv::Mat> masks(numImages), imagesC3(numImages), reprojImagesC3(numImages);
+    for (int i = 0; i < numImages; i++)
+        cv::cvtColor(images[i], imagesC3[i], CV_BGRA2BGR);
+    reproject(imagesC3, reprojImagesC3, masks, params, dstSize);
+
+    MultibandBlendGainAdjust adjust;
+    bool ok = false;
+    ok = adjust.prepare(masks, 50);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, prepare for gain ajust failed\n", __FUNCTION__);
+        return false;
+    }
+    
+    ok = adjust.calcGain(reprojImagesC3, luts);
+    if (!ok)
+    {
+        luts.clear();
+        ptlprintf("Error in %s, calc gain failed\n", __FUNCTION__);
+        return false;
+    }
+
+    bool identity = true;
+    for (int i = 0; i < numImages; i++)
+    {
+        bool currIdentity = true;
+        for (int j = 0; j < 256; j++)
+        {
+            if (abs(int(luts[i][j]) - j) > 2)
+            {
+                currIdentity = false;
+                break;
+            }
+        }
+        if (!currIdentity)
+        {
+            identity = false;
+            break;
+        }
+    }
+    if (identity)
+    {
+        luts.clear();
+        ptlprintf("Info in %s, gain adjust produced almost identity transform, look up tables cleared\n");
+    }
+
     return true;
 }
 
@@ -1230,6 +1307,11 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
             reprojImagesGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 srcImagesGPU[i].upload(src[i], streams[i]);
+            if (!luts.empty())
+            {
+                for (int i = 0; i < numImages; i++)
+                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+            }
             for (int i = 0; i < numImages; i++)
                 cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
             for (int i = 0; i < numImages; i++)
@@ -1290,6 +1372,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
 
 void CudaPanoramaRender2::clear()
 {
+    params.clear();
     dstUniqueMasksGPU.clear();
     currMasksGPU.clear();
     useCustomMasks = 0;
@@ -1300,6 +1383,7 @@ void CudaPanoramaRender2::clear()
     reprojImagesGPU.clear();
     weightsGPU.clear();
     streams.clear();
+    luts.clear();
     highQualityBlend = 0;
     numImages = 0;
     success = 0;

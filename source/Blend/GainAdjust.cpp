@@ -9,6 +9,7 @@
 static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
     int numImages = masks.size();
+    /*
     std::vector<cv::Mat> uniqueMasks(numImages);
     getNonIntersectingMasks(masks, uniqueMasks);
 
@@ -38,6 +39,27 @@ static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std:
     extendedMasks.resize(numImages);
     for (int i = 0; i < numImages; i++)
         extendedMasks[i] = (blurMasks[i] != 0);
+        */
+    std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
+    getNonIntersectingMasks(masks, uniqueMasks);
+    for (int i = 0; i < numImages; i++)
+        cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
+
+    radius = getMaxRadius(masks, uniqueMasks, dists, radius);
+    if (radius <= 1)
+        radius = 1;
+    else
+        radius -= 1;
+    //printf("radius = %d\n", radius);
+    cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
+    double sigma = radius / 3.0;
+    extendedMasks.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::GaussianBlur(uniqueMasks[i], dists[i], blurSize, sigma, sigma);
+        cv::bitwise_and(dists[i], masks[i], dists[i]);
+        extendedMasks[i] = (dists[i] != 0);
+    }
 }
 
 static void getLineParam(const cv::Point& a, const cv::Point& b, cv::Point2d& p, cv::Point2d& dir)

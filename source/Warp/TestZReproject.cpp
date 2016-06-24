@@ -50,10 +50,10 @@ int main1()
     int main()
     {
         std::vector<std::string> paths;
-        paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -61,15 +61,15 @@ int main1()
             src[i] = cv::imread(paths[i]);
 
         std::vector<PhotoParam> params;
-        loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl1.xml", params);
+        //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl1(1).xml", params);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
         std::vector<cv::Mat> images;
-        //reprojectParallel(src, images, maps);
-        reproject(src, images, masks, params, dstSize);
+        reprojectParallel(src, images, maps);
+        //reproject(src, images, masks, params, dstSize);
         for (int i = 0; i < numImages; i++)
         {
             cv::imshow("image", images[i]);

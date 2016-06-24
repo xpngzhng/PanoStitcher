@@ -122,16 +122,6 @@ void showVideoSources()
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
                     frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data[0], frames[i].steps[0]);
             }
-            prevCount++;
-            if (prevCount == 200)
-            {
-                char buf[64];
-                for (int i = 0; i < numCameras; i++)
-                {
-                    sprintf(buf, "snapshot%d.bmp", i);
-                    cv::imwrite(buf, images[i]);
-                }                
-            }
             showTiledImages.show("src images", images);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
@@ -140,6 +130,15 @@ void showVideoSources()
             {
                 task.closeAll();
                 break;
+            }
+            else if (key == 's')
+            {
+                char buf[64];
+                for (int i = 0; i < numCameras; i++)
+                {
+                    sprintf(buf, "snapshot%d.bmp", i);
+                    cv::imwrite(buf, images[i]);
+                }
             }
         }
     }
@@ -269,6 +268,7 @@ int main(int argc, char* argv[])
     cv::Size sz(2048, 1024);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
+    //highQualityBlend = true;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
@@ -287,7 +287,7 @@ int main(int argc, char* argv[])
 
     streamURL = parser.get<std::string>("pano_stream_url");
     //streamURL = "rtsp://192.168.1.234/test.sdp";
-    //streamURL = "rtsp://127.0.0.1/test.sdp";
+    //streamURL = /*"rtsp://127.0.0.1/test.sdp"*/"rtmp://110.172.214.59:80/tslive/myStream";
     streamURL = "null";
     if (streamURL.size() && streamURL != "null")
     {
@@ -315,7 +315,7 @@ int main(int argc, char* argv[])
             streamEncodePreset = "veryfast";
 
         streamFrameSize = sz;
-        streamBitRate = 4000000;
+        streamBitRate = 6000000;
         ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)

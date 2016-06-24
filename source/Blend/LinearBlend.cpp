@@ -190,6 +190,119 @@ static bool findExternContours(const cv::Mat& mask, std::vector<std::vector<cv::
     return true;
 }
 
+int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks, 
+    const std::vector<cv::Mat>& dists, int distBound)
+{
+    if (!checkSize(masks) || !checkSize(uniqueMasks) || !checkSize(dists) ||
+        !checkType(masks, CV_8UC1) || !checkType(uniqueMasks, CV_8UC1) || !checkType(dists, CV_32FC1))
+        return -1;
+
+    int numImages = masks.size();
+    if (uniqueMasks.size() != numImages || dists.size() != numImages)
+        return -1;
+
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    cv::imshow("mask", masks[i]);
+    //    cv::imshow("umask", uniqueMasks[i]);
+    //    cv::imshow("diff", masks[i] - uniqueMasks[i]);
+    //    cv::waitKey(0);
+    //}
+
+    float maxRadius = std::max(masks[0].rows, masks[0].cols);
+    std::vector<std::vector<std::vector<cv::Point> > > contours(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        findExternContours(uniqueMasks[i], contours[i]);
+    }
+    int u;
+    for (u = distBound; u > 1; u -= 3)
+    {
+        bool success = true;
+        for (int i = 0; i < numImages; i++)
+        {
+            float currMaxRadius = 0;
+            int numContours = contours[i].size();
+            for (int j = 0; j < numContours; j++)
+            {
+                int numPts = contours[i][j].size();
+                for (int k = 0; k < numPts; k++)
+                {
+                    cv::Point p = contours[i][j][k];
+                    if (abs(p.x) + abs(p.y) > u && dists[i].at<float>(p) < u)
+                    {
+                        success = false;
+                        //printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f\n",
+                        //    i, j, k, p.x, p.y, dists[i].at<float>(p)); 
+                        break;
+                    }
+                }
+                if (!success)
+                    break;
+            }
+            if (!success)
+                break;
+        }
+        if (success)
+            break;
+    }
+    return u;
+}
+
+void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights)
+{
+    int numImages = masks.size();
+    std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
+    getNonIntersectingMasks(masks, uniqueMasks);
+    for (int i = 0; i < numImages; i++)
+        cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
+
+    int radius = getMaxRadius(masks, uniqueMasks, dists, maxRadius);
+    if (radius <= 1)
+        radius = 1;
+    else
+        radius -= 1;
+    //printf("radius = %d\n", radius);
+    cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
+    double sigma = radius / 3.0;
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::GaussianBlur(uniqueMasks[i], dists[i], blurSize, sigma, sigma);
+        cv::bitwise_and(dists[i], masks[i], dists[i]);
+        //cv::imshow("dist", dists[i]);
+        //cv::waitKey(0);
+    }
+
+    calcWeights(dists, weights);
+}
+
+void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights)
+{
+    int numImages = masks.size();
+    std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
+    getNonIntersectingMasks(masks, uniqueMasks);
+    for (int i = 0; i < numImages; i++)
+        cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
+
+    int radius = getMaxRadius(masks, uniqueMasks, dists, maxRadius);
+    if (radius <= 1)
+        radius = 1;
+    else
+        radius -= 1;
+    //printf("radius = %d\n", radius);
+    cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
+    double sigma = radius / 3.0;
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::GaussianBlur(uniqueMasks[i], dists[i], blurSize, sigma, sigma);
+        cv::bitwise_and(dists[i], masks[i], dists[i]);
+        //cv::imshow("dist", dists[i]);
+        //cv::waitKey(0);
+    }
+
+    calcWeights32F(dists, weights);
+}
+
 static void accumulate(const cv::Mat& image, const cv::Mat& weight, cv::Mat& accumImage)
 {
     CV_Assert(image.data && image.type() == CV_8UC3 &&
