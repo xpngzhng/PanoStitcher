@@ -9,37 +9,6 @@
 static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
     int numImages = masks.size();
-    /*
-    std::vector<cv::Mat> uniqueMasks(numImages);
-    getNonIntersectingMasks(masks, uniqueMasks);
-
-    std::vector<cv::Mat> compMasks(numImages);
-    for (int i = 0; i < numImages; i++)
-        cv::bitwise_not(masks[i], compMasks[i]);
-
-    std::vector<cv::Mat> blurMasks(numImages);
-    cv::Mat intersect;
-    int validCount, r;
-    for (r = radius; r > 0; r = r - 2)
-    {
-        cv::Size blurSize(r * 2 + 1, r * 2 + 1);
-        double sigma = r / 3.0;
-        validCount = 0;
-        for (int i = 0; i < numImages; i++)
-        {
-            cv::GaussianBlur(uniqueMasks[i], blurMasks[i], blurSize, sigma, sigma);
-            cv::bitwise_and(blurMasks[i], compMasks[i], intersect);
-            if (cv::countNonZero(intersect) == 0)
-                validCount++;
-        }
-        if (validCount == numImages)
-            break;
-    }
-
-    extendedMasks.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        extendedMasks[i] = (blurMasks[i] != 0);
-        */
     std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
     getNonIntersectingMasks(masks, uniqueMasks);
     for (int i = 0; i < numImages; i++)
@@ -401,6 +370,10 @@ bool MultibandBlendGainAdjust::prepare(const std::vector<cv::Mat>& masks, int ra
     blender.prepare(masks, 20, 2);
     getExtendedMasks(masks, radius, extendedMasks);
 
+    origMasks.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        origMasks[i] = masks[i].clone();
+
     luts.resize(numImages);
     for (int i = 0; i < numImages; i++)
     {
@@ -433,14 +406,24 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
 
     std::vector<double> kvals(numImages), hvals(numImages);
 
+    // 1
+    //cv::Mat mask(rows, cols, CV_8UC1), currMask(rows, cols, CV_8UC1);
     for (int k = 0; k < numImages; k++)
     {
         const cv::Mat& image = images[k];
         const cv::Mat& mask = extendedMasks[k];
+        
+        //1
+        //mask.setTo(0);
+        //for (int i = 0; i < numImages; i++)
+        //{
+        //    if (i == k) continue;
+        //    currMask = origMasks[k] & origMasks[i];
+        //    mask |= currMask;
+        //}
 
         int count = cv::countNonZero(mask);
         std::vector<cv::Point> valPairs(count);
-        int rows = mask.rows, cols = mask.cols;
         cv::Mat blendGray, imageGray;
         cv::cvtColor(blendImage, blendGray, CV_BGR2GRAY);
         cv::cvtColor(image, imageGray, CV_BGR2GRAY);

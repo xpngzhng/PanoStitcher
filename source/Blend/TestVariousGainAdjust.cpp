@@ -337,6 +337,7 @@ static void mulScale(cv::Mat& image, const cv::Mat& scale)
     }
 }
 
+// main1
 int main1()
 {
     std::vector<std::string> imagePaths;
@@ -911,6 +912,7 @@ void listErrors(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     calcErrorsParallel(images, masks, dists, intersects, infos);
 }
 
+// main2
 int main2()
 {
     //std::vector<std::string> imagePaths;
@@ -1241,6 +1243,7 @@ void rescaleImages2(const std::vector<cv::Mat>& srcs, const std::vector<cv::Mat>
         rescaleImage2(srcs[i], masks[i], dists[i], scales[i], dsts[i]);
 }
 
+// main3
 int main3()
 {
     std::vector<std::string> imagePaths;
@@ -1423,6 +1426,7 @@ static void iterativeGainAdjust(const std::vector<cv::Mat>& src, const std::vect
     cv::waitKey(0);
 }
 
+// main4
 int main4()
 {
     //std::vector<std::string> imagePaths;
@@ -1675,6 +1679,7 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
         scale(images[i], masks[i], rgGains[i], bgGains[i], results[i]);
 }
 
+// main5
 int main()
 {
     //std::vector<std::string> imagePaths;
@@ -1776,7 +1781,7 @@ int main()
     }
 
     TilingLinearBlend blend;
-    blend.prepare(masks, 50);
+    blend.prepare(masks, 100);
     cv::Mat result;
     blend.blend(images, result);
     cv::imshow("old blend", result);
@@ -1790,4 +1795,174 @@ int main()
     return 0;
 }
 
+void calcCompDistToCenterImage(const cv::Size& size, cv::Mat& image)
+{
+    image.create(size, CV_32FC1);
+    int rows = size.height, cols = size.width;
+    double cx = cols * 0.5, cy = rows * 0.5;
+    double r = sqrt(cx * cx + cy * cy);
+    for (int i = 0; i < rows; i++)
+    {
+        float* ptr = image.ptr<float>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            double diffx = j - cx, diffy = i - cy;
+            ptr[j] = r - sqrt(diffx * diffx + diffy * diffy);
+        }
+    }
+}
 
+void reproject32FC1(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
+{
+    CV_Assert(src.data && src.type() == CV_32FC1 &&
+        map.data && map.type() == CV_64FC2);
+
+    int rows = map.rows, cols = map.cols;
+    dst.create(rows, cols, CV_32FC1);
+    double minVal, maxVal;
+    cv::minMaxLoc(src, &minVal, &maxVal);
+
+    int srcRows = src.rows, srcCols = src.cols;
+    for (int i = 0; i < rows; i++)
+    {
+        float* ptrDst = dst.ptr<float>(i);
+        const cv::Point2d* ptrMap = map.ptr<cv::Point2d>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            cv::Point2d pt = ptrMap[j];
+            if (pt.x >= 0 && pt.x < srcCols && pt.y >= 0 && pt.y < srcRows)
+            {
+                int x0 = pt.x, y0 = pt.y;
+                int x1 = x0 + 1, y1 = y0 + 1;
+                if (x1 >= srcCols) x1 = srcCols - 1;
+                if (y1 >= srcRows) y1 = srcRows - 1;
+                float wx0 = pt.x - x0, wx1 = 1 - wx0;
+                float wy0 = pt.y - y0, wy1 = 1 - wy0;
+                ptrDst[j] = wx1 * wy1 * src.at<float>(y0, x0) +
+                    wx1 * wy0 * src.at<float>(y1, x0) +
+                    wx0 * wy1 * src.at<float>(y0, x1) +
+                    wx0 * wy0 * src.at<float>(y1, x1);
+            }
+            else
+                ptrDst[j] = maxVal;
+        }
+    }
+}
+
+void calcWeights32F(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& weights)
+{
+    int numImages = dists.size();
+    int rows = dists[0].rows, cols = dists[0].cols;
+
+    weights.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        weights[i].create(rows, cols, CV_32FC1);
+        weights[i].setTo(0);
+    }
+
+    std::vector<const float*> ptrDistVector(numImages);
+    const float** ptrDist = &ptrDistVector[0];
+    std::vector<float*> ptrWeightVector(numImages);
+    float** ptrWeight = &ptrWeightVector[0];
+    for (int i = 0; i < rows; i++)
+    {
+        for (int k = 0; k < numImages; k++)
+        {
+            ptrDist[k] = dists[k].ptr<float>(i);
+            ptrWeight[k] = weights[k].ptr<float>(i);
+        }
+        for (int j = 0; j < cols; j++)
+        {
+            float sum = 0;
+            int nonZeroCount = 0;
+            int nonZeroIndex = 0;
+            for (int k = 0; k < numImages; k++)
+            {
+                sum += ptrDist[k][j];
+                if (ptrDist[k][j])
+                {
+                    nonZeroCount++;
+                    nonZeroIndex = k;
+                }
+            }
+            if (nonZeroCount > 1)
+            {
+                sum = fabs(sum) <= FLT_MIN ? 0 : 1.0F / sum;
+                for (int k = 0; k < numImages; k++)
+                    ptrWeight[k][j] = ptrDist[k][j] * sum;
+            }
+            else if (nonZeroCount == 1)
+                ptrWeight[nonZeroIndex][j] = 1.0;
+
+            //float sum = 0;
+            //for (int k = 0; k < numImages; k++)
+            //    sum += ptrDist[k][j];
+            //sum = fabs(sum) <= FLT_MIN ? 0 : 1.0F / sum;
+            //int intSum = 0;
+            //for (int k = 0; k < numImages; k++)
+            //{
+            //    ;
+            //    ptrWeight[k][j] = ptrDist[k][j] * sum;
+            //}
+        }
+    }
+}
+
+// main6
+int main6()
+{
+    std::vector<std::string> paths;
+    paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+
+    int numImages = paths.size();
+    std::vector<cv::Mat> src(numImages);
+    for (int i = 0; i < numImages; i++)
+        src[i] = cv::imread(paths[i]);
+
+    std::vector<PhotoParam> params;
+    //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
+    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+
+    cv::Size dstSize(2048, 1024);
+    std::vector<cv::Mat> maps, masks;
+    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+    
+    cv::Mat dist, compMask;
+    calcCompDistToCenterImage(dstSize, dist);
+    std::vector<cv::Mat> dists(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        reproject32FC1(dist, dists[i], maps[i]);
+        compMask = ~masks[i];
+        dists[i].setTo(0, compMask);
+    }
+
+    std::vector<cv::Mat> dst;
+    reproject(src, dst, maps);
+
+    std::vector<cv::Mat> weights;
+    calcWeights32F(dists, weights);
+
+    std::vector<cv::Mat> compResults;
+    MultibandBlendGainAdjust gainAdjust;
+    gainAdjust.prepare(masks, 50);
+    std::vector<std::vector<unsigned char> > luts;
+    gainAdjust.calcGain(dst, luts);
+    compResults.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        transform(src[i], compResults[i], luts[i]);
+    
+    cv::Mat result32F = cv::Mat::zeros(dstSize, CV_32FC3);
+    for (int i = 0; i < numImages; i++)
+        reprojectWeightedAccumulateTo32F(compResults[i], result32F, maps[i], weights[i]);
+    cv::Mat result;
+    result32F.convertTo(result, CV_8U);
+    cv::imshow("result", result);
+    cv::waitKey(0);
+
+    return 0;
+}

@@ -304,7 +304,7 @@ private:
     bool calcGainSuccess;
     TilingMultibandBlendFast blender;
     cv::Mat blendImage;
-    std::vector<cv::Mat> extendedMasks;
+    std::vector<cv::Mat> origMasks, extendedMasks;
     std::vector<std::vector<unsigned char> > luts;
 };
 
