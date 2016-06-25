@@ -337,7 +337,7 @@ static void mulScale(cv::Mat& image, const cv::Mat& scale)
     }
 }
 
-int main()
+int main1()
 {
     std::vector<std::string> imagePaths;
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
@@ -1454,5 +1454,178 @@ int main4()
     std::vector<cv::Mat> results;
     iterativeGainAdjust(images, masks, results);
 
+    return 0;
+}
+
+void calcRatio(const cv::Mat& image, const cv::Mat& mask, cv::Mat& bgRatio, cv::Mat& rgRatio)
+{
+    CV_Assert(image.data && image.type() == CV_8UC3 &&
+        mask.data && mask.type() == CV_8UC1 && mask.size() == image.size());
+
+    int rows = image.rows, cols = image.cols;
+    bgRatio.create(rows, cols, CV_32FC1);
+    rgRatio.create(rows, cols, CV_32FC1);
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        float* ptrBG = bgRatio.ptr<float>(i);
+        float* ptrRG = rgRatio.ptr<float>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (*ptrMask)
+            {
+                float b = ptrImage[0];
+                float g = ptrImage[1];
+                float r = ptrImage[2];
+                if (g == 0)
+                {
+                    *ptrBG = 0;
+                    *ptrRG = 0;
+                }
+                else
+                {
+                    *ptrBG = b / g;
+                    *ptrRG = r / g;
+                }
+            }
+            else
+            {
+                *ptrBG = 0;
+                *ptrRG = 0;
+            }
+            ptrImage += 3;
+            ptrMask++;
+            ptrBG++;
+            ptrRG++;
+        }
+    }
+}
+
+void isDiffSmall(const cv::Mat& lhs, const cv::Mat& rhs, int thresh, cv::Mat& result)
+{
+    CV_Assert(lhs.data && lhs.type() == CV_8UC3 &&
+        rhs.data && rhs.type() == CV_8UC3 && lhs.size() == rhs.size());
+
+    int rows = lhs.rows, cols = rhs.cols;
+    result.create(rows, cols, CV_8UC1);
+    cv::Mat blhs, brhs;
+    cv::Size sz(9, 9);
+    cv::boxFilter(lhs, blhs, CV_8U, sz);
+    cv::boxFilter(rhs, brhs, CV_8U, sz);
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrl = blhs.ptr<unsigned char>(i);
+        const unsigned char* ptrr = brhs.ptr<unsigned char>(i);
+        unsigned char* ptr = result.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (abs(int(ptrl[0]) - ptrr[0]) < thresh &&
+                abs(int(ptrl[1]) - ptrr[1]) < thresh &&
+                abs(int(ptrl[2]) - ptrr[2]) < thresh)
+                *ptr = 255;
+            else
+                *ptr = 0;
+            ptr++;
+            ptrl += 3;
+            ptrr += 3;
+        }
+    }
+}
+
+void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio, cv::Mat& dst)
+{
+    CV_Assert(src.data && src.type() == CV_8UC3 &&
+        mask.data && mask.type() == CV_8UC1 && mask.size() == src.size());
+    int rows = src.rows, cols = src.cols;
+    dst.create(rows, cols, CV_8UC3);
+    unsigned char rlut[256], blut[256];
+    for (int i = 0; i < 256; i++)
+    {
+        rlut[i] = clamp0255(i * rRatio);
+        blut[i] = clamp0255(i * bRatio);
+    }
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+        const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (*ptrMask)
+            {
+                ptrDst[0] = blut[ptrSrc[0]];
+                ptrDst[1] = ptrSrc[1];
+                ptrDst[2] = rlut[ptrSrc[2]];
+            }
+            else
+            {
+                ptrDst[0] = 0;
+                ptrDst[1] = 0;
+                ptrDst[2] = 0;
+            }
+            ptrSrc += 3;
+            ptrMask++;
+            ptrDst += 3;
+        }
+    }
+}
+
+int main()
+{
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> images(numImages), masks(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        images[i] = cv::imread(imagePaths[i]);
+        masks[i] = cv::imread(maskPaths[i], -1);
+    }
+
+    int indexL = 0;
+    int indexR = 4;
+    cv::Mat intersectMask = masks[indexL] & masks[indexR];
+    cv::Mat diffSmall;
+    isDiffSmall(images[indexL], images[indexR], 70, diffSmall);
+    std::vector<cv::Mat> rgRatios(numImages), bgRatios(numImages);
+    calcRatio(images[indexL], intersectMask, bgRatios[indexL], rgRatios[indexL]);
+    calcRatio(images[indexR], intersectMask, bgRatios[indexR], rgRatios[indexR]);
+    cv::Mat bgDiff = bgRatios[indexR] - bgRatios[indexL];
+    cv::Mat rgDiff = rgRatios[indexR] - rgRatios[indexL];
+    cv::Scalar bgDiffMean, bgDiffStdDev, rgDiffMean, rgDiffStdDev;
+    intersectMask &= diffSmall;
+    cv::meanStdDev(bgDiff, bgDiffMean, bgDiffStdDev, intersectMask);
+    cv::meanStdDev(rgDiff, rgDiffMean, rgDiffStdDev, intersectMask);
+    cv::Mat newImageR;
+    scale(images[indexR], masks[indexR], 1.0 - rgDiffMean[indexL] * 0.8, 1.0 - bgDiffMean[indexL] * 0.8, newImageR);
+    cv::imshow("L", images[indexL]);
+    cv::imshow("old R", images[indexR]);
+    cv::imshow("new R", newImageR);
+    cv::waitKey(0);
     return 0;
 }
