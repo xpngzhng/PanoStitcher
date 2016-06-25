@@ -296,6 +296,7 @@ public:
     MultibandBlendGainAdjust() : numImages(0), rows(0), cols(0), prepareSuccess(false), calcGainSuccess(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int radius);
     bool calcGain(const std::vector<cv::Mat>& images, std::vector<std::vector<unsigned char> >& luts);
+    bool calcGain(const std::vector<cv::Mat>& images, std::vector<std::vector<std::vector<unsigned char> > >& luts);
 private:
     int numImages;
     int rows, cols;
@@ -308,5 +309,8 @@ private:
 };
 
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut, const cv::Mat& mask = cv::Mat());
+
+void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts,
+    const cv::Mat& mask = cv::Mat());
 
 void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std::vector<unsigned char>& lut);

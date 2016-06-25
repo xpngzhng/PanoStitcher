@@ -323,6 +323,60 @@ void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char
     }
 }
 
+void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts, const cv::Mat& mask)
+{
+    CV_Assert(src.type() == CV_8UC3 && luts.size() == 3 &&
+        luts[0].size() == 256 && luts[1].size() == 256 && luts[2].size() == 256 &&
+        (!mask.data || (mask.data && src.size() == mask.size())));
+
+    dst.create(src.size(), src.type());
+
+    const unsigned char* ptrLUT0 = &luts[0][0];
+    const unsigned char* ptrLUT1 = &luts[1][0];
+    const unsigned char* ptrLUT2 = &luts[2][0];
+
+    int rows = src.rows, cols = src.cols;
+
+    if (mask.data)
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                if (*(ptrMask++))
+                {
+                    *(ptrDst++) = ptrLUT0[ptrSrc[j * 3]];
+                    *(ptrDst++) = ptrLUT1[ptrSrc[j * 3 + 1]];
+                    *(ptrDst++) = ptrLUT2[ptrSrc[j * 3 + 2]];
+                }
+                else
+                {
+                    *(ptrDst++) = 0;
+                    *(ptrDst++) = 0;
+                    *(ptrDst++) = 0;
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < rows; i++)
+        {
+            const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
+            unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+            for (int j = 0; j < cols; j++)
+            {
+                *(ptrDst++) = ptrLUT0[*(ptrSrc++)];
+                *(ptrDst++) = ptrLUT1[*(ptrSrc++)];
+                *(ptrDst++) = ptrLUT2[*(ptrSrc++)];
+            }
+        }
+    }
+}
+
 bool MultibandBlendGainAdjust::prepare(const std::vector<cv::Mat>& masks, int radius)
 {
     prepareSuccess = false;
@@ -398,25 +452,27 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
             const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
             for (int j = 0; j < cols; j++)
             {
-                if (ptrMask[j])
-                    valPairs[index++] = cv::Point(ptrImage[j], ptrBlend[j]);
+                int blendVal = ptrBlend[j];
+                if (ptrMask[j] && blendVal > 15 && blendVal < 240)
+                    valPairs[index++] = cv::Point(ptrImage[j], blendVal/*ptrBlend[j]*/);
             }
         }
+        valPairs.resize(index);
         cv::Point2d p, dir;
         getLineRANSAC(valPairs, p, dir);
 
-        //cv::Mat hist2D, histShow;
-        //calcHist2D(valPairs, hist2D);
-        //normalizeAndConvert(hist2D, histShow);
-        //cv::imshow("hist", histShow);
+        cv::Mat hist2D, histShow;
+        calcHist2D(valPairs, hist2D);
+        normalizeAndConvert(hist2D, histShow);
+        cv::imshow("hist", histShow);
         //cv::imwrite("hist.bmp", histShow);
 
-        //double r = 500;
-        //cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
-        //cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
-        //cv::line(lineShow, p0, p1, cv::Scalar(255));
-        //cv::imshow("line", lineShow);
-        //cv::waitKey(0);
+        double r = 500;
+        cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
+        cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
+        cv::line(lineShow, p0, p1, cv::Scalar(255));
+        cv::imshow("line", lineShow);
+        cv::waitKey(0);
 
         cvtPDirToKH(p, dir, kvals[k], hvals[k]);
     }
@@ -425,6 +481,75 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
         getLUT(luts[i], kvals[i], hvals[i]);
 
     LUTs = luts;
+
+    calcGainSuccess = true;
+
+    return true;
+}
+
+bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    if (!prepareSuccess)
+        return false;
+
+    if (numImages != images.size())
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (!images[i].data || images[i].type() != CV_8UC3 ||
+            images[i].rows != rows || images[i].cols != cols)
+            return false;
+    }
+
+    blender.blend(images, blendImage);
+
+    std::vector<std::vector<double> > kvals(numImages), hvals(numImages);
+
+    cv::Mat channelImages[3], blendChannelImages[3];
+    cv::split(blendImage, blendChannelImages);
+    for (int k = 0; k < numImages; k++)
+    {
+        const cv::Mat& image = images[k];
+        const cv::Mat& mask = extendedMasks[k];
+
+        int count = cv::countNonZero(mask);
+        std::vector<cv::Point> valPairs(count);
+
+        kvals[k].resize(3);
+        hvals[k].resize(3);
+        
+        cv::split(image, channelImages);
+        for (int u = 0; u < 3; u++)
+        {
+            int index = 0;
+            for (int i = 0; i < rows; i++)
+            {
+                const unsigned char* ptrBlend = blendChannelImages[u].ptr<unsigned char>(i);
+                const unsigned char* ptrImage = channelImages[u].ptr<unsigned char>(i);
+                const unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+                for (int j = 0; j < cols; j++)
+                {
+                    int blendVal = ptrBlend[j];
+                    if (ptrMask[j] && blendVal > 15 && blendVal < 240)
+                        valPairs[index++] = cv::Point(ptrImage[j], blendVal/*ptrBlend[j]*/);
+                }
+            }
+            valPairs.resize(index);
+            cv::Point2d p, dir;
+            getLineRANSAC(valPairs, p, dir);
+
+            cvtPDirToKH(p, dir, kvals[k][u], hvals[k][u]);
+        }
+    }
+
+    luts.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        luts[i].resize(3);
+        for (int j = 0; j < 3; j++)
+            getLUT(luts[i][j], kvals[i][j], hvals[i][j]);
+    }
 
     calcGainSuccess = true;
 

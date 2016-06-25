@@ -1571,6 +1571,110 @@ void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio
     }
 }
 
+static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
+{
+    int numImages = images.size();
+
+    cv::Mat_<double> N(numImages, numImages), rgI(numImages, numImages), bgI(numImages, numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < numImages; j++)
+        {
+            if (i == j)
+            {
+                N(i, i) = cv::countNonZero(masks[i]);
+                cv::Scalar meanVal = cv::mean(images[i], masks[i]);
+                rgI(i, i) = meanVal[2] / meanVal[1];
+                bgI(i, i) = meanVal[0] / meanVal[1];
+            }
+            else
+            {
+                cv::Mat intersect = masks[i] & masks[j];
+                int numNonZero = cv::countNonZero(intersect);
+                N(i, j) = numNonZero;
+                if (numNonZero)
+                {
+                    cv::Scalar meanVal = cv::mean(images[i], intersect);
+                    rgI(i, j) = meanVal[2] / meanVal[1];
+                    bgI(i, j) = meanVal[0] / meanVal[1];
+                }
+                else
+                {
+                    rgI(i, j) = 0;
+                    bgI(i, j) = 0;
+                }
+            }
+        }
+    }
+    //std::cout << N << "\n" << I << "\n";
+
+    double invSigmaNSqr = 1;
+    double invSigmaGSqr = 0.05;
+
+    bool success;
+
+    cv::Mat_<double> A(numImages, numImages);
+    cv::Mat_<double> b(numImages, 1);
+    cv::Mat_<double> gains(numImages, 1);
+
+    A.setTo(0);
+    b.setTo(0);
+    for (int i = 0; i < numImages; ++i)
+    {
+        for (int j = 0; j < numImages; ++j)
+        {
+            A(i, i) += N[i][j] * (rgI[i][j] * rgI[i][j] * invSigmaNSqr + invSigmaGSqr);
+            A(j, j) += N[i][j] * (rgI[j][i] * rgI[j][i] * invSigmaNSqr);
+            A(i, j) -= 2 * N[i][j] * (rgI[i][j] * rgI[j][i] * invSigmaNSqr);
+            b(i) += N[i][j] * invSigmaGSqr;
+        }
+    }
+
+    //std::cout << A << "\n" << b << "\n";
+    success = cv::solve(A, b, gains);
+    std::cout << gains << "\n";
+    if (!success)
+        gains.setTo(1);
+
+    rgRatioGains.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        rgRatioGains[i] = gains(i);
+
+    A.setTo(0);
+    b.setTo(0);
+    for (int i = 0; i < numImages; ++i)
+    {
+        for (int j = 0; j < numImages; ++j)
+        {
+            A(i, i) += N[i][j] * (bgI[i][j] * bgI[i][j] * invSigmaNSqr + invSigmaGSqr);
+            A(j, j) += N[i][j] * (bgI[j][i] * bgI[j][i] * invSigmaNSqr);
+            A(i, j) -= 2 * N[i][j] * (bgI[i][j] * bgI[j][i] * invSigmaNSqr);
+            b(i) += N[i][j] * invSigmaGSqr;
+        }
+    }
+
+    //std::cout << A << "\n" << b << "\n";
+    success = cv::solve(A, b, gains);
+    std::cout << gains << "\n";
+    if (!success)
+        gains.setTo(1);
+
+    bgRatioGains.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        bgRatioGains[i] = gains(i);
+}
+
+void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
+{
+    std::vector<double> rgGains, bgGains;
+    getLinearTransforms(images, masks, rgGains, bgGains);
+    int numImages = images.size();
+    results.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        scale(images[i], masks[i], rgGains[i], bgGains[i], results[i]);
+}
+
 int main()
 {
     //std::vector<std::string> imagePaths;
@@ -1585,19 +1689,30 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
@@ -1608,10 +1723,10 @@ int main()
     }
 
     int indexL = 0;
-    int indexR = 4;
+    int indexR = 1;
     cv::Mat intersectMask = masks[indexL] & masks[indexR];
     cv::Mat diffSmall;
-    isDiffSmall(images[indexL], images[indexR], 70, diffSmall);
+    isDiffSmall(images[indexL], images[indexR], 40, diffSmall);
     std::vector<cv::Mat> rgRatios(numImages), bgRatios(numImages);
     calcRatio(images[indexL], intersectMask, bgRatios[indexL], rgRatios[indexL]);
     calcRatio(images[indexR], intersectMask, bgRatios[indexR], rgRatios[indexR]);
@@ -1627,5 +1742,52 @@ int main()
     cv::imshow("old R", images[indexR]);
     cv::imshow("new R", newImageR);
     cv::waitKey(0);
+
+    cv::Scalar meanL, meanR;
+    meanL = cv::mean(images[indexL], intersectMask);
+    meanR = cv::mean(images[indexR], intersectMask);
+    double ratioRGL = meanL[2] / meanL[1], ratioBGL = meanL[0] / meanL[1];
+    double ratioRGR = meanR[2] / meanR[1], ratioBGR = meanR[0] / meanR[1];
+    scale(images[indexR], masks[indexR], 1.0 + (ratioRGL - ratioRGR), 1.0 + (ratioBGL - ratioBGR), newImageR);
+    cv::imshow("L", images[indexL]);
+    cv::imshow("old R", images[indexR]);
+    cv::imshow("new R", newImageR);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> compResults;
+    //compensate(images, masks, compResults);  
+    MultibandBlendGainAdjust gainAdjust;
+    gainAdjust.prepare(masks, 50);
+    std::vector<std::vector<unsigned char> > luts;
+    gainAdjust.calcGain(images, luts);
+    compResults.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        transform(images[i], compResults[i], luts[i]);
+
+    std::vector<cv::Mat> tintResults(numImages);
+    tintAdjust(compResults, masks, tintResults);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::imshow("orig", images[i]);
+        cv::imshow("comp", compResults[i]);
+        cv::imshow("tint", tintResults[i]);
+        cv::waitKey(0);
+    }
+
+    TilingLinearBlend blend;
+    blend.prepare(masks, 50);
+    cv::Mat result;
+    blend.blend(images, result);
+    cv::imshow("old blend", result);
+    blend.blend(compResults, result);
+    cv::imshow("gain blend", result);
+    blend.blend(tintResults, result);
+    cv::imshow("gain tint blend", result);
+    //cv::imwrite("GainTintBlend2.bmp", result);
+    cv::waitKey(0);
+
     return 0;
 }
+
+

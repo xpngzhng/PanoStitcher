@@ -62,7 +62,7 @@ int main1()
 
         std::vector<PhotoParam> params;
         //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl1(1).xml", params);
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
@@ -72,6 +72,11 @@ int main1()
         //reproject(src, images, masks, params, dstSize);
         for (int i = 0; i < numImages; i++)
         {
+            char buf[64];
+            sprintf(buf, "image%d.bmp", i);
+            cv::imwrite(buf, images[i]);
+            sprintf(buf, "mask%d.bmp", i);
+            cv::imwrite(buf, masks[i]);
             cv::imshow("image", images[i]);
             cv::waitKey(0);
         }
