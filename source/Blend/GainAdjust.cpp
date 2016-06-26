@@ -19,7 +19,7 @@ static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std:
         radius = 1;
     else
         radius -= 1;
-    //printf("radius = %d\n", radius);
+    printf("radius = %d\n", radius);
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
     extendedMasks.resize(numImages);
@@ -193,7 +193,7 @@ int getLineRANSAC(const std::vector<cv::Point>& points, cv::Point2d& p, cv::Poin
     }
     select(points, bestMask, currPoints);
     cv::Mat line;
-    cv::fitLine(points, line, CV_DIST_L2, 0, 0, 0);
+    cv::fitLine(currPoints, line, CV_DIST_L2, 0, 0, 0);
     dir.x = line.at<float>(0);
     dir.y = line.at<float>(1);
     p.x = line.at<float>(2);
@@ -403,24 +403,33 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
     }
 
     blender.blend(images, blendImage);
+    cv::imshow("b i", blendImage);
 
     std::vector<double> kvals(numImages), hvals(numImages);
+    std::vector<int> blendExpand(256), imageExpand(256);
 
     // 1
-    //cv::Mat mask(rows, cols, CV_8UC1), currMask(rows, cols, CV_8UC1);
+    cv::Mat mask(rows, cols, CV_8UC1), currMask(rows, cols, CV_8UC1);
     for (int k = 0; k < numImages; k++)
     {
         const cv::Mat& image = images[k];
-        const cv::Mat& mask = extendedMasks[k];
+        //const cv::Mat& mask = extendedMasks[k];
         
         //1
-        //mask.setTo(0);
-        //for (int i = 0; i < numImages; i++)
-        //{
-        //    if (i == k) continue;
-        //    currMask = origMasks[k] & origMasks[i];
-        //    mask |= currMask;
-        //}
+        mask.setTo(0);
+        for (int i = 0; i < numImages; i++)
+        {
+            if (i == k) continue;
+            currMask = origMasks[k] & origMasks[i];
+            //currMask = extendedMasks[k] & extendedMasks[i];
+            mask |= currMask;
+        }
+
+        for (int i = 0; i < 256; i++)
+        {
+            blendExpand[i] = 0;
+            imageExpand[i] = 0;
+        }
 
         int count = cv::countNonZero(mask);
         std::vector<cv::Point> valPairs(count);
@@ -436,13 +445,40 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
             for (int j = 0; j < cols; j++)
             {
                 int blendVal = ptrBlend[j];
+                int imageVal = ptrImage[j];
                 if (ptrMask[j] && blendVal > 15 && blendVal < 240)
-                    valPairs[index++] = cv::Point(ptrImage[j], blendVal/*ptrBlend[j]*/);
+                {
+                    valPairs[index++] = cv::Point(imageVal, blendVal);
+                    blendExpand[blendVal] = 1;
+                    imageExpand[imageVal] = 1;
+                }
             }
         }
         valPairs.resize(index);
         cv::Point2d p, dir;
-        getLineRANSAC(valPairs, p, dir);
+
+        int blendExpandCount = 0, imageExpandCount = 0;
+        for (int i = 0; i < 256; i++)
+        {
+            blendExpandCount += blendExpand[i];
+            imageExpandCount += imageExpand[i];
+        }
+        // IMPORTANT!!!
+        // Only if the valPairs have a large intensity expanding range 
+        // can we use RANSAC, otherwise the estimated line would be rather inaccurate!
+        if (blendExpandCount > 128 && imageExpandCount > 128)
+            getLineRANSAC(valPairs, p, dir);
+        // If the slope does not close to 1, the result also may be inaccurate!
+        double slope = abs(dir.x) < 0.00001 ? (dir.x * dir.y > 0 ? 100000 : -1000000) : dir.y / dir.x;
+        if (!(blendExpandCount > 128 && imageExpandCount > 128) || slope < 0.5 || slope > 2)
+        {
+            cv::Mat line;
+            cv::fitLine(valPairs, line, CV_DIST_L2, 0, 0, 0);
+            dir.x = line.at<float>(0);
+            dir.y = line.at<float>(1);
+            p.x = line.at<float>(2);
+            p.y = line.at<float>(3);
+        }
 
         cv::Mat hist2D, histShow;
         calcHist2D(valPairs, hist2D);
