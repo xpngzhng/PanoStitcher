@@ -6,7 +6,7 @@
 
 #define ENABLE_MAIN 0
 
-static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
+void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
 {
     int numImages = masks.size();
     std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
@@ -409,21 +409,21 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
     std::vector<int> blendExpand(256), imageExpand(256);
 
     // 1
-    cv::Mat mask(rows, cols, CV_8UC1), currMask(rows, cols, CV_8UC1);
+    //cv::Mat mask(rows, cols, CV_8UC1), currMask(rows, cols, CV_8UC1);
     for (int k = 0; k < numImages; k++)
     {
         const cv::Mat& image = images[k];
-        //const cv::Mat& mask = extendedMasks[k];
+        const cv::Mat& mask = extendedMasks[k];
         
         //1
-        mask.setTo(0);
-        for (int i = 0; i < numImages; i++)
-        {
-            if (i == k) continue;
-            currMask = origMasks[k] & origMasks[i];
-            //currMask = extendedMasks[k] & extendedMasks[i];
-            mask |= currMask;
-        }
+        //mask.setTo(0);
+        //for (int i = 0; i < numImages; i++)
+        //{
+        //    if (i == k) continue;
+        //    currMask = origMasks[k] & origMasks[i];
+        //    //currMask = extendedMasks[k] & extendedMasks[i];
+        //    mask |= currMask;
+        //}
 
         for (int i = 0; i < 256; i++)
         {
@@ -494,6 +494,7 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
         cv::waitKey(0);
 
         cvtPDirToKH(p, dir, kvals[k], hvals[k]);
+        printf("k = %f, h = %f\n", kvals[k], hvals[k]);
     }
 
     for (int i = 0; i < numImages; i++)

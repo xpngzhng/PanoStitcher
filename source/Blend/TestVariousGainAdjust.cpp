@@ -8,39 +8,39 @@
 #include <memory>
 #include <algorithm>
 
-static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
-{
-    int numImages = masks.size();
-    std::vector<cv::Mat> uniqueMasks(numImages);
-    getNonIntersectingMasks(masks, uniqueMasks);
-
-    std::vector<cv::Mat> compMasks(numImages);
-    for (int i = 0; i < numImages; i++)
-        cv::bitwise_not(masks[i], compMasks[i]);
-
-    std::vector<cv::Mat> blurMasks(numImages);
-    cv::Mat intersect;
-    int validCount, r;
-    for (r = radius; r > 0; r = r - 2)
-    {
-        cv::Size blurSize(r * 2 + 1, r * 2 + 1);
-        double sigma = r / 3.0;
-        validCount = 0;
-        for (int i = 0; i < numImages; i++)
-        {
-            cv::GaussianBlur(uniqueMasks[i], blurMasks[i], blurSize, sigma, sigma);
-            cv::bitwise_and(blurMasks[i], compMasks[i], intersect);
-            if (cv::countNonZero(intersect) == 0)
-                validCount++;
-        }
-        if (validCount == numImages)
-            break;
-    }
-
-    extendedMasks.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        extendedMasks[i] = (blurMasks[i] != 0);
-}
+//static void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks)
+//{
+//    int numImages = masks.size();
+//    std::vector<cv::Mat> uniqueMasks(numImages);
+//    getNonIntersectingMasks(masks, uniqueMasks);
+//
+//    std::vector<cv::Mat> compMasks(numImages);
+//    for (int i = 0; i < numImages; i++)
+//        cv::bitwise_not(masks[i], compMasks[i]);
+//
+//    std::vector<cv::Mat> blurMasks(numImages);
+//    cv::Mat intersect;
+//    int validCount, r;
+//    for (r = radius; r > 0; r = r - 2)
+//    {
+//        cv::Size blurSize(r * 2 + 1, r * 2 + 1);
+//        double sigma = r / 3.0;
+//        validCount = 0;
+//        for (int i = 0; i < numImages; i++)
+//        {
+//            cv::GaussianBlur(uniqueMasks[i], blurMasks[i], blurSize, sigma, sigma);
+//            cv::bitwise_and(blurMasks[i], compMasks[i], intersect);
+//            if (cv::countNonZero(intersect) == 0)
+//                validCount++;
+//        }
+//        if (validCount == numImages)
+//            break;
+//    }
+//
+//    extendedMasks.resize(numImages);
+//    for (int i = 0; i < numImages; i++)
+//        extendedMasks[i] = (blurMasks[i] != 0);
+//}
 
 static void calcHist(const cv::Mat& image, const cv::Mat& mask, std::vector<int>& hist)
 {
@@ -1318,6 +1318,7 @@ inline void cvtPDirToKH(const cv::Point2d& p, const cv::Point2d& dir, double& k,
     h = p.y - k * p.x;
 }
 
+
 static void iterativeGainAdjust(const std::vector<cv::Mat>& src, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
 {
     std::vector<cv::Mat> extendedMasks;
@@ -1680,7 +1681,7 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 }
 
 // main5
-int main()
+int main5()
 {
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
@@ -1693,16 +1694,16 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
@@ -1719,20 +1720,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
@@ -1978,6 +1979,561 @@ int main6()
     result32F.convertTo(result, CV_8U);
     cv::imshow("result", result);
     cv::waitKey(0);
+
+    return 0;
+}
+
+void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks);
+
+void cvtPDirToKH(const cv::Point2d& p, const cv::Point2d& dir, double& k, double& h);
+
+static void getLUT(std::vector<unsigned char>& lut, double k, double b)
+{
+    lut.resize(256);
+    for (int i = 0; i < 256; i++)
+        lut[i] = cv::saturate_cast<unsigned char>(i * k + b);
+}
+
+static void normalizeHist(const std::vector<int>& src, std::vector<double>& dst)
+{
+    if (src.empty() || src.size() != 256)
+    {
+        dst.resize(256, 0);
+        return;
+    }
+
+    int count = 0;
+    for (int i = 0; i < 256; i++)
+        count += src[i];
+    if (count == 0)
+    {
+        dst.resize(256, 0);
+        return;
+    }
+    double scale = 10.0 / count;
+    dst.resize(256);
+    for (int i = 0; i < 256; i++)
+        dst[i] = src[i] * scale;
+}
+
+void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
+    std::vector<unsigned char>& lut)
+{
+    CV_Assert(image.data && image.type() == CV_8UC3 &&
+        base.data && base.type() == CV_8UC3 && imageMask.data && imageMask.type() == CV_8UC1 &&
+        baseMask.data && baseMask.type() == CV_8UC1);
+    int rows = image.rows, cols = image.cols;
+    CV_Assert(imageMask.rows == rows && imageMask.cols == cols &&
+        base.rows == rows && base.cols == cols && baseMask.rows == rows && baseMask.cols == cols);
+
+    std::vector<cv::Mat> srcMasks, dstMasks;
+    srcMasks.push_back(imageMask);
+    srcMasks.push_back(baseMask);
+    getExtendedMasks(srcMasks, 100, dstMasks);
+
+    //cv::Mat intersectMask = dstMasks[0] & dstMasks[1];
+    cv::Mat intersectMask = imageMask & baseMask;
+    //cv::imshow("i mask", intersectMask);
+
+    int count = cv::countNonZero(intersectMask);
+    std::vector<cv::Point> valPairs(count);
+    cv::Mat baseGray, imageGray;
+    cv::cvtColor(base, baseGray, CV_BGR2GRAY);
+    cv::cvtColor(image, imageGray, CV_BGR2GRAY);
+
+    std::vector<int> imageHist, baseHist;
+    calcHist(imageGray, intersectMask, imageHist);
+    calcHist(baseGray, intersectMask, baseHist);
+    std::vector<double> normImageHist, normBaseHist;
+    normalizeHist(imageHist, normImageHist);
+    normalizeHist(baseHist, normBaseHist);
+    showHistogram("image hist", normImageHist);
+    showHistogram("base hist", normBaseHist);
+    cv::waitKey(0);
+
+    int index = 0;
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrBase = baseGray.ptr<unsigned char>(i);
+        const unsigned char* ptrImage = imageGray.ptr<unsigned char>(i);
+        const unsigned char* ptrMask = intersectMask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            int baseVal = ptrBase[j];
+            int imageVal = ptrImage[j];
+            if (ptrMask[j] && baseVal > 15 && baseVal < 240)
+            {
+                valPairs[index++] = cv::Point(imageVal, baseVal);
+            }
+        }
+    }
+    valPairs.resize(index);
+
+    cv::Mat line;
+    cv::Point2d dir, p;
+    cv::fitLine(valPairs, line, CV_DIST_L2, 0, 0, 0);
+    dir.x = line.at<float>(0);
+    dir.y = line.at<float>(1);
+    p.x = line.at<float>(2);
+    p.y = line.at<float>(3);
+
+    cv::Mat hist2D, histShow;
+    calcHist2D(valPairs, hist2D);
+    normalizeAndConvert(hist2D, histShow);
+    cv::imshow("hist", histShow);
+    //cv::imwrite("hist.bmp", histShow);
+
+    double r = 500;
+    cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
+    cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
+    cv::line(lineShow, p0, p1, cv::Scalar(255));
+    cv::imshow("line", lineShow);
+    cv::waitKey(0);
+
+    double k, h;
+    cvtPDirToKH(p, dir, k, h);
+    printf("k = %f, h = %f\n", k, h);
+    getLUT(lut, k, h);
+}
+
+// main7
+int main7()
+{
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> images(numImages), masks(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        images[i] = cv::imread(imagePaths[i]);
+        masks[i] = cv::imread(maskPaths[i], -1);
+    }
+
+    BlendConfig blendConfig;
+    blendConfig.setSeamDistanceTransform();
+    blendConfig.setBlendMultiBand();
+    cv::Mat blend, mask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
+    std::vector<cv::Mat> imageGroup(3), maskGroup(3);
+    for (int i = 0; i < 3; i++)
+    {
+        imageGroup[i] = images[i];
+        maskGroup[i] = masks[i];
+        mask |= masks[i];
+    }
+    parallelBlend(blendConfig, imageGroup, maskGroup, blend);
+    cv::imshow("blend", blend);
+    cv::waitKey(0);
+
+    std::vector<unsigned char> lut;
+    calcTransform(images[3], masks[3], blend, mask, lut);
+    cv::Mat result;
+    transform(images[3], result, lut, masks[3]);
+    cv::imshow("result", result);
+    cv::waitKey(0);
+
+    images[3] = result;
+    TilingLinearBlend blender;
+    blender.prepare(masks, 100);
+    cv::Mat blendResult;
+    blender.blend(images, blendResult);
+    cv::imshow("blend result", blendResult);
+    cv::waitKey(0);
+
+    return 0;
+}
+
+void valuesInRange8UC1(const cv::Mat& image, int begInc, int endExc, cv::Mat& mask)
+{
+    CV_Assert(image.data && image.type() == CV_8UC1);
+    int rows = image.rows, cols = image.cols;
+    mask.create(rows, cols, CV_8UC1);
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            int val = *(ptrImage++);
+            *(ptrMask++) = (val >= begInc && val < endExc) ? 255 : 0;
+        }
+    }
+}
+
+struct ImageInfo
+{
+    ImageInfo() : i(0), fullMean(0), mainMean(0), seamMean(0) {};
+    int i;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    cv::Mat gray;
+    double fullMean;
+    double mainMean;
+    double seamMean;
+};
+
+struct IntersectionInfo
+{
+    IntersectionInfo() :
+        i(0), j(0),
+        numFullNonZero(0), numMainNonZero(0), numSeamNonZero(0),
+        iFullMean(0), jFullMean(0), iMainMean(0), jMainMean(0), iSeamMean(0), jSeamMean(0)
+    {}
+    int i, j;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    int numFullNonZero;
+    int numMainNonZero;
+    int numSeamNonZero;
+    double iFullMean, jFullMean;
+    double iMainMean, jMainMean;
+    double iSeamMean, jSeamMean;
+};
+
+void calcInfo(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, 
+    std::vector<ImageInfo>& imageInfos, std::vector<IntersectionInfo>& intersectInfos)
+{
+    imageInfos.clear();
+    intersectInfos.clear();
+    if (masks.empty())
+        return;
+
+    int size = masks.size();
+    int rows = masks[0].rows, cols = masks[0].cols;
+    for (int i = 0; i < size; i++)
+    {
+        CV_Assert(masks[i].data && masks[i].type() == CV_8UC1 &&
+            masks[i].rows == rows && masks[i].cols == cols);
+        CV_Assert(images[i].data && images[i].type() == CV_8UC3 &&
+            images[i].rows == rows && images[i].cols == cols);
+    }
+
+    std::vector<cv::Mat> seamMasks;
+    getExtendedMasks(masks, 100, seamMasks);
+
+    imageInfos.resize(size);
+    for (int i = 0; i < size; i++)
+    {
+        ImageInfo& imageInfo = imageInfos[i];
+        imageInfo.i = i;
+        imageInfo.fullMask = masks[i].clone();
+        cv::cvtColor(images[i], imageInfo.gray, CV_BGR2GRAY);
+        valuesInRange8UC1(imageInfo.gray, 16, 240, imageInfo.mainMask);
+        imageInfo.seamMask = seamMasks[i];
+        imageInfo.fullMean = cv::mean(imageInfo.gray, imageInfo.fullMask)[0];
+        imageInfo.mainMean = cv::mean(imageInfo.gray, imageInfo.mainMask)[0];
+        imageInfo.seamMean = cv::mean(imageInfo.gray, imageInfo.seamMask)[0];
+    }
+
+    for (int i = 0; i < size - 1; i++)
+    {
+        for (int j = i + 1; j < size; j++)
+        {
+            cv::Mat mask = masks[i] & masks[j];
+            int numNonZero = cv::countNonZero(mask);
+            if (numNonZero)
+            {
+                intersectInfos.push_back(IntersectionInfo());
+                IntersectionInfo& intersect = intersectInfos.back();
+                intersect.i = i;
+                intersect.j = j;
+
+                intersect.fullMask = mask.clone();
+                intersect.numFullNonZero = numNonZero;
+                intersect.iFullMean = cv::mean(imageInfos[i].gray, mask)[0];
+                intersect.jFullMean = cv::mean(imageInfos[j].gray, mask)[0];
+
+                mask = imageInfos[i].mainMask & imageInfos[j].mainMask;
+                intersect.mainMask = mask.clone();
+                intersect.numMainNonZero = cv::countNonZero(mask);
+                intersect.iMainMean = cv::mean(imageInfos[i].gray, mask)[0];
+                intersect.jMainMean = cv::mean(imageInfos[j].gray, mask)[0];
+
+                mask = imageInfos[i].seamMask & imageInfos[j].seamMask;
+                intersect.seamMask = mask.clone();
+                intersect.numSeamNonZero = cv::countNonZero(mask);
+                intersect.iSeamMean = cv::mean(imageInfos[i].gray, mask)[0];
+                intersect.jSeamMean = cv::mean(imageInfos[j].gray, mask)[0];
+            }
+        }
+    }
+}
+
+void pickAlwaysLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos, double thresh, 
+    std::vector<int>& alwaysSmallIndexes, std::vector<int>& alwaysLargeIndexes)
+{
+    alwaysSmallIndexes.clear();
+    alwaysLargeIndexes.clear();
+    int intersectSize = intersectInfos.size();
+    if (!intersectSize)
+        return;
+
+    int numImages = 0;
+    for (int i = 0; i < intersectSize; i++)
+    {
+        const IntersectionInfo& info = intersectInfos[i];
+        numImages = std::max(numImages, std::max(info.i, info.j));
+    }
+    numImages++;
+
+    std::vector<int> smallCount(numImages, 0);
+    std::vector<int> largeCount(numImages, 0);
+    std::vector<int> totalCount(numImages, 0);
+    for (int i = 0; i < intersectSize; i++)
+    {
+        const IntersectionInfo& info = intersectInfos[i];
+        if (!info.numSeamNonZero)
+            continue;
+
+        totalCount[info.i]++;
+        totalCount[info.j]++;
+        if (info.iSeamMean > info.jSeamMean + thresh)
+        {
+            smallCount[info.j]++;
+            largeCount[info.i]++;
+        }
+        if (info.jSeamMean > info.iSeamMean + thresh)
+        {
+            smallCount[info.i]++;
+            largeCount[info.j]++;
+        }
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (smallCount[i] == totalCount[i])
+            alwaysSmallIndexes.push_back(i);
+        if (largeCount[i] == totalCount[i])
+            alwaysLargeIndexes.push_back(i);
+    }
+}
+
+// main8
+int main()
+{
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> images(numImages), masks(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        images[i] = cv::imread(imagePaths[i]);
+        masks[i] = cv::imread(maskPaths[i], -1);
+    }
+
+    std::vector<ImageInfo> imageInfos;
+    std::vector<IntersectionInfo> intersectInfos;
+    calcInfo(images, masks, imageInfos, intersectInfos);
+    
+    std::vector<int> alwaysSmallIndexes, alwaysLargeIndexes;
+    pickAlwaysLargeOrSmall(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
+    int numSmall = alwaysSmallIndexes.size();
+    int numLarge = alwaysLargeIndexes.size();
+
+    std::vector<int> mainIndexes;
+    for (int i = 0; i < numImages; i++)
+    {
+        bool isMain = true;
+        for (int j = 0; j < numSmall; j++)
+        {
+            if (alwaysSmallIndexes[j] == i)
+            {
+                isMain = false;
+                break;
+            }
+        }
+        if (!isMain)
+            continue;
+        for (int j = 0; j < numLarge; j++)
+        {
+            if (alwaysLargeIndexes[j] == i)
+            {
+                isMain = false;
+                break;
+            }
+        }
+        if (!isMain)
+            continue;
+        mainIndexes.push_back(i);
+    }
+
+    int numMain = mainIndexes.size();
+    std::vector<cv::Mat> mainImages, mainMasks;
+    cv::Mat mainMask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
+    for (int i = 0; i < numMain; i++)
+    {
+        mainImages.push_back(images[mainIndexes[i]]);
+        mainMasks.push_back(masks[mainIndexes[i]]);
+        mainMask |= masks[mainIndexes[i]];
+    }
+
+    BlendConfig blendConfig;
+    blendConfig.setSeamDistanceTransform();
+    blendConfig.setBlendMultiBand();
+    cv::Mat mainBlend;
+    parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
+    cv::imshow("blend", mainBlend);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> adjustLargeImages(numLarge), adjustSmallImages(numSmall);
+    std::vector<unsigned char> lut;
+    for (int i = 0; i < numLarge; i++)
+    {
+        calcTransform(images[alwaysLargeIndexes[i]], masks[alwaysLargeIndexes[i]], mainBlend, mainMask, lut);
+        transform(images[alwaysLargeIndexes[i]], adjustLargeImages[i], lut, masks[alwaysLargeIndexes[i]]);
+    }
+    for (int i = 0; i < numSmall; i++)
+    {
+        calcTransform(images[alwaysSmallIndexes[i]], masks[alwaysSmallIndexes[i]], mainBlend, mainMask, lut);
+        transform(images[alwaysSmallIndexes[i]], adjustSmallImages[i], lut, masks[alwaysSmallIndexes[i]]);
+    }
+
+    std::vector<cv::Mat> adjustImages(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        int largeIndex = -1, smallIndex = -1;
+        for (int k = 0; k < numLarge; k++)
+        {
+            if (alwaysLargeIndexes[k] == i)
+            {
+                largeIndex = k;
+                break;
+            }
+        }
+        for (int k = 0; k < numSmall; k++)
+        {
+            if (alwaysSmallIndexes[k] == i)
+            {
+                smallIndex = k;
+                break;
+            }
+        }
+        if (largeIndex >= 0)
+            adjustImages[i] = adjustLargeImages[largeIndex];
+        else if (smallIndex >= 0)
+            adjustImages[i] = adjustSmallImages[smallIndex];
+        else
+            adjustImages[i] = images[i];
+    }
+
+    cv::Mat result;
+    TilingLinearBlend blender;
+    blender.prepare(masks, 100);    
+    blender.blend(adjustImages, result);
+    cv::imshow("linear blend", result);
+
+    parallelBlend(blendConfig, adjustImages, masks, result);
+    cv::imshow("multiband blend", result);
+    cv::waitKey(0);
+
+    //std::vector<cv::Mat> tintAdjustImages;
+    //tintAdjust(adjustImages, masks, tintAdjustImages);
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    cv::imshow("tint", tintAdjustImages[i]);
+    //    cv::waitKey(0);
+    //}
 
     return 0;
 }

@@ -303,6 +303,8 @@ void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std
 int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
     const std::vector<cv::Mat>& dists, int distBound);
 
+void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks);
+
 // This is an overloaded getWeightsLinearBlend without assigning radius.
 // This function internally computes the maximum valid radius and then compute weights.
 void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights);
