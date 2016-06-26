@@ -2016,10 +2016,6 @@ static void normalizeHist(const std::vector<int>& src, std::vector<double>& dst)
         dst[i] = src[i] * scale;
 }
 
-void fitParabola(const std::vector<cv::Point>& pts, double& a, double& b, double& c);
-
-void getLUT(std::vector<unsigned char>& lut, double a, double b, double c);
-
 void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
     std::vector<unsigned char>& lut);
 
@@ -2119,14 +2115,6 @@ int main7()
     return 0;
 }
 
-void valuesInRange8UC1(const cv::Mat& image, int begInc, int endExc, cv::Mat& mask);
-
-void calcInfo(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<ImageInfo>& imageInfos, std::vector<IntersectionInfo>& intersectInfos);
-
-void pickAlwaysLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
-    std::vector<int>& alwaysSmallIndexes, std::vector<int>& alwaysLargeIndexes);
-
 // main8
 int main()
 {
@@ -2190,102 +2178,6 @@ int main()
         masks[i] = cv::imread(maskPaths[i], -1);
     }
 
-    /*
-    std::vector<ImageInfo> imageInfos;
-    std::vector<IntersectionInfo> intersectInfos;
-    calcInfo(images, masks, imageInfos, intersectInfos);
-    
-    std::vector<int> alwaysSmallIndexes, alwaysLargeIndexes;
-    pickAlwaysLargeOrSmall(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
-    int numSmall = alwaysSmallIndexes.size();
-    int numLarge = alwaysLargeIndexes.size();
-
-    std::vector<int> mainIndexes;
-    for (int i = 0; i < numImages; i++)
-    {
-        bool isMain = true;
-        for (int j = 0; j < numSmall; j++)
-        {
-            if (alwaysSmallIndexes[j] == i)
-            {
-                isMain = false;
-                break;
-            }
-        }
-        if (!isMain)
-            continue;
-        for (int j = 0; j < numLarge; j++)
-        {
-            if (alwaysLargeIndexes[j] == i)
-            {
-                isMain = false;
-                break;
-            }
-        }
-        if (!isMain)
-            continue;
-        mainIndexes.push_back(i);
-    }
-
-    int numMain = mainIndexes.size();
-    std::vector<cv::Mat> mainImages, mainMasks;
-    cv::Mat mainMask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
-    for (int i = 0; i < numMain; i++)
-    {
-        mainImages.push_back(images[mainIndexes[i]]);
-        mainMasks.push_back(masks[mainIndexes[i]]);
-        mainMask |= masks[mainIndexes[i]];
-    }
-
-    BlendConfig blendConfig;
-    blendConfig.setSeamDistanceTransform();
-    blendConfig.setBlendMultiBand();
-    cv::Mat mainBlend;
-    parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
-    cv::imshow("blend", mainBlend);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> adjustLargeImages(numLarge), adjustSmallImages(numSmall);
-    std::vector<unsigned char> lut;
-    for (int i = 0; i < numLarge; i++)
-    {
-        calcTransform(images[alwaysLargeIndexes[i]], masks[alwaysLargeIndexes[i]], mainBlend, mainMask, lut);
-        transform(images[alwaysLargeIndexes[i]], adjustLargeImages[i], lut, masks[alwaysLargeIndexes[i]]);
-    }
-    for (int i = 0; i < numSmall; i++)
-    {
-        calcTransform(images[alwaysSmallIndexes[i]], masks[alwaysSmallIndexes[i]], mainBlend, mainMask, lut);
-        transform(images[alwaysSmallIndexes[i]], adjustSmallImages[i], lut, masks[alwaysSmallIndexes[i]]);
-    }
-
-    std::vector<cv::Mat> adjustImages(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        int largeIndex = -1, smallIndex = -1;
-        for (int k = 0; k < numLarge; k++)
-        {
-            if (alwaysLargeIndexes[k] == i)
-            {
-                largeIndex = k;
-                break;
-            }
-        }
-        for (int k = 0; k < numSmall; k++)
-        {
-            if (alwaysSmallIndexes[k] == i)
-            {
-                smallIndex = k;
-                break;
-            }
-        }
-        if (largeIndex >= 0)
-            adjustImages[i] = adjustLargeImages[largeIndex];
-        else if (smallIndex >= 0)
-            adjustImages[i] = adjustSmallImages[smallIndex];
-        else
-            adjustImages[i] = images[i];
-    }
-    */
     std::vector<cv::Mat> adjustImages(numImages);
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
