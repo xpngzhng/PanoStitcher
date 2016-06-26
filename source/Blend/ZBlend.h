@@ -9,29 +9,6 @@
 #include <memory>
 #include <atomic>
 
-void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
-void compensate3(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
-
-class GainCompensate
-{
-public:
-    GainCompensate() :numImages(0), maxMeanIndex(0), rows(0), cols(0), success(false) {}
-    bool prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks);
-    bool compensate(const std::vector<cv::Mat>& images, std::vector<cv::Mat>& results) const;
-private:
-    std::vector<double> gains;
-    std::vector<std::vector<unsigned char> > LUTs;
-    int numImages;
-    int maxMeanIndex;
-    int rows, cols;
-    int success;
-};
-
-void compensateGray(const std::vector<cv::Mat>& images,
-    const std::vector<cv::Mat>& masks, int refIndex, std::vector<cv::Mat>& results);
-void compensateLightAndSaturation(const std::vector<cv::Mat>& images,
-    const std::vector<cv::Mat>& masks, int refIndex, std::vector<cv::Mat>& results);
-
 struct BlendConfig
 {
     enum SeamMode
@@ -314,3 +291,6 @@ void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<u
     const cv::Mat& mask = cv::Mat());
 
 void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std::vector<unsigned char>& lut);
+
+void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);

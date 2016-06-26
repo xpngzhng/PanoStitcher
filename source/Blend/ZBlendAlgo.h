@@ -327,3 +327,35 @@ void linearBlend(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& al
 // This is a multi-image variant of the above linearBlend, parameter requirements are similar.
 void linearBlend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& alphas,
     const std::vector<cv::Mat>& masks, int radius, cv::Mat& result);
+
+struct ImageInfo
+{
+    ImageInfo() : i(0), fullMean(0), mainMean(0), seamMean(0) {};
+    int i;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    cv::Mat gray;
+    double fullMean;
+    double mainMean;
+    double seamMean;
+};
+
+struct IntersectionInfo
+{
+    IntersectionInfo() :
+    i(0), j(0),
+    numFullNonZero(0), numMainNonZero(0), numSeamNonZero(0),
+    iFullMean(0), jFullMean(0), iMainMean(0), jMainMean(0), iSeamMean(0), jSeamMean(0)
+    {}
+    int i, j;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    int numFullNonZero;
+    int numMainNonZero;
+    int numSeamNonZero;
+    double iFullMean, jFullMean;
+    double iMainMean, jMainMean;
+    double iSeamMean, jSeamMean;
+};

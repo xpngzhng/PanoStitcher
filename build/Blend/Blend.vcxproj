@@ -30,11 +30,11 @@
     <ClInclude Include="..\..\source\Blend\ZBlendAlgo.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\Blend\Compensate.cpp" />
     <ClCompile Include="..\..\source\Blend\Copy.cpp" />
     <ClCompile Include="..\..\source\Blend\CudaFeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\CudaLinearBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\CudaMultibandBlend.cpp" />
+    <ClCompile Include="..\..\source\Blend\ExposureCorrection.cpp" />
     <ClCompile Include="..\..\source\Blend\FeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\GainAdjust.cpp" />
     <ClCompile Include="..\..\source\Blend\LinearBlend.cpp" />
