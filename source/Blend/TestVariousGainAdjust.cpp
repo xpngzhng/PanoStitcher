@@ -2016,6 +2016,69 @@ static void normalizeHist(const std::vector<int>& src, std::vector<double>& dst)
         dst[i] = src[i] * scale;
 }
 
+void fitParabola(const std::vector<cv::Point>& pts, double& a, double& b, double& c)
+{
+    int numPoints = pts.size();
+    CV_Assert(numPoints >= 3);
+
+    //cv::Mat_<double> A(numPoints, 3);
+    //cv::Mat_<double> B(numPoints, 1);
+    //cv::Mat_<double> X;
+    //for (int i = 0; i < numPoints; i++)
+    //{
+    //    double val = pts[i].x;
+    //    A(i, 0) = 1;
+    //    A(i, 1) = val;
+    //    val *= val;
+    //    A(i, 2) = val;
+    //    B(i) = pts[i].y;
+    //}
+    //bool success = cv::solve(A, B, X, cv::DECOMP_NORMAL);
+    //printf("result of fitting parabola:\n");
+    //std::cout << X << "\n";
+    //if (success)
+    //{
+    //    a = X(2);
+    //    b = X(1);
+    //    c = X(0);
+    //}
+    //else
+    //{
+    //    a = 0;
+    //    b = 1;
+    //    c = 0;
+    //}
+
+    double A = 0, B = 0;
+    for (int i = 0; i < numPoints; i++)
+    {
+        double x = pts[i].x, y = pts[i].y;
+        double temp1 = x * x - 255 * x;
+        double temp2 = x - y;
+        A += temp1 * temp1;
+        B += temp1 * temp2;
+    }
+    if (abs(A) < 0.001)
+    {
+        a = 0; 
+        b = 1;
+        c = 0;
+    }
+    else
+    {
+        a = -B / A;
+        b = 1 - 255 * a;
+        c = 0;
+    }
+}
+
+void getLUT(std::vector<unsigned char>& lut, double a, double b, double c)
+{
+    lut.resize(256);
+    for (int i = 0; i < 256; i++)
+        lut[i] = cv::saturate_cast<unsigned char>(a * i * i + b * i + c);
+}
+
 void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
     std::vector<unsigned char>& lut)
 {
@@ -2069,31 +2132,37 @@ void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat
     }
     valPairs.resize(index);
 
-    cv::Mat line;
-    cv::Point2d dir, p;
-    cv::fitLine(valPairs, line, CV_DIST_L2, 0, 0, 0);
-    dir.x = line.at<float>(0);
-    dir.y = line.at<float>(1);
-    p.x = line.at<float>(2);
-    p.y = line.at<float>(3);
+    //cv::Mat line;
+    //cv::Point2d dir, p;
+    //cv::fitLine(valPairs, line, CV_DIST_L2, 0, 0, 0);
+    //dir.x = line.at<float>(0);
+    //dir.y = line.at<float>(1);
+    //p.x = line.at<float>(2);
+    //p.y = line.at<float>(3);
 
-    cv::Mat hist2D, histShow;
-    calcHist2D(valPairs, hist2D);
-    normalizeAndConvert(hist2D, histShow);
-    cv::imshow("hist", histShow);
-    //cv::imwrite("hist.bmp", histShow);
+    //cv::Mat hist2D, histShow;
+    //calcHist2D(valPairs, hist2D);
+    //normalizeAndConvert(hist2D, histShow);
+    //cv::imshow("hist", histShow);
+    ////cv::imwrite("hist.bmp", histShow);
 
-    double r = 500;
-    cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
-    cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
-    cv::line(lineShow, p0, p1, cv::Scalar(255));
-    cv::imshow("line", lineShow);
+    //double r = 500;
+    //cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
+    //cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
+    //cv::line(lineShow, p0, p1, cv::Scalar(255));
+    //cv::imshow("line", lineShow);
+    //cv::waitKey(0);
+
+    //double k, h;
+    //cvtPDirToKH(p, dir, k, h);
+    //printf("k = %f, h = %f\n", k, h);
+    //getLUT(lut, k, h);
+
+    double a, b, c;
+    fitParabola(valPairs, a, b, c);
+    getLUT(lut, a, b, c);
+    showLUT("parabola lut", lut);
     cv::waitKey(0);
-
-    double k, h;
-    cvtPDirToKH(p, dir, k, h);
-    printf("k = %f, h = %f\n", k, h);
-    getLUT(lut, k, h);
 }
 
 // main7
@@ -2362,16 +2431,16 @@ void pickAlwaysLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
 // main8
 int main()
 {
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
@@ -2399,20 +2468,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
@@ -2527,13 +2596,17 @@ int main()
     cv::imshow("multiband blend", result);
     cv::waitKey(0);
 
-    //std::vector<cv::Mat> tintAdjustImages;
-    //tintAdjust(adjustImages, masks, tintAdjustImages);
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    cv::imshow("tint", tintAdjustImages[i]);
-    //    cv::waitKey(0);
-    //}
+    std::vector<cv::Mat> tintAdjustImages;
+    tintAdjust(adjustImages, masks, tintAdjustImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::imshow("tint", tintAdjustImages[i]);
+        cv::waitKey(0);
+    }
+
+    blender.blend(tintAdjustImages, result);
+    cv::imshow("tint linear blend", result);
+    cv::waitKey(0);
 
     return 0;
 }
