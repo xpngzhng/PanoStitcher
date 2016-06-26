@@ -19,7 +19,7 @@ void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector
         radius = 1;
     else
         radius -= 1;
-    printf("radius = %d\n", radius);
+    //printf("radius = %d\n", radius);
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
     extendedMasks.resize(numImages);
@@ -403,7 +403,7 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
     }
 
     blender.blend(images, blendImage);
-    cv::imshow("b i", blendImage);
+    //cv::imshow("b i", blendImage);
 
     std::vector<double> kvals(numImages), hvals(numImages);
     std::vector<int> blendExpand(256), imageExpand(256);
@@ -480,21 +480,21 @@ bool MultibandBlendGainAdjust::calcGain(const std::vector<cv::Mat>& images, std:
             p.y = line.at<float>(3);
         }
 
-        cv::Mat hist2D, histShow;
-        calcHist2D(valPairs, hist2D);
-        normalizeAndConvert(hist2D, histShow);
-        cv::imshow("hist", histShow);
+        //cv::Mat hist2D, histShow;
+        //calcHist2D(valPairs, hist2D);
+        //normalizeAndConvert(hist2D, histShow);
+        //cv::imshow("hist", histShow);
         //cv::imwrite("hist.bmp", histShow);
 
-        double r = 500;
-        cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
-        cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
-        cv::line(lineShow, p0, p1, cv::Scalar(255));
-        cv::imshow("line", lineShow);
-        cv::waitKey(0);
+        //double r = 500;
+        //cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
+        //cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
+        //cv::line(lineShow, p0, p1, cv::Scalar(255));
+        //cv::imshow("line", lineShow);
+        //cv::waitKey(0);
 
         cvtPDirToKH(p, dir, kvals[k], hvals[k]);
-        printf("k = %f, h = %f\n", kvals[k], hvals[k]);
+        //printf("k = %f, h = %f\n", kvals[k], hvals[k]);
     }
 
     for (int i = 0; i < numImages; i++)

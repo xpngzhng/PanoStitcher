@@ -1612,7 +1612,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
             }
         }
     }
-    std::cout << N << "\n" << rgI << "\n" << bgI << "\n";
+    //std::cout << N << "\n" << rgI << "\n" << bgI << "\n";
 
     double invSigmaNSqr = 1;
     double invSigmaGSqr = 0.05;
@@ -1638,7 +1638,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(A, b, gains);
-    std::cout << gains << "\n";
+    //std::cout << gains << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -1661,7 +1661,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(A, b, gains);
-    std::cout << gains << "\n";
+    //std::cout << gains << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -2089,30 +2089,13 @@ void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat
     CV_Assert(imageMask.rows == rows && imageMask.cols == cols &&
         base.rows == rows && base.cols == cols && baseMask.rows == rows && baseMask.cols == cols);
 
-    std::vector<cv::Mat> srcMasks, dstMasks;
-    srcMasks.push_back(imageMask);
-    srcMasks.push_back(baseMask);
-    getExtendedMasks(srcMasks, 100, dstMasks);
-
-    //cv::Mat intersectMask = dstMasks[0] & dstMasks[1];
     cv::Mat intersectMask = imageMask & baseMask;
-    //cv::imshow("i mask", intersectMask);
 
     int count = cv::countNonZero(intersectMask);
     std::vector<cv::Point> valPairs(count);
     cv::Mat baseGray, imageGray;
     cv::cvtColor(base, baseGray, CV_BGR2GRAY);
     cv::cvtColor(image, imageGray, CV_BGR2GRAY);
-
-    std::vector<int> imageHist, baseHist;
-    calcHist(imageGray, intersectMask, imageHist);
-    calcHist(baseGray, intersectMask, baseHist);
-    std::vector<double> normImageHist, normBaseHist;
-    normalizeHist(imageHist, normImageHist);
-    normalizeHist(baseHist, normBaseHist);
-    showHistogram("image hist", normImageHist);
-    showHistogram("base hist", normBaseHist);
-    cv::waitKey(0);
 
     int index = 0;
     for (int i = 0; i < rows; i++)
@@ -2132,37 +2115,11 @@ void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat
     }
     valPairs.resize(index);
 
-    //cv::Mat line;
-    //cv::Point2d dir, p;
-    //cv::fitLine(valPairs, line, CV_DIST_L2, 0, 0, 0);
-    //dir.x = line.at<float>(0);
-    //dir.y = line.at<float>(1);
-    //p.x = line.at<float>(2);
-    //p.y = line.at<float>(3);
-
-    //cv::Mat hist2D, histShow;
-    //calcHist2D(valPairs, hist2D);
-    //normalizeAndConvert(hist2D, histShow);
-    //cv::imshow("hist", histShow);
-    ////cv::imwrite("hist.bmp", histShow);
-
-    //double r = 500;
-    //cv::Point2d p0(p.x + dir.x * r, p.y + dir.y * r), p1(p.x - dir.x * r, p.y - dir.y * r);
-    //cv::Mat lineShow = cv::Mat::zeros(256, 256, CV_8UC1);
-    //cv::line(lineShow, p0, p1, cv::Scalar(255));
-    //cv::imshow("line", lineShow);
-    //cv::waitKey(0);
-
-    //double k, h;
-    //cvtPDirToKH(p, dir, k, h);
-    //printf("k = %f, h = %f\n", k, h);
-    //getLUT(lut, k, h);
-
     double a, b, c;
     fitParabola(valPairs, a, b, c);
     getLUT(lut, a, b, c);
-    showLUT("parabola lut", lut);
-    cv::waitKey(0);
+    //showLUT("parabola lut", lut);
+    //cv::waitKey(0);
 }
 
 // main7
@@ -2431,16 +2388,16 @@ void pickAlwaysLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
 // main8
 int main()
 {
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
@@ -2468,20 +2425,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
