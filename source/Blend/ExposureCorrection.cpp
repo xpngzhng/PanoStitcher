@@ -334,6 +334,8 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
         int significantSmallCount = 0;
         int largeCount = 0;
         int significantLargeCount = 0;
+        double accumSmall = 0;
+        double accumLarge = 0;
         for (int u = 0; u < intersectSize; u++)
         {
             const IntersectionInfo& info = intersectInfos[u];
@@ -342,6 +344,11 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
                 appearCount++;
                 if (info.i == k)
                 {
+                    if (info.iSeamMean > info.jSeamMean)
+                        accumLarge += (info.iSeamMean - info.jSeamMean);
+                    if (info.iSeamMean < info.jSeamMean)
+                        accumSmall += (info.jSeamMean - info.iSeamMean);
+
                     if (info.iSeamMean > info.jSeamMean + thresh)
                         largeCount++;
                     if (info.iSeamMean > info.jSeamMean + thresh * 3)
@@ -353,6 +360,11 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
                 }
                 else
                 {
+                    if (info.jSeamMean > info.iSeamMean)
+                        accumLarge += (info.jSeamMean - info.iSeamMean);
+                    if (info.jSeamMean < info.iSeamMean)
+                        accumSmall += (info.iSeamMean - info.jSeamMean);
+
                     if (info.jSeamMean > info.iSeamMean + thresh)
                         largeCount++;
                     if (info.jSeamMean > info.iSeamMean + thresh * 3)
@@ -366,9 +378,10 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
         }
         if (appearCount)
         {
-            if (smallCount == appearCount || (appearCount > 2 && significantSmallCount + 2 > appearCount))
+            if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount || 
+                (appearCount > 2 && significantSmallCount + 2 > appearCount))
                 alwaysSmallIndexes.push_back(k);
-            if (largeCount == appearCount || (appearCount > 2 && significantLargeCount + 2 > appearCount))
+            if (largeCount == appearCount)
                 alwaysLargeIndexes.push_back(k);
         }
     }
@@ -580,6 +593,14 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
     std::vector<ImageInfo> imageInfos;
     std::vector<IntersectionInfo> intersectInfos;
     calcInfo(images, masks, imageInfos, intersectInfos);
+
+    int intersectSize = intersectInfos.size();
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
+            intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+    }
 
     //std::vector<GroupInfo> groupInfos;
     //std::vector<int> groupIndexes;
