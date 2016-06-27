@@ -342,6 +342,94 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
         kt[i] = gains(i);
 }
 
+static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    int& maxIndex, std::vector<double>& kt)
+{
+    int numImages = images.size();
+
+    cv::Mat_<double> N(numImages, numImages), I(numImages, numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < numImages; j++)
+        {
+            if (i == j)
+            {
+                N(i, i) = cv::countNonZero(masks[i]);
+                I(i, i) = cv::mean(images[i], masks[i])[0];
+            }
+            else
+            {
+                cv::Mat intersect = masks[i] & masks[j];
+                N(i, j) = cv::countNonZero(intersect);
+                I(i, j) = cv::mean(images[i], intersect)[0];
+            }
+        }
+    }
+    //std::cout << N << "\n" << I << "\n";
+
+    double invSigmaNSqr = 0.01;
+    double invSigmaGSqr = 100;
+
+    cv::Mat_<double> A(numImages, numImages); A.setTo(0);
+    cv::Mat_<double> b(numImages, 1); b.setTo(0);
+    cv::Mat_<double> gains(numImages, 1);
+    cv::Mat intersect;
+    int rows = images[0].rows, cols = images[0].cols;
+    for (int i = 0; i < numImages; ++i)
+    {
+        for (int j = 0; j < numImages; ++j)
+        {
+            intersect = masks[i] & masks[j];
+            if (cv::countNonZero(intersect) == 0)
+                continue;
+
+            //A(i, i) += N[i][j] * (I[i][j] * I[i][j] * invSigmaNSqr + invSigmaGSqr);
+            //A(j, j) += N[i][j] * (I[j][i] * I[j][i] * invSigmaNSqr);
+            //A(i, j) -= 2 * N[i][j] * (I[i][j] * I[j][i] * invSigmaNSqr);
+            //b(i) += N[i][j] * invSigmaGSqr;
+            for (int u = 0; u < rows; u++)
+            {
+                const unsigned char* ptri = images[i].ptr<unsigned char>(u);
+                const unsigned char* ptrj = images[j].ptr<unsigned char>(u);
+                const unsigned char* ptrm = intersect.ptr<unsigned char>(u);
+                for (int v = 0; v < cols; v++)
+                {
+                    if (ptrm[v])
+                    {
+                        double vali = ptri[v], valj = ptrj[v];
+                        A(i, i) += vali * vali * invSigmaNSqr + invSigmaGSqr;
+                        A(j, j) += valj * valj * invSigmaNSqr;
+                        A(i, j) -= 2 * vali * valj * invSigmaNSqr;
+                        b(i) += invSigmaGSqr;
+                    }
+                }
+            }
+        }
+    }
+
+    //std::cout << A << "\n" << b << "\n";
+    bool success = cv::solve(A, b, gains);
+    std::cout << gains << "\n";
+    if (!success)
+        gains.setTo(1);
+
+    double maxMean = -1;
+    int maxMeanIndex = -1;
+    for (int i = 0; i < numImages; i++)
+    {
+        if (I[i][i] > maxMean)
+        {
+            maxMean = I[i][i];
+            maxMeanIndex = i;
+        }
+    }
+    maxIndex = maxMeanIndex;
+
+    kt.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        kt[i] = gains(i);
+}
+
 static void rescale(std::vector<double>& kt, int index)
 {
     int numImages = kt.size();
@@ -450,10 +538,30 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
+    std::vector<cv::Mat> extendMasks;
+    getExtendedMasks(masks, 100, extendMasks);
+
+    std::vector<cv::Mat> outMasks(numImages);
+    cv::Mat temp;
+    for (int i = 0; i < numImages; i++)
+    {
+        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
+        for (int j = 0; j < numImages; j++)
+        {
+            if (i == j)
+                continue;
+            temp = extendMasks[i] & extendMasks[j];
+            outMasks[i] |= temp;
+        }
+    }
+
     int maxMeanIndex;
     std::vector<double> gains;
     getLinearTransforms(grayImages, masks, maxMeanIndex, gains);
-    rescale(gains, maxMeanIndex);
+    //rescale(gains, maxMeanIndex);
+    //for (int i = 0; i < numImages; i++)
+    //    printf("%f ", gains[i]);
+    //printf("\n");
 
     results.resize(numImages);
     for (int i = 0; i < numImages; i++)

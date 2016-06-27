@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\source\Blend\Compensate.cpp" />
     <ClCompile Include="..\..\source\Blend\TestVariousGainAdjust.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

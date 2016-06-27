@@ -2115,6 +2115,8 @@ int main7()
     return 0;
 }
 
+void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+
 // main8
 int main()
 {
@@ -2177,6 +2179,22 @@ int main()
         images[i] = cv::imread(imagePaths[i]);
         masks[i] = cv::imread(maskPaths[i], -1);
     }
+
+    std::vector<cv::Mat> compImages;
+    compensate(images, masks, compImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::imshow("comp", compImages[i]);
+        cv::waitKey(0);
+    }
+
+    cv::Mat blendImage;
+    TilingLinearBlend linearBlender;
+    linearBlender.prepare(masks, 100);
+    linearBlender.blend(compImages, blendImage);
+    cv::imshow("linear blend", blendImage);
+    cv::waitKey(0);
+    return 0;
 
     std::vector<cv::Mat> adjustImages(numImages);
     std::vector<std::vector<unsigned char> > luts;
