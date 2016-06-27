@@ -2129,16 +2129,16 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
@@ -2155,20 +2155,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
     //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
@@ -2182,6 +2182,7 @@ int main()
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
     exposureCorrect(images, masks, luts, corrected);
+    return 0;
     for (int i = 0; i < numImages; i++)
     {
         if (corrected[i])

@@ -126,7 +126,49 @@ void valuesInRange8UC1(const cv::Mat& image, int begInc, int endExc, cv::Mat& ma
     }
 }
 
+struct ImageInfo
+{
+    ImageInfo() : i(0), fullMean(0), mainMean(0), seamMean(0) {};
+    int i;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    cv::Mat gray;
+    double fullMean;
+    double mainMean;
+    double seamMean;
+};
 
+struct IntersectionInfo
+{
+    IntersectionInfo() :
+    i(0), j(0),
+    numFullNonZero(0), numMainNonZero(0), numSeamNonZero(0),
+    iFullMean(0), jFullMean(0), iMainMean(0), jMainMean(0), iSeamMean(0), jSeamMean(0)
+    {}
+    int i, j;
+    cv::Mat fullMask;
+    cv::Mat mainMask;
+    cv::Mat seamMask;
+    int numFullNonZero;
+    int numMainNonZero;
+    int numSeamNonZero;
+    double iFullMean, jFullMean;
+    double iMainMean, jMainMean;
+    double iSeamMean, jSeamMean;
+};
+
+struct GroupInfo
+{
+    GroupInfo(int numTotal_)
+    {
+        numTotal = numTotal_;
+        includes.resize(numTotal, 0);
+    }
+    std::vector<int> indexes;
+    std::vector<int> includes;
+    int numTotal;
+};
 
 void calcInfo(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<ImageInfo>& imageInfos, std::vector<IntersectionInfo>& intersectInfos)
@@ -246,6 +288,184 @@ void pickAlwaysLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
     }
 }
 
+void group(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
+    std::vector<GroupInfo>& groupInfos, std::vector<int>& groupIndexes)
+{
+    groupInfos.clear();
+    groupIndexes.clear();
+    int intersectSize = intersectInfos.size();
+    if (!intersectSize)
+        return;
+
+    int numImages = 0;
+    for (int i = 0; i < intersectSize; i++)
+    {
+        const IntersectionInfo& info = intersectInfos[i];
+        numImages = std::max(numImages, std::max(info.i, info.j));
+    }
+    numImages++;
+
+    std::vector<IntersectionInfo> groupIntersectInfos = intersectInfos;
+    typedef std::vector<IntersectionInfo>::iterator InserectIterator;
+    // Remove the intersections which numSeamNonZero is zero
+    // or abs(iSeamMean - jSeamMean) is too large
+    for (InserectIterator itr = groupIntersectInfos.begin(); itr != groupIntersectInfos.end();)
+    {
+        if (!itr->numSeamNonZero)
+        {
+            itr = groupIntersectInfos.erase(itr);
+            continue;
+        }
+
+        if (abs(itr->iSeamMean - itr->jSeamMean) > thresh)
+        {
+            itr = groupIntersectInfos.erase(itr);
+            continue;
+        }
+
+        ++itr;
+    }
+
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+    }
+
+    //std::vector<double> seamMeanAbsDiff(intersectSize);
+    //for (int i = 0; i < intersectSize; i++)
+    //    seamMeanAbsDiff[i] = abs(intersectInfos[i].iSeamMean - intersectInfos[i].jSeamMean);
+    //double maxDiff = seamMeanAbsDiff[0], meanDiff = 0;
+    //int effectNum = 0;
+    //for (int i = 0; i < intersectSize; i++)
+    //{
+    //    maxDiff = std::max(maxDiff, seamMeanAbsDiff[i]);
+    //    if (seamMeanAbsDiff[i] > 1)
+    //    {
+    //        meanDiff += seamMeanAbsDiff[i];
+    //        effectNum++;
+    //    }        
+    //}
+    //meanDiff /= effectNum;
+    //printf("max diff = %f, mean diff = %f\n", maxDiff, meanDiff);
+
+    // Group the images together, in each group, for each image i, 
+    // there is at least one image j that has non zero numSeamNonZero with image i
+    // and abs(iSeamMean - jSeamMean) < threshold
+    GroupInfo gInfo(numImages);
+    gInfo.indexes.push_back(0);
+    gInfo.includes[0] = 1;
+    groupInfos.push_back(gInfo);
+    for (int i = 1; i < numImages; i++)
+    {
+        int groupIndex = -1;
+        int imageIndex = -1;
+        int numGroups = groupInfos.size();
+        for (int j = 0; j < numGroups; j++)
+        {
+            int numGroupElems = groupInfos[j].indexes.size();
+            for (int k = 0; k < numGroupElems; k++)
+            {
+                bool foundSmall = false;
+                int otherIndex = groupInfos[j].indexes[k];
+                for (int u = 0; u < intersectSize; u++)
+                {
+                    // We must check intersectInfos[u].numSeamNonZero > 0
+                    // If no intersection, iSeamMean == jSeamMean == 0, 
+                    // then abs(iSeamMean - jSeamMean) <= thresh is true
+                    if (intersectInfos[u].numSeamNonZero > 0 &&
+                        ((intersectInfos[u].i == i && intersectInfos[u].j == otherIndex) ||
+                         (intersectInfos[u].i == otherIndex && intersectInfos[u].j == i)))
+                    {
+                        if (abs(intersectInfos[u].iSeamMean - intersectInfos[u].jSeamMean) <= thresh)
+                        {
+                            foundSmall = true;
+                            groupIndex = j;
+                            imageIndex = i;
+                            break;
+                        }
+                    }
+                }
+                if (foundSmall)
+                    break;
+            }
+            if (groupIndex >= 0 && imageIndex >= 0)
+                break;
+        }
+        if (groupIndex >= 0 && imageIndex >= 0)
+        {
+            groupInfos[groupIndex].indexes.push_back(imageIndex);
+            groupInfos[groupIndex].includes[imageIndex] = 1;
+        }
+        else
+        {
+            GroupInfo gInfo(numImages);
+            gInfo.indexes.push_back(i);
+            gInfo.includes[i] = 1;
+            groupInfos.push_back(gInfo);
+        }
+    }
+
+    // Further group the existing groups
+    // For group i and j, if there exist an image u from group i and and image v from group j
+    // satisfying numSeamNonZero is not zero and abs(uSeamMean - vSeamMean) < thresh,
+    // then group i and j should be merged
+    int lastNumGroups = groupInfos.size();
+    typedef std::vector<GroupInfo>::iterator GroupIterator;
+    while (true)
+    {
+        for (GroupIterator itrLeft = groupInfos.begin(); itrLeft - groupInfos.begin() < groupInfos.size() - 1; ++itrLeft)
+        {
+            for (GroupIterator itrRight = itrLeft + 1; itrRight != groupInfos.end();)
+            {
+                int leftSize = itrLeft->indexes.size();
+                int rightSize = itrRight->indexes.size();
+                bool deleteItem = false;
+                for (int i = 0; i < leftSize; i++)
+                {
+                    int leftIndex = itrLeft->indexes[i];
+                    for (int j = 0; j < rightSize; j++)
+                    {
+                        int rightIndex = itrRight->indexes[j];
+                        for (int u = 0; u < intersectSize; u++)
+                        {
+                            if ((intersectInfos[u].numSeamNonZero > 0) &&
+                                ((intersectInfos[u].i == leftIndex && intersectInfos[u].j == rightIndex) ||
+                                 (intersectInfos[u].i == rightIndex && intersectInfos[u].j == leftIndex)))
+                            {
+                                if (abs(intersectInfos[u].iSeamMean - intersectInfos[u].jSeamMean) < thresh)
+                                {
+                                    int numGroupElems = itrRight->indexes.size();
+                                    for (int v = 0; v < numGroupElems; v++)
+                                    {
+                                        itrLeft->indexes.push_back(itrRight->indexes[v]);
+                                        itrLeft->includes[itrRight->indexes[v]] = 1;
+                                    }
+                                    deleteItem = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (deleteItem)
+                            break;
+                    }
+                    if (deleteItem)
+                        break;
+                }
+                if (deleteItem)
+                    itrRight = groupInfos.erase(itrRight);
+                else
+                    ++itrRight;
+            }
+        }
+        if (groupInfos.size() == lastNumGroups)
+            break;
+        lastNumGroups = groupInfos.size();
+    }
+
+    int a = 0;
+}
+
 void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected)
 {
@@ -257,6 +477,10 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
     std::vector<ImageInfo> imageInfos;
     std::vector<IntersectionInfo> intersectInfos;
     calcInfo(images, masks, imageInfos, intersectInfos);
+
+    std::vector<GroupInfo> groupInfos;
+    std::vector<int> groupIndexes;
+    group(intersectInfos, 10, groupInfos, groupIndexes);
 
     std::vector<int> alwaysSmallIndexes, alwaysLargeIndexes;
     pickAlwaysLargeOrSmall(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
