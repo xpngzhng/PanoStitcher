@@ -328,8 +328,9 @@ void group(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
 
     for (int i = 0; i < intersectSize; i++)
     {
-        printf("i = %d, j = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
-            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+        printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
+            intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
     }
 
     //std::vector<double> seamMeanAbsDiff(intersectSize);
@@ -406,6 +407,15 @@ void group(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
         }
     }
 
+    int numGroups = groupInfos.size();
+    for (int i = 0; i < numGroups; i++)
+    {
+        printf("old group [%d]: ", i);
+        for (int j = 0; j < groupInfos[i].indexes.size(); j++)
+            printf("%d ", groupInfos[i].indexes[j]);
+        printf("\n");
+    }
+
     // Further group the existing groups
     // For group i and j, if there exist an image u from group i and and image v from group j
     // satisfying numSeamNonZero is not zero and abs(uSeamMean - vSeamMean) < thresh,
@@ -463,7 +473,14 @@ void group(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
         lastNumGroups = groupInfos.size();
     }
 
-    int a = 0;
+    numGroups = groupInfos.size();
+    for (int i = 0; i < numGroups; i++)
+    {
+        printf("new group [%d]: ", i);
+        for (int j = 0; j < groupInfos[i].indexes.size(); j++)
+            printf("%d ", groupInfos[i].indexes[j]);
+        printf("\n");
+    }
 }
 
 void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
@@ -529,21 +546,30 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
     blendConfig.setBlendMultiBand();
     cv::Mat mainBlend;
     parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
-    //cv::imshow("blend", mainBlend);
-    //cv::waitKey(0);
+    cv::imshow("blend", mainBlend);
+    cv::waitKey(0);
 
-    std::vector<cv::Mat> adjustLargeImages(numLarge), adjustSmallImages(numSmall);
-    std::vector<unsigned char> lut;
+    //std::vector<cv::Mat> adjustLargeImages(numLarge), adjustSmallImages(numSmall);
+    //std::vector<unsigned char> lut;
+    //for (int i = 0; i < numLarge; i++)
+    //{
+    //    calcTransform(images[alwaysLargeIndexes[i]], masks[alwaysLargeIndexes[i]], mainBlend, mainMask, lut);
+    //    transform(images[alwaysLargeIndexes[i]], adjustLargeImages[i], lut, masks[alwaysLargeIndexes[i]]);
+    //}
+    //for (int i = 0; i < numSmall; i++)
+    //{
+    //    calcTransform(images[alwaysSmallIndexes[i]], masks[alwaysSmallIndexes[i]], mainBlend, mainMask, lut);
+    //    transform(images[alwaysSmallIndexes[i]], adjustSmallImages[i], lut, masks[alwaysSmallIndexes[i]]);
+    //}
+
+    printf("num large = %d: ", numLarge);
     for (int i = 0; i < numLarge; i++)
-    {
-        calcTransform(images[alwaysLargeIndexes[i]], masks[alwaysLargeIndexes[i]], mainBlend, mainMask, lut);
-        transform(images[alwaysLargeIndexes[i]], adjustLargeImages[i], lut, masks[alwaysLargeIndexes[i]]);
-    }
+        printf("%d ", alwaysLargeIndexes[i]);
+    printf("\n");
+    printf("num small = %d: ", numSmall);
     for (int i = 0; i < numSmall; i++)
-    {
-        calcTransform(images[alwaysSmallIndexes[i]], masks[alwaysSmallIndexes[i]], mainBlend, mainMask, lut);
-        transform(images[alwaysSmallIndexes[i]], adjustSmallImages[i], lut, masks[alwaysSmallIndexes[i]]);
-    }
+        printf("%d ", alwaysSmallIndexes[i]);
+    printf("\n");
 
     luts.resize(numImages);
     corrected.resize(numImages);

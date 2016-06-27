@@ -162,6 +162,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
+    options.push_back(std::make_pair("bf", "0"));
     std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
@@ -647,6 +648,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
+    options.push_back(std::make_pair("bf", "0"));
     std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {

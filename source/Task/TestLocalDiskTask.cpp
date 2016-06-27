@@ -93,7 +93,8 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
-    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    //std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    std::string projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
