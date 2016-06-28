@@ -99,15 +99,16 @@ int main()
     getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
 
     std::vector<cv::Mat> images(numVideos), reprojImages(numVideos), 
-        adjustImages(numVideos), compImages(numVideos);
+        adjustImages(numVideos), tintImages(numVideos);
     TilingLinearBlend linearBlender;
     linearBlender.prepare(masks, 75);
     TilingMultibandBlendFast multiBlender;
     multiBlender.prepare(masks, 10, 2);
-    cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend;
+    cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend, tintLinearBlend;
 
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
+    std::vector<std::vector<std::vector<unsigned char> > > tintLuts;
 
     std::vector<avp::AudioVideoFrame2> frames(numVideos);
     while (true)
@@ -128,8 +129,6 @@ int main()
             images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
         reprojectParallel(images, reprojImages, maps);
 
-        compensate(reprojImages, masks, compImages);
-        
         linearBlender.blend(reprojImages, bareBlend);
 
         exposureCorrect(reprojImages, masks, luts, corrected);
@@ -138,13 +137,18 @@ int main()
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 
-        //printf("exposure correct again:\n");
-        //exposureCorrect(adjustImages, masks, luts, corrected);
+        //corrected[5] = 1;
+        //tintCorrect(adjustImages, masks, corrected, tintLuts);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
+        //tintAdjust(adjustImages, masks, tintImages);
+        //linearBlender.blend(tintImages, tintLinearBlend);
 
         shower.show("src", images);
         cv::imshow("bare", bareBlend);
         cv::imshow("ajudst linear", adjustLinearBlend);
         cv::imshow("adjust multiband", adjustMultiBlend);
+        //cv::imshow("tint linear", tintLinearBlend);
         int key = cv::waitKey(0);
         if (key == 'q')
             break;

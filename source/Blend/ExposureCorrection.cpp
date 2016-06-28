@@ -771,3 +771,4 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
         }
     }
 }
+

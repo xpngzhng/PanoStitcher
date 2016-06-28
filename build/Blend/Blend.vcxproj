@@ -45,6 +45,7 @@
     <ClCompile Include="..\..\source\Blend\Pyramid.cpp" />
     <ClCompile Include="..\..\source\Blend\Pyramid3.cpp" />
     <ClCompile Include="..\..\source\Blend\Seam.cpp" />
+    <ClCompile Include="..\..\source\Blend\TintAdjust.cpp" />
     <ClCompile Include="..\..\source\Blend\ZBlend.cpp" />
   </ItemGroup>
   <ItemGroup>

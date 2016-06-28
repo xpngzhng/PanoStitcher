@@ -311,3 +311,8 @@ void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std
 
 void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);
+
+void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    const std::vector<int>& correct, std::vector<std::vector<std::vector<unsigned char> > >& luts);
+
+void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);

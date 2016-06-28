@@ -1638,7 +1638,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(A, b, gains);
-    //std::cout << gains << "\n";
+    std::cout << gains << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -1661,7 +1661,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(A, b, gains);
-    //std::cout << gains << "\n";
+    std::cout << gains << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -1670,10 +1670,90 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
         bgRatioGains[i] = gains(i);
 }
 
+static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
+{
+    int numImages = images.size();
+
+    double invSigmaNSqr = 1;
+    double invSigmaGSqr = 1;
+
+    cv::Mat_<double> rgA(numImages, numImages), bgA(numImages, numImages);
+    cv::Mat_<double> rgB(numImages, 1), bgB(numImages, 1);
+    cv::Mat_<double> rgGains(numImages, 1), bgGains(numImages, 1);
+
+    rgA.setTo(0), bgA.setTo(0);
+    rgB.setTo(0), bgB.setTo(0);
+    cv::Mat intersect;
+    int rows = images[0].rows, cols = images[0].cols;
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < numImages; j++)
+        {
+            intersect = masks[i] & masks[j];
+            if (cv::countNonZero(intersect) == 0)
+                continue;
+
+            for (int u = 0; u < rows; u++)
+            {
+                const unsigned char* ptri = images[i].ptr<unsigned char>(u);
+                const unsigned char* ptrj = images[j].ptr<unsigned char>(u);
+                const unsigned char* ptrm = intersect.ptr<unsigned char>(u);
+                for (int v = 0; v < cols; v++)
+                {
+                    if (*(ptrm++))
+                    {
+                        double bi = *(ptri++), gi = *(ptri++), ri = *(ptri++);
+                        double bj = *(ptrj++), gj = *(ptrj++), rj = *(ptrj++);
+                        //if (gi > 15 && gi < 240 && gj > 15 && gj < 240)
+                        if (gi > 1 && gj > 1)
+                        {
+                            double bgi = bi / gi, rgi = ri / gi;
+                            double bgj = bj / gj, rgj = rj / gj;
+
+                            bgA(i, i) += bgi * bgi * invSigmaNSqr + invSigmaGSqr;
+                            bgA(j, j) += bgj * bgj * invSigmaNSqr;
+                            bgA(i, j) -= 2 * bgi * bgj * invSigmaNSqr;
+                            bgB(i) += invSigmaGSqr;
+
+                            rgA(i, i) += rgi * rgi * invSigmaNSqr + invSigmaGSqr;
+                            rgA(j, j) += rgj * rgj * invSigmaNSqr;
+                            rgA(i, j) -= 2 * rgi * rgj * invSigmaNSqr;
+                            rgB(i) += invSigmaGSqr;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    bool success;
+
+    //std::cout << A << "\n" << b << "\n";
+    success = cv::solve(rgA, rgB, rgGains);
+    std::cout << rgGains << "\n";
+    if (!success)
+        rgGains.setTo(1);
+
+    rgRatioGains.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        rgRatioGains[i] = rgGains(i);
+
+    //std::cout << A << "\n" << b << "\n";
+    success = cv::solve(bgA, bgB, bgGains);
+    std::cout << bgGains << "\n";
+    if (!success)
+        bgGains.setTo(1);
+
+    bgRatioGains.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        bgRatioGains[i] = bgGains(i);
+}
+
 void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
 {
     std::vector<double> rgGains, bgGains;
-    getLinearTransforms(images, masks, rgGains, bgGains);
+    getAccurateLinearTransforms(images, masks, rgGains, bgGains);
     int numImages = images.size();
     results.resize(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1681,7 +1761,7 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 }
 
 // main5
-int main5()
+int main()
 {
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
@@ -1694,31 +1774,31 @@ int main5()
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
-
     //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
     //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
@@ -2118,7 +2198,7 @@ int main7()
 void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
 // main8
-int main()
+int main8()
 {
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
