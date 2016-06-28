@@ -71,6 +71,9 @@ struct ShowTiledImages
     bool hasInit;
 };
 
+void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected);
+
 int main()
 {
     std::string configFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
@@ -139,16 +142,17 @@ int main()
 
         //corrected[5] = 1;
         //tintCorrect(adjustImages, masks, corrected, tintLuts);
+        //tintCorrect(adjustImages, masks, tintLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
-        //tintAdjust(adjustImages, masks, tintImages);
-        //linearBlender.blend(tintImages, tintLinearBlend);
+        tintAdjust(adjustImages, masks, tintImages);        
+        linearBlender.blend(tintImages, tintLinearBlend);
 
         shower.show("src", images);
         cv::imshow("bare", bareBlend);
         cv::imshow("ajudst linear", adjustLinearBlend);
         cv::imshow("adjust multiband", adjustMultiBlend);
-        //cv::imshow("tint linear", tintLinearBlend);
+        cv::imshow("tint linear", tintLinearBlend);
         int key = cv::waitKey(0);
         if (key == 'q')
             break;

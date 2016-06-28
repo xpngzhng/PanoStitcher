@@ -205,7 +205,9 @@ struct IntersectionInfo
     IntersectionInfo() :
     i(0), j(0),
     numFullNonZero(0), numMainNonZero(0), numSeamNonZero(0),
-    iFullMean(0), jFullMean(0), iMainMean(0), jMainMean(0), iSeamMean(0), jSeamMean(0)
+    iFullMean(0), jFullMean(0), iMainMean(0), jMainMean(0), iSeamMean(0), jSeamMean(0),
+    iSeamMeanB(0), iSeamMeanG(0), iSeamMeanR(0),
+    jSeamMeanB(0), jSeamMeanG(0), jSeamMeanR(0)
     {}
     int i, j;
     cv::Mat fullMask;
@@ -217,6 +219,8 @@ struct IntersectionInfo
     double iFullMean, jFullMean;
     double iMainMean, jMainMean;
     double iSeamMean, jSeamMean;
+    double iSeamMeanB, iSeamMeanG, iSeamMeanR;
+    double jSeamMeanB, jSeamMeanG, jSeamMeanR;
 };
 
 struct GroupInfo
@@ -295,6 +299,15 @@ void calcInfo(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& ma
                 intersect.numSeamNonZero = cv::countNonZero(mask);
                 intersect.iSeamMean = cv::mean(imageInfos[i].gray, mask)[0];
                 intersect.jSeamMean = cv::mean(imageInfos[j].gray, mask)[0];
+
+                cv::Scalar iSeamMean = cv::mean(images[i], mask);
+                cv::Scalar jSeamMean = cv::mean(images[j], mask);
+                intersect.iSeamMeanB = iSeamMean[0];
+                intersect.iSeamMeanG = iSeamMean[1];
+                intersect.iSeamMeanR = iSeamMean[2];
+                intersect.jSeamMeanB = jSeamMean[0];
+                intersect.jSeamMeanG = jSeamMean[1];
+                intersect.jSeamMeanR = jSeamMean[2];
             }
         }
     }
@@ -440,7 +453,124 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
         if (appearCount)
         {
             if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount || 
-                (appearCount > 2 && significantSmallCount + 2 > appearCount))
+                (appearCount > 2 && significantSmallCount + 2 > appearCount) ||
+                significantSmallCount > 0)
+                alwaysSmallIndexes.push_back(k);
+            //if (largeCount == appearCount && accumLarge > thresh * 3.5 * appearCount)
+            //    alwaysLargeIndexes.push_back(k);
+        }
+    }
+}
+
+void pickAlmostLargeOrSmallC3(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
+    std::vector<int>& alwaysSmallIndexes, std::vector<int>& alwaysLargeIndexes)
+{
+    alwaysSmallIndexes.clear();
+    alwaysLargeIndexes.clear();
+    int intersectSize = intersectInfos.size();
+    if (!intersectSize)
+        return;
+
+    int numImages = 0;
+    for (int i = 0; i < intersectSize; i++)
+    {
+        const IntersectionInfo& info = intersectInfos[i];
+        numImages = std::max(numImages, std::max(info.i, info.j));
+    }
+    numImages++;
+
+    //std::vector<double> seamMeanAbsDiff;
+    //for (int i = 0; i < intersectSize; i++)
+    //{
+    //    if (intersectInfos[i].numSeamNonZero > 0)
+    //        seamMeanAbsDiff.push_back(abs(intersectInfos[i].iSeamMean - intersectInfos[i].jSeamMean));
+    //}
+    //double maxDiff = seamMeanAbsDiff[0], meanDiff = 0;
+    //int effectNum = seamMeanAbsDiff.size();
+    //for (int i = 0; i < effectNum; i++)
+    //{
+    //    maxDiff = std::max(maxDiff, seamMeanAbsDiff[i]);
+    //    meanDiff += seamMeanAbsDiff[i];
+    //}
+    //meanDiff /= effectNum;
+    //std::sort(seamMeanAbsDiff.begin(), seamMeanAbsDiff.end());
+    //double midDiff;
+    //if (effectNum % 2 == 1)
+    //    midDiff = seamMeanAbsDiff[effectNum / 2];
+    //else
+    //    midDiff = (seamMeanAbsDiff[effectNum / 2] + seamMeanAbsDiff[(effectNum - 1) / 2]) * 0.5;
+    //printf("max diff = %f, mean diff = %f, mid diff = %f\n", maxDiff, meanDiff, midDiff);
+
+    for (int k = 0; k < numImages; k++)
+    {
+        int appearCount = 0;
+        int smallCount = 0;
+        int significantSmallCount = 0;
+        int largeCount = 0;
+        int significantLargeCount = 0;
+        double accumSmall = 0;
+        double accumLarge = 0;
+        for (int u = 0; u < intersectSize; u++)
+        {
+            const IntersectionInfo& info = intersectInfos[u];
+            if ((info.i == k || info.j == k) && info.numSeamNonZero > 0)
+            {
+                appearCount++;
+                if (info.i == k)
+                {
+                    if (info.iSeamMean > info.jSeamMean)
+                        accumLarge += (info.iSeamMean - info.jSeamMean);
+                    if (info.iSeamMean < info.jSeamMean)
+                        accumSmall += (info.jSeamMean - info.iSeamMean);
+
+                    if (info.iSeamMeanR > info.jSeamMeanR + thresh ||
+                        info.iSeamMeanG > info.jSeamMeanG + thresh ||
+                        info.iSeamMeanB > info.jSeamMeanB + thresh)
+                        largeCount++;
+                    if (info.iSeamMeanR > info.jSeamMeanR + thresh * 3 ||
+                        info.iSeamMeanG > info.jSeamMeanG + thresh * 3 ||
+                        info.iSeamMeanB > info.jSeamMeanB + thresh * 3)
+                        significantLargeCount++;
+                    if (info.iSeamMeanR + thresh < info.jSeamMeanR ||
+                        info.iSeamMeanG + thresh < info.jSeamMeanG ||
+                        info.iSeamMeanB + thresh < info.jSeamMeanB)
+                        smallCount++;
+                    if (info.iSeamMeanR + 3 * thresh < info.jSeamMeanR ||
+                        info.iSeamMeanG + 3 * thresh < info.jSeamMeanG ||
+                        info.iSeamMeanB + 3 * thresh < info.jSeamMeanB)
+                        significantSmallCount++;
+                }
+                else
+                {
+                    if (info.jSeamMean > info.iSeamMean)
+                        accumLarge += (info.jSeamMean - info.iSeamMean);
+                    if (info.jSeamMean < info.iSeamMean)
+                        accumSmall += (info.iSeamMean - info.jSeamMean);
+
+                    if (info.jSeamMeanR > info.iSeamMeanR + thresh ||
+                        info.jSeamMeanG > info.iSeamMeanG + thresh ||
+                        info.jSeamMeanB > info.iSeamMeanB + thresh)
+                        largeCount++;
+                    if (info.jSeamMeanR > info.iSeamMeanR + thresh * 3 ||
+                        info.jSeamMeanG > info.iSeamMeanG + thresh * 3 ||
+                        info.jSeamMeanB > info.iSeamMeanB + thresh * 3)
+                        significantLargeCount++;
+                    if (info.jSeamMeanR + thresh < info.iSeamMeanR ||
+                        info.jSeamMeanG + thresh < info.iSeamMeanG ||
+                        info.jSeamMeanB + thresh < info.iSeamMeanB)
+                        smallCount++;
+                    if (info.jSeamMeanR + 3 * thresh < info.iSeamMeanR ||
+                        info.jSeamMeanG + 3 * thresh < info.iSeamMeanG ||
+                        info.jSeamMeanB + 3 * thresh < info.iSeamMeanB)
+                        significantSmallCount++;
+                }
+            }
+        }
+        if (appearCount)
+        {
+            if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount ||
+                (appearCount > 2 && significantSmallCount + 2 > appearCount) ||
+                significantSmallCount > 0)
                 alwaysSmallIndexes.push_back(k);
             //if (largeCount == appearCount && accumLarge > thresh * 3.5 * appearCount)
             //    alwaysLargeIndexes.push_back(k);
@@ -672,6 +802,13 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
             intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
             intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
     }
+    //for (int i = 0; i < intersectSize; i++)
+    //{
+    //    printf("i = %d, j = %d, iSeamMean = %8.4f %8.4f %8.4f, jSeamMean = %8.4f %8.4f %8.4f\n",
+    //        intersectInfos[i].i, intersectInfos[i].j,
+    //        intersectInfos[i].iSeamMeanB, intersectInfos[i].iSeamMeanG, intersectInfos[i].iSeamMeanR,
+    //        intersectInfos[i].jSeamMeanB, intersectInfos[i].jSeamMeanG, intersectInfos[i].jSeamMeanR);
+    //}
 
     //std::vector<GroupInfo> groupInfos;
     //std::vector<int> groupIndexes;
@@ -772,3 +909,140 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
     }
 }
 
+void pickAlmostColorInconsistent(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
+    std::vector<int>& indexes)
+{
+    indexes.clear();
+    int intersectSize = intersectInfos.size();
+    if (!intersectSize)
+        return;
+
+    int numImages = 0;
+    for (int i = 0; i < intersectSize; i++)
+    {
+        const IntersectionInfo& info = intersectInfos[i];
+        numImages = std::max(numImages, std::max(info.i, info.j));
+    }
+    numImages++;
+
+    for (int k = 0; k < numImages; k++)
+    {
+        int appearCount = 0;
+        int diffMaxCount = 0;
+        for (int u = 0; u < intersectSize; u++)
+        {
+            const IntersectionInfo& info = intersectInfos[u];
+            if ((info.i == k || info.j == k) && info.numSeamNonZero > 0)
+            {
+                appearCount++;
+                double rgi = info.iSeamMeanR / info.iSeamMeanG, bgi = info.iSeamMeanB / info.iSeamMeanG;
+                double rgj = info.jSeamMeanR / info.jSeamMeanG, bgj = info.jSeamMeanB / info.jSeamMeanG;
+                if (abs(rgi - rgj) > thresh || abs(bgi - bgj) > thresh)
+                    diffMaxCount++;
+            }
+        }
+        if (appearCount)
+        {
+            printf("image %d, appear %d, max diff %d\n", k, appearCount, diffMaxCount);
+            if (diffMaxCount == appearCount || ((appearCount > 2) && (diffMaxCount * 2 >= appearCount)))
+                indexes.push_back(k);
+        }
+    }
+}
+
+void calcTintTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
+    std::vector<std::vector<unsigned char> >& luts);
+
+void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected)
+{
+    CV_Assert(checkSize(images) && checkSize(masks) &&
+        checkType(images, CV_8UC3) && checkType(masks, CV_8UC1));
+
+    int numImages = images.size();
+
+    std::vector<ImageInfo> imageInfos;
+    std::vector<IntersectionInfo> intersectInfos;
+    calcInfo(images, masks, imageInfos, intersectInfos);
+
+    int intersectSize = intersectInfos.size();
+    //for (int i = 0; i < intersectSize; i++)
+    //{
+    //    printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+    //        intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
+    //        intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+    //}
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, iSeamMean = %8.4f %8.4f %8.4f, jSeamMean = %8.4f %8.4f %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j,
+            intersectInfos[i].iSeamMeanB, intersectInfos[i].iSeamMeanG, intersectInfos[i].iSeamMeanR,
+            intersectInfos[i].jSeamMeanB, intersectInfos[i].jSeamMeanG, intersectInfos[i].jSeamMeanR);
+    }
+
+    std::vector<int> indexes;
+    pickAlmostColorInconsistent(intersectInfos, 0.25, indexes);
+    printf("color diff large indexes: ");
+    for (int i = 0; i < indexes.size(); i++)
+        printf("%d ", indexes[i]);
+    printf("\n");
+
+    corrected.resize(numImages);
+    std::vector<int> mainIndexes(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        bool found = false;
+        for (int j = 0; j < indexes.size(); j++)
+        {
+            if (indexes[j] == i)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+            corrected[i] = 1;
+        else
+        {
+            corrected[i] = 0;
+            mainIndexes.push_back(i);
+        }
+    }
+
+    int numMain = mainIndexes.size();
+    std::vector<cv::Mat> mainImages, mainMasks;
+    cv::Mat mainMask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
+    for (int i = 0; i < numMain; i++)
+    {
+        mainImages.push_back(images[mainIndexes[i]]);
+        mainMasks.push_back(masks[mainIndexes[i]]);
+        mainMask |= masks[mainIndexes[i]];
+    }
+
+    BlendConfig blendConfig;
+    blendConfig.setSeamDistanceTransform();
+    blendConfig.setBlendMultiBand();
+    cv::Mat mainBlend;
+    parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
+    //cv::imshow("blend", mainBlend);
+
+    std::vector<unsigned char> identityLut(256);
+    for (int i = 0; i < 256; i++)
+        identityLut[i] = i;
+
+    luts.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        if (corrected[i])
+        {
+            calcTintTransform(images[i], masks[i], mainBlend, mainMask, luts[i]);
+        }
+        else
+        {
+            luts[i].resize(3);
+            luts[i][0] = identityLut;
+            luts[i][1] = identityLut;
+            luts[i][2] = identityLut;
+        }
+    }
+}
