@@ -385,6 +385,10 @@ void CPUPanoramaLocalDiskTask::Impl::getLastAsyncErrorMessage(std::string& messa
 
 void CPUPanoramaLocalDiskTask::Impl::clear()
 {
+    if (thread && thread->joinable())
+        thread->join();
+    thread.reset(0);
+
     numVideos = 0;
     srcSize = cv::Size();
     dstSize = cv::Size();
@@ -402,10 +406,6 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     finishPercent.store(0);
 
     validFrameCount = 0;
-
-    if (thread && thread->joinable())
-        thread->join();
-    thread.reset(0);
 
     syncErrorMessage.clear();
     clearAsyncErrorMessage();
@@ -673,6 +673,9 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     decodeFramesBuffer.setMaxSize(4);
     procFrameBuffer.setMaxSize(16);
 
+    decodeFramesBuffer.resume();
+    procFrameBuffer.resume();
+
     finishPercent.store(0);
 
     initSuccess = true;
@@ -710,6 +713,13 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
         encodeThread->join();
     encodeThread.reset(0);
 
+    srcFramesMemoryPool.clear();
+    audioFramesMemoryPool.clear();
+    dstFramesMemoryPool.clear();
+
+    decodeFramesBuffer.clear();
+    procFrameBuffer.clear();
+
     if (!finish)
         ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
 
@@ -745,6 +755,16 @@ void CudaPanoramaLocalDiskTask::Impl::getLastAsyncErrorMessage(std::string& mess
 
 void CudaPanoramaLocalDiskTask::Impl::clear()
 {
+    if (decodeThread && decodeThread->joinable())
+        decodeThread->join();
+    decodeThread.reset(0);
+    if (procThread && procThread->joinable())
+        procThread->join();
+    procThread.reset(0);
+    if (encodeThread && encodeThread->joinable())
+        encodeThread->join();
+    encodeThread.reset(0);
+
     numVideos = 0;
     srcSize = cv::Size();
     dstSize = cv::Size();
@@ -764,16 +784,6 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
     finishPercent.store(0);
 
     validFrameCount = 0;
-
-    if (decodeThread && decodeThread->joinable())
-        decodeThread->join();
-    decodeThread.reset(0);
-    if (procThread && procThread->joinable())
-        procThread->join();
-    procThread.reset(0);
-    if (encodeThread && encodeThread->joinable())
-        encodeThread->join();
-    encodeThread.reset(0);
 
     syncErrorMessage.clear();
     clearAsyncErrorMessage();
