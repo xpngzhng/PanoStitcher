@@ -98,7 +98,8 @@ int main()
     std::vector<cv::Mat> masks, maps;
     getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
 
-    std::vector<cv::Mat> images(numVideos), reprojImages(numVideos), adjustImages(numVideos);
+    std::vector<cv::Mat> images(numVideos), reprojImages(numVideos), 
+        adjustImages(numVideos), compImages(numVideos);
     TilingLinearBlend linearBlender;
     linearBlender.prepare(masks, 75);
     TilingMultibandBlendFast multiBlender;
@@ -126,6 +127,8 @@ int main()
         for (int i = 0; i < numVideos; i++)
             images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
         reprojectParallel(images, reprojImages, maps);
+
+        compensate(reprojImages, masks, compImages);
         
         linearBlender.blend(reprojImages, bareBlend);
 
@@ -134,6 +137,9 @@ int main()
             transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
+
+        //printf("exposure correct again:\n");
+        //exposureCorrect(adjustImages, masks, luts, corrected);
 
         shower.show("src", images);
         cv::imshow("bare", bareBlend);

@@ -3,7 +3,64 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-void fitParabola(const std::vector<cv::Point>& pts, double& a, double& b, double& c)
+// The line must pass (0, 0)
+static void fitLine(const std::vector<cv::Point>& pts, double& k)
+{
+    int numPoints = pts.size();
+    CV_Assert(numPoints >= 3);
+
+    double A = 0, B = 0;
+    for (int i = 0; i < numPoints; i++)
+    {
+        double x = pts[i].x, y = pts[i].y;
+        A += x * x;
+        B += x * y;
+    }
+    if (A < DBL_EPSILON)
+        k = 0;
+    else
+        k = B / A;
+}
+
+static void getLUT(std::vector<unsigned char>& lut, double k)
+{
+    CV_Assert(k > 0);
+    lut.resize(256);
+    if (k > 1)
+    {
+        cv::Point2d p0(0, 0), p1(255 / k, 255), p2(255, 255);
+        lut[0] = 0;
+        lut[255] = 255;
+        for (int i = 1; i < 255; i++)
+        {
+            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
+            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+            double t0 = m - n, t1 = m + n, t;
+            if (t0 < 1 && t0 > 0)
+                t = t0;
+            else if (t1 < 1 && t1 > 0)
+                t = t1;
+            else
+                CV_Assert(0);
+            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
+            y = y < 0 ? 0 : (y > 255 ? 255 : y);
+            lut[i] = y;
+        }
+    }
+    else if (k < 1)
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = k * i + 0.5;
+    }
+    else
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = i;
+    }
+}
+
+// The parabola must pass (0, 0) and (255, 255)
+static void fitParabola(const std::vector<cv::Point>& pts, double& a, double& b, double& c)
 {
     int numPoints = pts.size();
     CV_Assert(numPoints >= 3);
@@ -59,7 +116,7 @@ void fitParabola(const std::vector<cv::Point>& pts, double& a, double& b, double
     }
 }
 
-void getLUT(std::vector<unsigned char>& lut, double a, double b, double c)
+static void getLUT(std::vector<unsigned char>& lut, double a, double b, double c)
 {
     lut.resize(256);
     for (int i = 0; i < 256; i++)
@@ -102,11 +159,15 @@ void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat
     }
     valPairs.resize(index);
 
-    double a, b, c;
-    fitParabola(valPairs, a, b, c);
-    getLUT(lut, a, b, c);
+    //double a, b, c;
+    //fitParabola(valPairs, a, b, c);
+    //getLUT(lut, a, b, c);
     //showLUT("parabola lut", lut);
     //cv::waitKey(0);
+
+    double k;
+    fitLine(valPairs, k);
+    getLUT(lut, k);
 }
 
 void valuesInRange8UC1(const cv::Mat& image, int begInc, int endExc, cv::Mat& mask)
@@ -381,8 +442,8 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
             if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount || 
                 (appearCount > 2 && significantSmallCount + 2 > appearCount))
                 alwaysSmallIndexes.push_back(k);
-            if (largeCount == appearCount)
-                alwaysLargeIndexes.push_back(k);
+            //if (largeCount == appearCount && accumLarge > thresh * 3.5 * appearCount)
+            //    alwaysLargeIndexes.push_back(k);
         }
     }
 }
@@ -425,12 +486,22 @@ void group(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
         ++itr;
     }
 
-    for (int i = 0; i < intersectSize; i++)
-    {
-        printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
-            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
-            intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
-    }
+    //printf("orig intersect infos\n");
+    //for (int i = 0; i < intersectSize; i++)
+    //{
+    //    printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+    //        intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
+    //        intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+    //}
+
+    //int groupIntersectSize = groupIntersectInfos.size();
+    //printf("group intersect infos\n");
+    //for (int i = 0; i < groupIntersectSize; i++)
+    //{
+    //    printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+    //        groupIntersectInfos[i].i, groupIntersectInfos[i].j, groupIntersectInfos[i].numSeamNonZero,
+    //        groupIntersectInfos[i].iSeamMean, groupIntersectInfos[i].jSeamMean);
+    //}
 
     //std::vector<double> seamMeanAbsDiff(intersectSize);
     //for (int i = 0; i < intersectSize; i++)

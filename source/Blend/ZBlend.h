@@ -267,6 +267,23 @@ private:
     bool success;
 };
 
+void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+
+class GainCompensate
+{
+public:
+    GainCompensate() :numImages(0), maxMeanIndex(0), rows(0), cols(0), success(false) {}
+    bool prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks);
+    bool compensate(const std::vector<cv::Mat>& images, std::vector<cv::Mat>& results) const;
+private:
+    std::vector<double> gains;
+    std::vector<std::vector<unsigned char> > LUTs;
+    int numImages;
+    int maxMeanIndex;
+    int rows, cols;
+    int success;
+};
+
 class MultibandBlendGainAdjust
 {
 public:
