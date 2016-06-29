@@ -26,9 +26,14 @@ static void getLUT(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
     lut.resize(256);
-    if (k > 1)
+    if (abs(k - 1) < 0.02)
     {
-        cv::Point2d p0(0, 0), p1(255 / k, 255), p2(255, 255);
+        for (int i = 0; i < 256; i++)
+            lut[i] = cv::saturate_cast<unsigned char>(i * k);
+    }
+    else
+    {
+        cv::Point2d p0(0, 0), p1 = k > 1 ? cv::Point(255 / k, 255) : cv::Point(255, k * 255), p2(255, 255);
         lut[0] = 0;
         lut[255] = 255;
         for (int i = 1; i < 255; i++)
@@ -46,16 +51,6 @@ static void getLUT(std::vector<unsigned char>& lut, double k)
             y = y < 0 ? 0 : (y > 255 ? 255 : y);
             lut[i] = y;
         }
-    }
-    else if (k < 1)
-    {
-        for (int i = 0; i < 256; i++)
-            lut[i] = k * i + 0.5;
-    }
-    else
-    {
-        for (int i = 0; i < 256; i++)
-            lut[i] = i;
     }
 }
 
@@ -168,6 +163,61 @@ void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat
     double k;
     fitLine(valPairs, k);
     getLUT(lut, k);
+}
+
+
+void calcTransformBGR(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
+    std::vector<std::vector<unsigned char> >& luts)
+{
+    CV_Assert(image.data && image.type() == CV_8UC3 &&
+        base.data && base.type() == CV_8UC3 && imageMask.data && imageMask.type() == CV_8UC1 &&
+        baseMask.data && baseMask.type() == CV_8UC1);
+    int rows = image.rows, cols = image.cols;
+    CV_Assert(imageMask.rows == rows && imageMask.cols == cols &&
+        base.rows == rows && base.cols == cols && baseMask.rows == rows && baseMask.cols == cols);
+
+    cv::Mat intersectMask = imageMask & baseMask;
+
+    int count = cv::countNonZero(intersectMask);
+    std::vector<cv::Point> valPairs[3];
+    valPairs[0].resize(count);
+    valPairs[1].resize(count);
+    valPairs[2].resize(count);
+
+    int indexB = 0, indexG = 0, indexR = 0;
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrBase = base.ptr<unsigned char>(i);
+        const unsigned char* ptrImage = image.ptr<unsigned char>(i);
+        const unsigned char* ptrMask = intersectMask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            int baseValB = *(ptrBase++), baseValG = *(ptrBase++), baseValR = *(ptrBase++);
+            int imageValB = *(ptrImage++), imageValG = *(ptrImage++), imageValR = *(ptrImage++);
+            if (*(ptrMask++))
+            {
+                if (baseValB > 15 && baseValB < 240)
+                    valPairs[0][indexB++] = cv::Point(imageValB, baseValB);
+                if (baseValG > 15 && baseValG < 240)
+                    valPairs[1][indexG++] = cv::Point(imageValG, baseValG);
+                if (baseValR > 15 && baseValR < 240)
+                    valPairs[2][indexR++] = cv::Point(imageValR, baseValR);
+            }
+        }
+    }
+    valPairs[0].resize(indexB);
+    valPairs[1].resize(indexG);
+    valPairs[2].resize(indexR);
+
+    
+    luts.resize(3);
+    for (int i = 0; i < 3; i++)
+    {
+        double k;
+        fitLine(valPairs[i], k);
+        getLUT(luts[i], k);
+    }
+    
 }
 
 void valuesInRange8UC1(const cv::Mat& image, int begInc, int endExc, cv::Mat& mask)
@@ -453,8 +503,8 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
         if (appearCount)
         {
             if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount || 
-                (appearCount > 2 && significantSmallCount + 2 > appearCount) ||
-                significantSmallCount > 0)
+                (appearCount > 2 && significantSmallCount + 2 > appearCount)/* ||
+                significantSmallCount > 0*/)
                 alwaysSmallIndexes.push_back(k);
             //if (largeCount == appearCount && accumLarge > thresh * 3.5 * appearCount)
             //    alwaysLargeIndexes.push_back(k);
@@ -462,7 +512,7 @@ void pickAlmostLargeOrSmall(const std::vector<IntersectionInfo>& intersectInfos,
     }
 }
 
-void pickAlmostLargeOrSmallC3(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
+void pickAlmostLargeOrSmallBGR(const std::vector<IntersectionInfo>& intersectInfos, double thresh,
     std::vector<int>& alwaysSmallIndexes, std::vector<int>& alwaysLargeIndexes)
 {
     alwaysSmallIndexes.clear();
@@ -566,11 +616,12 @@ void pickAlmostLargeOrSmallC3(const std::vector<IntersectionInfo>& intersectInfo
                 }
             }
         }
+        printf("index %d, appear %d, small %d, sig small %d\n", k, appearCount, smallCount, significantSmallCount);
         if (appearCount)
         {
             if (accumSmall > thresh * 2.5 * appearCount || smallCount == appearCount ||
-                (appearCount > 2 && significantSmallCount + 2 > appearCount) ||
-                significantSmallCount > 0)
+                (appearCount > 2 && significantSmallCount + 2 > smallCount && smallCount + 2 > appearCount)/* ||
+                significantSmallCount > 0*/)
                 alwaysSmallIndexes.push_back(k);
             //if (largeCount == appearCount && accumLarge > thresh * 3.5 * appearCount)
             //    alwaysLargeIndexes.push_back(k);
@@ -802,17 +853,29 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
             intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
             intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
     }
-    //for (int i = 0; i < intersectSize; i++)
-    //{
-    //    printf("i = %d, j = %d, iSeamMean = %8.4f %8.4f %8.4f, jSeamMean = %8.4f %8.4f %8.4f\n",
-    //        intersectInfos[i].i, intersectInfos[i].j,
-    //        intersectInfos[i].iSeamMeanB, intersectInfos[i].iSeamMeanG, intersectInfos[i].iSeamMeanR,
-    //        intersectInfos[i].jSeamMeanB, intersectInfos[i].jSeamMeanG, intersectInfos[i].jSeamMeanR);
-    //}
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, iSeamMean = %8.4f %8.4f %8.4f, jSeamMean = %8.4f %8.4f %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j,
+            intersectInfos[i].iSeamMeanB, intersectInfos[i].iSeamMeanG, intersectInfos[i].iSeamMeanR,
+            intersectInfos[i].jSeamMeanB, intersectInfos[i].jSeamMeanG, intersectInfos[i].jSeamMeanR);
+    }
 
     //std::vector<GroupInfo> groupInfos;
     //std::vector<int> groupIndexes;
     //group(intersectInfos, 10, groupInfos, groupIndexes);
+
+    std::vector<int> smallIndexes, largeIndexes;
+    pickAlmostLargeOrSmallBGR(intersectInfos, 10, smallIndexes, largeIndexes);
+    int numS = smallIndexes.size(), numL = largeIndexes.size();
+    printf("num large = %d: ", numL);
+    for (int i = 0; i < numL; i++)
+        printf("%d ", largeIndexes[i]);
+    printf("\n");
+    printf("num small = %d: ", numS);
+    for (int i = 0; i < numS; i++)
+        printf("%d ", smallIndexes[i]);
+    printf("\n");
 
     std::vector<int> alwaysSmallIndexes, alwaysLargeIndexes;
     //pickAlwaysLargeOrSmall(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
@@ -862,7 +925,7 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
     blendConfig.setBlendMultiBand();
     cv::Mat mainBlend;
     parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
-    cv::imshow("blend", mainBlend);
+    //cv::imshow("blend", mainBlend);
 
     printf("num large = %d: ", numLarge);
     for (int i = 0; i < numLarge; i++)
@@ -904,6 +967,136 @@ void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::M
             luts[i].resize(256);
             for (int j = 0; j < 256; j++)
                 luts[i][j] = j;
+            corrected[i] = 0;
+        }
+    }
+}
+
+void exposureCorrectBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected)
+{
+    CV_Assert(checkSize(images) && checkSize(masks) &&
+        checkType(images, CV_8UC3) && checkType(masks, CV_8UC1));
+
+    int numImages = images.size();
+
+    std::vector<ImageInfo> imageInfos;
+    std::vector<IntersectionInfo> intersectInfos;
+    calcInfo(images, masks, imageInfos, intersectInfos);
+
+    int intersectSize = intersectInfos.size();
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, numNonZero = %d, iSeamMean = %8.4f, jSeamMean = %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j, intersectInfos[i].numSeamNonZero,
+            intersectInfos[i].iSeamMean, intersectInfos[i].jSeamMean);
+    }
+    for (int i = 0; i < intersectSize; i++)
+    {
+        printf("i = %d, j = %d, iSeamMean = %8.4f %8.4f %8.4f, jSeamMean = %8.4f %8.4f %8.4f\n",
+            intersectInfos[i].i, intersectInfos[i].j,
+            intersectInfos[i].iSeamMeanB, intersectInfos[i].iSeamMeanG, intersectInfos[i].iSeamMeanR,
+            intersectInfos[i].jSeamMeanB, intersectInfos[i].jSeamMeanG, intersectInfos[i].jSeamMeanR);
+    }
+
+    //std::vector<GroupInfo> groupInfos;
+    //std::vector<int> groupIndexes;
+    //group(intersectInfos, 10, groupInfos, groupIndexes);
+
+    std::vector<int> alwaysSmallIndexes, alwaysLargeIndexes;
+    //pickAlwaysLargeOrSmall(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
+    pickAlmostLargeOrSmallBGR(intersectInfos, 10, alwaysSmallIndexes, alwaysLargeIndexes);
+    int numSmall = alwaysSmallIndexes.size();
+    int numLarge = alwaysLargeIndexes.size();
+
+    std::vector<int> mainIndexes;
+    for (int i = 0; i < numImages; i++)
+    {
+        bool isMain = true;
+        for (int j = 0; j < numSmall; j++)
+        {
+            if (alwaysSmallIndexes[j] == i)
+            {
+                isMain = false;
+                break;
+            }
+        }
+        if (!isMain)
+            continue;
+        for (int j = 0; j < numLarge; j++)
+        {
+            if (alwaysLargeIndexes[j] == i)
+            {
+                isMain = false;
+                break;
+            }
+        }
+        if (!isMain)
+            continue;
+        mainIndexes.push_back(i);
+    }
+
+    int numMain = mainIndexes.size();
+    std::vector<cv::Mat> mainImages, mainMasks;
+    cv::Mat mainMask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
+    for (int i = 0; i < numMain; i++)
+    {
+        mainImages.push_back(images[mainIndexes[i]]);
+        mainMasks.push_back(masks[mainIndexes[i]]);
+        mainMask |= masks[mainIndexes[i]];
+    }
+
+    BlendConfig blendConfig;
+    blendConfig.setSeamDistanceTransform();
+    blendConfig.setBlendMultiBand();
+    cv::Mat mainBlend;
+    parallelBlend(blendConfig, mainImages, mainMasks, mainBlend);
+    //cv::imshow("blend", mainBlend);
+
+    printf("num large = %d: ", numLarge);
+    for (int i = 0; i < numLarge; i++)
+        printf("%d ", alwaysLargeIndexes[i]);
+    printf("\n");
+    printf("num small = %d: ", numSmall);
+    for (int i = 0; i < numSmall; i++)
+        printf("%d ", alwaysSmallIndexes[i]);
+    printf("\n");
+
+    luts.resize(numImages);
+    corrected.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        int largeIndex = -1, smallIndex = -1;
+        for (int k = 0; k < numLarge; k++)
+        {
+            if (alwaysLargeIndexes[k] == i)
+            {
+                largeIndex = k;
+                break;
+            }
+        }
+        for (int k = 0; k < numSmall; k++)
+        {
+            if (alwaysSmallIndexes[k] == i)
+            {
+                smallIndex = k;
+                break;
+            }
+        }
+        if (largeIndex >= 0 || smallIndex >= 0)
+        {
+            calcTransformBGR(images[i], masks[i], mainBlend, mainMask, luts[i]);
+            corrected[i] = 1;
+        }
+        else
+        {
+            luts[i].resize(3);
+            for (int k = 0; k < 3; k++)
+            {
+                luts[i][k].resize(256);
+                for (int j = 0; j < 256; j++)
+                    luts[i][k][j] = j;
+            }
             corrected[i] = 0;
         }
     }

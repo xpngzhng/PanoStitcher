@@ -30,7 +30,7 @@ static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vect
 
 static void cancelTask(PanoramaLocalDiskTask* task)
 {
-    std::this_thread::sleep_for(std::chrono::seconds(105));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     if (task)
         task->cancel();
 }
@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    //std::thread t(cancelTask, task.get());
+    std::thread t1(cancelTask, task.get());
     ztool::Timer timer;
     task->start();
     int progress;
@@ -130,6 +130,35 @@ int main(int argc, char* argv[])
     printf("percent 100\n");
     timer.end();
     printf("%f\n", timer.elapse());
+    t1.join();
+
+    ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
+        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+    if (!ok)
+    {
+        printf("Could not init panorama local disk task\n");
+        std::string msg;
+        task->getLastSyncErrorMessage(msg);
+        printf("Error message: %s\n", msg.c_str());
+        return 0;
+    }
+
+    std::thread t2(cancelTask, task.get());
+    timer.start();
+    task->start();
+    while (true)
+    {
+        progress = task->getProgress();
+        printf("percent %d\n", progress);
+        if (progress == 100)
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    task->waitForCompletion();
+    printf("percent 100\n");
+    timer.end();
+    printf("%f\n", timer.elapse());
+    t2.join();
 
     //t.join();
 

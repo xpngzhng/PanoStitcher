@@ -169,8 +169,8 @@ int main(int argc, char* argv[])
     opts.push_back(std::make_pair("bf", "0"));
     //ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
     //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
-    ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
-        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
+    //ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
+    //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
     if (!ok)
     {
         printf("could not open url %s\n", url.c_str());
@@ -181,11 +181,11 @@ int main(int argc, char* argv[])
 
     std::thread readThread(read);
     std::thread displayThread(display);
-    std::thread writeThread(write);
+    //std::thread writeThread(write);
 
     readThread.join();
     displayThread.join();
-    writeThread.join();
+    //writeThread.join();
 
     timerAll.end();
     printf("all time %f\n", timerAll.elapse());

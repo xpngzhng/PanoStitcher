@@ -74,6 +74,9 @@ struct ShowTiledImages
 void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected);
 
+void exposureCorrectBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected);
+
 int main()
 {
     std::string configFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
@@ -111,7 +114,7 @@ int main()
 
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
-    std::vector<std::vector<std::vector<unsigned char> > > tintLuts;
+    std::vector<std::vector<std::vector<unsigned char> > > tintLuts, bgrLuts;
 
     std::vector<avp::AudioVideoFrame2> frames(numVideos);
     while (true)
@@ -134,9 +137,12 @@ int main()
 
         linearBlender.blend(reprojImages, bareBlend);
 
-        exposureCorrect(reprojImages, masks, luts, corrected);
+        //exposureCorrect(reprojImages, masks, luts, corrected);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
+        exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
         for (int i = 0; i < numVideos; i++)
-            transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
+            transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 

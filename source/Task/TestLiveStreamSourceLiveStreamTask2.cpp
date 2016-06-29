@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
     cv::Size sz(2048, 1024);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
-    //highQualityBlend = true;
+    highQualityBlend = true;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
@@ -286,9 +286,9 @@ int main(int argc, char* argv[])
     }
 
     streamURL = parser.get<std::string>("pano_stream_url");
-    //streamURL = "rtsp://192.168.1.234/test.sdp";
-    //streamURL = /*"rtsp://127.0.0.1/test.sdp"*/"rtmp://110.172.214.59:80/tslive/myStream";
-    streamURL = "null";
+    //streamURL = "rtsp://192.168.1.234/test.sdp";/*"rtsp://127.0.0.1/test.sdp"*/
+    streamURL = "rtmp://110.172.214.59:80/tslive/myStream";
+    //streamURL = "null";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
         if (streamEncoder != "h264_qsv")
             streamEncoder = "h264";
-        streamEncoder = "h264_qsv";
+        streamEncoder = "h264";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
         if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
             streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
@@ -315,7 +315,7 @@ int main(int argc, char* argv[])
             streamEncodePreset = "veryfast";
 
         streamFrameSize = sz;
-        streamBitRate = 6000000;
+        streamBitRate = 1000000;
         ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
