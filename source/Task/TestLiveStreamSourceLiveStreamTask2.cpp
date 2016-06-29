@@ -287,8 +287,9 @@ int main(int argc, char* argv[])
 
     streamURL = parser.get<std::string>("pano_stream_url");
     //streamURL = "rtsp://192.168.1.234/test.sdp";/*"rtsp://127.0.0.1/test.sdp"*/
-    streamURL = "rtmp://110.172.214.59:80/tslive/myStream";
+    //streamURL = "rtmp://110.172.214.59:80/tslive/myStream";
     //streamURL = "null";
+    streamURL = "rtsp://127.0.0.1/test.sdp";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");

@@ -429,6 +429,78 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
         kt[i] = gains(i);
 }
 
+static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<double> >& kts)
+{
+    int numImages = images.size();
+
+    double invSigmaNSqr = 0.01;
+    double invSigmaGSqr = 100;
+
+    cv::Mat_<double> A[3]; 
+    cv::Mat_<double> B[3];
+    cv::Mat_<double> gains[3];
+    for (int i = 0; i < 3; i++)
+    {
+        A[i].create(numImages, numImages); A[i].setTo(0);
+        B[i].create(numImages, 1); B[i].setTo(0);
+    }
+    cv::Mat intersect;
+    int rows = images[0].rows, cols = images[0].cols;
+    for (int i = 0; i < numImages; ++i)
+    {
+        for (int j = 0; j < numImages; ++j)
+        {
+            if (i == j)
+                continue;
+
+            intersect = masks[i] & masks[j];
+            if (cv::countNonZero(intersect) == 0)
+                continue;
+
+            for (int u = 0; u < rows; u++)
+            {
+                const unsigned char* ptri = images[i].ptr<unsigned char>(u);
+                const unsigned char* ptrj = images[j].ptr<unsigned char>(u);
+                const unsigned char* ptrm = intersect.ptr<unsigned char>(u);
+                for (int v = 0; v < cols; v++)
+                {
+                    if (ptrm[v])
+                    {
+                        const unsigned char* pi = ptri + v * 3;
+                        const unsigned char* pj = ptrj + v * 3;
+                        for (int w = 0; w < 3; w++)
+                        {
+                            double vali = pi[w], valj = pj[w];
+                            A[w](i, i) += vali * vali * invSigmaNSqr + invSigmaGSqr;
+                            A[w](j, j) += valj * valj * invSigmaNSqr;
+                            A[w](i, j) -= 2 * vali * valj * invSigmaNSqr;
+                            B[w](i) += invSigmaGSqr;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    for (int i = 0; i < 3; i++)
+    {
+        //std::cout << A[i] << "\n" << B[i] << "\n";
+        bool success = cv::solve(A[i], B[i], gains[i]);
+        //std::cout << gains[i] << "\n";
+        if (!success)
+            gains[i].setTo(1);
+    }
+
+    kts.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        kts[i].resize(3);
+        for (int j = 0; j < 3; j++)
+            kts[i][j] = gains[j](i);
+    }        
+}
+
 static void rescale(std::vector<double>& kt, int index)
 {
     int numImages = kt.size();
@@ -477,6 +549,38 @@ static void getLUT(double k, unsigned char lut[256])
     }
 }
 
+static void getLUT(std::vector<unsigned char>& lut, double k)
+{
+    CV_Assert(k > 0);
+    lut.resize(256);
+    if (abs(k - 1) < 0.02)
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = cv::saturate_cast<unsigned char>(i * k);
+    }
+    else
+    {
+        cv::Point2d p0(0, 0), p1 = k > 1 ? cv::Point(255 / k, 255) : cv::Point(255, k * 255), p2(255, 255);
+        lut[0] = 0;
+        lut[255] = 255;
+        for (int i = 1; i < 255; i++)
+        {
+            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
+            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+            double t0 = m - n, t1 = m + n, t;
+            if (t0 < 1 && t0 > 0)
+                t = t0;
+            else if (t1 < 1 && t1 > 0)
+                t = t1;
+            else
+                CV_Assert(0);
+            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
+            y = y < 0 ? 0 : (y > 255 ? 255 : y);
+            lut[i] = y;
+        }
+    }
+}
+
 static void adjust(cv::Mat& image, const unsigned char lut[256])
 {
     CV_Assert(image.data && image.depth() == CV_8U);
@@ -492,30 +596,34 @@ static void adjust(cv::Mat& image, const unsigned char lut[256])
     }
 }
 
-static void adjust(const cv::Mat& src, cv::Mat& dst, const unsigned char lut[256])
+static void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char> lut)
 {
-    CV_Assert(src.data && src.depth() == CV_8U);
+    CV_Assert(src.data && src.depth() == CV_8U && lut.size() == 256);
     dst.create(src.size(), src.type());
     int rows = src.rows, cols = src.cols * src.channels();
+    const unsigned char* ptrLut = lut.data();
     for (int i = 0; i < rows; i++)
     {
         const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
         unsigned char* ptrDst = dst.ptr<unsigned char>(i);
         for (int j = 0; j < cols; j++)
         {
-            *ptrDst = lut[*ptrSrc];
+            *ptrDst = ptrLut[*ptrSrc];
             ptrDst++;
             ptrSrc++;
         }
     }
 }
 
-static void adjust(const cv::Mat& src, cv::Mat& dst, 
-    const unsigned char blut[256], const unsigned char glut[256], const unsigned char rlut[256])
+static void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts)
 {
-    CV_Assert(src.data && src.depth() == CV_8U);
+    CV_Assert(src.data && src.depth() == CV_8U &&
+        luts.size() == 3 && luts[0].size() == 256 && luts[1].size() == 256 && luts[2].size() == 256);
     dst.create(src.size(), src.type());
     int rows = src.rows, cols = src.cols;
+    const unsigned char* blut = luts[0].data();
+    const unsigned char* glut = luts[1].data();
+    const unsigned char* rlut = luts[2].data();
     for (int i = 0; i < rows; i++)
     {
         const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
@@ -553,6 +661,22 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
             outMasks[i] |= temp;
         }
     }
+
+    std::vector<std::vector<double> > kts;
+    getAccurateLinearTransforms(images, masks, kts);
+    std::vector<std::vector<std::vector<unsigned char> > > luts(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        luts[i].resize(3);
+        for (int j = 0; j < 3; j++)
+            getLUT(luts[i][j], kts[i][j]);
+    }
+
+    results.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        adjust(images[i], results[i], luts[i]);
+
+    return;
 
     int maxMeanIndex;
     std::vector<double> gains;
@@ -644,7 +768,7 @@ bool GainCompensate::compensate(const std::vector<cv::Mat>& images, std::vector<
         {
             //images[i].copyTo(results[i]);
             //adjust(results[i], &LUTs[i][0]);
-            adjust(images[i], results[i], &LUTs[i][0]);
+            adjust(images[i], results[i], LUTs[i]);
         }
     }
 

@@ -162,13 +162,15 @@ int main(int argc, char* argv[])
     }
 
     std::string url = parser.get<std::string>("pano_url");
+    url = "rtsp://127.0.0.1/test.sdp";
     printf("pano url is %s\n", url.c_str());
     int frameRate = parser.get<int>("frames_per_second");
     int bitRate = parser.get<int>("pano_bits_per_second");
     opts.clear();
     opts.push_back(std::make_pair("bf", "0"));
-    //ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
-    //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
+    opts.push_back(std::make_pair("profile", "main"));
+    ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
+        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
     //ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
     //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
     if (!ok)
@@ -181,11 +183,11 @@ int main(int argc, char* argv[])
 
     std::thread readThread(read);
     std::thread displayThread(display);
-    //std::thread writeThread(write);
+    std::thread writeThread(write);
 
     readThread.join();
     displayThread.join();
-    //writeThread.join();
+    writeThread.join();
 
     timerAll.end();
     printf("all time %f\n", timerAll.elapse());
