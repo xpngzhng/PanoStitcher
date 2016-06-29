@@ -116,7 +116,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
 
     //std::cout << A << "\n" << b << "\n";
     bool success = cv::solve(A, b, gains);
-    //std::cout << gains << "\n";
+    std::cout << gains.t() << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -245,7 +245,7 @@ static void getLUT(double k, unsigned char lut[256])
     }
 }
 
-static void getLUT(std::vector<unsigned char>& lut, double k)
+void getLUT(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
     lut.resize(256);
@@ -358,7 +358,7 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
         }
     }
 
-    int maxMeanIndex;
+    //int maxMeanIndex;
     std::vector<double> gains;
     getAccurateLinearTransforms(grayImages, outMasks, gains);
     //rescale(gains, maxMeanIndex);
@@ -381,9 +381,22 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     }
     double scale = accumOld / accumNew;
     printf("scale = %f\n", scale);
-    
+
+    double maxMeanVal = 0;
+    int maxMeanIndex = -1;
     for (int i = 0; i < numImages; i++)
-        gains[i] *= scale;
+    {
+        double currMean = cv::mean(grayImages[i], masks[i])[0];
+        if (currMean > maxMeanVal)
+        {
+            maxMeanVal = currMean;
+            maxMeanIndex = i;
+        }
+    }
+    scale = 1.0 / gains[maxMeanIndex];
+
+    //for (int i = 0; i < numImages; i++)
+    //    gains[i] *= scale;
 
     results.resize(numImages);
     std::vector<unsigned char> lut;
@@ -495,6 +508,8 @@ bool GainCompensate::compensate(const std::vector<cv::Mat>& images, std::vector<
 
     return true;
 }
+
+// THE FOLLOWING CODES ARE DEPRECATED!!!
 
 static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     int& maxIndex, std::vector<double>& kt, std::vector<double>& bt)

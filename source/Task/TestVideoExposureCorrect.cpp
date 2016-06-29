@@ -111,7 +111,7 @@ int main()
     TilingLinearBlend linearBlender;
     linearBlender.prepare(masks, 75);
     TilingMultibandBlendFast multiBlender;
-    multiBlender.prepare(masks, 10, 2);
+    multiBlender.prepare(masks, 5, 8);
     cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend, tintLinearBlend;
 
     std::vector<std::vector<unsigned char> > luts;
@@ -145,22 +145,21 @@ int main()
         //exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
-        //linearBlender.blend(adjustImages, adjustLinearBlend);
-        //multiBlender.blend(adjustImages, adjustMultiBlend);
+        compensate(reprojImages, masks, adjustImages);
+        linearBlender.blend(adjustImages, adjustLinearBlend);
+        multiBlender.blend(adjustImages, adjustMultiBlend);
 
         //corrected[5] = 1;
         //tintCorrect(adjustImages, masks, corrected, tintLuts);
         //tintCorrect(adjustImages, masks, tintLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
-        //tintAdjust(adjustImages, masks, tintImages);
-        compensate(reprojImages, masks, tintImages);
+        tintAdjust(adjustImages, masks, tintImages);
         linearBlender.blend(tintImages, tintLinearBlend);
-        multiBlender.blend(tintImages, adjustMultiBlend);
-
+        
         shower.show("src", images);
         cv::imshow("bare", bareBlend);
-        //cv::imshow("ajudst linear", adjustLinearBlend);
+        cv::imshow("ajudst linear", adjustLinearBlend);
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
         int key = cv::waitKey(0);

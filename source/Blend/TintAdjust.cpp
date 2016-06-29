@@ -2,6 +2,8 @@
 #include "ZBlendAlgo.h"
 #include <iostream>
 
+void getLUT(std::vector<unsigned char>& lut, double k);
+
 void calcTintTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
     std::vector<std::vector<unsigned char> >& luts)
 {
@@ -26,8 +28,9 @@ void calcTintTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv:
     for (int i = 0; i < 3; i++)
     {
         luts[i].resize(256);
-        for (int j = 0; j < 256; j++)
-            luts[i][j] = cv::saturate_cast<unsigned char>(j * ratios[i]);
+        getLUT(luts[i], ratios[i]);
+        //for (int j = 0; j < 256; j++)
+            //luts[i][j] = cv::saturate_cast<unsigned char>(j * ratios[i]);
     }
 }
 
@@ -85,12 +88,10 @@ void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio
         mask.data && mask.type() == CV_8UC1 && mask.size() == src.size());
     int rows = src.rows, cols = src.cols;
     dst.create(rows, cols, CV_8UC3);
-    unsigned char rlut[256], blut[256];
-    for (int i = 0; i < 256; i++)
-    {
-        rlut[i] = cv::saturate_cast<unsigned char>(i * rRatio);
-        blut[i] = cv::saturate_cast<unsigned char>(i * bRatio);
-    }
+    std::vector<unsigned char> rLUT(256), bLUT(256);
+    const unsigned char* rlut = rLUT.data(), * blut = bLUT.data();
+    getLUT(rLUT, rRatio);
+    getLUT(bLUT, bRatio);
     for (int i = 0; i < rows; i++)
     {
         const unsigned char* ptrSrc = src.ptr<unsigned char>(i);
@@ -217,7 +218,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
     int numImages = images.size();
 
     double invSigmaNSqr = 1;
-    double invSigmaGSqr = 1;
+    double invSigmaGSqr = 0.1;
 
     cv::Mat_<double> rgA(numImages, numImages), bgA(numImages, numImages);
     cv::Mat_<double> rgB(numImages, 1), bgB(numImages, 1);
@@ -231,6 +232,9 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
     {
         for (int j = 0; j < numImages; j++)
         {
+            if (i == j)
+                continue;
+
             intersect = masks[i] & masks[j];
             if (cv::countNonZero(intersect) == 0)
                 continue;
@@ -246,22 +250,33 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
                     {
                         double bi = *(ptri++), gi = *(ptri++), ri = *(ptri++);
                         double bj = *(ptrj++), gj = *(ptrj++), rj = *(ptrj++);
-                        //if (gi > 15 && gi < 240 && gj > 15 && gj < 240)
-                        if (gi > 1 && gj > 1)
+                        if (gi > 15 && gi < 240 && gj > 15 && gj < 240)
+                        //if (gi > 1 && gj > 1)
                         {
                             double bgi = bi / gi, rgi = ri / gi;
                             double bgj = bj / gj, rgj = rj / gj;
 
-                            bgA(i, i) += bgi * bgi * invSigmaNSqr + invSigmaGSqr;
-                            bgA(j, j) += bgj * bgj * invSigmaNSqr;
-                            bgA(i, j) -= 2 * bgi * bgj * invSigmaNSqr;
-                            bgB(i) += invSigmaGSqr;
+                            if (bgi > 0.8 && bgi < 1.25 && bgj > 0.8 && bgj < 1.25)
+                            {
+                                bgA(i, i) += bgi * bgi * invSigmaNSqr + invSigmaGSqr;
+                                bgA(j, j) += bgj * bgj * invSigmaNSqr;
+                                bgA(i, j) -= 2 * bgi * bgj * invSigmaNSqr;
+                                bgB(i) += invSigmaGSqr;
+                            }
 
-                            rgA(i, i) += rgi * rgi * invSigmaNSqr + invSigmaGSqr;
-                            rgA(j, j) += rgj * rgj * invSigmaNSqr;
-                            rgA(i, j) -= 2 * rgi * rgj * invSigmaNSqr;
-                            rgB(i) += invSigmaGSqr;
+                            if (rgi > 0.8 && rgi < 1.25 && rgj > 0.8 && rgj < 1.25)
+                            {
+                                rgA(i, i) += rgi * rgi * invSigmaNSqr + invSigmaGSqr;
+                                rgA(j, j) += rgj * rgj * invSigmaNSqr;
+                                rgA(i, j) -= 2 * rgi * rgj * invSigmaNSqr;
+                                rgB(i) += invSigmaGSqr;
+                            }
                         }
+                    }
+                    else
+                    {
+                        ptri += 3;
+                        ptrj += 3;
                     }
                 }
             }
@@ -272,7 +287,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(rgA, rgB, rgGains);
-    std::cout << rgGains << "\n";
+    //std::cout << rgGains << "\n";
     if (!success)
         rgGains.setTo(1);
 
@@ -282,7 +297,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
 
     //std::cout << A << "\n" << b << "\n";
     success = cv::solve(bgA, bgB, bgGains);
-    std::cout << bgGains << "\n";
+    //std::cout << bgGains << "\n";
     if (!success)
         bgGains.setTo(1);
 
@@ -293,9 +308,58 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
 
 void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
 {
+    int numImages = images.size();
+
+    std::vector<cv::Mat> extendMasks;
+    getExtendedMasks(masks, 100, extendMasks);
+
+    std::vector<cv::Mat> outMasks(numImages);
+    cv::Mat temp;
+    for (int i = 0; i < numImages; i++)
+    {
+        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
+        for (int j = 0; j < numImages; j++)
+        {
+            if (i == j)
+                continue;
+            temp = extendMasks[i] & extendMasks[j];
+            outMasks[i] |= temp;
+        }
+    }
+
     std::vector<double> rgGains, bgGains;
     getAccurateLinearTransforms(images, masks, rgGains, bgGains);
-    int numImages = images.size();
+
+    std::vector<double> diff(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::Scalar mean = cv::mean(images[i], masks[i]);
+        diff[i] = abs(1 - mean[0] / mean[1]) + abs(1 - mean[2] / mean[1]);
+    }
+
+    int anchorIndex = 0;
+    int minDiff = diff[0];
+    for (int i = 0; i < numImages; i++)
+    {
+        if (minDiff > diff[i])
+        {
+            minDiff = diff[i];
+            anchorIndex = i;
+        }
+    }
+
+    printf("anchor = %d\n", anchorIndex);
+
+    double rgScale = 1.0 / rgGains[anchorIndex], bgScale = 1.0 / bgGains[anchorIndex];
+
+    cv::Scalar mean = cv::mean(images[anchorIndex], masks[anchorIndex]);
+    printf("mean %f, %f, %f\n", mean[0], mean[1], mean[2]);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        rgGains[i] *= rgScale;
+        bgGains[i] *= bgScale;
+    }
     results.resize(numImages);
     for (int i = 0; i < numImages; i++)
         scale(images[i], masks[i], rgGains[i], bgGains[i], results[i]);
