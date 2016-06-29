@@ -379,6 +379,9 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
     {
         for (int j = 0; j < numImages; ++j)
         {
+            if (i == j)
+                continue;
+
             intersect = masks[i] & masks[j];
             if (cv::countNonZero(intersect) == 0)
                 continue;
@@ -407,7 +410,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
         }
     }
 
-    //std::cout << A << "\n" << b << "\n";
+    std::cout << A << "\n" << b << "\n";
     bool success = cv::solve(A, b, gains);
     std::cout << gains << "\n";
     if (!success)
@@ -557,7 +560,7 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 
     int maxMeanIndex;
     std::vector<double> gains;
-    getLinearTransforms(grayImages, masks, maxMeanIndex, gains);
+    getAccurateLinearTransforms(grayImages, masks, maxMeanIndex, gains);
     //rescale(gains, maxMeanIndex);
     //for (int i = 0; i < numImages; i++)
     //    printf("%f ", gains[i]);
@@ -566,22 +569,23 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     results.resize(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        if (i == maxMeanIndex)
-        {
-            images[i].copyTo(results[i]);
-            continue;
-        }
+        //if (i == maxMeanIndex)
+        //{
+        //    images[i].copyTo(results[i]);
+        //    continue;
+        //}
 
-        double gain = gains[i];
-        if (gain <= 1)
-            results[i] = images[i] * gain;
-        else
-        {
-            unsigned char lut[256];
-            getLUT(gain, lut);
-            results[i] = images[i].clone();
-            adjust(results[i], lut);
-        }
+        //double gain = gains[i];
+        //if (gain <= 1)
+        //    results[i] = images[i] * gain;
+        //else
+        //{
+        //    unsigned char lut[256];
+        //    getLUT(gain, lut);
+        //    results[i] = images[i].clone();
+        //    adjust(results[i], lut);
+        //}
+        results[i] = images[i] * gains[i];
     }
 }
 

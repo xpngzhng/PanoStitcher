@@ -137,12 +137,12 @@ int main()
 
         linearBlender.blend(reprojImages, bareBlend);
 
-        //exposureCorrect(reprojImages, masks, luts, corrected);
-        //for (int i = 0; i < numVideos; i++)
-        //    transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
-        exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
+        exposureCorrect(reprojImages, masks, luts, corrected);
         for (int i = 0; i < numVideos; i++)
-            transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
+            transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
+        //exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 
@@ -151,7 +151,8 @@ int main()
         //tintCorrect(adjustImages, masks, tintLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
-        tintAdjust(adjustImages, masks, tintImages);        
+        //tintAdjust(adjustImages, masks, tintImages);
+        compensate(reprojImages, masks, tintImages);
         linearBlender.blend(tintImages, tintLinearBlend);
 
         shower.show("src", images);
