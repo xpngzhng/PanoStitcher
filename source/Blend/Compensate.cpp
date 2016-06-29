@@ -386,10 +386,6 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
             if (cv::countNonZero(intersect) == 0)
                 continue;
 
-            //A(i, i) += N[i][j] * (I[i][j] * I[i][j] * invSigmaNSqr + invSigmaGSqr);
-            //A(j, j) += N[i][j] * (I[j][i] * I[j][i] * invSigmaNSqr);
-            //A(i, j) -= 2 * N[i][j] * (I[i][j] * I[j][i] * invSigmaNSqr);
-            //b(i) += N[i][j] * invSigmaGSqr;
             for (int u = 0; u < rows; u++)
             {
                 const unsigned char* ptri = images[i].ptr<unsigned char>(u);
@@ -560,7 +556,7 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 
     int maxMeanIndex;
     std::vector<double> gains;
-    getAccurateLinearTransforms(grayImages, masks, maxMeanIndex, gains);
+    getAccurateLinearTransforms(grayImages, outMasks, maxMeanIndex, gains);
     //rescale(gains, maxMeanIndex);
     //for (int i = 0; i < numImages; i++)
     //    printf("%f ", gains[i]);
