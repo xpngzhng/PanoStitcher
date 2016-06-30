@@ -382,21 +382,21 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     double scale = accumOld / accumNew;
     printf("scale = %f\n", scale);
 
-    double maxMeanVal = 0;
-    int maxMeanIndex = -1;
-    for (int i = 0; i < numImages; i++)
-    {
-        double currMean = cv::mean(grayImages[i], masks[i])[0];
-        if (currMean > maxMeanVal)
-        {
-            maxMeanVal = currMean;
-            maxMeanIndex = i;
-        }
-    }
-    scale = 1.0 / gains[maxMeanIndex];
-
+    //double maxMeanVal = 0;
+    //int maxMeanIndex = -1;
     //for (int i = 0; i < numImages; i++)
-    //    gains[i] *= scale;
+    //{
+    //    double currMean = cv::mean(grayImages[i], masks[i])[0];
+    //    if (currMean > maxMeanVal)
+    //    {
+    //        maxMeanVal = currMean;
+    //        maxMeanIndex = i;
+    //    }
+    //}
+    //scale = 1.0 / gains[maxMeanIndex];
+
+    for (int i = 0; i < numImages; i++)
+        gains[i] *= scale;
 
     results.resize(numImages);
     std::vector<unsigned char> lut;
