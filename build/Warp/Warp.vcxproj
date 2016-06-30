@@ -30,6 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Warp\AdjustPose.cpp" />
+    <ClCompile Include="..\..\source\Warp\ConvertEquirectToCube.cpp" />
     <ClCompile Include="..\..\source\Warp\PhotoParam.cpp" />
     <ClCompile Include="..\..\source\Warp\Remap.cpp" />
     <ClCompile Include="..\..\source\Warp\RotateImage.cpp" />

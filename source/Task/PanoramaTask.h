@@ -200,6 +200,15 @@ private:
 typedef void(*LogCallbackFunction)(const std::string& line, void* data);
 typedef void(*FrameRateCallbackFunction)(double fps, void* data);
 
+enum PanoramaType
+{
+    PanoTypeEquiRect,
+    PanoTypeCube6x1,
+    PanoTypeCube3x2,
+    PanoTypeCube180,
+    PanoTypeCount
+};
+
 class PanoramaLiveStreamTask2
 {
 public:
@@ -215,11 +224,11 @@ public:
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
-    bool openLiveStream(const std::string& name, int width, int height, int videoBPS,
+    bool openLiveStream(const std::string& name, int panoType, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    bool beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+    bool beginSaveToDisk(const std::string& dir, int panoType, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 

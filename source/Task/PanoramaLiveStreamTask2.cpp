@@ -28,11 +28,11 @@ struct PanoramaLiveStreamTask2::Impl
     bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
-    bool openLiveStream(const std::string& name, int width, int height, int videoBPS,
+    bool openLiveStream(const std::string& name, int panoType, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS);
     void closeLiveStream();
 
-    bool beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+    bool beginSaveToDisk(const std::string& dir, int panoType, int width, int height, int videoBPS,
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
@@ -75,6 +75,8 @@ struct PanoramaLiveStreamTask2::Impl
 
     avp::AudioVideoWriter3 streamWriter;
     std::string streamURL;
+    int streamPanoType;
+    cv::cuda::GpuMat streamXMap, streamYMap;
     cv::Size streamFrameSize;
     int streamVideoBitRate;
     std::string streamVideoEncodePreset;
@@ -87,6 +89,8 @@ struct PanoramaLiveStreamTask2::Impl
     void streamSend();
 
     std::string fileDir;
+    int filePanoType;
+    cv::cuda::GpuMat fileXMap, fileYMap;
     cv::Size fileFrameSize;
     int fileVideoBitRate;
     std::string fileVideoEncoder;
@@ -347,7 +351,7 @@ void PanoramaLiveStreamTask2::Impl::cancelGetStitchedVideoFrame()
     //procFrameBufferForShow.stop();
 }
 
-bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
+bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int panoType,
     int width, int height, int videoBPS, const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
     if (!videoOpenSuccess || !audioVideoSource)
@@ -371,10 +375,37 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name,
         return false;
     }
 
+    panoType = (panoType < 0 || panoType >= PanoTypeCount) ? PanoTypeEquiRect : panoType;
+    if ((panoType == PanoTypeEquiRect && width != 2 * height) ||
+        (panoType == PanoTypeCube6x1 && width != 6 * height) ||
+        (panoType == PanoTypeCube3x2 && width * 2 != 3 * height) ||
+        (panoType == PanoTypeCube180 && width * 3 != 5 * height))
+    {
+        ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
+            __FUNCTION__, panoType, width, height);
+        syncErrorMessage = "参数错误，无法启动推流任务。";
+        return false;
+    }
+
+    if (panoType != PanoTypeEquiRect)
+    {
+        cv::Mat xmap, ymap;
+        if (panoType == PanoTypeCube6x1)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height, CubeType6x1);
+        else if (panoType == PanoTypeCube3x2)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height / 2, CubeType3x2);
+        else if (panoType == PanoTypeCube180)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height * 2 / 3, CubeType180);
+        
+        streamXMap.upload(xmap);
+        streamYMap.upload(ymap);
+    }
+
     streamIsLibX264 = (videoEncoder == "h264_qsv") ? 0 : 1;
     sendFramePool.init(streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     streamURL = name;
+    streamPanoType = panoType;
     streamFrameSize.width = width;
     streamFrameSize.height = height;
     streamVideoBitRate = videoBPS;
@@ -432,7 +463,7 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
     }
 }
 
-bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int panoType, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
     if (!videoOpenSuccess || !audioVideoSource)
@@ -456,9 +487,36 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         return false;
     }
 
+    panoType = (panoType < 0 || panoType >= PanoTypeCount) ? PanoTypeEquiRect : panoType;
+    if ((panoType == PanoTypeEquiRect && width != 2 * height) ||
+        (panoType == PanoTypeCube6x1 && width != 6 * height) ||
+        (panoType == PanoTypeCube3x2 && width * 2 != 3 * height) ||
+        (panoType == PanoTypeCube180 && width * 3 != 5 * height))
+    {
+        ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
+            __FUNCTION__, panoType, width, height);
+        syncErrorMessage = "参数错误，无法启动推流任务。";
+        return false;
+    }
+
+    if (panoType != PanoTypeEquiRect)
+    {
+        cv::Mat xmap, ymap;
+        if (panoType == PanoTypeCube6x1)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height, CubeType6x1);
+        else if (panoType == PanoTypeCube3x2)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height / 2, CubeType3x2);
+        else if (panoType == PanoTypeCube180)
+            getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height * 2 / 3, CubeType180);
+
+        streamXMap.upload(xmap);
+        streamYMap.upload(ymap);
+    }
+
     fileDir = dir;
     if (fileDir.back() != '\\' && fileDir.back() != '/')
         fileDir.append("/");
+    filePanoType = panoType;
     fileFrameSize.width = width;
     fileFrameSize.height = height;
     fileVideoBitRate = videoBPS;
@@ -698,10 +756,15 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
 
             if (streamOpenSuccess)
             {
-                if (streamFrameSize == renderFrameSize)
-                    bgr1 = bgr32;
+                if (streamPanoType == PanoTypeEquiRect)
+                {
+                    if (streamFrameSize == renderFrameSize)
+                        bgr1 = bgr32;
+                    else
+                        cv::cuda::resize(bgr32, bgr1, streamFrameSize, 0, 0, cv::INTER_LINEAR);
+                }
                 else
-                    cv::cuda::resize(bgr32, bgr1, streamFrameSize, 0, 0, cv::INTER_LINEAR);
+                    cudaReproject(bgr32, bgr1, streamXMap, streamYMap);
 
                 sendFramePool.get(sendFrame);
                 if (streamIsLibX264)
@@ -728,10 +791,15 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
 
             if (fileConfigSet)
             {
-                if (fileFrameSize == renderFrameSize)
-                    bgr2 = bgr32;
+                if (filePanoType == PanoTypeEquiRect)
+                {
+                    if (fileFrameSize == renderFrameSize)
+                        bgr2 = bgr32;
+                    else
+                        cv::cuda::resize(bgr32, bgr2, fileFrameSize, 0, 0, cv::INTER_LINEAR);
+                }
                 else
-                    cv::cuda::resize(bgr32, bgr2, fileFrameSize, 0, 0, cv::INTER_LINEAR);
+                    cudaReproject(bgr32, bgr2, fileXMap, fileYMap);
 
                 saveFramePool.get(saveFrame);
                 if (fileIsLibX264)
@@ -1024,10 +1092,11 @@ void PanoramaLiveStreamTask2::stopVideoStitch()
     ptrImpl->stopVideoStitch();
 }
 
-bool PanoramaLiveStreamTask2::openLiveStream(const std::string& name, int width, int height, int videoBPS,
+bool PanoramaLiveStreamTask2::openLiveStream(const std::string& name, int panoType, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
-    return ptrImpl->openLiveStream(name, width, height, videoBPS, videoEncoder, videoPreset, audioBPS);
+    return ptrImpl->openLiveStream(name, panoType, width, height, 
+        videoBPS, videoEncoder, videoPreset, audioBPS);
 }
 
 void PanoramaLiveStreamTask2::closeLiveStream()
@@ -1035,10 +1104,11 @@ void PanoramaLiveStreamTask2::closeLiveStream()
     ptrImpl->closeLiveStream();
 }
 
-bool PanoramaLiveStreamTask2::beginSaveToDisk(const std::string& dir, int width, int height, int videoBPS,
+bool PanoramaLiveStreamTask2::beginSaveToDisk(const std::string& dir, int panoType, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration)
 {
-    return ptrImpl->beginSaveToDisk(dir, width, height, videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
+    return ptrImpl->beginSaveToDisk(dir, panoType, width, height, 
+        videoBPS, videoEncoder, videoPreset, audioBPS, fileDuration);
 }
 
 void PanoramaLiveStreamTask2::stopSaveToDisk()

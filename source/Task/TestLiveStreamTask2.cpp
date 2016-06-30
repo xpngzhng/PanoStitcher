@@ -391,8 +391,12 @@ int main(int argc, char* argv[])
             streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
             streamEncodePreset = "veryfast";
 
-        ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height, 
+        //ok = task.openLiveStream(streamURL, PanoTypeEquiRect, streamFrameSize.width, streamFrameSize.height,
+        //    streamBitRate, streamEncoder, streamEncodePreset, 96000);
+        ok = task.openLiveStream(streamURL, PanoTypeCube3x2, 1800, 1200,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
+        //ok = task.openLiveStream(streamURL, PanoTypeCube180, 2500, 1500,
+        //    streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
         {
             printf("Could not open rtmp streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
@@ -433,7 +437,7 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height, 
+        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height, 
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 
