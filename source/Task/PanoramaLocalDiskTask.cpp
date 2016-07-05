@@ -163,7 +163,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
     options.push_back(std::make_pair("bf", "0"));
-    std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
+    std::string format = (dstVideoEncoder == "h264_qsv" || dstVideoEncoder == "nvenc_h254") ? dstVideoEncoder : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
         ok = writer.open(dstVideoFile, "", true, 
@@ -628,7 +628,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    isLibX264 = dstVideoEncoder == "h264_qsv" ? 0 : 1;
+    isLibX264 = dstVideoEncoder == "h264" ? 1 : 0;
 
     ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
     if (!ok)
@@ -649,7 +649,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     std::vector<avp::Option> options;
     options.push_back(std::make_pair("preset", dstVideoPreset));
     options.push_back(std::make_pair("bf", "0"));
-    std::string format = dstVideoEncoder == "h264_qsv" ? "h264_qsv" : "h264";
+    std::string format = (dstVideoEncoder == "h264_qsv" || dstVideoEncoder == "nvenc_h264") ? dstVideoEncoder : "h264";
     if (audioIndex >= 0 && audioIndex < numVideos)
     {
         ok = writer.open(dstVideoFile, "", true, true, "aac", readers[audioIndex].getAudioSampleType(),

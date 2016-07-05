@@ -382,8 +382,9 @@ int main(int argc, char* argv[])
 
         streamBitRate = parser.get<int>("pano_stream_bits_per_second");
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
-        if (streamEncoder != "h264_qsv")
+        if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
             streamEncoder = "h264";
+        streamEncoder = "nvenc_h264";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
         if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
             streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
@@ -409,6 +410,8 @@ int main(int argc, char* argv[])
     }
 
     saveFile = parser.get<bool>("pano_save_file");
+    saveFile = true;
+    fileFrameSize = stitchFrameSize;
     if (saveFile)
     {
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");
@@ -427,9 +430,9 @@ int main(int argc, char* argv[])
         fileBitRate = parser.get<int>("pano_file_bits_per_second");
         fileBitRate = 4000000;
         fileEncoder = parser.get<std::string>("pano_file_encoder");
-        if (fileEncoder != "h264_qsv")
-            fileEncoder = "h264";
-        fileEncoder = "h264_qsv";
+        if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
+            streamEncoder = "h264";
+        fileEncoder = "nvenc_h264";
         fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
         if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
             fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||

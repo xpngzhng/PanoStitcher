@@ -38,11 +38,20 @@ cv::Matx33d AdjustPose::mouseMove(cv::Point pt)
     if (!rect.contains(pt) || abs(beg.x - pt.y) + abs(beg.y - pt.y) < 1)
         return currRotation;
 
+    /*
     cv::Point3d begSphere = equirectToSphere(beg, halfWidth, halfHeight);
     cv::Point3d endSphere = equirectToSphere(pt, halfWidth, halfHeight);
     cv::Matx33d rot;
     setRotationThroughPointPair(rot, begSphere, endSphere);
     currRotation = rot * totalRotation;
+    */
+    cv::Point3d begSphere = equirectToSphere(cv::Point(pt.x, beg.y), halfWidth, halfHeight);
+    cv::Point3d endSphere = equirectToSphere(pt, halfWidth, halfHeight);
+    cv::Matx33d rot1, rot2;
+    setRotationThroughPointPair(rot1, begSphere, endSphere);
+    double yaw = (pt.x - beg.x) / halfWidth * PI;
+    setRotationRM(rot2, yaw, 0, 0);
+    currRotation = rot2 * rot1 * totalRotation;
     return currRotation;
 }
 

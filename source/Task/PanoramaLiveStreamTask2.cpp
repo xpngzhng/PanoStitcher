@@ -401,7 +401,7 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         streamYMap.upload(ymap);
     }
 
-    streamIsLibX264 = (videoEncoder == "h264_qsv") ? 0 : 1;
+    streamIsLibX264 = (videoEncoder == "h264" || videoEncoder == "libx264") ? 1 : 0;
     sendFramePool.init(streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     streamURL = name;
@@ -419,11 +419,11 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
 
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", streamVideoEncodePreset));
-    writerOpts.push_back(std::make_pair("profile", "baseline"));
+    writerOpts.push_back(std::make_pair("profile", "main"));
     streamOpenSuccess = streamWriter.open(streamURL, streamURL.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true,
         audioOpenSuccess, "aac", audioVideoSource->getAudioSampleType(),
         audioVideoSource->getAudioChannelLayout(), audioVideoSource->getAudioSampleRate(), streamAudioBitRate,
-        true, videoEncoder == "h264_qsv" ? "h264_qsv" : "h264", 
+        true, (videoEncoder == "h264_qsv" || videoEncoder == "nvenc_h264") ? videoEncoder : "h264", 
         streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, streamFrameSize.width, streamFrameSize.height,
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
@@ -524,7 +524,7 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     fileVideoEncodePreset = videoPreset;
     fileAudioBitRate = audioBPS;
     fileDuration = fileDurationInSeconds;
-    if (fileVideoEncoder != "h264" && fileVideoEncoder != "h264_qsv")
+    if (fileVideoEncoder != "h264" && fileVideoEncoder != "h264_qsv" && fileVideoEncoder != "nvenc_h264")
         fileVideoEncoder = "h264";
     if (fileVideoEncodePreset != "ultrafast" || fileVideoEncodePreset != "superfast" ||
         fileVideoEncodePreset != "veryfast" || fileVideoEncodePreset != "faster" ||
@@ -540,7 +540,7 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
 
     appendLog("启动保存视频任务\n");
 
-    fileIsLibX264 = (fileVideoEncoder == "h264_qsv") ? 0 : 1;
+    fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
     saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     return true;

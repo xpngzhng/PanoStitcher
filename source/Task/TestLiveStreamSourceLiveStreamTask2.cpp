@@ -287,7 +287,7 @@ int main(int argc, char* argv[])
 
     streamURL = parser.get<std::string>("pano_stream_url");
     //streamURL = "rtsp://192.168.1.234/test.sdp";/*"rtsp://127.0.0.1/test.sdp"*/
-    //streamURL = "rtmp://110.172.214.59:80/tslive/myStream";
+    //streamURL = "rtmp://110.172.214.59:80/live/myStream";
     //streamURL = "null";
     streamURL = "rtsp://127.0.0.1/test.sdp";
     if (streamURL.size() && streamURL != "null")
@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
 
         streamBitRate = parser.get<int>("pano_stream_bits_per_second");
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
-        if (streamEncoder != "h264_qsv")
+        if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
             streamEncoder = "h264";
         streamEncoder = "h264";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
@@ -315,9 +315,10 @@ int main(int argc, char* argv[])
             streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
             streamEncodePreset = "veryfast";
 
-        streamFrameSize = sz;
+        //streamFrameSize = sz;
+        streamFrameSize = cv::Size(1536, 1024);
         streamBitRate = 1000000;
-        ok = task.openLiveStream(streamURL, streamFrameSize.width, streamFrameSize.height,
+        ok = task.openLiveStream(streamURL, PanoTypeCube3x2, streamFrameSize.width, streamFrameSize.height,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
         {
@@ -356,7 +357,7 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        task.beginSaveToDisk(".", fileFrameSize.width, fileFrameSize.height,
+        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height,
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 

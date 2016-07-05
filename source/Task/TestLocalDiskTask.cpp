@@ -103,8 +103,9 @@ int main(int argc, char* argv[])
     else
         task.reset(new CPUPanoramaLocalDiskTask);
     
+    panoVideoName = "nvenc.mp4";
     bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
-        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+        dstSize.width, dstSize.height, 8000000, "nvenc_h264", "slow", 40 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
@@ -114,7 +115,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    std::thread t1(cancelTask, task.get());
+    //std::thread t1(cancelTask, task.get());
     ztool::Timer timer;
     task->start();
     int progress;
@@ -130,9 +131,9 @@ int main(int argc, char* argv[])
     printf("percent 100\n");
     timer.end();
     printf("%f\n", timer.elapse());
-    t1.join();
+    //t1.join();
 
-    ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
+    /*ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
         dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {
@@ -158,7 +159,7 @@ int main(int argc, char* argv[])
     printf("percent 100\n");
     timer.end();
     printf("%f\n", timer.elapse());
-    t2.join();
+    t2.join();*/
 
     //t.join();
 
