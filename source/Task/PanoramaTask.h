@@ -81,6 +81,7 @@ private:
 // video encoder:
 // h264
 // h264_qsv
+// nvenc_h264
 
 // video preset
 // ultrafast
