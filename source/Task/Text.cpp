@@ -28,6 +28,8 @@ static IndexTextsPair indexTextsPairs[] =
     TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE, { "写入视频失败，任务终止", "Could not write panorama video, task terminated" },
     TI_STITCH_FAIL_TASK_TERMINATE, { "视频拼接发生错误，任务终止", "Could not stitch panorama frame, task terminated" },
 
+    TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LANCH_NEW, { "音视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Audio video sources task is running, termiate current task before lanching a new one" },
+
     TI_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Video sources task is running, terminate current task before launching a new one" },
     TI_VIDEO_SOURCE_EMPTY, { "视频源地址为空，请重新设定", "Video sources URLs are empty, please reset" },
     TI_VIDEO_SOURCE_PROP_SHOULD_MATCH, { "所有视频源需要有同样的分辨率和帧率", "All video sources should share the same resolution and the same frame rate" },
@@ -54,6 +56,7 @@ static IndexTextsPair indexTextsPairs[] =
     TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_LIVE, { "尚未打开音视频源，无法启动推流任务", "Video (and audio) sources have not been opened, cannot launch live stream task" },
     TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE, { "尚未启动拼接任务，无法启动推流任务", "Stitching task has not been lanched, cannot launch live stream task" },
     TI_LIVE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "推流任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Live stream task is running, terminate current task before launching a new one" },
+    TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE, { "参数错误，无法启动推流任务", "Invalid pamameters, cannot lanch live stream task" },
     TI_SERVER_CONNECT_FAIL, { "流媒体服务器连接失败", "Could not connect stream media server" },
     TI_SERVER_CONNECT_SUCCESS, { "流媒体服务器连接成功", "Sucessfully connected stream media server" },
     TI_LIVE_TASK_LAUNCH_SUCCESS, { "推流任务启动", "Live stream task launched" },
@@ -63,6 +66,7 @@ static IndexTextsPair indexTextsPairs[] =
     TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_WRITE, { "尚未打开音视频源，无法启动保存任务", "Video (and audio) sources have not been opened, cannot launch saving to hard disk task" },
     TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE, { "尚未启动拼接任务，无法启动保存任务", "Stitching task has not been lanched, cannot launch saving to hard disk task" },
     TI_WRITE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "保存任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Saving to hard disk task is running, terminate current task before launching a new one" },
+    TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE, { "参数错误，无法启动保存任务", "Invalid pamameters, cannot lanch saving to hard disk task" },
     TI_WRITE_LAUNCH, { "保存任务启动", "Saving to hard disk task launched" },
     TI_WRITE_FINISH, { "保存任务结束", "Saving to hard disk task finished" },
 
@@ -101,76 +105,7 @@ struct IndexedTexts
 
 static IndexedTexts indexedTexts;
 
-static std::string text[][2] =
-{
-    "。", ".",
-    "\n", "\n",
-    " ", " ",
-
-    "参数校验失败", "Parameters check failed",
-    "视频拼接初始化失败", "Could not initialize stitching",
-    "打开视频失败", "Could not open videos",
-    "无法创建全景视频", "Could not create panorama video",
-    "写入视频失败，任务终止", "Could not write panorama video, task terminated",
-    "视频拼接发生错误，任务终止", "Could not stitch panorama frame, task terminated",
-
-    "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Video sources task is running, terminate current task before launching a new one",
-    "视频源地址为空，请重新设定", "Video sources URLs are empty, please reset",
-    "所有视频源需要有同样的分辨率和帧率", "All video sources should share the same resolution and the same frame rate",
-    "视频源打开失败", "Could not open video sources",
-    "视频源打开成功", "Successfully opened video sources",
-    "视频源任务启动", "Video sources task launched",
-    "视频源任务结束", "Video sources task finished",
-    "视频源关闭", "Video sources closed",
-
-    "音频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Audio source task is running, terminate current task before launching a new one",
-    "音频源地址为空，请重新设定", "Audio source URL is empty, please reset",
-    "音频源打开失败", "Could not open audio source",
-    "音频源打开成功", "Successfully opened audio source",
-    "音频源任务启动", "Audio source task launched",
-    "音频源任务结束", "Audio source task finished",
-    "音频源关闭", "Audio source closed",
-
-    "尚未打开音视频源，无法启动拼接任务", "Video (and audio) sources have not been opened, cannot launch stitching task",
-    "视频拼接任务正在进行中，请先关闭正在执行的任务，再启动新的任务", "Stitching task is running, terminate current task before launching a new one",
-    "视频拼接初始化成功", "Successfull initialized stitching",
-    "视频拼接任务启动", "Stitching task launched",
-    "视频拼接任务结束", "Stitching task finished",
-
-    "尚未打开音视频源，无法启动推流任务", "Video (and audio) sources have not been opened, cannot launch live stream task",
-    "尚未启动拼接任务，无法启动推流任务", "Stitching task has not been lanched, cannot launch live stream task",
-    "推流任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Live stream task is running, terminate current task before launching a new one",
-    "流媒体服务器连接失败", "Could not connect stream media server",
-    "流媒体服务器连接成功", "Sucessfully connected stream media server",
-    "推流任务启动", "Live stream task launched",
-    "推流任务结束", "Live stream task finished",
-    "流媒体服务器连接断开", "Disconnected stream media server",
-
-    "尚未打开音视频源，无法启动保存任务", "Video (and audio) sources have not been opened, cannot launch saving to hard disk task",
-    "尚未启动拼接任务，无法启动保存任务", "Stitching task has not been lanched, cannot launch saving to hard disk task",
-    "保存任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Saving to hard disk task is running, terminate current task before launching a new one",
-    "保存任务启动", "Saving to hard disk task launched",
-    "保存任务结束", "Saving to hard disk task finished",
-
-    "获取视频源数据发生错误，任务终止", "Could not acquire data from video source(s), all the running tasks terminated",
-    "获取音频源数据发生错误，任务终止", "Could not acquire data from audio source, all the running tasks terminated",
-    "推流发生错误，任务终止", "Could not send data to stream media server, all the running tasks terminated",
-
-    "文件无法打开，任务终止", "file could not be opened, saving to hard disk task terminated",
-    "开始写入", "began writing into this file",
-    "写入结束", "finished writing into this file",
-    "写入发生错误，任务终止", "could not write into this file, saving to hard disk task terminated"
-};
-
 std::string emptyText = "";
-
-const std::string& getTextDeprecated(int index)
-{
-    if (index < 0 || index >= TI_TEXT_NUM)
-        return  emptyText;
-    else
-        return text[index][lang];
-}
 
 const std::string& getText(int index)
 {

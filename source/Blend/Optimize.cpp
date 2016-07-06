@@ -4,6 +4,18 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
+inline cv::Vec3b toVec3b(const cv::Vec3d v)
+{
+    return cv::Vec3b(cv::saturate_cast<unsigned char>(v[0]),
+        cv::saturate_cast<unsigned char>(v[1]),
+        cv::saturate_cast<unsigned char>(v[2]));
+}
+
+inline cv::Vec3d toVec3d(const cv::Vec3b v)
+{
+    return cv::Vec3d(v[0], v[1], v[2]);
+}
+
 void calcGradImage(const cv::Mat& src, cv::Mat& dst)
 {
     CV_Assert(src.type() == CV_8UC3);
@@ -17,8 +29,9 @@ struct ValuePair
 {
     int i, j;
     cv::Vec3b iVal, jVal;
+    cv::Vec3d iValD, jValD;
     cv::Point iPos, jPos;
-    cv::Point erPos;
+    cv::Point equiRectPos;
 };
 
 void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, std::vector<ValuePair>& pairs)
@@ -86,7 +99,9 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                                 pair.jPos = ptj;
                                 pair.iVal = src[i].at<cv::Vec3b>(pti);
                                 pair.jVal = src[j].at<cv::Vec3b>(ptj);
-                                pair.erPos = cv::Point(erx, ery);
+                                pair.iValD = toVec3d(pair.iVal);
+                                pair.jValD = toVec3d(pair.jVal);
+                                pair.equiRectPos = cv::Point(erx, ery);
                                 getPair = 1;
                                 numPairs++;
                                 pairs.push_back(pair);
@@ -108,7 +123,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
     for (int i = 0; i < numPairs; i++)
     {
-        mask.at<unsigned char>(pairs[i].erPos) = 255;
+        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
         for (int k = 0; k < numImages; k++)
         {
             if (pairs[i].i == k)
@@ -282,6 +297,26 @@ struct Transform
         return cv::Vec3d(b, g, r);
     }
 
+    cv::Vec3d apply(const cv::Point& p, const cv::Vec3d& val) const
+    {
+        double scale = calcVigFactor(p) * exposure;
+        int b = cv::saturate_cast<unsigned char>(val[0] * scale * whiteBalanceBlue);
+        int g = cv::saturate_cast<unsigned char>(val[1] * scale);
+        int r = cv::saturate_cast<unsigned char>(val[2] * scale * whiteBalanceRed);
+        return cv::Vec3d(lut[b], lut[g], lut[r]);
+    }
+
+    cv::Vec3d applyInverse(const cv::Point& p, const cv::Vec3d& val) const
+    {
+        double scale = 1.0 / (calcVigFactor(p) * exposure);
+        double b = invLUT(val[0]) * scale;
+        double g = invLUT(val[1]) * scale;
+        double r = invLUT(val[2]) * scale;
+        r /= whiteBalanceRed;
+        b /= whiteBalanceBlue;
+        return cv::Vec3d(b, g, r);
+    }
+
     double calcVigFactor(const cv::Point& p) const
     {
         double diffx = (p.x - vigCenterX) * radiusScale;
@@ -359,6 +394,7 @@ struct ExternData
     std::vector<ImageInfo>& imageInfos;
     const std::vector<ValuePair>& pairs;
     double huberSigma;
+    int errorFuncCallCount;
 };
 
 inline double weightHuber(double x, double sigma)
@@ -370,24 +406,14 @@ inline double weightHuber(double x, double sigma)
     return x;
 }
 
-inline cv::Vec3b toVec3b(const cv::Vec3d v)
-{
-    return cv::Vec3b(cv::saturate_cast<unsigned char>(v[0]),
-        cv::saturate_cast<unsigned char>(v[1]),
-        cv::saturate_cast<unsigned char>(v[2]));
-}
 
-inline cv::Vec3d toVec3d(const cv::Vec3b v)
-{
-    return cv::Vec3d(v[0], v[1], v[2]);
-}
 
 void errorFunc(double* p, double* hx, int m, int n, void* data)
 {
     ExternData* edata = (ExternData*)data;
     const std::vector<ImageInfo>& infos = edata->imageInfos;
     const std::vector<ValuePair>& pairs = edata->pairs;
-    
+
     readFrom(edata->imageInfos, p);
     int numImages = infos.size();
 
@@ -404,7 +430,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         {
             if (trans.lut[j] > trans.lut[j + 1])
             {
-                double diff = double(trans.lut[j]) - trans.lut[j + 1];
+                double diff = trans.lut[j] - trans.lut[j + 1];
                 err += diff * diff * 256;
             }
         }
@@ -428,13 +454,11 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         }
 
         cv::Vec3d lightI = transforms[pair.i].applyInverse(pair.iPos, pair.iVal);
-        cv::Vec3b lightIb = toVec3b(lightI);
-        cv::Vec3d valIInJ = transforms[pair.j].apply(pair.jPos, lightIb);
+        cv::Vec3d valIInJ = transforms[pair.j].apply(pair.jPos, lightI);
         cv::Vec3d errI = toVec3d(pair.jVal) - valIInJ;
 
         cv::Vec3d lightJ = transforms[pair.j].applyInverse(pair.jPos, pair.jVal);
-        cv::Vec3b lightJb = toVec3b(lightJ);
-        cv::Vec3d valJInI = transforms[pair.i].apply(pair.iPos, lightJb);
+        cv::Vec3d valJInI = transforms[pair.i].apply(pair.iPos, lightJ);
         cv::Vec3d errJ = toVec3d(pair.iVal) - valJInI;
 
         for (int j = 0; j < 3; j++)
@@ -447,7 +471,13 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         sqrErr += errJ.dot(errJ);
     }
 
-    printf("sqr err = %f\n", sqrErr);
+    edata->errorFuncCallCount++;
+
+    std::vector<double> pp(m), hxhx(n);
+    memcpy(pp.data(), p, m * sizeof(double));
+    memcpy(hxhx.data(), hx, n * sizeof(double));
+
+    printf("call count %d, sqr err = %f\n", edata->errorFuncCallCount, sqrErr);
 }
 
 #include "levmar.h"
@@ -493,6 +523,7 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
 
     ExternData edata(imageInfos, valuePairs);
     edata.huberSigma = 5;
+    edata.errorFuncCallCount = 0;
 
     ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
     // copy to source images (data.m_imgs)

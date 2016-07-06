@@ -7,6 +7,8 @@
 
 void setAddLogo(bool addLogo);
 
+void setLanguage(bool isChinese);
+
 typedef void(*PanoTaskLogCallbackFunc)(const char*, va_list);
 
 PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func);
