@@ -59,9 +59,9 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
 
     pairs.clear();
 
-    int gradThresh = 10;
-    cv::RNG_MT19937 rng(-1/*cv::getTickCount()*/);
-    int numTrials = 4000;
+    int gradThresh = 5;
+    cv::RNG_MT19937 rng(cv::getTickCount());
+    int numTrials = 8000;
     int expectNumPairs = 1000;
     int numPairs = 0;
     for (int t = 0; t < numTrials; t++)
@@ -533,13 +533,54 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
 void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
     const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
 {
-    int size = photoParams.size();
-    std::vector<ImageInfo> imageInfos(size);
-    for (int i = 0; i < size; i++)
+    int numImages = photoParams.size();
+
+    std::vector<Transform> transforms(numImages);
+    for (int i = 0; i < numImages; i++)
+        transforms[i] = Transform(infos[i]);
+
+    dst.resize(numImages);
+    char buf[64];
+    for (int i = 0; i < numImages; i++)
     {
-        ImageInfo info(photoParams[i], src[0].size());
-        imageInfos[i] = info;
+        Transform& trans = transforms[i];
+        dst[i].create(src[i].size(), CV_8UC3);
+        int rows = dst[i].rows, cols = dst[i].cols;
+        //for (int y = 0; y < rows; y++)
+        //{
+        //    const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
+        //    unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
+        //    for (int x = 0; x < cols; x++)
+        //    {
+        //        double b = ptrSrc[0] / 255.0, g = ptrSrc[1] / 255.0, r = ptrSrc[2] / 255.0;
+        //        cv::Vec3d d = trans.applyInverse(cv::Point(), cv::Vec3d(b, g, r));
+        //        ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
+        //        ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
+        //        ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
+        //        ptrSrc += 3;
+        //        ptrDst += 3;
+        //    }
+        //}
+        double e = 1.0 / infos[i].getExposure();
+        double r = 1.0 / infos[i].whiteBalanceRed;
+        double b = 1.0 / infos[i].whiteBalanceBlue;
+        for (int y = 0; y < rows; y++)
+        {
+            const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
+            unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
+            for (int x = 0; x < cols; x++)
+            {
+                ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e * r);
+                ptrDst[1] = cv::saturate_cast<unsigned char>(ptrSrc[1] * e);
+                ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e * b);
+                ptrSrc += 3;
+                ptrDst += 3;
+            }
+        }
+        sprintf(buf, "dst image %d", i);
+        cv::imshow(buf, dst[i]);
     }
+    cv::waitKey(0);
 }
 
 int main()
@@ -550,13 +591,13 @@ int main()
     //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
 
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -566,6 +607,14 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
 
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
+
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
     for (int i = 0; i < numImages; i++)
@@ -574,8 +623,11 @@ int main()
     std::vector<PhotoParam> params;
     //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
+
+
     double PI = 3.1415926;
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
@@ -585,26 +637,36 @@ int main()
     std::vector<ImageInfo> imageInfos;
     optimize(params, pairs, src[0].size(), imageInfos);
 
-    return 0;
+    std::vector<cv::Mat> dstImages;
+    correct(src, params, imageInfos, dstImages);
 
-    std::vector<cv::Mat> srcGrad(numImages);
-    for (int i = 0; i < numImages; i++)
-        calcGradImage(src[i], srcGrad[i]);
+    //return 0;
+
+    //std::vector<cv::Mat> srcGrad(numImages);
+    //for (int i = 0; i < numImages; i++)
+    //    calcGradImage(src[i], srcGrad[i]);
 
     cv::Size dstSize(2048, 1024);
-    std::vector<cv::Mat> maps, masks;
+    std::vector<cv::Mat> maps, masks, weights;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
     std::vector<cv::Mat> images;
-    reprojectParallel(src, images, maps);
-    cv::Mat dst;
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::imshow("image", images[i]);
-        calcGradImage(images[i], dst);
-        cv::imshow("grad", dst);
-        cv::waitKey(0);
-    }
+    reprojectParallel(dstImages, images, maps);
+
+    TilingLinearBlend blender;
+    blender.prepare(masks, 100);
+    cv::Mat blendImage;
+    blender.blend(images, blendImage);
+    cv::imshow("blend", blendImage);
+    cv::waitKey(0);
+    //cv::Mat dst;
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    cv::imshow("image", images[i]);
+    //    calcGradImage(images[i], dst);
+    //    cv::imshow("grad", dst);
+    //    cv::waitKey(0);
+    //}
 
     
 
