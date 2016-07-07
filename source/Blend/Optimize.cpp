@@ -165,7 +165,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     cv::waitKey(0);
 }
 
-enum { OPTIMIZE_VAL_NUM = 12 };
+enum { OPTIMIZE_VAL_NUM = 8 };
 enum { EMOR_COEFF_LENGTH = 5 };
 enum { VIGNETT_COEFF_LENGTH = 4 };
 
@@ -204,9 +204,10 @@ struct ImageInfo
         int index = 0;
         for (; index < EMOR_COEFF_LENGTH; index++)
             emorCoeffs[index] = x[index];
-        for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
-            radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
-        exposureExponent = x[index++];
+        //for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
+        //    radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
+        //exposureExponent = x[index++];
+        setExposure(x[index++]);
         whiteBalanceRed = x[index++];
         whiteBalanceBlue = x[index];
     }
@@ -216,9 +217,10 @@ struct ImageInfo
         int index = 0;
         for (; index < EMOR_COEFF_LENGTH; index++)
             x[index] = emorCoeffs[index];
-        for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
-            x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
-        x[index++] = exposureExponent;
+        //for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
+        //    x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
+        //x[index++] = exposureExponent;
+        x[index++] = getExposure();
         x[index++] = whiteBalanceRed;
         x[index] = whiteBalanceBlue;
     }
@@ -477,7 +479,8 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
 #include "levmar.h"
 
-void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<ValuePair>& valuePairs, const cv::Size& imageSize)
+void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<ValuePair>& valuePairs, 
+    const cv::Size& imageSize, std::vector<ImageInfo>& outImageInfos)
 {
     int size = photoParams.size();
     std::vector<ImageInfo> imageInfos(size);
@@ -524,7 +527,19 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     // copy to source images (data.m_imgs)
     readFrom(imageInfos, p.data());
 
-    int a = 0;
+    outImageInfos = imageInfos;
+}
+
+void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
+{
+    int size = photoParams.size();
+    std::vector<ImageInfo> imageInfos(size);
+    for (int i = 0; i < size; i++)
+    {
+        ImageInfo info(photoParams[i], src[0].size());
+        imageInfos[i] = info;
+    }
 }
 
 int main()
@@ -535,21 +550,21 @@ int main()
     //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
-    imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
+    //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
@@ -559,15 +574,16 @@ int main()
     std::vector<PhotoParam> params;
     //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     double PI = 3.1415926;
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     std::vector<ValuePair> pairs;
     getPointPairs(src, params, pairs);
 
-    optimize(params, pairs, src[0].size());
+    std::vector<ImageInfo> imageInfos;
+    optimize(params, pairs, src[0].size(), imageInfos);
 
     return 0;
 

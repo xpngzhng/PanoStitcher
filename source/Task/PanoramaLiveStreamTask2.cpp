@@ -248,6 +248,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
+    syncedFramesBufferForProc.clear();
     if (!highQualityBlend)
     {
         std::vector<cv::cuda::HostMem> mems;
@@ -304,7 +305,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     //appendLog("视频拼接初始化成功\n");
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
-    syncedFramesBufferForProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();

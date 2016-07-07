@@ -1231,12 +1231,20 @@ bool CudaPanoramaRender2::exposureCorrect(const std::vector<cv::Mat>& images)
         return false;
     }
     
-    ok = adjust.calcGain(reprojImagesC3, luts);
+    // cv::fitLine may fail, especially when reprojImagesC3 are black images
+    try
+    {
+        ok = adjust.calcGain(reprojImagesC3, luts);
+    }
+    catch (...)
+    {
+        ok = false;
+    }
     if (!ok)
     {
         luts.clear();
-        ptlprintf("Error in %s, calc gain failed\n", __FUNCTION__);
-        return false;
+        ptlprintf("Error in %s, calc gain failed, no gain adjust, program goes on\n", __FUNCTION__);
+        return true;
     }
 
     bool identity = true;
