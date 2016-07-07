@@ -406,8 +406,6 @@ inline double weightHuber(double x, double sigma)
     return x;
 }
 
-
-
 void errorFunc(double* p, double* hx, int m, int n, void* data)
 {
     ExternData* edata = (ExternData*)data;
@@ -451,20 +449,25 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
             (double(pair.iVal[2]) - pair.jVal[2]) > 10)
         {
             //printf("diff large\n");
+            int a = 0;
         }
 
         cv::Vec3d lightI = transforms[pair.i].applyInverse(pair.iPos, pair.iVal);
         cv::Vec3d valIInJ = transforms[pair.j].apply(pair.jPos, lightI);
-        cv::Vec3d errI = toVec3d(pair.jVal) - valIInJ;
+        cv::Vec3d errI = pair.jValD - valIInJ;
 
         cv::Vec3d lightJ = transforms[pair.j].applyInverse(pair.jPos, pair.jVal);
         cv::Vec3d valJInI = transforms[pair.i].apply(pair.iPos, lightJ);
-        cv::Vec3d errJ = toVec3d(pair.iVal) - valJInI;
+        cv::Vec3d errJ = pair.iValD - valJInI;
 
         for (int j = 0; j < 3; j++)
         {
-            hx[index++] = weightHuber(abs(errI[j]), huberSigma);
-            hx[index++] = weightHuber(abs(errJ[j]), huberSigma);
+            //hx[index++] = weightHuber(abs(errI[j]), huberSigma);
+            //hx[index++] = weightHuber(abs(errJ[j]), huberSigma);
+            //hx[index++] = errI[j] * errI[j];
+            //hx[index++] = errJ[j] * errJ[j];
+            hx[index++] = errI[j];
+            hx[index++] = errJ[j];
         }        
 
         sqrErr += errI.dot(errI);
@@ -477,7 +480,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     memcpy(pp.data(), p, m * sizeof(double));
     memcpy(hxhx.data(), hx, n * sizeof(double));
 
-    printf("call count %d, sqr err = %f\n", edata->errorFuncCallCount, sqrErr);
+    printf("call count %d, sqr err = %f, avg err %f\n", edata->errorFuncCallCount, sqrErr, sqrt(sqrErr / n));
 }
 
 #include "levmar.h"
@@ -532,7 +535,7 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     int a = 0;
 }
 
-int main()
+int main1()
 {
     //std::vector<std::string> paths;
     //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
@@ -588,5 +591,78 @@ int main()
 
     
 
+    return 0;
+}
+
+struct Data
+{
+    double* ptrIn;
+    double* ptrOut;
+    int count;
+};
+
+void compute(double *p, double *x, int m, int n, void *data)
+{
+    Data* ptrData = (Data*)data;
+    double* ptrIn = ptrData->ptrIn;
+    double* ptrOut = ptrData->ptrOut;
+    for (int i = 0; i < n; i++)
+        x[i] = ptrOut[i] - exp(p[0] * ptrIn[i * 2] * ptrIn[i * 2] + p[1] * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]);
+    ptrData->count++;
+    printf("%d: a = %f, b = %f\n", ptrData->count, p[0], p[1]);
+}
+
+int main()
+{
+    int num = 1000;
+    double beg = -3, end = 3;
+    double a = -1, b = -1;
+    cv::Mat input(num, 2, CV_64FC1);
+    cv::Mat output(num, 1, CV_64FC1);
+    cv::Mat noise(num, 1, CV_64FC1);
+    cv::RNG rng;
+    rng.fill(input, cv::RNG::UNIFORM, beg, end);
+    rng.fill(noise, cv::RNG::NORMAL, 0, 0.01);
+    double* ptrIn = (double*)input.data;
+    double* ptrOut = (double*)output.data;
+    double* ptrNoise = (double*)noise.data;
+    for (int i = 0; i < num; i++)
+        ptrOut[i] = exp(a * ptrIn[i * 2] * ptrIn[i * 2] + b * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]) + ptrNoise[i];
+
+    int ret;
+    //double opts[LM_OPTS_SZ];
+    double info[LM_INFO_SZ];
+
+    // parameters
+    std::vector<double> p(2, 0.0);
+    p[0] = 1, p[1] = 1;
+
+    // vector for mesurements
+    std::vector<double> x(num, 0.0);
+
+    // covariance matrix at solution
+    cv::Mat cov(2, 2, CV_64FC1);
+    // TODO: setup optimisation options with some good defaults.
+    double optimOpts[5];
+
+    optimOpts[0] = 1E-03;  // init mu
+    // stop thresholds
+    optimOpts[1] = 1e-5;   // ||J^T e||_inf
+    optimOpts[2] = 1e-5;   // ||Dp||_2
+    optimOpts[3] = 1e-1;   // ||e||_2
+    // difference mode
+    optimOpts[4] = LM_DIFF_DELTA;
+
+    int maxIter = 300;
+
+    Data data;
+    data.ptrIn = ptrIn;
+    data.ptrOut = ptrOut;
+    data.count = 0;
+
+    ret = dlevmar_dif(&compute, &(p[0]), &(x[0]), 2, num, maxIter, optimOpts, info, NULL, (double*)cov.data, &data);  // no jacobian
+    // copy to source images (data.m_imgs)
+
+    int kkka = 0;
     return 0;
 }

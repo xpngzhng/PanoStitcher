@@ -632,6 +632,12 @@ void PanoramaLiveStreamTask2::Impl::getLog(std::string& logInfo)
 
 void PanoramaLiveStreamTask2::Impl::initAll()
 {
+    videoSourceFrameRate = 0;
+    stitchVideoFrameRate = 0;
+    syncErrorMessage.clear();
+    clearAsyncErrorMessage();
+    clearLog();
+
     videoFrameRate = 0;
     numVideos = 0;
     videoOpenSuccess = 0;
