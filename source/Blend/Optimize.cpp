@@ -60,7 +60,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     pairs.clear();
 
     int gradThresh = 10;
-    cv::RNG_MT19937 rng(cv::getTickCount());
+    cv::RNG_MT19937 rng(-1/*cv::getTickCount()*/);
     int numTrials = 4000;
     int expectNumPairs = 1000;
     int numPairs = 0;
@@ -99,8 +99,8 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                                 pair.jPos = ptj;
                                 pair.iVal = src[i].at<cv::Vec3b>(pti);
                                 pair.jVal = src[j].at<cv::Vec3b>(ptj);
-                                pair.iValD = toVec3d(pair.iVal);
-                                pair.jValD = toVec3d(pair.jVal);
+                                pair.iValD = toVec3d(pair.iVal) * 1.0 / 255;
+                                pair.jValD = toVec3d(pair.jVal) * 1.0 / 255;
                                 pair.equiRectPos = cv::Point(erx, ery);
                                 getPair = 1;
                                 numPairs++;
@@ -258,12 +258,12 @@ struct Transform
     Transform(const ImageInfo& imageInfo)
     {
         memset(lut, 0, sizeof(lut));
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < LUT_LENGTH; i++)
         {
-            double t = EMoR::f0[i * 4];
+            double t = EMoR::f0[i];
             for (int k = 0; k < EMOR_COEFF_LENGTH; k++)
-                t += EMoR::h[k][i * 4] * imageInfo.emorCoeffs[k];
-            lut[i] = cv::saturate_cast<unsigned char>(t * 255);
+                t += EMoR::h[k][i] * imageInfo.emorCoeffs[k];
+            lut[i] = t;
         }
 
         vigCenterX = imageInfo.size.width / 2;
@@ -277,33 +277,13 @@ struct Transform
         whiteBalanceBlue = imageInfo.whiteBalanceBlue;
     }
 
-    cv::Vec3d apply(const cv::Point& p, const cv::Vec3b& val) const
-    {
-        double scale = calcVigFactor(p) * exposure;
-        int b = cv::saturate_cast<unsigned char>(val[0] * scale * whiteBalanceBlue);
-        int g = cv::saturate_cast<unsigned char>(val[1] * scale);
-        int r = cv::saturate_cast<unsigned char>(val[2] * scale * whiteBalanceRed);
-        return cv::Vec3d(lut[b], lut[g], lut[r]);
-    }
-
-    cv::Vec3d applyInverse(const cv::Point& p, const cv::Vec3b& val) const
-    {
-        double scale = 1.0 / (calcVigFactor(p) * exposure);
-        double b = invLUT(val[0]) * scale;
-        double g = invLUT(val[1]) * scale;
-        double r = invLUT(val[2]) * scale;
-        r /= whiteBalanceRed;
-        b /= whiteBalanceBlue;
-        return cv::Vec3d(b, g, r);
-    }
-
     cv::Vec3d apply(const cv::Point& p, const cv::Vec3d& val) const
     {
         double scale = calcVigFactor(p) * exposure;
-        int b = cv::saturate_cast<unsigned char>(val[0] * scale * whiteBalanceBlue);
-        int g = cv::saturate_cast<unsigned char>(val[1] * scale);
-        int r = cv::saturate_cast<unsigned char>(val[2] * scale * whiteBalanceRed);
-        return cv::Vec3d(lut[b], lut[g], lut[r]);
+        double b = val[0] * scale * whiteBalanceBlue;
+        double g = val[1] * scale;
+        double r = val[2] * scale * whiteBalanceRed;
+        return cv::Vec3d(LUT(b), LUT(g), LUT(r));
     }
 
     cv::Vec3d applyInverse(const cv::Point& p, const cv::Vec3d& val) const
@@ -332,15 +312,25 @@ struct Transform
         return vig;
     }
 
+    double LUT(double val) const
+    {
+        if (val <= 0)
+            return lut[0];
+        if (val >= 1)
+            return lut[LUT_LENGTH - 1];
+
+        return lut[int(val * LUT_LENGTH)];
+    }
+
     double invLUT(double val) const
     {
         if (val <= 0)
             return 0;
-        if (val >= 255)
-            return 255;
+        if (val >= 1)
+            return 1;
 
-        int lowIdx = 0, upIdx = 255;
-        for (int i = 0; i < 255; i++)
+        int lowIdx = 0, upIdx = LUT_LENGTH - 1;
+        for (int i = 0; i < LUT_LENGTH - 1; i++)
         {
             if (lut[i] < val && lut[i + 1] >= val)
             {
@@ -348,7 +338,7 @@ struct Transform
                 break;
             }
         }
-        for (int i = 255; i > 0; i--)
+        for (int i = LUT_LENGTH - 1; i > 0; i--)
         {
             if (lut[i - 1] <= val && lut[i] > val)
             {
@@ -357,17 +347,17 @@ struct Transform
             }
         }
         if (lowIdx == upIdx)
-            return lowIdx;
+            return double(lowIdx) / (LUT_LENGTH - 1);
 
         double diff = lut[upIdx] - lut[lowIdx];
         double lambda = (val - lut[lowIdx]) / diff;
-        return lowIdx * lambda + upIdx * (1 - lambda);
+        return (lowIdx * lambda + upIdx * (1 - lambda)) / (LUT_LENGTH - 1);
     }
 
     void enforceMonotonicity()
     {
-        double val = lut[255];
-        for (int i = 0; i < 255; i++)
+        double val = lut[LUT_LENGTH - 1];
+        for (int i = 0; i < LUT_LENGTH - 1; i++)
         {
             if (lut[i] > val)
                 lut[i] = val;
@@ -376,7 +366,7 @@ struct Transform
         }
     }
 
-    enum { LUT_LENGTH = 256 };
+    enum { LUT_LENGTH = 1024 };
     double lut[LUT_LENGTH];
     double vigCenterX, vigCenterY;
     double vigCoeffs[VIGNETT_COEFF_LENGTH];
@@ -424,7 +414,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     {
         Transform& trans = transforms[i];
         double err = 0;
-        for (int j = 0; j < 255; j++)
+        for (int j = 0; j < Transform::LUT_LENGTH; j++)
         {
             if (trans.lut[j] > trans.lut[j + 1])
             {
@@ -452,23 +442,25 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
             int a = 0;
         }
 
-        cv::Vec3d lightI = transforms[pair.i].applyInverse(pair.iPos, pair.iVal);
+        cv::Vec3d lightI = transforms[pair.i].applyInverse(pair.iPos, pair.iValD);
         cv::Vec3d valIInJ = transforms[pair.j].apply(pair.jPos, lightI);
         cv::Vec3d errI = pair.jValD - valIInJ;
 
-        cv::Vec3d lightJ = transforms[pair.j].applyInverse(pair.jPos, pair.jVal);
+        cv::Vec3d lightJ = transforms[pair.j].applyInverse(pair.jPos, pair.jValD);
         cv::Vec3d valJInI = transforms[pair.i].apply(pair.iPos, lightJ);
         cv::Vec3d errJ = pair.iValD - valJInI;
 
         for (int j = 0; j < 3; j++)
         {
-            //hx[index++] = weightHuber(abs(errI[j]), huberSigma);
-            //hx[index++] = weightHuber(abs(errJ[j]), huberSigma);
+            hx[index++] = weightHuber(abs(errI[j]), huberSigma);
+            hx[index++] = weightHuber(abs(errJ[j]), huberSigma);
             //hx[index++] = errI[j] * errI[j];
             //hx[index++] = errJ[j] * errJ[j];
-            hx[index++] = errI[j];
-            hx[index++] = errJ[j];
-        }        
+            //hx[index++] = errI[j];
+            //hx[index++] = errJ[j];
+        }
+
+        //printf("err %d: %f %f %f %f %f %f\n", i, errI[0], errI[1], errI[2], errJ[0], errJ[1], errJ[2]);
 
         sqrErr += errI.dot(errI);
         sqrErr += errJ.dot(errJ);
@@ -525,7 +517,7 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     int maxIter = 300;
 
     ExternData edata(imageInfos, valuePairs);
-    edata.huberSigma = 5;
+    edata.huberSigma = 5.0 / 255;
     edata.errorFuncCallCount = 0;
 
     ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
@@ -535,7 +527,7 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     int a = 0;
 }
 
-int main1()
+int main()
 {
     //std::vector<std::string> paths;
     //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
@@ -543,13 +535,21 @@ int main1()
     //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
 
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
@@ -559,7 +559,8 @@ int main1()
     std::vector<PhotoParam> params;
     //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     double PI = 3.1415926;
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
@@ -612,7 +613,7 @@ void compute(double *p, double *x, int m, int n, void *data)
     printf("%d: a = %f, b = %f\n", ptrData->count, p[0], p[1]);
 }
 
-int main()
+int main1()
 {
     int num = 1000;
     double beg = -3, end = 3;
