@@ -4,6 +4,67 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
+struct UniformToSphereConverter
+{
+    void init(int radius)
+    {
+        length = radius * 2;
+        std::vector<double> temp(length, 0);
+        double r2 = radius * radius;
+        for (int i = 0; i < length; i++)
+        {
+            double diff = i - radius;
+            double val = sqrt(r2 - diff * diff);
+            temp[i] = val;
+        }
+        for (int i = 1; i < length; i++)
+            temp[i] += temp[i - 1];
+        double scale = length / temp[length - 1];
+        for (int i = 0; i < length; i++)
+            temp[i] *= scale;
+
+        lut.resize(length);
+        for (int i = 0; i < length; i++)
+        {
+            int lowIndex = 0, highIndex = length - 1;
+            for (int j = 0; j < length - 1; j++)
+            {
+                if (temp[j] <= i && temp[j + 1] >= i)
+                {
+                    lowIndex = j;
+                    break;
+                }
+            }
+            for (int j = length - 1; j > 0; j--)
+            {
+                if (temp[j - 1] <= i && temp[j] >= i)
+                {
+                    highIndex = j;
+                    break;
+                }
+            }
+            if (lowIndex == highIndex)
+            {
+                lut[i] = lowIndex;
+                continue;
+            }
+            double diff = highIndex - lowIndex;
+            double lambda = (i - lowIndex) / diff;
+            lut[i] = lambda * lowIndex + (1 - lambda) * highIndex + 0.5;
+        }
+    }
+    int transform(int i) const
+    {
+        if (i < 0)
+            return 0;
+        if (i >= length)
+            return length - 1;
+        return lut[i];
+    }
+    std::vector<int> lut;
+    int length;
+};
+
 inline cv::Vec3b toVec3b(const cv::Vec3d v)
 {
     return cv::Vec3b(cv::saturate_cast<unsigned char>(v[0]),
@@ -55,6 +116,9 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
         printf("min %f, max %f\n", minVal, maxVal);
     }
 
+    UniformToSphereConverter cvtUToS;
+    cvtUToS.init(erHeight / 2);
+
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
     pairs.clear();
@@ -69,6 +133,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     {
         int erx = rng.uniform(0, erWidth);
         int ery = rng.uniform(0, erHeight);
+        ery = cvtUToS.transform(ery);
         for (int i = 0; i < numImages; i++)
         {
             int getPair = 0;
@@ -552,7 +617,20 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
     //double opts[LM_OPTS_SZ];
     double info[LM_INFO_SZ];
 
-    int option = EXPOSURE | WHITE_BALANCE;
+    // TODO: setup optimisation options with some good defaults.
+    double optimOpts[5];
+
+    optimOpts[0] = 1E-03;  // init mu
+    // stop thresholds
+    optimOpts[1] = 1e-5;   // ||J^T e||_inf
+    optimOpts[2] = 1e-5;   // ||Dp||_2
+    optimOpts[3] = 1e-1;   // ||e||_2
+    // difference mode
+    optimOpts[4] = LM_DIFF_DELTA;
+
+    int maxIter = 300;
+
+    int option = EXPOSURE;
     int numParams = ImageInfo::getNumParams(option);
 
     // parameters
@@ -567,19 +645,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
 
     // covariance matrix at solution
     cv::Mat cov(m, m, CV_64FC1);
-    // TODO: setup optimisation options with some good defaults.
-    double optimOpts[5];
-
-    optimOpts[0] = 1E-03;  // init mu
-    // stop thresholds
-    optimOpts[1] = 1e-5;   // ||J^T e||_inf
-    optimOpts[2] = 1e-5;   // ||Dp||_2
-    optimOpts[3] = 1e-1;   // ||e||_2
-    // difference mode
-    optimOpts[4] = LM_DIFF_DELTA;
-
-    int maxIter = 300;
-
+    
     ExternData edata(imageInfos, valuePairs);
     edata.huberSigma = 5.0 / 255;
     edata.errorFuncCallCount = 0;
@@ -647,57 +713,51 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
 
 int main()
 {
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    std::vector<PhotoParam> params;
 
-    //std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+
+    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
-    //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
 
-    //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image1.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image2.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image3.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
     for (int i = 0; i < numImages; i++)
-        src[i] = cv::imread(imagePaths[i]);
-
-    std::vector<PhotoParam> params;
-    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
-    //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
-
-    double PI = 3.1415926;
-    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+        src[i] = cv::imread(imagePaths[i]);    
 
     std::vector<ValuePair> pairs;
     getPointPairs(src, params, pairs);
