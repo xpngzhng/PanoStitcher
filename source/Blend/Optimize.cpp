@@ -20,7 +20,7 @@ void calcGradImage(const cv::Mat& src, cv::Mat& dst)
 {
     CV_Assert(src.type() == CV_8UC3);
     cv::Mat blurred, grad;
-    cv::GaussianBlur(src, blurred, cv::Size(5, 5), 1.0);
+    cv::GaussianBlur(src, blurred, cv::Size(3, 3), 1.0);
     cv::Laplacian(blurred, grad, CV_16S);
     cv::convertScaleAbs(grad, dst);
 }
@@ -64,6 +64,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     int numTrials = 8000;
     int expectNumPairs = 1000;
     int numPairs = 0;
+    const double normScale = 1.0 / 255.0;
     for (int t = 0; t < numTrials; t++)
     {
         int erx = rng.uniform(0, erWidth);
@@ -98,10 +99,14 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                         {
                             if (photoParams[j].circleR > 0)
                             {
-                                double diffx = srcxid - photoParams[j].circleX;
-                                double diffy = srcyid - photoParams[j].circleY;
+                                double diffx = srcxjd - photoParams[j].circleX;
+                                double diffy = srcyjd - photoParams[j].circleY;
                                 if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
                                     continue;
+                            }
+                            if (pti.x < 20 || ptj.x < 20)
+                            {
+                                int a = 0;
                             }
                             int gradValJ = grads[j].at<unsigned char>(ptj);
                             if (gradValJ < gradThresh)
@@ -113,8 +118,8 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                                 pair.jPos = ptj;
                                 pair.iVal = src[i].at<cv::Vec3b>(pti);
                                 pair.jVal = src[j].at<cv::Vec3b>(ptj);
-                                pair.iValD = toVec3d(pair.iVal) * 1.0 / 255;
-                                pair.jValD = toVec3d(pair.jVal) * 1.0 / 255;
+                                pair.iValD = toVec3d(pair.iVal) * normScale;
+                                pair.jValD = toVec3d(pair.jVal) * normScale;
                                 pair.equiRectPos = cv::Point(erx, ery);
                                 getPair = 1;
                                 numPairs++;
@@ -183,7 +188,7 @@ enum { OPTIMIZE_VAL_NUM = 8 };
 enum { EMOR_COEFF_LENGTH = 5 };
 enum { VIGNETT_COEFF_LENGTH = 4 };
 
-enum OptimizeOption
+enum OptimizeParamType
 {
     EXPOSURE = 1,
     WHITE_BALANCE = 2,
@@ -197,7 +202,7 @@ struct ImageInfo
 
     }
 
-    ImageInfo(const PhotoParam& param_, const cv::Size& size_)
+    ImageInfo(const cv::Size& size_)
     {
         memset(emorCoeffs, 0, sizeof(emorCoeffs));
         memset(radialVignettCoeffs, 0, sizeof(radialVignettCoeffs));
@@ -206,7 +211,6 @@ struct ImageInfo
         gamma = 0;
         whiteBalanceRed = 1;
         whiteBalanceBlue = 1;
-        param = param_;
         size = size_;
     }
 
@@ -220,30 +224,62 @@ struct ImageInfo
         exposureExponent = log2(1 / e);
     }
 
-    void fromOutside(const double* x)
+    int static getNumParams(int optimizeWhat) 
     {
-        int index = 0;
-        for (; index < EMOR_COEFF_LENGTH; index++)
-            emorCoeffs[index] = x[index];
-        //for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
-        //    radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
-        //exposureExponent = x[index++];
-        setExposure(x[index++]);
-        whiteBalanceRed = x[index++];
-        whiteBalanceBlue = x[index];
+        int num = 0;
+        if (optimizeWhat & EXPOSURE)
+            num += EMOR_COEFF_LENGTH + 1;
+        if (optimizeWhat & VIGNETTE)
+            num += VIGNETT_COEFF_LENGTH;
+        if (optimizeWhat & WHITE_BALANCE)
+            num += 2;
+        return num;
     }
 
-    void toOutside(double* x) const
+    void fromOutside(const double* x, int optimizeWhat)
     {
         int index = 0;
-        for (; index < EMOR_COEFF_LENGTH; index++)
-            x[index] = emorCoeffs[index];
-        //for (; index < EMOR_COEFF_LENGTH + VIGNETT_COEFF_LENGTH; index++)
-        //    x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
-        //x[index++] = exposureExponent;
-        x[index++] = getExposure();
-        x[index++] = whiteBalanceRed;
-        x[index] = whiteBalanceBlue;
+        if (optimizeWhat & EXPOSURE)
+        {
+            for (; index < EMOR_COEFF_LENGTH; index++)
+                emorCoeffs[index] = x[index];
+        }
+        if (optimizeWhat & VIGNETTE)
+        {
+            int lastLength = index;
+            for (; index < lastLength + VIGNETT_COEFF_LENGTH; index++)
+                radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
+        }
+        if (optimizeWhat & EXPOSURE)
+            setExposure(x[index++]);
+        if (optimizeWhat & WHITE_BALANCE)
+        {
+            whiteBalanceRed = x[index++];
+            whiteBalanceBlue = x[index];
+        }
+    }
+
+    void toOutside(double* x, int optimizeWhat) const
+    {
+        int index = 0;
+        if (optimizeWhat & EXPOSURE)
+        {
+            for (; index < EMOR_COEFF_LENGTH; index++)
+                x[index] = emorCoeffs[index];
+        }
+        if (optimizeWhat & VIGNETTE)
+        {
+            int lastLength = index;
+            for (; index < lastLength + VIGNETT_COEFF_LENGTH; index++)
+                x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
+        }
+        if (optimizeWhat & EXPOSURE)
+            x[index++] = getExposure();
+        if (optimizeWhat & WHITE_BALANCE)
+        {
+            x[index++] = whiteBalanceRed;
+            x[index] = whiteBalanceBlue;
+        }
     }
     
     double emorCoeffs[EMOR_COEFF_LENGTH];
@@ -252,22 +288,23 @@ struct ImageInfo
     double whiteBalanceRed;
     double whiteBalanceBlue;
     double gamma = 0;
-    PhotoParam param;
     cv::Size size;
 };
 
-void readFrom(std::vector<ImageInfo>& infos, const double* x)
+void readFrom(std::vector<ImageInfo>& infos, const double* x, int optimizeWhat)
 {
     int numInfos = infos.size();
+    int numParams = ImageInfo::getNumParams(optimizeWhat);
     for (int i = 0; i < numInfos; i++)
-        infos[i].fromOutside(x + i * OPTIMIZE_VAL_NUM);
+        infos[i].fromOutside(x + i * numParams, optimizeWhat);
 }
 
-void writeTo(const std::vector<ImageInfo>& infos, double* x)
+void writeTo(const std::vector<ImageInfo>& infos, double* x, int optimizeWhat)
 {
     int numInfos = infos.size();
+    int numParams = ImageInfo::getNumParams(optimizeWhat);
     for (int i = 0; i < numInfos; i++)
-        infos[i].toOutside(x + i * OPTIMIZE_VAL_NUM);
+        infos[i].toOutside(x + i * numParams, optimizeWhat);
 }
 
 #include "emor.h"
@@ -408,6 +445,7 @@ struct ExternData
     const std::vector<ValuePair>& pairs;
     double huberSigma;
     int errorFuncCallCount;
+    int optimizeWhat;
 };
 
 inline double weightHuber(double x, double sigma)
@@ -425,7 +463,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     const std::vector<ImageInfo>& infos = edata->imageInfos;
     const std::vector<ValuePair>& pairs = edata->pairs;
 
-    readFrom(edata->imageInfos, p);
+    readFrom(edata->imageInfos, p, edata->optimizeWhat);
     int numImages = infos.size();
 
     std::vector<Transform> transforms(numImages);
@@ -500,14 +538,13 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
 #include "levmar.h"
 
-void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<ValuePair>& valuePairs, 
+void optimize(const std::vector<ValuePair>& valuePairs, int numImages, 
     const cv::Size& imageSize, std::vector<ImageInfo>& outImageInfos)
 {
-    int size = photoParams.size();
-    std::vector<ImageInfo> imageInfos(size);
-    for (int i = 0; i < size; i++)
+    std::vector<ImageInfo> imageInfos(numImages);
+    for (int i = 0; i < numImages; i++)
     {
-        ImageInfo info(photoParams[i], imageSize);
+        ImageInfo info(imageSize);
         imageInfos[i] = info;
     }
 
@@ -515,15 +552,18 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     //double opts[LM_OPTS_SZ];
     double info[LM_INFO_SZ];
 
+    int option = EXPOSURE | WHITE_BALANCE;
+    int numParams = ImageInfo::getNumParams(option);
+
     // parameters
-    int m = size * OPTIMIZE_VAL_NUM;
+    int m = numImages * numParams;
     std::vector<double> p(m, 0.0);
 
     // vector for errors
-    int n = 2 * 3 * valuePairs.size() + size;
+    int n = 2 * 3 * valuePairs.size() + numImages;
     std::vector<double> x(n, 0.0);
 
-    writeTo(imageInfos, p.data());
+    writeTo(imageInfos, p.data(), option);
 
     // covariance matrix at solution
     cv::Mat cov(m, m, CV_64FC1);
@@ -543,10 +583,11 @@ void optimize(const std::vector<PhotoParam>& photoParams, const std::vector<Valu
     ExternData edata(imageInfos, valuePairs);
     edata.huberSigma = 5.0 / 255;
     edata.errorFuncCallCount = 0;
+    edata.optimizeWhat = option;
 
     ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
     // copy to source images (data.m_imgs)
-    readFrom(imageInfos, p.data());
+    readFrom(imageInfos, p.data(), option);
 
     outImageInfos = imageInfos;
 }
@@ -606,17 +647,17 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
 
 int main()
 {
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-
     //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -648,21 +689,21 @@ int main()
         src[i] = cv::imread(imagePaths[i]);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
     //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
 
     double PI = 3.1415926;
-    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     std::vector<ValuePair> pairs;
     getPointPairs(src, params, pairs);
 
     std::vector<ImageInfo> imageInfos;
-    optimize(params, pairs, src[0].size(), imageInfos);
+    optimize(pairs, numImages, src[0].size(), imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, params, imageInfos, dstImages);
