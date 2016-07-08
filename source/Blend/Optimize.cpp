@@ -630,30 +630,33 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
 
     int maxIter = 300;
 
-    int option = EXPOSURE;
-    int numParams = ImageInfo::getNumParams(option);
+    for (int i = 0; i < 1; i++)
+    {
+        int option = i == 0 ? EXPOSURE : WHITE_BALANCE;
+        int numParams = ImageInfo::getNumParams(option);
 
-    // parameters
-    int m = numImages * numParams;
-    std::vector<double> p(m, 0.0);
+        // parameters
+        int m = numImages * numParams;
+        std::vector<double> p(m, 0.0);
 
-    // vector for errors
-    int n = 2 * 3 * valuePairs.size() + numImages;
-    std::vector<double> x(n, 0.0);
+        // vector for errors
+        int n = 2 * 3 * valuePairs.size() + numImages;
+        std::vector<double> x(n, 0.0);
 
-    writeTo(imageInfos, p.data(), option);
+        writeTo(imageInfos, p.data(), option);
 
-    // covariance matrix at solution
-    cv::Mat cov(m, m, CV_64FC1);
-    
-    ExternData edata(imageInfos, valuePairs);
-    edata.huberSigma = 5.0 / 255;
-    edata.errorFuncCallCount = 0;
-    edata.optimizeWhat = option;
+        // covariance matrix at solution
+        cv::Mat cov(m, m, CV_64FC1);
 
-    ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
-    // copy to source images (data.m_imgs)
-    readFrom(imageInfos, p.data(), option);
+        ExternData edata(imageInfos, valuePairs);
+        edata.huberSigma = 5.0 / 255;
+        edata.errorFuncCallCount = 0;
+        edata.optimizeWhat = option;
+
+        ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
+        // copy to source images (data.m_imgs)
+        readFrom(imageInfos, p.data(), option);
+    }
 
     outImageInfos = imageInfos;
 }
@@ -698,9 +701,9 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
             unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
             for (int x = 0; x < cols; x++)
             {
-                ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e);
+                ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e * b);
                 ptrDst[1] = cv::saturate_cast<unsigned char>(ptrSrc[1] * e);
-                ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e);
+                ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e * r);
                 ptrSrc += 3;
                 ptrDst += 3;
             }
@@ -716,11 +719,11 @@ int main()
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
 
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
@@ -728,15 +731,15 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    //double PI = 3.1415926;
-    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    double PI = 3.1415926;
+    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
