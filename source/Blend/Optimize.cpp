@@ -630,9 +630,9 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
 
     int maxIter = 300;
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 2; i++)
     {
-        int option = i == 0 ? EXPOSURE : WHITE_BALANCE;
+        int option = i == 0 ? EXPOSURE : (WHITE_BALANCE);
         int numParams = ImageInfo::getNumParams(option);
 
         // parameters
@@ -719,11 +719,11 @@ int main()
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
 
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
@@ -731,15 +731,15 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    double PI = 3.1415926;
-    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -777,7 +777,7 @@ int main()
     //for (int i = 0; i < numImages; i++)
     //    calcGradImage(src[i], srcGrad[i]);
 
-    cv::Size dstSize(2048, 1024);
+    cv::Size dstSize(1600, 800);
     std::vector<cv::Mat> maps, masks, weights;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
