@@ -1542,19 +1542,21 @@ void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio
 
 void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
+void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+
 // main5
 int main()
 {
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
@@ -1567,20 +1569,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+    std::vector<std::string> imagePaths;
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
@@ -1619,55 +1621,59 @@ int main()
     intersectMask &= diffSmall;
     cv::meanStdDev(bgDiff, bgDiffMean, bgDiffStdDev, intersectMask);
     cv::meanStdDev(rgDiff, rgDiffMean, rgDiffStdDev, intersectMask);
-    cv::Mat newImageR;
-    scale(images[indexR], masks[indexR], 1.0 - rgDiffMean[indexL] * 0.8, 1.0 - bgDiffMean[indexL] * 0.8, newImageR);
-    cv::imshow("L", images[indexL]);
-    cv::imshow("old R", images[indexR]);
-    cv::imshow("new R", newImageR);
-    cv::waitKey(0);
+    //cv::Mat newImageR;
+    //scale(images[indexR], masks[indexR], 1.0 - rgDiffMean[indexL] * 0.8, 1.0 - bgDiffMean[indexL] * 0.8, newImageR);
+    //cv::imshow("L", images[indexL]);
+    //cv::imshow("old R", images[indexR]);
+    //cv::imshow("new R", newImageR);
+    //cv::waitKey(0);
 
-    cv::Scalar meanL, meanR;
-    meanL = cv::mean(images[indexL], intersectMask);
-    meanR = cv::mean(images[indexR], intersectMask);
-    double ratioRGL = meanL[2] / meanL[1], ratioBGL = meanL[0] / meanL[1];
-    double ratioRGR = meanR[2] / meanR[1], ratioBGR = meanR[0] / meanR[1];
-    scale(images[indexR], masks[indexR], 1.0 + (ratioRGL - ratioRGR), 1.0 + (ratioBGL - ratioBGR), newImageR);
-    cv::imshow("L", images[indexL]);
-    cv::imshow("old R", images[indexR]);
-    cv::imshow("new R", newImageR);
-    cv::waitKey(0);
+    //cv::Scalar meanL, meanR;
+    //meanL = cv::mean(images[indexL], intersectMask);
+    //meanR = cv::mean(images[indexR], intersectMask);
+    //double ratioRGL = meanL[2] / meanL[1], ratioBGL = meanL[0] / meanL[1];
+    //double ratioRGR = meanR[2] / meanR[1], ratioBGR = meanR[0] / meanR[1];
+    //scale(images[indexR], masks[indexR], 1.0 + (ratioRGL - ratioRGR), 1.0 + (ratioBGL - ratioBGR), newImageR);
+    //cv::imshow("L", images[indexL]);
+    //cv::imshow("old R", images[indexR]);
+    //cv::imshow("new R", newImageR);
+    //cv::waitKey(0);
 
     std::vector<cv::Mat> compResults;
-    //compensate(images, masks, compResults);  
-    MultibandBlendGainAdjust gainAdjust;
-    gainAdjust.prepare(masks, 50);
-    std::vector<std::vector<unsigned char> > luts;
-    gainAdjust.calcGain(images, luts);
-    compResults.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        transform(images[i], compResults[i], luts[i]);
+    compensate(images, masks, compResults);  
+    //MultibandBlendGainAdjust gainAdjust;
+    //gainAdjust.prepare(masks, 50);
+    //std::vector<std::vector<unsigned char> > luts;
+    //gainAdjust.calcGain(images, luts);
+    //compResults.resize(numImages);
+    //for (int i = 0; i < numImages; i++)
+    //    transform(images[i], compResults[i], luts[i]);
 
-    std::vector<cv::Mat> tintResults(numImages);
-    tintAdjust(compResults, masks, tintResults);
+    //std::vector<cv::Mat> tintResults(numImages);
+    //tintAdjust(compResults, masks, tintResults);
     //compensate(images, masks, tintResults);
 
     for (int i = 0; i < numImages; i++)
     {
         cv::imshow("orig", images[i]);
         cv::imshow("comp", compResults[i]);
-        cv::imshow("tint", tintResults[i]);
+        //cv::imshow("tint", tintResults[i]);
         cv::waitKey(0);
     }
 
     TilingLinearBlend blend;
     blend.prepare(masks, 100);
+    TilingMultibandBlendFast mBlend;
+    mBlend.prepare(masks, 10, 4);
     cv::Mat result;
     blend.blend(images, result);
     cv::imshow("old blend", result);
     blend.blend(compResults, result);
     cv::imshow("gain blend", result);
-    blend.blend(tintResults, result);
-    cv::imshow("gain tint blend", result);
+    mBlend.blend(compResults, result);
+    cv::imshow("gain m blend", result);
+    //blend.blend(tintResults, result);
+    //cv::imshow("gain tint blend", result);
     //cv::imwrite("GainTintBlend2.bmp", result);
     cv::waitKey(0);
 

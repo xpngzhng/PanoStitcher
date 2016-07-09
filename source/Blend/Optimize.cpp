@@ -143,8 +143,8 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     int minValThresh = 5, maxValThresh = 250;
     int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount());
-    int numTrials = 8000;
-    int expectNumPairs = 1000;
+    int numTrials = 8000 * 5;
+    int expectNumPairs = 1000 * 5;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
@@ -702,12 +702,12 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
     {
         printf("[%d] e = %f\n", i, imageInfos[i].getExposure());
         char buf[256];
-        sprintf(buf, "emor lut %d", i);
-        Transform t(imageInfos[i]);
-        t.enforceMonotonicity();
-        t.showLUT(buf);        
+        //sprintf(buf, "emor lut %d", i);
+        //Transform t(imageInfos[i]);
+        //t.enforceMonotonicity();
+        //t.showLUT(buf);        
     }
-    cv::waitKey(0);
+    //cv::waitKey(0);
 
     outImageInfos = imageInfos;
 }
@@ -878,7 +878,7 @@ int main()
         src[i] = cv::imread(imagePaths[i]);
 
     int resizeTimes = 0;
-    int minWidth = 160, minHeight = 120;
+    int minWidth = 80, minHeight = 60;
     resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
     
     std::vector<cv::Mat> testSrc(numImages);
