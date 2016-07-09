@@ -7,11 +7,12 @@
 template <typename MatType>
 struct IntervaledMaskTemplate
 {
-    IntervaledMaskTemplate() : begInc(-1LL), endExc(-1LL) {};
-    IntervaledMaskTemplate(long long int begInc_, long long int endExc_, const MatType& mask_)
-        : begInc(begInc_), endExc(endExc_), mask(mask_) {};
-    long long int begInc;
-    long long int endExc;
+    IntervaledMaskTemplate() : begInc(-1L), endExc(-1L) {};
+    IntervaledMaskTemplate(int videoIndex_, int begIndexInc_, long long int endIndexInc_, const MatType& mask_)
+        : videoIndex(videoIndex_), begIndexInc(begIndexInc_), endIndexInc(endIndexInc_), mask(mask_) {};
+    int videoIndex;
+    int begIndexInc;
+    int endIndexInc;
     MatType mask;
 };
 
@@ -42,7 +43,7 @@ struct CustomIntervaledMasksTemplate
         return true;
     }
 
-    bool getMask(long long int time, MatType& mask) const
+    bool getMask2(int index, MatType& mask) const
     {
         if (!initSuccess)
         {
@@ -54,7 +55,7 @@ struct CustomIntervaledMasksTemplate
         for (int i = 0; i < size; i++)
         {
             const IntervaledMaskTemplate<MatType>& currMask = masks[i];
-            if (time >= currMask.begInc && time < currMask.endExc)
+            if (index >= currMask.begIndexInc && index <= currMask.endIndexInc)
             {
                 mask = currMask.mask;
                 return true;
@@ -64,7 +65,7 @@ struct CustomIntervaledMasksTemplate
         return false;
     }
 
-    bool addMask(long long int begInc, long long int endExc, const MatType& mask)
+    bool addMask2(int begIndexInc, int endIndexInc, const MatType& mask)
     {
         if (!initSuccess)
             return false;
@@ -72,18 +73,18 @@ struct CustomIntervaledMasksTemplate
         if (!mask.data || mask.type() != CV_8UC1 || mask.cols != width || mask.rows != height)
             return false;
 
-        masks.push_back(IntervaledMaskTemplate<MatType>(begInc, endExc, mask.clone()));
+        masks.push_back(IntervaledMaskTemplate<MatType>(-1, begIndexInc, endIndexInc, mask.clone()));
         return true;
     }
 
-    void clearMask(long long int begInc, long long int endExc, long long int precision = 1000)
+    void clearMask2(int begIndexInc, int endIndexInc)
     {
         if (precision < 0)
             precision = 0;
         for (std::vector<IntervaledMaskTemplate<MatType> >::iterator itr = masks.begin(); itr != masks.end();)
         {
-            if (abs(itr->begInc - begInc) <= precision &&
-                abs(itr->endExc - endExc) <= precision)
+            if (itr->begIndexInc == begIndexInc &&
+                itr->endIndexInc == endIndexInc)
                 itr = masks.erase(itr);
             else
                 ++itr;

@@ -23,7 +23,7 @@ bool CustomIntervaledMasks::init(int width_, int height_)
     return true;
 }
 
-bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask) const
+bool CustomIntervaledMasks::getMask2(int index, cv::Mat& mask) const
 {
     if (!initSuccess)
     {
@@ -35,7 +35,7 @@ bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask) const
     for (int i = 0; i < size; i++)
     {
         const IntervaledMask& currMask = masks[i];
-        if (time >= currMask.begInc && time < currMask.endExc)
+        if (index >= currMask.begIndexInc && index < currMask.endIndexInc)
         {
             mask = currMask.mask;
             return true;
@@ -45,7 +45,7 @@ bool CustomIntervaledMasks::getMask(long long int time, cv::Mat& mask) const
     return false;
 }
 
-bool CustomIntervaledMasks::addMask(long long int begInc, long long int endExc, const cv::Mat& mask)
+bool CustomIntervaledMasks::addMask2(int begIndexInc, int endIndexInc, const cv::Mat& mask)
 {
     if (!initSuccess)
         return false;
@@ -53,18 +53,16 @@ bool CustomIntervaledMasks::addMask(long long int begInc, long long int endExc, 
     if (!mask.data || mask.type() != CV_8UC1 || mask.cols != width || mask.rows != height)
         return false;
 
-    masks.push_back(IntervaledMask(begInc, endExc, mask.clone()));
+    masks.push_back(IntervaledMask(-1, begIndexInc, endIndexInc, mask.clone()));
     return true;
 }
 
-void CustomIntervaledMasks::clearMask(long long int begInc, long long int endExc, long long int precision)
+void CustomIntervaledMasks::clearMask2(int begIndexInc, int endIndexExc)
 {
-    if (precision < 0)
-        precision = 0;
     for (std::vector<IntervaledMask>::iterator itr = masks.begin(); itr != masks.end();)
     {
-        if (abs(itr->begInc - begInc) <= precision &&
-            abs(itr->endExc - endExc) <= precision)
+        if (itr->begIndexInc == begIndexInc &&
+            itr->endIndexInc == endIndexExc)
             itr = masks.erase(itr);
         else
             ++itr;
@@ -76,6 +74,86 @@ void CustomIntervaledMasks::clearAllMasks()
     masks.clear();
 }
 
+void GeneralMasks::reset()
+{
+    customMasks.clear();
+    defaultMasks.clear();
+    width = 0;
+    height = 0;
+    initSuccess = 0;
+    numVideos = 0;
+}
+
+bool GeneralMasks::init(const std::vector<cv::Mat>& masks)
+{
+    reset();
+    
+    numVideos = masks.size();
+    if (numVideos == 0)
+        return false;
+
+    int ok = 1;
+    int rows = masks[0].rows, cols = masks[0].cols;
+    for (int i = 0; i < numVideos; i++)
+    {
+        if (masks[i].rows != rows || masks[i].cols != cols || masks[i].type() != CV_8UC1)
+        {
+            ok = 0;
+            break;
+        }
+    }
+    if (!ok)
+    {
+        return false;
+    }
+
+    defaultMasks.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        defaultMasks[i] = masks[i].clone();
+}
+
+bool GeneralMasks::getMasks(const std::vector<int>& frameIndexes, std::vector<cv::Mat>& masks)
+{
+    if (!initSuccess)
+        return false;
+
+    if (frameIndexes.size() != numVideos)
+        return false;
+
+    for (int i = 0; i < numVideos; i++)
+    {
+        bool hasCustomMask = false;
+        int numCustomMasks = customMasks[i].size();
+        int frameIndex = frameIndexes[i];
+        for (int k = 0; k < numCustomMasks; k++)
+        {
+            if (customMasks[i][k].begIndexInc <= frameIndex &&
+                customMasks[i][k].endIndexInc >= frameIndex)
+            {
+                hasCustomMask = true;
+                masks[i] = customMasks[i][k].mask;
+                break;
+            }
+        }
+        if (!hasCustomMask)
+            masks[i] = defaultMasks[i];
+    }
+    return true;
+}
+
+bool GeneralMasks::addMasks(const std::vector<IntervaledMask>& masks)
+{
+    if (!initSuccess)
+        return false;
+
+    std::vector<IntervaledMask> newMasks = masks;
+    int numMasks = newMasks.size();
+    for (int i = 0; i < numMasks; i++)
+        newMasks[i].mask = masks[i].mask.clone();
+    customMasks.push_back(newMasks);
+    return true;
+}
+
 bool cvtMaskToContour(const IntervaledMask& mask, IntervaledContour& contour)
 {
     if (!mask.mask.data || mask.mask.type() != CV_8UC1)
@@ -84,8 +162,9 @@ bool cvtMaskToContour(const IntervaledMask& mask, IntervaledContour& contour)
         return false;
     }
 
-    contour.begIncInMilliSec = mask.begInc * 0.001;
-    contour.endExcInMilliSec = mask.endExc * 0.001;
+    contour.videoIndex = mask.videoIndex;
+    contour.begIndexInc = mask.begIndexInc;
+    contour.endIndexInc = mask.endIndexInc;
 
     int rows = mask.mask.rows, cols = mask.mask.cols;
     int pad = 4;
@@ -129,8 +208,9 @@ bool cvtContourToMask(const IntervaledContour& contour, const cv::Mat& boundedMa
         return false;
     }
 
-    customMask.begInc = (long long int)contour.begIncInMilliSec * 1000LL;
-    customMask.endExc = (long long int)contour.endExcInMilliSec * 1000LL;
+    customMask.videoIndex = contour.videoIndex;
+    customMask.begIndexInc = contour.begIndexInc;
+    customMask.endIndexInc = contour.endIndexInc;
     customMask.mask.create(boundedMask.size(), CV_8UC1);
     customMask.mask.setTo(0);
     cv::Mat temp;
@@ -184,7 +264,7 @@ bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& cont
                 success = false;
                 break;
             }
-            customMasks[i].addMask(currItvMask.begInc, currItvMask.endExc, currItvMask.mask);
+            customMasks[i].addMask2(currItvMask.begIndexInc, currItvMask.endIndexInc, currItvMask.mask);
         }
         if (!success)
             break;
@@ -229,7 +309,7 @@ bool cvtContoursToCudaMasks(const std::vector<std::vector<IntervaledContour> >& 
                 break;
             }
             cudaMask.upload(currItvMask.mask);
-            customMasks[i].addMask(currItvMask.begInc, currItvMask.endExc, cudaMask);
+            customMasks[i].addMask2(currItvMask.begIndexInc, currItvMask.endIndexInc, cudaMask);
         }
         if (!success)
             break;

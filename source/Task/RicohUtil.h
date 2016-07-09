@@ -196,7 +196,8 @@ public:
     bool prepare(const std::string& path, const std::string& customMaskPath,
         int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
     bool exposureCorrect(const std::vector<cv::Mat>& images);
-    bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps, cv::cuda::GpuMat& dst);
+    bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst);
+    bool render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst);
     void clear();
     int getNumImages() const;
 private:

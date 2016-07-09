@@ -749,7 +749,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
             //procTimer.start();
-            ok = render.render(src, timeStamps, bgr32);
+            ok = render.render(src, bgr32);
             //procTimer.end();
             if (!ok)
             {
