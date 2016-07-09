@@ -4,6 +4,22 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
+int getResizeTimes(int width, int height, int minWidth, int minHeight)
+{
+    if (width < minWidth || height < minHeight)
+        return 0;
+    int num = 0;
+    while (true)
+    {
+        width /= 2;
+        height /= 2;
+        num++;
+        if (width < minWidth || height < minHeight)
+            break;
+    }
+    return num - 1;
+}
+
 struct UniformToSphereConverter
 {
     void init(int radius)
@@ -83,6 +99,7 @@ void calcGradImage(const cv::Mat& src, cv::Mat& dst)
     cv::Mat blurred, grad;
     cv::GaussianBlur(src, blurred, cv::Size(3, 3), 1.0);
     cv::Laplacian(blurred, grad, CV_16S);
+    //cv::Laplacian(src, grad, CV_16S);
     cv::convertScaleAbs(grad, dst);
 }
 
@@ -95,7 +112,7 @@ struct ValuePair
     cv::Point equiRectPos;
 };
 
-void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, std::vector<ValuePair>& pairs)
+void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
@@ -103,7 +120,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     int erWidth = 2048, erHeight = 1024;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
-        remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols, src[0].rows);
+        remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
 
     std::vector<cv::Mat> grads(numImages);
     for (int i = 0; i < numImages; i++)
@@ -123,11 +140,13 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
 
     pairs.clear();
 
-    int gradThresh = 5;
+    int minValThresh = 5, maxValThresh = 250;
+    int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount());
     int numTrials = 8000;
     int expectNumPairs = 1000;
     int numPairs = 0;
+    const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
     for (int t = 0; t < numTrials; t++)
     {
@@ -139,7 +158,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
             int getPair = 0;
             double srcxid, srcyid;
             remaps[i].remapImage(srcxid, srcyid, erx, ery);
-            cv::Point pti(srcxid, srcyid);
+            cv::Point pti(srcxid * downSizeScale, srcyid * downSizeScale);            
             if (validRect.contains(pti))
             {
                 if (photoParams[i].circleR > 0)
@@ -149,8 +168,12 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                     if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
                         continue;
                 }
+                cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
                 int gradValI = grads[i].at<unsigned char>(pti);
-                if (gradValI < gradThresh)
+                if (valI[0] > minValThresh && valI[0] < maxValThresh &&
+                    valI[1] > minValThresh && valI[1] < maxValThresh &&
+                    valI[2] > minValThresh && valI[2] < maxValThresh &&
+                    gradValI < gradThresh)
                 {
                     for (int j = 0; j < numImages; j++)
                     {
@@ -159,7 +182,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
 
                         double srcxjd, srcyjd;
                         remaps[j].remapImage(srcxjd, srcyjd, erx, ery);
-                        cv::Point ptj(srcxjd, srcyjd);
+                        cv::Point ptj(srcxjd * downSizeScale, srcyjd * downSizeScale);                        
                         if (validRect.contains(ptj))
                         {
                             if (photoParams[j].circleR > 0)
@@ -173,16 +196,20 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
                             {
                                 int a = 0;
                             }
+                            cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
                             int gradValJ = grads[j].at<unsigned char>(ptj);
-                            if (gradValJ < gradThresh)
+                            if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
+                                valJ[1] > minValThresh && valJ[1] < maxValThresh &&
+                                valJ[2] > minValThresh && valJ[2] < maxValThresh &&
+                                gradValJ < gradThresh)
                             {
                                 ValuePair pair;
                                 pair.i = i;
                                 pair.j = j;
                                 pair.iPos = pti;
                                 pair.jPos = ptj;
-                                pair.iVal = src[i].at<cv::Vec3b>(pti);
-                                pair.jVal = src[j].at<cv::Vec3b>(ptj);
+                                pair.iVal = valI;
+                                pair.jVal = valJ;
                                 pair.iValD = toVec3d(pair.iVal) * normScale;
                                 pair.jValD = toVec3d(pair.jVal) * normScale;
                                 pair.equiRectPos = cv::Point(erx, ery);
@@ -234,9 +261,9 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
         for (int k = 0; k < numImages; k++)
         {
             if (pairs[i].i == k)
-                cv::circle(show[k], pairs[i].iPos, 4, cv::Scalar(255), -1);
+                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
             if (pairs[i].j == k)
-                cv::circle(show[k], pairs[i].jPos, 4, cv::Scalar(255), -1);
+                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
         }
     }
 
@@ -457,7 +484,7 @@ struct Transform
         int lowIdx = 0, upIdx = LUT_LENGTH - 1;
         for (int i = 0; i < LUT_LENGTH - 1; i++)
         {
-            if (lut[i] < val && lut[i + 1] >= val)
+            if (lut[i] <= val && lut[i + 1] >= val)
             {
                 lowIdx = i;
                 break;
@@ -465,7 +492,7 @@ struct Transform
         }
         for (int i = LUT_LENGTH - 1; i > 0; i--)
         {
-            if (lut[i - 1] <= val && lut[i] > val)
+            if (lut[i - 1] <= val && lut[i] >= val)
             {
                 upIdx = i;
                 break;
@@ -489,6 +516,17 @@ struct Transform
             if (lut[i + 1] < lut[i])
                 lut[i + 1] = lut[i];
         }
+    }
+
+    void showLUT(const std::string& winName)
+    {
+        cv::Mat image = cv::Mat::zeros(LUT_LENGTH, LUT_LENGTH, CV_8UC1);
+        for (int i = 0; i < LUT_LENGTH - 1; i++)
+        {
+            cv::line(image, cv::Point(i, LUT_LENGTH * (1 - lut[i])), 
+                            cv::Point(i + 1, LUT_LENGTH * (1 - lut[i + 1])), cv::Scalar(255));
+        }
+        cv::imshow(winName, image);
     }
 
     enum { LUT_LENGTH = 1024 };
@@ -548,9 +586,11 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
                 err += diff * diff * 256;
             }
         }
+        //printf("%f ", trans.lut[Transform::LUT_LENGTH - 1]);
         trans.enforceMonotonicity();
         hx[index++] = err;
     }
+    //printf("\n");
 
     double huberSigma = edata->huberSigma;
 
@@ -594,9 +634,9 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
     edata->errorFuncCallCount++;
 
-    std::vector<double> pp(m), hxhx(n);
-    memcpy(pp.data(), p, m * sizeof(double));
-    memcpy(hxhx.data(), hx, n * sizeof(double));
+    //std::vector<double> pp(m), hxhx(n);
+    //memcpy(pp.data(), p, m * sizeof(double));
+    //memcpy(hxhx.data(), hx, n * sizeof(double));
 
     printf("call count %d, sqr err = %f, avg err %f\n", edata->errorFuncCallCount, sqrErr, sqrt(sqrErr / n));
 }
@@ -628,11 +668,11 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
     // difference mode
     optimOpts[4] = LM_DIFF_DELTA;
 
-    int maxIter = 300;
+    int maxIter = 500;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 1; i++)
     {
-        int option = i == 0 ? EXPOSURE : (WHITE_BALANCE);
+        int option = i == 0 ? EXPOSURE : (VIGNETTE);
         int numParams = ImageInfo::getNumParams(option);
 
         // parameters
@@ -658,13 +698,54 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
         readFrom(imageInfos, p.data(), option);
     }
 
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("[%d] e = %f\n", i, imageInfos[i].getExposure());
+        char buf[256];
+        sprintf(buf, "emor lut %d", i);
+        Transform t(imageInfos[i]);
+        t.enforceMonotonicity();
+        t.showLUT(buf);        
+    }
+    cv::waitKey(0);
+
     outImageInfos = imageInfos;
 }
 
-void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
-    const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
+void getLUT(unsigned char lut[256], double k)
 {
-    int numImages = photoParams.size();
+    CV_Assert(k > 0);
+    if (abs(k - 1) < 0.02)
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = cv::saturate_cast<unsigned char>(i * k);
+    }
+    else
+    {
+        cv::Point2d p0(0, 0), p1 = k > 1 ? cv::Point(255 / k, 255) : cv::Point(255, k * 255), p2(255, 255);
+        lut[0] = 0;
+        lut[255] = 255;
+        for (int i = 1; i < 255; i++)
+        {
+            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
+            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+            double t0 = m - n, t1 = m + n, t;
+            if (t0 < 1 && t0 > 0)
+                t = t0;
+            else if (t1 < 1 && t1 > 0)
+                t = t1;
+            else
+                CV_Assert(0);
+            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
+            y = y < 0 ? 0 : (y > 255 ? 255 : y);
+            lut[i] = y;
+        }
+    }
+}
+
+void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
+{
+    int numImages = src.size();
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
@@ -672,6 +753,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
 
     dst.resize(numImages);
     char buf[64];
+    unsigned char lutr[256], lutg[256], lutb[256];
     for (int i = 0; i < numImages; i++)
     {
         Transform& trans = transforms[i];
@@ -695,15 +777,21 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
         double e = 1.0 / infos[i].getExposure();
         double r = 1.0 / infos[i].whiteBalanceRed;
         double b = 1.0 / infos[i].whiteBalanceBlue;
+        getLUT(lutr, e * r);
+        getLUT(lutg, e);
+        getLUT(lutb, e * b);
         for (int y = 0; y < rows; y++)
         {
             const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
             unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
             for (int x = 0; x < cols; x++)
             {
-                ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e * b);
-                ptrDst[1] = cv::saturate_cast<unsigned char>(ptrSrc[1] * e);
-                ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e * r);
+                //ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e * b);
+                //ptrDst[1] = cv::saturate_cast<unsigned char>(ptrSrc[1] * e);
+                //ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e * r);
+                ptrDst[0] = lutb[ptrSrc[0]];
+                ptrDst[1] = lutg[ptrSrc[1]];
+                ptrDst[2] = lutr[ptrSrc[2]];
                 ptrSrc += 3;
                 ptrDst += 3;
             }
@@ -714,16 +802,43 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& pho
     cv::waitKey(0);
 }
 
+void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, 
+    std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    int numImages = src.size();
+
+    std::vector<Transform> transforms(numImages);
+    for (int i = 0; i < numImages; i++)
+        transforms[i] = Transform(infos[i]);
+
+    luts.resize(numImages);
+    char buf[64];
+    for (int i = 0; i < numImages; i++)
+    {
+        Transform& trans = transforms[i];
+        double e = 1.0 / infos[i].getExposure();
+        double r = 1.0 / infos[i].whiteBalanceRed;
+        double b = 1.0 / infos[i].whiteBalanceBlue;
+        luts[i].resize(3);
+        luts[i][0].resize(256);
+        luts[i][1].resize(256);
+        luts[i][2].resize(256);
+        getLUT(luts[i][2].data(), e * r);
+        getLUT(luts[i][1].data(), e);
+        getLUT(luts[i][0].data(), e * b);
+    }
+}
+
 int main()
 {
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
 
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
@@ -731,15 +846,15 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    //double PI = 3.1415926;
-    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    double PI = 3.1415926;
+    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -760,16 +875,41 @@ int main()
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
     for (int i = 0; i < numImages; i++)
-        src[i] = cv::imread(imagePaths[i]);    
+        src[i] = cv::imread(imagePaths[i]);
 
+    int resizeTimes = 0;
+    int minWidth = 160, minHeight = 120;
+    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
+    
+    std::vector<cv::Mat> testSrc(numImages);
+    if (resizeTimes == 0)
+    {
+        testSrc = src;
+    }
+    else
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::Mat large = src[i];
+            cv::Mat small;
+            for (int j = 0; j < resizeTimes; j++)
+            {
+                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
+                large = small;
+            }
+            testSrc[i] = small;
+        }
+    }
+
+    int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    getPointPairs(src, params, pairs);
+    getPointPairs(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos;
     optimize(pairs, numImages, src[0].size(), imageInfos);
 
     std::vector<cv::Mat> dstImages;
-    correct(src, params, imageInfos, dstImages);
+    correct(src, imageInfos, dstImages);
 
     //return 0;
 
