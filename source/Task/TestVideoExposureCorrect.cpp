@@ -148,7 +148,7 @@ int main()
         //exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
-        compensate(reprojImages, masks, adjustImages);
+        compensateBGR(reprojImages, masks, adjustImages);
         //huginCorrect(images, photoParams, huginLuts);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], huginLuts[i], masks[i]);
@@ -170,7 +170,7 @@ int main()
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
         cv::imshow("tint multiband", tintMultiBlend);
-        int key = cv::waitKey(40);
+        int key = cv::waitKey(0);
         if (key == 'q')
             break;
 
