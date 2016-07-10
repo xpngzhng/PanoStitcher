@@ -79,6 +79,9 @@ void exposureCorrectBGR(const std::vector<cv::Mat>& images, const std::vector<cv
 
 void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
+void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& params,
+    std::vector<std::vector<std::vector<unsigned char> > >& luts);
+
 int main()
 {
     std::string configFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
@@ -100,7 +103,7 @@ int main()
     ShowTiledImages shower;
     shower.init(srcSize.width, srcSize.height, numVideos);
 
-    cv::Size dstSize(1280, 640);
+    cv::Size dstSize(960, 480);
     std::vector<PhotoParam> photoParams;
     loadPhotoParams(configFileName, photoParams);
     std::vector<cv::Mat> masks, maps;
@@ -112,11 +115,11 @@ int main()
     linearBlender.prepare(masks, 75);
     TilingMultibandBlendFast multiBlender;
     multiBlender.prepare(masks, 5, 8);
-    cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend, tintLinearBlend;
+    cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend, tintLinearBlend, tintMultiBlend;
 
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
-    std::vector<std::vector<std::vector<unsigned char> > > tintLuts, bgrLuts;
+    std::vector<std::vector<std::vector<unsigned char> > > tintLuts, bgrLuts, huginLuts;
 
     std::vector<avp::AudioVideoFrame2> frames(numVideos);
     while (true)
@@ -146,6 +149,9 @@ int main()
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         compensate(reprojImages, masks, adjustImages);
+        //huginCorrect(images, photoParams, huginLuts);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], adjustImages[i], huginLuts[i], masks[i]);
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 
@@ -156,13 +162,15 @@ int main()
         //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
         tintAdjust(adjustImages, masks, tintImages);
         linearBlender.blend(tintImages, tintLinearBlend);
+        multiBlender.blend(tintImages, tintMultiBlend);
         
         shower.show("src", images);
         cv::imshow("bare", bareBlend);
         cv::imshow("ajudst linear", adjustLinearBlend);
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
-        int key = cv::waitKey(0);
+        cv::imshow("tint multiband", tintMultiBlend);
+        int key = cv::waitKey(40);
         if (key == 'q')
             break;
 

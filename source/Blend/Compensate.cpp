@@ -526,15 +526,23 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
         accumNew += numNonZeros * newMean;
     }
     */
-    for (int i = 0; i < numKeep; i++)
+    /*for (int i = 0; i < numKeep; i++)
     {
         int numNonZeros = cv::countNonZero(masks[keepIndexes[i]]);
         double oldMean = cv::mean(grayImages[keepIndexes[i]], masks[keepIndexes[i]])[0];
         double newMean = gains[keepIndexes[i]] * oldMean;
         accumOld += numNonZeros * oldMean;
         accumNew += numNonZeros * newMean;
-    }
-    double scale = accumOld / accumNew;
+    }*/
+    /*for (int i = 0; i < numImages; i++)
+    {
+        int numNonZeros = cv::countNonZero(masks[i]);
+        double oldMean = cv::mean(grayImages[i], masks[i])[0];
+        double newMean = gains[i] * oldMean;
+        accumOld += numNonZeros * pow(oldMean, 2);
+        accumNew += numNonZeros * pow(newMean, 2);
+    }*/
+    double scale = 1/*accumOld / accumNew*/;
     if (scale < 1) scale = 1;
     printf("scale = %f\n", scale);
 
@@ -587,6 +595,7 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     std::vector<std::vector<double> > kts;
     getAccurateLinearTransforms2(images, masks, kts);
 
+    /*
     std::vector<cv::Mat> grayImages(numImages);
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
@@ -620,6 +629,66 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     {
         for (int j = 0; j < 3; j++)
             kts[i][j] *= scale;
+    }
+    */
+
+    std::vector<cv::Scalar> channelMeans(numImages);
+    for (int i = 0; i < numImages; i++)
+        channelMeans[i] = cv::mean(images[i], masks[i]);
+
+    std::vector<double> scales(3);
+    for (int j = 0; j < 3; j++)
+    {
+        std::map<double, int> sortedGains;
+        for (int i = 0; i < numImages; i++)
+            sortedGains.insert(std::make_pair(kts[i][j], i));
+        int idx1 = sortedGains.begin()->second;
+        int idx2 = sortedGains.rbegin()->second;
+
+        int numKeep = (numImages + 1) / 2;
+        std::vector<int> keepIndexes(numKeep);
+        int numGet = 0;
+        for (std::map<double, int>::iterator itr = sortedGains.begin(); numGet < numKeep; ++itr)
+            keepIndexes[numGet++] = itr->second;
+
+        double accumOld = 0, accumNew = 0;
+        /*
+        for (int i = 0; i < numImages; i++)
+        {
+            if (i == idx2)
+                continue;
+            int numNonZeros = cv::countNonZero(masks[i]);
+            double oldMean = cv::mean(grayImages[i], masks[i])[0];
+            double newMean = gains[i] * oldMean;
+            accumOld += numNonZeros * oldMean;
+            accumNew += numNonZeros * newMean;
+        }
+        */
+        for (int i = 0; i < numKeep; i++)
+        {
+            int numNonZeros = cv::countNonZero(masks[keepIndexes[i]]);
+            double oldMean = channelMeans[keepIndexes[i]][j];
+            double newMean = kts[keepIndexes[i]][j] * oldMean;
+            accumOld += numNonZeros * oldMean;
+            accumNew += numNonZeros * newMean;
+        }
+        double scale = accumOld / accumNew;
+        if (scale < 1) scale = 1;
+        scales[j] = scale;
+        printf("scale = %f\n", scale);
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < 3; j++)
+            kts[i][j] *= scales[j];
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < 3; j++)
+            printf("%f ", kts[i][j]);
+        printf("\n");
     }
 
     std::vector<std::vector<std::vector<unsigned char> > > luts(numImages);

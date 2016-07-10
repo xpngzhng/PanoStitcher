@@ -117,7 +117,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 256, erHeight = 128;
+    int erWidth = 1024, erHeight = 512;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -1014,10 +1014,41 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     cv::waitKey(0);
 }
 
-void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, 
+void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& params, 
     std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     int numImages = src.size();
+
+    int resizeTimes = 0;
+    int minWidth = 80, minHeight = 60;
+    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
+
+    std::vector<cv::Mat> testSrc(numImages);
+    if (resizeTimes == 0)
+    {
+        testSrc = src;
+    }
+    else
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::Mat large = src[i];
+            cv::Mat small;
+            for (int j = 0; j < resizeTimes; j++)
+            {
+                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
+                large = small;
+            }
+            testSrc[i] = small;
+        }
+    }
+
+    int downSizePower = pow(2, resizeTimes);
+    std::vector<ValuePair> pairs;
+    getPointPairsRandom(testSrc, params, downSizePower, pairs);
+
+    std::vector<ImageInfo> infos;
+    optimize(pairs, numImages, testSrc[0].size(), infos);
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1041,7 +1072,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     }
 }
 
-int main()
+int maino()
 {
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
@@ -1118,7 +1149,7 @@ int main()
     getPointPairsRandom(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, src[0].size(), imageInfos);
+    optimize(pairs, numImages, testSrc[0].size(), imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);

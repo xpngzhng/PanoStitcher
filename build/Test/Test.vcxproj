@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Blend\emor.cpp" />
-    <ClCompile Include="..\..\source\Blend\Optimize.cpp" />
+    <ClCompile Include="..\..\source\Blend\TestVariousGainAdjust.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\Blend\emor.h" />
