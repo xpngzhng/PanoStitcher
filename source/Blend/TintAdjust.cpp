@@ -118,7 +118,7 @@ void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio
     }
 }
 
-static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
 {
     int numImages = images.size();
@@ -212,7 +212,7 @@ static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::v
         bgRatioGains[i] = gains(i);
 }
 
-static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
 {
     int numImages = images.size();
@@ -309,23 +309,6 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
 void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
 {
     int numImages = images.size();
-
-    std::vector<cv::Mat> extendMasks;
-    getExtendedMasks(masks, 100, extendMasks);
-
-    std::vector<cv::Mat> outMasks(numImages);
-    cv::Mat temp;
-    for (int i = 0; i < numImages; i++)
-    {
-        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
-        for (int j = 0; j < numImages; j++)
-        {
-            if (i == j)
-                continue;
-            temp = extendMasks[i] & extendMasks[j];
-            outMasks[i] |= temp;
-        }
-    }
 
     std::vector<double> rgGains, bgGains;
     getAccurateLinearTransforms(images, masks, rgGains, bgGains);

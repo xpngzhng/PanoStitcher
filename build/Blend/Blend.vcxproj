@@ -35,6 +35,7 @@
     <ClCompile Include="..\..\source\Blend\CudaFeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\CudaLinearBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\CudaMultibandBlend.cpp" />
+    <ClCompile Include="..\..\source\Blend\ExposureColorCorrect.cpp" />
     <ClCompile Include="..\..\source\Blend\ExposureCorrection.cpp" />
     <ClCompile Include="..\..\source\Blend\FeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\GainAdjust.cpp" />

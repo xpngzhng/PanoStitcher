@@ -5,72 +5,28 @@
 #include <map>
 #include <iostream>
 
-static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    int& maxIndex, std::vector<double>& kt)
+void getMasksForLinearTransforms(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& outMasks)
 {
-    int numImages = images.size();
+    std::vector<cv::Mat> extendMasks;
+    getExtendedMasks(masks, 100, extendMasks);
 
-    cv::Mat_<double> N(numImages, numImages), I(numImages, numImages);
+    int numImages = masks.size();
+    outMasks.resize(numImages);
+    cv::Mat temp;
     for (int i = 0; i < numImages; i++)
     {
+        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
         for (int j = 0; j < numImages; j++)
         {
             if (i == j)
-            {
-                N(i, i) = cv::countNonZero(masks[i]);
-                I(i, i) = cv::mean(images[i], masks[i])[0];
-            }
-            else
-            {
-                cv::Mat intersect = masks[i] & masks[j];
-                N(i, j) = cv::countNonZero(intersect);
-                I(i, j) = cv::mean(images[i], intersect)[0];
-            }
+                continue;
+            temp = extendMasks[i] & extendMasks[j];
+            outMasks[i] |= temp;
         }
     }
-    //std::cout << N << "\n" << I << "\n";
-
-    double invSigmaNSqr = 0.01;
-    double invSigmaGSqr = 100;
-
-    cv::Mat_<double> A(numImages, numImages); A.setTo(0);
-    cv::Mat_<double> b(numImages, 1); b.setTo(0);
-    cv::Mat_<double> gains(numImages, 1);
-    for (int i = 0; i < numImages; ++i)
-    {
-        for (int j = 0; j < numImages; ++j)
-        {
-            A(i, i) += N[i][j] * (I[i][j] * I[i][j] * invSigmaNSqr + invSigmaGSqr);
-            A(j, j) += N[i][j] * (I[j][i] * I[j][i] * invSigmaNSqr);
-            A(i, j) -= 2 * N[i][j] * (I[i][j] * I[j][i] * invSigmaNSqr);
-            b(i) += N[i][j] * invSigmaGSqr;
-        }
-    }
-
-    //std::cout << A << "\n" << b << "\n";
-    bool success = cv::solve(A, b, gains);
-    std::cout << gains << "\n";
-    if (!success)
-        gains.setTo(1);
-
-    double maxMean = -1;
-    int maxMeanIndex = -1;
-    for (int i = 0; i < numImages; i++)
-    {
-        if (I[i][i] > maxMean)
-        {
-            maxMean = I[i][i];
-            maxMeanIndex = i;
-        }
-    }
-    maxIndex = maxMeanIndex;
-
-    kt.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        kt[i] = gains(i);
 }
 
-static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& kt)
 {
     int numImages = images.size();
@@ -125,7 +81,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
         kt[i] = gains(i);
 }
 
-static void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& kt)
 {
     int numImages = images.size();
@@ -182,7 +138,7 @@ static void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, con
         kt[i] = gains(i);
 }
 
-static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<double> >& kts)
 {
     int numImages = images.size();
@@ -254,7 +210,7 @@ static void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, cons
     }        
 }
 
-static void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<double> >& kts)
 {
     int numImages = images.size();
@@ -332,54 +288,6 @@ static void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, con
     }
 }
 
-static void rescale(std::vector<double>& kt, int index)
-{
-    int numImages = kt.size();
-    double kscale = 1.0 / kt[index];
-
-    for (int i = 0; i < numImages; i++)
-    {
-        kt[i] = kscale * kt[i];
-        //printf("k = %f\n", kt[i]);
-    }
-}
-
-static void getLUT(double k, unsigned char lut[256])
-{
-    CV_Assert(k > 0);
-    if (k > 1)
-    {
-        cv::Point2d p0(0, 0), p1(255 / k, 255), p2(255, 255);
-        lut[0] = 0;
-        lut[255] = 255;
-        for (int i = 1; i < 255; i++)
-        {
-            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
-            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
-            double t0 = m - n, t1 = m + n, t;
-            if (t0 < 1 && t0 > 0)
-                t = t0;
-            else if (t1 < 1 && t1 > 0)
-                t = t1;
-            else
-                CV_Assert(0);
-            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
-            y = y < 0 ? 0 : (y > 255 ? 255 : y);
-            lut[i] = y;
-        }
-    }
-    else if (k < 1)
-    {
-        for (int i = 0; i < 256; i++)
-            lut[i] = k * i + 0.5;
-    }
-    else
-    {
-        for (int i = 0; i < 256; i++)
-            lut[i] = i;
-    }
-}
-
 void getLUT(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
@@ -427,7 +335,7 @@ static void adjust(cv::Mat& image, const unsigned char lut[256])
     }
 }
 
-static void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char> lut)
+void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut)
 {
     CV_Assert(src.data && src.depth() == CV_8U && lut.size() == 256);
     dst.create(src.size(), src.type());
@@ -446,7 +354,7 @@ static void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned 
     }
 }
 
-static void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts)
+void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts)
 {
     CV_Assert(src.data && src.depth() == CV_8U &&
         luts.size() == 3 && luts[0].size() == 256 && luts[1].size() == 256 && luts[2].size() == 256);
@@ -476,22 +384,8 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
-    std::vector<cv::Mat> extendMasks;
-    getExtendedMasks(masks, 100, extendMasks);
-
-    std::vector<cv::Mat> outMasks(numImages);
-    cv::Mat temp;
-    for (int i = 0; i < numImages; i++)
-    {
-        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
-        for (int j = 0; j < numImages; j++)
-        {
-            if (i == j)
-                continue;
-            temp = extendMasks[i] & extendMasks[j];
-            outMasks[i] |= temp;
-        }
-    }
+    std::vector<cv::Mat> outMasks;
+    getMasksForLinearTransforms(masks, outMasks);
 
     std::vector<double> gains;
     getAccurateLinearTransforms2(grayImages, outMasks, gains);
@@ -509,22 +403,8 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
 {
     int numImages = images.size();
 
-    std::vector<cv::Mat> extendMasks;
-    getExtendedMasks(masks, 100, extendMasks);
-
-    std::vector<cv::Mat> outMasks(numImages);
-    cv::Mat temp;
-    for (int i = 0; i < numImages; i++)
-    {
-        outMasks[i] = cv::Mat::zeros(masks[i].size(), CV_8UC1);
-        for (int j = 0; j < numImages; j++)
-        {
-            if (i == j)
-                continue;
-            temp = extendMasks[i] & extendMasks[j];
-            outMasks[i] |= temp;
-        }
-    }
+    std::vector<cv::Mat> outMasks;
+    getMasksForLinearTransforms(masks, outMasks);
 
     std::vector<std::vector<double> > kts;
     getAccurateLinearTransforms2(images, outMasks, kts);
@@ -556,6 +436,119 @@ private:
     int rows, cols;
     int success;
 };
+
+static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    int& maxIndex, std::vector<double>& kt)
+{
+    int numImages = images.size();
+
+    cv::Mat_<double> N(numImages, numImages), I(numImages, numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        for (int j = 0; j < numImages; j++)
+        {
+            if (i == j)
+            {
+                N(i, i) = cv::countNonZero(masks[i]);
+                I(i, i) = cv::mean(images[i], masks[i])[0];
+            }
+            else
+            {
+                cv::Mat intersect = masks[i] & masks[j];
+                N(i, j) = cv::countNonZero(intersect);
+                I(i, j) = cv::mean(images[i], intersect)[0];
+            }
+        }
+    }
+    //std::cout << N << "\n" << I << "\n";
+
+    double invSigmaNSqr = 0.01;
+    double invSigmaGSqr = 100;
+
+    cv::Mat_<double> A(numImages, numImages); A.setTo(0);
+    cv::Mat_<double> b(numImages, 1); b.setTo(0);
+    cv::Mat_<double> gains(numImages, 1);
+    for (int i = 0; i < numImages; ++i)
+    {
+        for (int j = 0; j < numImages; ++j)
+        {
+            A(i, i) += N[i][j] * (I[i][j] * I[i][j] * invSigmaNSqr + invSigmaGSqr);
+            A(j, j) += N[i][j] * (I[j][i] * I[j][i] * invSigmaNSqr);
+            A(i, j) -= 2 * N[i][j] * (I[i][j] * I[j][i] * invSigmaNSqr);
+            b(i) += N[i][j] * invSigmaGSqr;
+        }
+    }
+
+    //std::cout << A << "\n" << b << "\n";
+    bool success = cv::solve(A, b, gains);
+    std::cout << gains << "\n";
+    if (!success)
+        gains.setTo(1);
+
+    double maxMean = -1;
+    int maxMeanIndex = -1;
+    for (int i = 0; i < numImages; i++)
+    {
+        if (I[i][i] > maxMean)
+        {
+            maxMean = I[i][i];
+            maxMeanIndex = i;
+        }
+    }
+    maxIndex = maxMeanIndex;
+
+    kt.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        kt[i] = gains(i);
+}
+
+static void rescale(std::vector<double>& kt, int index)
+{
+    int numImages = kt.size();
+    double kscale = 1.0 / kt[index];
+
+    for (int i = 0; i < numImages; i++)
+    {
+        kt[i] = kscale * kt[i];
+        //printf("k = %f\n", kt[i]);
+    }
+}
+
+static void getLUT(double k, unsigned char lut[256])
+{
+    CV_Assert(k > 0);
+    if (k > 1)
+    {
+        cv::Point2d p0(0, 0), p1(255 / k, 255), p2(255, 255);
+        lut[0] = 0;
+        lut[255] = 255;
+        for (int i = 1; i < 255; i++)
+        {
+            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
+            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+            double t0 = m - n, t1 = m + n, t;
+            if (t0 < 1 && t0 > 0)
+                t = t0;
+            else if (t1 < 1 && t1 > 0)
+                t = t1;
+            else
+                CV_Assert(0);
+            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
+            y = y < 0 ? 0 : (y > 255 ? 255 : y);
+            lut[i] = y;
+        }
+    }
+    else if (k < 1)
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = k * i + 0.5;
+    }
+    else
+    {
+        for (int i = 0; i < 256; i++)
+            lut[i] = i;
+    }
+}
 
 bool GainCompensate::prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks)
 {

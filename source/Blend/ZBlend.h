@@ -269,6 +269,10 @@ private:
 
 void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
+void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+
+void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+
 class MultibandBlendGainAdjust
 {
 public:
@@ -290,9 +294,19 @@ private:
 class ExposureColorCorrect
 {
 public:
-    ExposureColorCorrect();
+    ExposureColorCorrect() : numImages(0), rows(0), cols(0), prepareSuccess(0) {};
+    bool prepare(const std::vector<cv::Mat>& masks);
+    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures, 
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    static bool getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
+    static bool getLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
+        const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);
 private:
-
+    int numImages;
+    int rows, cols;
+    int prepareSuccess;
+    std::vector<cv::Mat> origMasks, splitExtendMasks, transImages;
 };
 
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut, const cv::Mat& mask = cv::Mat());
@@ -302,10 +316,4 @@ void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<u
 
 void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std::vector<unsigned char>& lut);
 
-void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);
 
-void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    const std::vector<int>& correct, std::vector<std::vector<std::vector<unsigned char> > >& luts);
-
-void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);

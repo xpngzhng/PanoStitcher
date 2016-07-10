@@ -117,6 +117,9 @@ int main()
     multiBlender.prepare(masks, 5, 8);
     cv::Mat bareBlend, adjustLinearBlend, adjustMultiBlend, tintLinearBlend, tintMultiBlend;
 
+    ExposureColorCorrect correct;
+    correct.prepare(masks);
+
     std::vector<std::vector<unsigned char> > luts;
     std::vector<int> corrected;
     std::vector<std::vector<std::vector<unsigned char> > > tintLuts, bgrLuts, huginLuts;
@@ -148,7 +151,13 @@ int main()
         //exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
-        compensateBGR(reprojImages, masks, adjustImages);
+        //compensateBGR(reprojImages, masks, adjustImages);
+        std::vector<double> es, bs, rs;
+        correct.correct(reprojImages, es, rs, bs);
+        ExposureColorCorrect::getLUTs(es, luts);
+        ExposureColorCorrect::getLUTs(es, rs, bs, tintLuts);
+        for (int i = 0; i < numVideos; i++)
+            transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
         //huginCorrect(images, photoParams, huginLuts);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], huginLuts[i], masks[i]);
@@ -160,7 +169,9 @@ int main()
         //tintCorrect(adjustImages, masks, tintLuts, corrected);
         //for (int i = 0; i < numVideos; i++)
         //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
-        tintAdjust(adjustImages, masks, tintImages);
+        //tintAdjust(adjustImages, masks, tintImages);
+        for (int i = 0; i < numVideos; i++)
+            transform(reprojImages[i], tintImages[i], tintLuts[i]);
         linearBlender.blend(tintImages, tintLinearBlend);
         multiBlender.blend(tintImages, tintMultiBlend);
         
@@ -170,11 +181,11 @@ int main()
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
         cv::imshow("tint multiband", tintMultiBlend);
-        int key = cv::waitKey(0);
+        int key = cv::waitKey(5);
         if (key == 'q')
             break;
 
-        for (int i = 0; i < numVideos; i++)
+        /*for (int i = 0; i < numVideos; i++)
         {
             for (int j = 0; j < 20; j++)
             {
@@ -186,7 +197,7 @@ int main()
             }
         }
         if (!ok)
-            break;
+            break;*/
     }
 
     return 0;

@@ -300,9 +300,17 @@ void getWeightsLinearBlend(const std::vector<cv::Mat>& masks, int radius, std::v
 // This is a variant of getWeightsLinearBlend except that the weight have floating point type CV_32FC1
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
+// Given masks, uniqueMasks(non intersecting version of masks) and dists(distance transforms of masks),
+// try to find out how many pixels(n) wide we can expand uniqueMasks[i] so that the expanded mask 
+// does not expand beyond the corresponding masks[i].
+// We check the value n from distBound towards 0.
+// It seams that checking value n from 1 to the maximum would be better, 
+// then distBound is not needed.
 int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
     const std::vector<cv::Mat>& dists, int distBound);
 
+// Given masks, we compute the non intersecting version of masks and expand them by a certain number of 
+// pixels which is determined by calling getMaxRadius with distBound set to radius.
 void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks);
 
 // This is an overloaded getWeightsLinearBlend without assigning radius.
