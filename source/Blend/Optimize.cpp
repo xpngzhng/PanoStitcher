@@ -117,7 +117,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 512, erHeight = 256;
+    int erWidth = 256, erHeight = 128;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -227,6 +227,172 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
         }
         if (numPairs >= expectNumPairs)
             break;
+    }
+
+    std::vector<int> appearCount(numImages, 0);
+
+    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
+    for (int i = 0; i < numPairs; i++)
+    {
+        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                appearCount[k]++;
+            if (pairs[i].j == k)
+                appearCount[k]++;
+        }
+    }
+
+    printf("num pairs found %d\n", numPairs);
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("%d appear %d times\n", i, appearCount[i]);
+    }
+    cv::imshow("mask", mask);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> show(numImages);
+    for (int i = 0; i < numImages; i++)
+        show[i] = src[i].clone();
+
+    for (int i = 0; i < numPairs; i++)
+    {
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
+            if (pairs[i].j == k)
+                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
+        }
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        char buf[64];
+        sprintf(buf, "%d", i);
+        cv::imshow(buf, show[i]);
+    }
+    cv::waitKey(0);
+}
+
+void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+{
+    int numImages = src.size();
+    CV_Assert(photoParams.size() == numImages);
+
+    int erWidth = 512, erHeight = 256;
+    std::vector<Remap> remaps(numImages);
+    for (int i = 0; i < numImages; i++)
+        remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
+
+    std::vector<cv::Mat> grads(numImages);
+    for (int i = 0; i < numImages; i++)
+        calcGradImage(src[i], grads[i]);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        double maxVal, minVal;
+        cv::minMaxLoc(grads[i], &minVal, &maxVal);
+        printf("min %f, max %f\n", minVal, maxVal);
+    }
+
+    UniformToSphereConverter cvtUToS;
+    cvtUToS.init(erHeight / 2);
+
+    cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
+
+    pairs.clear();
+
+    int minValThresh = 5, maxValThresh = 250;
+    int gradThresh = 3;
+    cv::RNG_MT19937 rng(cv::getTickCount());
+    int numTrials = 8000 * 5;
+    int expectNumPairs = 1000 * 5;
+    int numPairs = 0;
+    const double downSizeScale = 1.0 / downSizeRatio;
+    const double normScale = 1.0 / 255.0;
+    //for (int t = 0; t < numTrials; t++)
+    for (int ery = 0; ery < erHeight; ery++)
+    for (int erx = 0; erx < erWidth; erx++)
+    {
+        //int erx = rng.uniform(0, erWidth);
+        //int ery = rng.uniform(0, erHeight);
+        //ery = cvtUToS.transform(ery);
+        for (int i = 0; i < numImages; i++)
+        {
+            int getPair = 0;
+            double srcxid, srcyid;
+            remaps[i].remapImage(srcxid, srcyid, erx, ery);
+            cv::Point pti(srcxid * downSizeScale, srcyid * downSizeScale);
+            if (validRect.contains(pti))
+            {
+                if (photoParams[i].circleR > 0)
+                {
+                    double diffx = srcxid - photoParams[i].circleX;
+                    double diffy = srcyid - photoParams[i].circleY;
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
+                        continue;
+                }
+                cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
+                int gradValI = grads[i].at<unsigned char>(pti);
+                if (valI[0] > minValThresh && valI[0] < maxValThresh &&
+                    valI[1] > minValThresh && valI[1] < maxValThresh &&
+                    valI[2] > minValThresh && valI[2] < maxValThresh &&
+                    gradValI < gradThresh)
+                {
+                    for (int j = 0; j < numImages; j++)
+                    {
+                        if (i == j)
+                            continue;
+
+                        double srcxjd, srcyjd;
+                        remaps[j].remapImage(srcxjd, srcyjd, erx, ery);
+                        cv::Point ptj(srcxjd * downSizeScale, srcyjd * downSizeScale);
+                        if (validRect.contains(ptj))
+                        {
+                            if (photoParams[j].circleR > 0)
+                            {
+                                double diffx = srcxjd - photoParams[j].circleX;
+                                double diffy = srcyjd - photoParams[j].circleY;
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
+                                    continue;
+                            }
+                            if (pti.x < 20 || ptj.x < 20)
+                            {
+                                int a = 0;
+                            }
+                            cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
+                            int gradValJ = grads[j].at<unsigned char>(ptj);
+                            if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
+                                valJ[1] > minValThresh && valJ[1] < maxValThresh &&
+                                valJ[2] > minValThresh && valJ[2] < maxValThresh &&
+                                gradValJ < gradThresh)
+                            {
+                                ValuePair pair;
+                                pair.i = i;
+                                pair.j = j;
+                                pair.iPos = pti;
+                                pair.jPos = ptj;
+                                pair.iVal = valI;
+                                pair.jVal = valJ;
+                                pair.iValD = toVec3d(pair.iVal) * normScale;
+                                pair.jValD = toVec3d(pair.jVal) * normScale;
+                                pair.equiRectPos = cv::Point(erx, ery);
+                                getPair = 1;
+                                numPairs++;
+                                pairs.push_back(pair);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (getPair)
+                break;
+        }
+        //if (numPairs >= expectNumPairs)
+        //    break;
     }
 
     std::vector<int> appearCount(numImages, 0);
