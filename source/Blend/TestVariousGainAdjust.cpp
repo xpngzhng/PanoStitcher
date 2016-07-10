@@ -1640,7 +1640,7 @@ int main()
     //cv::waitKey(0);
 
     std::vector<cv::Mat> compResults;
-    compensate(images, masks, compResults);  
+    compensateBGR(images, masks, compResults);  
     //MultibandBlendGainAdjust gainAdjust;
     //gainAdjust.prepare(masks, 50);
     //std::vector<std::vector<unsigned char> > luts;

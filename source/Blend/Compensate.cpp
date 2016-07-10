@@ -593,7 +593,7 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     }
 
     std::vector<std::vector<double> > kts;
-    getAccurateLinearTransforms2(images, masks, kts);
+    getAccurateLinearTransforms2(images, outMasks, kts);
 
     /*
     std::vector<cv::Mat> grayImages(numImages);
@@ -632,6 +632,7 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     }
     */
 
+    /*
     std::vector<cv::Scalar> channelMeans(numImages);
     for (int i = 0; i < numImages; i++)
         channelMeans[i] = cv::mean(images[i], masks[i]);
@@ -652,18 +653,18 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
             keepIndexes[numGet++] = itr->second;
 
         double accumOld = 0, accumNew = 0;
-        /*
-        for (int i = 0; i < numImages; i++)
-        {
-            if (i == idx2)
-                continue;
-            int numNonZeros = cv::countNonZero(masks[i]);
-            double oldMean = cv::mean(grayImages[i], masks[i])[0];
-            double newMean = gains[i] * oldMean;
-            accumOld += numNonZeros * oldMean;
-            accumNew += numNonZeros * newMean;
-        }
-        */
+        //
+        //for (int i = 0; i < numImages; i++)
+        //{
+        //    if (i == idx2)
+        //        continue;
+        //    int numNonZeros = cv::countNonZero(masks[i]);
+        //    double oldMean = cv::mean(grayImages[i], masks[i])[0];
+        //    double newMean = gains[i] * oldMean;
+        //    accumOld += numNonZeros * oldMean;
+        //    accumNew += numNonZeros * newMean;
+        //}
+        //
         for (int i = 0; i < numKeep; i++)
         {
             int numNonZeros = cv::countNonZero(masks[keepIndexes[i]]);
@@ -690,6 +691,7 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
             printf("%f ", kts[i][j]);
         printf("\n");
     }
+    */
 
     std::vector<std::vector<std::vector<unsigned char> > > luts(numImages);
     for (int i = 0; i < numImages; i++)
@@ -703,6 +705,21 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     for (int i = 0; i < numImages; i++)
         adjust(images[i], results[i], luts[i]);
 }
+
+class GainCompensate
+{
+public:
+    GainCompensate() :numImages(0), maxMeanIndex(0), rows(0), cols(0), success(false) {}
+    bool prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks);
+    bool compensate(const std::vector<cv::Mat>& images, std::vector<cv::Mat>& results) const;
+private:
+    std::vector<double> gains;
+    std::vector<std::vector<unsigned char> > LUTs;
+    int numImages;
+    int maxMeanIndex;
+    int rows, cols;
+    int success;
+};
 
 bool GainCompensate::prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks)
 {

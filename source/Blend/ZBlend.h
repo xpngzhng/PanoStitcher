@@ -269,21 +269,6 @@ private:
 
 void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
-class GainCompensate
-{
-public:
-    GainCompensate() :numImages(0), maxMeanIndex(0), rows(0), cols(0), success(false) {}
-    bool prepare(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks);
-    bool compensate(const std::vector<cv::Mat>& images, std::vector<cv::Mat>& results) const;
-private:
-    std::vector<double> gains;
-    std::vector<std::vector<unsigned char> > LUTs;
-    int numImages;
-    int maxMeanIndex;
-    int rows, cols;
-    int success;
-};
-
 class MultibandBlendGainAdjust
 {
 public:
@@ -300,6 +285,14 @@ private:
     cv::Mat blendImage;
     std::vector<cv::Mat> origMasks, extendedMasks;
     std::vector<std::vector<unsigned char> > luts;
+};
+
+class ExposureColorCorrect
+{
+public:
+    ExposureColorCorrect();
+private:
+
 };
 
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut, const cv::Mat& mask = cv::Mat());
