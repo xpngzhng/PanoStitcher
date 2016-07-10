@@ -4,6 +4,8 @@
 void getMasksForLinearTransforms(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& outMasks);
 void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& kt);
+void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<double> >& kts);
 void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains);
 void getLUT(std::vector<unsigned char>& lut, double k);
@@ -113,6 +115,22 @@ bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images,
     return true;
 }
 
+bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures)
+{
+    if (!prepareSuccess)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (!images[i].data || images[i].type() != CV_8UC3 ||
+            images[i].rows != rows || images[i].cols != cols)
+            return false;
+    }
+
+    getAccurateLinearTransforms2(images, splitExtendMasks, exposures);
+    return true;
+}
+
 bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts)
 {
     luts.clear();
@@ -143,6 +161,30 @@ bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, const s
         getLUT(luts[i][0], exposures[i] * blueRatios[i]);
         getLUT(luts[i][1], exposures[i]);
         getLUT(luts[i][2], exposures[i] * redRatios[i]);
+    }
+    return true;
+}
+
+bool ExposureColorCorrect::getLUTs(const std::vector<std::vector<double> >& exposures, 
+    std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    luts.clear();
+    int numImages = exposures.size();
+    if (numImages == 0)
+        return false;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (exposures[i].size() != 3)
+            return false;
+    }
+
+    luts.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        luts[i].resize(3);
+        for (int j = 0; j < 3; j++)
+            getLUT(luts[i][j], exposures[i][j]);
     }
     return true;
 }

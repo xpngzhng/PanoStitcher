@@ -299,9 +299,12 @@ public:
     bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
     bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures, 
         std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    bool correct(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures);
     static bool getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
     static bool getLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
         const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);
+    static bool getLUTs(const std::vector<std::vector<double> >& exposures, 
+        std::vector<std::vector<std::vector<unsigned char> > >& luts);
 private:
     int numImages;
     int rows, cols;
