@@ -72,7 +72,7 @@ void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::
 
     //std::cout << A << "\n" << b << "\n";
     bool success = cv::solve(A, b, gains);
-    std::cout << gains.t() << "\n";
+    //std::cout << gains.t() << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -129,7 +129,7 @@ void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std:
 
     //std::cout << A << "\n" << b << "\n";
     bool success = cv::solve(A, b, gains);
-    std::cout << gains.t() << "\n";
+    //std::cout << gains.t() << "\n";
     if (!success)
         gains.setTo(1);
 
@@ -274,7 +274,7 @@ void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std:
     {
         //std::cout << A[i] << "\n" << B[i] << "\n";
         bool success = cv::solve(A[i], B[i], gains[i]);
-        std::cout << gains[i].t() << "\n";
+        //std::cout << gains[i].t() << "\n";
         if (!success)
             gains[i].setTo(1);
     }

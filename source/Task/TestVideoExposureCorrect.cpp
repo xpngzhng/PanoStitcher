@@ -71,12 +71,6 @@ struct ShowTiledImages
     bool hasInit;
 };
 
-void tintCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected);
-
-void exposureCorrectBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<std::vector<std::vector<unsigned char> > >& luts, std::vector<int>& corrected);
-
 void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
 void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& params,
@@ -145,12 +139,6 @@ int main()
 
         linearBlender.blend(reprojImages, bareBlend);
 
-        //exposureCorrect(reprojImages, masks, luts, corrected);
-        //for (int i = 0; i < numVideos; i++)
-        //    transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
-        //exposureCorrectBGR(reprojImages, masks, bgrLuts, corrected);
-        //for (int i = 0; i < numVideos; i++)
-        //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         //compensateBGR(reprojImages, masks, adjustImages);
         std::vector<double> es, bs, rs;
         correct.correct(reprojImages, es, rs, bs);
@@ -164,11 +152,6 @@ int main()
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 
-        //corrected[5] = 1;
-        //tintCorrect(adjustImages, masks, corrected, tintLuts);
-        //tintCorrect(adjustImages, masks, tintLuts, corrected);
-        //for (int i = 0; i < numVideos; i++)
-        //    transform(adjustImages[i], tintImages[i], tintLuts[i]);
         //tintAdjust(adjustImages, masks, tintImages);
         for (int i = 0; i < numVideos; i++)
             transform(reprojImages[i], tintImages[i], tintLuts[i]);
@@ -181,13 +164,13 @@ int main()
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
         cv::imshow("tint multiband", tintMultiBlend);
-        int key = cv::waitKey(5);
+        int key = cv::waitKey(20);
         if (key == 'q')
             break;
 
-        /*for (int i = 0; i < numVideos; i++)
+        for (int i = 0; i < numVideos; i++)
         {
-            for (int j = 0; j < 20; j++)
+            for (int j = 0; j < 5; j++)
             {
                 ok = readers[i].read(frames[i]);
                 if (!ok)
@@ -197,7 +180,7 @@ int main()
             }
         }
         if (!ok)
-            break;*/
+            break;
     }
 
     return 0;

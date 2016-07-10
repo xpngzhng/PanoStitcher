@@ -1986,6 +1986,9 @@ int main7()
 
 void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
 
+void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+    std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);
+
 // main8
 int main8()
 {
