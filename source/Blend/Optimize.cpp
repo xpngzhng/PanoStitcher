@@ -112,12 +112,12 @@ struct ValuePair
     cv::Point equiRectPos;
 };
 
-void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 2048, erHeight = 1024;
+    int erWidth = 512, erHeight = 256;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -152,7 +152,7 @@ void getPointPairs(const std::vector<cv::Mat>& src, const std::vector<PhotoParam
     {
         int erx = rng.uniform(0, erWidth);
         int ery = rng.uniform(0, erHeight);
-        ery = cvtUToS.transform(ery);
+        //ery = cvtUToS.transform(ery);
         for (int i = 0; i < numImages; i++)
         {
             int getPair = 0;
@@ -287,6 +287,14 @@ enum OptimizeParamType
     VIGNETTE = 4
 };
 
+enum ExposureType
+{
+    EMOR = 0,
+    GAMMA = 1
+};
+
+static const int exposureType = GAMMA;
+
 struct ImageInfo
 {
     ImageInfo()
@@ -300,7 +308,7 @@ struct ImageInfo
         memset(radialVignettCoeffs, 0, sizeof(radialVignettCoeffs));
         radialVignettCoeffs[0] = 1;
         exposureExponent = 0;
-        gamma = 0;
+        gamma = 1;
         whiteBalanceRed = 1;
         whiteBalanceBlue = 1;
         size = size_;
@@ -316,11 +324,16 @@ struct ImageInfo
         exposureExponent = log2(1 / e);
     }
 
-    int static getNumParams(int optimizeWhat) 
+    int static getNumParams(int optimizeWhat, int exposureType) 
     {
         int num = 0;
         if (optimizeWhat & EXPOSURE)
-            num += EMOR_COEFF_LENGTH + 1;
+        {
+            if (exposureType == EMOR)
+                num += EMOR_COEFF_LENGTH + 1;
+            else
+                num += 2;
+        }
         if (optimizeWhat & VIGNETTE)
             num += VIGNETT_COEFF_LENGTH;
         if (optimizeWhat & WHITE_BALANCE)
@@ -328,13 +341,18 @@ struct ImageInfo
         return num;
     }
 
-    void fromOutside(const double* x, int optimizeWhat)
+    void fromOutside(const double* x, int optimizeWhat, int exposureType)
     {
         int index = 0;
         if (optimizeWhat & EXPOSURE)
         {
-            for (; index < EMOR_COEFF_LENGTH; index++)
-                emorCoeffs[index] = x[index];
+            if (exposureType == EMOR)
+            {
+                for (; index < EMOR_COEFF_LENGTH; index++)
+                    emorCoeffs[index] = x[index];
+            }
+            else
+                gamma = x[index++];
         }
         if (optimizeWhat & VIGNETTE)
         {
@@ -351,13 +369,19 @@ struct ImageInfo
         }
     }
 
-    void toOutside(double* x, int optimizeWhat) const
+    void toOutside(double* x, int optimizeWhat, int exposureType) const
     {
         int index = 0;
         if (optimizeWhat & EXPOSURE)
         {
-            for (; index < EMOR_COEFF_LENGTH; index++)
-                x[index] = emorCoeffs[index];
+            if (exposureType == EMOR)
+            {
+                for (; index < EMOR_COEFF_LENGTH; index++)
+                    x[index] = emorCoeffs[index];
+            }
+            else
+                x[index++] = gamma;
+            
         }
         if (optimizeWhat & VIGNETTE)
         {
@@ -383,20 +407,20 @@ struct ImageInfo
     cv::Size size;
 };
 
-void readFrom(std::vector<ImageInfo>& infos, const double* x, int optimizeWhat)
+void readFrom(std::vector<ImageInfo>& infos, const double* x, int optimizeWhat, int exposureType)
 {
     int numInfos = infos.size();
-    int numParams = ImageInfo::getNumParams(optimizeWhat);
+    int numParams = ImageInfo::getNumParams(optimizeWhat, exposureType);
     for (int i = 0; i < numInfos; i++)
-        infos[i].fromOutside(x + i * numParams, optimizeWhat);
+        infos[i].fromOutside(x + i * numParams, optimizeWhat, exposureType);
 }
 
-void writeTo(const std::vector<ImageInfo>& infos, double* x, int optimizeWhat)
+void writeTo(const std::vector<ImageInfo>& infos, double* x, int optimizeWhat, int exposureType)
 {
     int numInfos = infos.size();
-    int numParams = ImageInfo::getNumParams(optimizeWhat);
+    int numParams = ImageInfo::getNumParams(optimizeWhat, exposureType);
     for (int i = 0; i < numInfos; i++)
-        infos[i].toOutside(x + i * numParams, optimizeWhat);
+        infos[i].toOutside(x + i * numParams, optimizeWhat, exposureType);
 }
 
 #include "emor.h"
@@ -407,15 +431,27 @@ struct Transform
 
     }
 
-    Transform(const ImageInfo& imageInfo)
+    Transform(const ImageInfo& imageInfo, int exposureType)
     {
         memset(lut, 0, sizeof(lut));
-        for (int i = 0; i < LUT_LENGTH; i++)
+        if (exposureType == EMOR)
         {
-            double t = EMoR::f0[i];
-            for (int k = 0; k < EMOR_COEFF_LENGTH; k++)
-                t += EMoR::h[k][i] * imageInfo.emorCoeffs[k];
-            lut[i] = t;
+            for (int i = 0; i < LUT_LENGTH; i++)
+            {
+                double t = EMoR::f0[i];
+                for (int k = 0; k < EMOR_COEFF_LENGTH; k++)
+                    t += EMoR::h[k][i] * imageInfo.emorCoeffs[k];
+                lut[i] = t;
+            }
+        }
+        else
+        {
+            double gamma = imageInfo.gamma;
+            for (int i = 0; i < LUT_LENGTH; i++)
+            {
+                double s = double(i) / (LUT_LENGTH - 1);
+                lut[i] = pow(s, gamma);
+            }
         }
 
         vigCenterX = imageInfo.size.width / 2;
@@ -566,12 +602,12 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     const std::vector<ImageInfo>& infos = edata->imageInfos;
     const std::vector<ValuePair>& pairs = edata->pairs;
 
-    readFrom(edata->imageInfos, p, edata->optimizeWhat);
+    readFrom(edata->imageInfos, p, edata->optimizeWhat, exposureType);
     int numImages = infos.size();
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i]);
+        transforms[i] = Transform(infos[i], exposureType);
 
     int index = 0;
     for (int i = 0; i < numImages; i++)
@@ -672,8 +708,8 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
 
     for (int i = 0; i < 1; i++)
     {
-        int option = i == 0 ? EXPOSURE : (VIGNETTE);
-        int numParams = ImageInfo::getNumParams(option);
+        int option = i == 0 ? EXPOSURE | WHITE_BALANCE: (VIGNETTE);
+        int numParams = ImageInfo::getNumParams(option, exposureType);
 
         // parameters
         int m = numImages * numParams;
@@ -683,7 +719,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
         int n = 2 * 3 * valuePairs.size() + numImages;
         std::vector<double> x(n, 0.0);
 
-        writeTo(imageInfos, p.data(), option);
+        writeTo(imageInfos, p.data(), option, exposureType);
 
         // covariance matrix at solution
         cv::Mat cov(m, m, CV_64FC1);
@@ -695,12 +731,13 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages,
 
         ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
         // copy to source images (data.m_imgs)
-        readFrom(imageInfos, p.data(), option);
+        readFrom(imageInfos, p.data(), option, exposureType);
     }
 
     for (int i = 0; i < numImages; i++)
     {
-        printf("[%d] e = %f\n", i, imageInfos[i].getExposure());
+        printf("[%d] e = %f, gamma = %f, blue = %f, red = %f\n", 
+            i, imageInfos[i].getExposure(), imageInfos[i].gamma, imageInfos[i].whiteBalanceBlue, imageInfos[i].whiteBalanceRed);
         char buf[256];
         //sprintf(buf, "emor lut %d", i);
         //Transform t(imageInfos[i]);
@@ -749,7 +786,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i]);
+        transforms[i] = Transform(infos[i], exposureType);
 
     dst.resize(numImages);
     char buf[64];
@@ -818,7 +855,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i]);
+        transforms[i] = Transform(infos[i], exposureType);
 
     luts.resize(numImages);
     char buf[64];
@@ -843,11 +880,11 @@ int main()
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
 
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
@@ -855,15 +892,15 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    double PI = 3.1415926;
-    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -912,7 +949,7 @@ int main()
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    getPointPairs(testSrc, params, downSizePower, pairs);
+    getPointPairsRandom(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos;
     optimize(pairs, numImages, src[0].size(), imageInfos);
