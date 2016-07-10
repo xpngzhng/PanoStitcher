@@ -759,21 +759,29 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         Transform& trans = transforms[i];
         dst[i].create(src[i].size(), CV_8UC3);
         int rows = dst[i].rows, cols = dst[i].cols;
-        //for (int y = 0; y < rows; y++)
-        //{
-        //    const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
-        //    unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
-        //    for (int x = 0; x < cols; x++)
-        //    {
-        //        double b = ptrSrc[0] / 255.0, g = ptrSrc[1] / 255.0, r = ptrSrc[2] / 255.0;
-        //        cv::Vec3d d = trans.applyInverse(cv::Point(), cv::Vec3d(b, g, r));
-        //        ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
-        //        ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
-        //        ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
-        //        ptrSrc += 3;
-        //        ptrDst += 3;
-        //    }
-        //}
+        
+        /*
+        double e = infos[i].getExposure();
+        for (int y = 0; y < rows; y++)
+        {
+            const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
+            unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
+            for (int x = 0; x < cols; x++)
+            {
+                double b = ptrSrc[0] / 255.0, g = ptrSrc[1] / 255.0, r = ptrSrc[2] / 255.0;
+                cv::Vec3d d = trans.applyInverse(cv::Point(x, y), cv::Vec3d(b, g, r));
+                ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
+                ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
+                ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
+                //ptrDst[0] = cv::saturate_cast<unsigned char>(trans.LUT(d[0]) * 255);
+                //ptrDst[1] = cv::saturate_cast<unsigned char>(trans.LUT(d[1]) * 255);
+                //ptrDst[2] = cv::saturate_cast<unsigned char>(trans.LUT(d[2]) * 255);
+                ptrSrc += 3;
+                ptrDst += 3;
+            }
+        }
+        */
+        
         double e = 1.0 / infos[i].getExposure();
         double r = 1.0 / infos[i].whiteBalanceRed;
         double b = 1.0 / infos[i].whiteBalanceBlue;
@@ -796,6 +804,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
                 ptrDst += 3;
             }
         }
+        
         sprintf(buf, "dst image %d", i);
         cv::imshow(buf, dst[i]);
     }
