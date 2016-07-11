@@ -78,7 +78,9 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
 
 int main()
 {
-    std::string configFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+    std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
+        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
+        "F:\\panovideo\\test\\test6\\zhanxiang.xml";
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
@@ -86,8 +88,10 @@ int main()
 
     int numVideos = fileNames.size();
     int globalOffset = 1095;
+    //int globalOffset = 0;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
+    int readSkipCount = 3;
 
     std::vector<avp::AudioVideoReader3> readers;
     cv::Size srcSize;
@@ -141,11 +145,16 @@ int main()
 
         //compensateBGR(reprojImages, masks, adjustImages);
         std::vector<double> es, bs, rs;
-        correct.correct(reprojImages, es, rs, bs);
-        ExposureColorCorrect::getLUTs(es, luts);
-        ExposureColorCorrect::getLUTs(es, rs, bs, tintLuts);
+        std::vector<std::vector<double> > esBGR;
+        correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
+        correct.correctColorExposure(reprojImages, esBGR);
+        ExposureColorCorrect::getExposureLUTs(es, luts);
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es, rs, bs, tintLuts);
+        ExposureColorCorrect::getColorExposureLUTs(esBGR, bgrLuts);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
         for (int i = 0; i < numVideos; i++)
-            transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
+            transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         //huginCorrect(images, photoParams, huginLuts);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], huginLuts[i], masks[i]);
@@ -170,7 +179,7 @@ int main()
 
         for (int i = 0; i < numVideos; i++)
         {
-            for (int j = 0; j < 5; j++)
+            for (int j = 0; j < readSkipCount; j++)
             {
                 ok = readers[i].read(frames[i]);
                 if (!ok)

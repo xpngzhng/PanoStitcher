@@ -331,12 +331,9 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
         }
     }
 
-    printf("anchor = %d\n", anchorIndex);
+    //printf("anchor = %d\n", anchorIndex);
 
     double rgScale = 1.0 / rgGains[anchorIndex], bgScale = 1.0 / bgGains[anchorIndex];
-
-    cv::Scalar mean = cv::mean(images[anchorIndex], masks[anchorIndex]);
-    printf("mean %f, %f, %f\n", mean[0], mean[1], mean[2]);
 
     for (int i = 0; i < numImages; i++)
     {

@@ -296,14 +296,14 @@ class ExposureColorCorrect
 public:
     ExposureColorCorrect() : numImages(0), rows(0), cols(0), prepareSuccess(0) {};
     bool prepare(const std::vector<cv::Mat>& masks);
-    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
-    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures, 
+    bool correctExposure(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+    bool correctExposureAndWhiteBalance(const std::vector<cv::Mat>& images, std::vector<double>& exposures, 
         std::vector<double>& redRatios, std::vector<double>& blueRatios);
-    bool correct(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures);
-    static bool getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
-    static bool getLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
+    bool correctColorExposure(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures);
+    static bool getExposureLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
+    static bool getExposureAndWhiteBalanceLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
         const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);
-    static bool getLUTs(const std::vector<std::vector<double> >& exposures, 
+    static bool getColorExposureLUTs(const std::vector<std::vector<double> >& exposures, 
         std::vector<std::vector<std::vector<unsigned char> > >& luts);
 private:
     int numImages;

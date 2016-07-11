@@ -37,7 +37,7 @@ bool ExposureColorCorrect::prepare(const std::vector<cv::Mat>& masks)
     return true;
 }
 
-bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures)
+bool ExposureColorCorrect::correctExposure(const std::vector<cv::Mat>& images, std::vector<double>& exposures)
 {
     if (!prepareSuccess)
         return false;
@@ -57,7 +57,7 @@ bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images, std::vect
     return true;
 }
 
-bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images,
+bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::Mat>& images,
     std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios)
 {
     if (!prepareSuccess)
@@ -115,7 +115,7 @@ bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images,
     return true;
 }
 
-bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures)
+bool ExposureColorCorrect::correctColorExposure(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures)
 {
     if (!prepareSuccess)
         return false;
@@ -131,7 +131,7 @@ bool ExposureColorCorrect::correct(const std::vector<cv::Mat>& images, std::vect
     return true;
 }
 
-bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts)
+bool ExposureColorCorrect::getExposureLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts)
 {
     luts.clear();
     int numImages = exposures.size();
@@ -144,7 +144,7 @@ bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, std::ve
     return true;
 }
 
-bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
+bool ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
     const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     luts.clear();
@@ -165,7 +165,7 @@ bool ExposureColorCorrect::getLUTs(const std::vector<double>& exposures, const s
     return true;
 }
 
-bool ExposureColorCorrect::getLUTs(const std::vector<std::vector<double> >& exposures, 
+bool ExposureColorCorrect::getColorExposureLUTs(const std::vector<std::vector<double> >& exposures, 
     std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     luts.clear();

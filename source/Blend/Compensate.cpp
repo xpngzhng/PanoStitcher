@@ -299,7 +299,15 @@ void getLUT(std::vector<unsigned char>& lut, double k)
     }
     else
     {
-        cv::Point2d p0(0, 0), p1 = k > 1 ? cv::Point(255 / k, 255) : cv::Point(255, k * 255), p2(255, 255);
+        cv::Point2d p0(0, 0), p1, p2(255, 255);
+        if (k > 1)
+            p1 = cv::Point(255 / k, 255);
+        else
+        {
+            double x = 255.0 * (1 - 1 / k) / (k - 1 / k);
+            p1.x = x;
+            p1.y = x * k;
+        }
         lut[0] = 0;
         lut[255] = 255;
         for (int i = 1; i < 255; i++)
