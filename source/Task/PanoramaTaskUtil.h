@@ -28,8 +28,8 @@ struct IntervaledContour
     int videoIndex;
     int width;
     int height;
-    double begIndexInc;
-    double endIndexInc;
+    int begIndexInc;
+    int endIndexInc;
     std::vector<std::vector<cv::Point> > contours;
 };
 

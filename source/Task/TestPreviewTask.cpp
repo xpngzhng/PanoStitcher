@@ -77,7 +77,8 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
-    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguan.xml";
+    std::string projFileName = "F:\\panovideo\\test\\colorgrid\\colorgrid.xml"
+        /*"F:\\panovideo\\test\\test1\\haiyangguan.xml"*/;
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaPreviewTask> task;
@@ -117,17 +118,17 @@ int main(int argc, char* argv[])
         int videoIndex;
         int begIndex, endIndex;
         
-        begIndex = 10, endIndex = 100;
+        begIndex = 10, endIndex = 50;
         videoIndex = 0;
         cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
         videoIndex = 1;
         cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
 
-        begIndex = 300, endIndex = 400;
+        begIndex = 70, endIndex = 90;
         for (int i = 0; i < masks.size(); i++)
             cpuTask->setCustomMaskForOne(i, offset[i] + begIndex, offset[i] + endIndex, masks[i]);
 
-        begIndex = 500, endIndex = 600;
+        begIndex = 100, endIndex = 150;
         videoIndex = 0;
         cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
         videoIndex = 1;
@@ -168,10 +169,11 @@ int main(int argc, char* argv[])
         //for (int i = 0; i < numVideos; i++)
         //    cv::imshow(srcNames[i], src[i]);
         cv::imshow("render", dst);
-        int key = cv::waitKey(1);
+        int key = cv::waitKey(0);
         if (key == 'q')
             break;
         stitchCount++;
+        printf("stitch count %d\n", stitchCount);
         if (stitchCount % 20 == 0)
         {
             t.end();

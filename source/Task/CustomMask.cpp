@@ -110,6 +110,7 @@ bool GeneralMasks::init(const std::vector<cv::Mat>& masks)
     defaultMasks.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
         defaultMasks[i] = masks[i].clone();
+    return true;
 }
 
 bool GeneralMasks::getMasks(const std::vector<int>& frameIndexes, std::vector<cv::Mat>& masks)
