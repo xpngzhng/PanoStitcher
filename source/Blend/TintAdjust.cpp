@@ -118,7 +118,7 @@ void scale(const cv::Mat& src, const cv::Mat& mask, double rRatio, double bRatio
     }
 }
 
-void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTintTransformsMeanApproxMimicSiftPanoPaper(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
 {
     int numImages = images.size();
@@ -212,7 +212,7 @@ void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<c
         bgRatioGains[i] = gains(i);
 }
 
-void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTintTransformsPairWiseMimicSiftPanoPaper(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains)
 {
     int numImages = images.size();
@@ -311,7 +311,7 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     int numImages = images.size();
 
     std::vector<double> rgGains, bgGains;
-    getAccurateLinearTransforms(images, masks, rgGains, bgGains);
+    getTintTransformsPairWiseMimicSiftPanoPaper(images, masks, rgGains, bgGains);
 
     std::vector<double> diff(numImages);
     for (int i = 0; i < numImages; i++)

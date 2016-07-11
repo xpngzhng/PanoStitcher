@@ -79,8 +79,8 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
 int main()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
-        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
-        "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+        "F:\\panovideo\\test\\test7\\changtai.pvs"
+        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/;
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
@@ -151,10 +151,10 @@ int main()
         ExposureColorCorrect::getExposureLUTs(es, luts);
         ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es, rs, bs, tintLuts);
         ExposureColorCorrect::getColorExposureLUTs(esBGR, bgrLuts);
-        //for (int i = 0; i < numVideos; i++)
-        //    transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
         for (int i = 0; i < numVideos; i++)
-            transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
+            transform(reprojImages[i], adjustImages[i], luts[i], masks[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], adjustImages[i], bgrLuts[i], masks[i]);
         //huginCorrect(images, photoParams, huginLuts);
         //for (int i = 0; i < numVideos; i++)
         //    transform(reprojImages[i], adjustImages[i], huginLuts[i], masks[i]);

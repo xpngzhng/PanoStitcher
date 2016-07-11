@@ -5,7 +5,7 @@
 #include <map>
 #include <iostream>
 
-void getMasksForLinearTransforms(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& outMasks)
+void getIntsctMasksAroundDistTransSeams(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& outMasks)
 {
     std::vector<cv::Mat> extendMasks;
     getExtendedMasks(masks, 100, extendMasks);
@@ -26,7 +26,7 @@ void getMasksForLinearTransforms(const std::vector<cv::Mat>& masks, std::vector<
     }
 }
 
-void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTransformsGrayPairWiseSiftPanoPaper(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& kt)
 {
     int numImages = images.size();
@@ -81,7 +81,7 @@ void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::
         kt[i] = gains(i);
 }
 
-void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTransformsGrayPairWiseMutualError(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<double>& kt)
 {
     int numImages = images.size();
@@ -138,7 +138,7 @@ void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std:
         kt[i] = gains(i);
 }
 
-void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTransformsBGRPairWiseSiftPanoPaper(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<double> >& kts)
 {
     int numImages = images.size();
@@ -210,7 +210,7 @@ void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::
     }        
 }
 
-void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+void getTransformsBGRPairWiseMutualError(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     std::vector<std::vector<double> >& kts)
 {
     int numImages = images.size();
@@ -393,10 +393,10 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
     std::vector<cv::Mat> outMasks;
-    getMasksForLinearTransforms(masks, outMasks);
+    getIntsctMasksAroundDistTransSeams(masks, outMasks);
 
     std::vector<double> gains;
-    getAccurateLinearTransforms2(grayImages, outMasks, gains);
+    getTransformsGrayPairWiseMutualError(grayImages, outMasks, gains);
 
     results.resize(numImages);
     std::vector<unsigned char> lut;
@@ -412,10 +412,10 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     int numImages = images.size();
 
     std::vector<cv::Mat> outMasks;
-    getMasksForLinearTransforms(masks, outMasks);
+    getIntsctMasksAroundDistTransSeams(masks, outMasks);
 
     std::vector<std::vector<double> > kts;
-    getAccurateLinearTransforms2(images, outMasks, kts);
+    getTransformsBGRPairWiseMutualError(images, outMasks, kts);
 
     std::vector<std::vector<std::vector<unsigned char> > > luts(numImages);
     for (int i = 0; i < numImages; i++)
@@ -445,7 +445,7 @@ private:
     int success;
 };
 
-static void getLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+static void getTransformsMeanApproxSiftPanoPaper(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
     int& maxIndex, std::vector<double>& kt)
 {
     int numImages = images.size();
@@ -579,7 +579,7 @@ bool GainCompensate::prepare(const std::vector<cv::Mat>& images, const std::vect
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
-    getLinearTransforms(grayImages, masks, maxMeanIndex, gains);
+    getTransformsMeanApproxSiftPanoPaper(grayImages, masks, maxMeanIndex, gains);
     rescale(gains, maxMeanIndex);
 
     LUTs.resize(numImages);

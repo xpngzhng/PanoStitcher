@@ -1,15 +1,6 @@
 #include "ZBlend.h"
+#include "ZBlendAlgo.h"
 #include "opencv2/imgproc.hpp"
-
-void getMasksForLinearTransforms(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& outMasks);
-void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<double>& kt);
-void getAccurateLinearTransforms2(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<std::vector<double> >& kts);
-void getAccurateLinearTransforms(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<double>& rgRatioGains, std::vector<double>& bgRatioGains);
-void getLUT(std::vector<unsigned char>& lut, double k);
-void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut);
 
 bool ExposureColorCorrect::prepare(const std::vector<cv::Mat>& masks)
 {
@@ -31,7 +22,7 @@ bool ExposureColorCorrect::prepare(const std::vector<cv::Mat>& masks)
     for (int i = 0; i < numImages; i++)
         origMasks[i] = masks[i].clone();
 
-    getMasksForLinearTransforms(origMasks, splitExtendMasks);
+    getIntsctMasksAroundDistTransSeams(origMasks, splitExtendMasks);
 
     prepareSuccess = 1;
     return true;
@@ -53,7 +44,7 @@ bool ExposureColorCorrect::correctExposure(const std::vector<cv::Mat>& images, s
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
-    getAccurateLinearTransforms2(grayImages, splitExtendMasks, exposures);
+    getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
     return true;
 }
 
@@ -74,7 +65,7 @@ bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
-    getAccurateLinearTransforms2(grayImages, splitExtendMasks, exposures);
+    getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
 
     transImages.resize(numImages);
     std::vector<unsigned char> lut;
@@ -84,7 +75,7 @@ bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::
         adjust(images[i], transImages[i], lut);
     }
 
-    getAccurateLinearTransforms(transImages, origMasks, redRatios, blueRatios);
+    getTintTransformsPairWiseMimicSiftPanoPaper(transImages, origMasks, redRatios, blueRatios);
 
     std::vector<double> diff(numImages);
     for (int i = 0; i < numImages; i++)
@@ -127,7 +118,7 @@ bool ExposureColorCorrect::correctColorExposure(const std::vector<cv::Mat>& imag
             return false;
     }
 
-    getAccurateLinearTransforms2(images, splitExtendMasks, exposures);
+    getTransformsBGRPairWiseMutualError(images, splitExtendMasks, exposures);
     return true;
 }
 
