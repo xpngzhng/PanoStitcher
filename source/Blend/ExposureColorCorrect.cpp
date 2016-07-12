@@ -44,6 +44,26 @@ bool ExposureColorCorrect::correctExposure(const std::vector<cv::Mat>& images, s
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
 
+    std::vector<int> hist;
+    bool histValid = true;
+    for (int i = 0; i < numImages; i++)
+    {
+        calcHist(grayImages[i], origMasks[i], hist);
+        int count = countNonZeroHistBins(hist);
+        if (count < 3)
+        {
+            histValid = false;
+            break;
+        }
+    }
+    if (!histValid)
+    {
+        exposures.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            exposures[i] = 1;
+        return true;
+    }
+
     getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
     return true;
 }
@@ -64,6 +84,32 @@ bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::
     std::vector<cv::Mat> grayImages(numImages);
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
+
+    std::vector<int> hist;
+    bool histValid = true;
+    for (int i = 0; i < numImages; i++)
+    {
+        calcHist(grayImages[i], origMasks[i], hist);
+        int count = countNonZeroHistBins(hist);
+        if (count < 3)
+        {
+            histValid = false;
+            break;
+        }
+    }
+    if (!histValid)
+    {
+        exposures.resize(numImages);
+        redRatios.resize(numImages);
+        blueRatios.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            exposures[i] = 1;
+            redRatios[i] = 1;
+            blueRatios[i] = 1;
+        }
+        return true;
+    }
 
     getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
 
@@ -116,6 +162,30 @@ bool ExposureColorCorrect::correctColorExposure(const std::vector<cv::Mat>& imag
         if (!images[i].data || images[i].type() != CV_8UC3 ||
             images[i].rows != rows || images[i].cols != cols)
             return false;
+    }
+
+    std::vector<cv::Mat> grayImages(numImages);
+    for (int i = 0; i < numImages; i++)
+        cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
+
+    std::vector<int> hist;
+    bool histValid = true;
+    for (int i = 0; i < numImages; i++)
+    {
+        calcHist(grayImages[i], origMasks[i], hist);
+        int count = countNonZeroHistBins(hist);
+        if (count < 3)
+        {
+            histValid = false;
+            break;
+        }
+    }
+    if (!histValid)
+    {
+        exposures.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            exposures[i].resize(3, 1.0);
+        return true;
     }
 
     getTransformsBGRPairWiseMutualError(images, splitExtendMasks, exposures);

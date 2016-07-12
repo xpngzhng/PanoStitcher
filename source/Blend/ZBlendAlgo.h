@@ -379,3 +379,9 @@ void getTintTransformsPairWiseMimicSiftPanoPaper(const std::vector<cv::Mat>& ima
 void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut);
 
 void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts);
+
+void calcHist(const cv::Mat& image, std::vector<int>& hist);
+
+void calcHist(const cv::Mat& image, const cv::Mat& mask, std::vector<int>& hist);
+
+int countNonZeroHistBins(const std::vector<int>& hist);

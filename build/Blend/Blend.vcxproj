@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\source\Blend\ExposureCorrection.cpp" />
     <ClCompile Include="..\..\source\Blend\FeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\GainAdjust.cpp" />
+    <ClCompile Include="..\..\source\Blend\Histogram.cpp" />
     <ClCompile Include="..\..\source\Blend\LinearBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\Mask.cpp" />
     <ClCompile Include="..\..\source\Blend\MultiBandBlend.cpp" />
