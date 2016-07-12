@@ -252,6 +252,10 @@ int main()
         if (!ok)
             break;
 
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%6d", frames[i].frameIndex);
+        //printf("\n");
+
         for (int i = 0; i < numVideos; i++)
             images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
         reprojectParallel(images, reprojImages, maps);
@@ -262,16 +266,16 @@ int main()
         reds.push_back(rs);
         blues.push_back(bs);
 
-        printf("e: ");
-        for (int i = 0; i < numVideos; i++)
-            printf("%8.5f ", es[i]);
-        printf("\nr: ");
-        for (int i = 0; i < numVideos; i++)
-            printf("%8.5f ", rs[i]);
-        printf("\nb: ");
-        for (int i = 0; i < numVideos; i++)
-            printf("%8.5f ", bs[i]);
-        printf("\n");
+        //printf("e: ");
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%8.5f ", es[i]);
+        //printf("\nr: ");
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%8.5f ", rs[i]);
+        //printf("\nb: ");
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%8.5f ", bs[i]);
+        //printf("\n");
 
         for (int i = 0; i < numVideos; i++)
         {
@@ -287,14 +291,15 @@ int main()
         if (!ok)
             break;
         analyzeCount++;
-        printf("analyze %d\n", analyzeCount);
+        if (analyzeCount % 10 == 0)
+            printf("analyze %d\n", analyzeCount);
     }
 
     printf("analyze finish\n");
 
-    return 0;
+    //return 0;
 
-    dstSize.width = 2048, dstSize.height = 1024;
+    dstSize.width = 960, dstSize.height = 480;
     avp::AudioVideoWriter3 writer;
     writer.open("video.mp4", "", false, false, "", 0, 0, 0, 0,
         true, "", avp::PixelTypeBGR24, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
@@ -303,6 +308,11 @@ int main()
 
     TilingMultibandBlendFast blender;
     blender.prepare(masks, 8, 4);
+
+    printf("offsets: ");
+    for (int i = 0; i < numVideos; i++)
+        printf("%3d ", offsets[i]);
+    printf("\n");
 
     std::vector<cv::Mat> adjustImages;
     cv::Mat blendImage;
@@ -322,6 +332,10 @@ int main()
         }
         if (!ok)
             break;
+
+        for (int i = 0; i < numVideos; i++)
+            printf("%6d", frames[i].frameIndex);
+        printf("\n");
 
         for (int i = 0; i < numVideos; i++)
             images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
