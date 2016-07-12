@@ -1639,6 +1639,13 @@ int main()
     //cv::imshow("new R", newImageR);
     //cv::waitKey(0);
 
+    /* ExposureColorCorrect c;
+    c.prepare(masks);
+    std::vector<double> es;
+    for (int i = 0; i < numImages; i++)
+        images[i].setTo(0);
+    c.correctExposure(images, es); */
+
     std::vector<cv::Mat> compResults;
     compensate(images, masks, compResults);
     //MultibandBlendGainAdjust gainAdjust;

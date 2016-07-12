@@ -410,7 +410,7 @@ int main(int argc, char* argv[])
     }
 
     saveFile = parser.get<bool>("pano_save_file");
-    saveFile = false;
+    saveFile = true;
     fileFrameSize = stitchFrameSize;
     if (saveFile)
     {
@@ -432,7 +432,7 @@ int main(int argc, char* argv[])
         fileEncoder = parser.get<std::string>("pano_file_encoder");
         if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
             streamEncoder = "h264";
-        fileEncoder = "nvenc_h264";
+        fileEncoder = "h264";
         fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
         if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
             fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||
@@ -440,7 +440,9 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height, 
+        //task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height, 
+        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        task.beginSaveToDisk(".", PanoTypeCube3x2, 1536, 1024,
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 

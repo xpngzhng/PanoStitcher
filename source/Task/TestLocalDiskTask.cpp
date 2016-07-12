@@ -93,8 +93,8 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
-    //std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
-    std::string projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    //std::string projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
@@ -103,9 +103,9 @@ int main(int argc, char* argv[])
     else
         task.reset(new CPUPanoramaLocalDiskTask);
     
-    panoVideoName = "nvenc.mp4";
+    panoVideoName = "libx264.mp4";
     bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
-        dstSize.width, dstSize.height, 8000000, "nvenc_h264", "slow", 40 * 48);
+        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

@@ -538,8 +538,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         else if (panoType == PanoTypeCube180)
             getEquiRectToCubeMap(xmap, ymap, renderFrameSize.height, height * 2 / 3, CubeType180);
 
-        streamXMap.upload(xmap);
-        streamYMap.upload(ymap);
+        fileXMap.upload(xmap);
+        fileYMap.upload(ymap);
     }
 
     fileDir = dir;
