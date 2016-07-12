@@ -37,6 +37,10 @@ struct PanoramaLiveStreamTask2::Impl
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
+    bool calcExposures(std::vector<double>& exposures);
+    bool setExposures(const std::vector<double>& exposures);
+    void resetExposures();
+
     bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);
     bool getStitchedVideoFrame(avp::AudioVideoFrame2& frame);
     void cancelGetVideoSourceFrames();
@@ -105,6 +109,14 @@ struct PanoramaLiveStreamTask2::Impl
     int fileThreadJoined;
     void fileSave();
 
+    ImageVisualCorrect correct;
+    std::vector<double> exposures;
+    std::mutex mtxLuts;
+    std::vector<std::vector<unsigned char> > luts;
+    void setLUTs(const std::vector<double>& exposures);
+    void clearLUTs();
+    void getLuts(std::vector<std::vector<unsigned char> >& luts);
+
     double videoSourceFrameRate;
     double stitchVideoFrameRate;
 
@@ -124,6 +136,7 @@ struct PanoramaLiveStreamTask2::Impl
     int pixelType;
     int elemType;
     int finish;
+    int allowGetSyncedFramesBufferForShow;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
     //AudioVideoFramePool procFramePool;
@@ -248,27 +261,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
-    syncedFramesBufferForProc.clear();
-    if (!highQualityBlend)
-    {
-        std::vector<cv::cuda::HostMem> mems;
-        std::vector<long long int> timeStamps;
-        syncedFramesBufferForProc.pull(mems, timeStamps);
-        std::vector<cv::Mat> images(numVideos);
-        for (int i = 0; i < numVideos; i++)
-            images[i] = mems[i].createMatHeader();
-        renderPrepareSuccess = render.exposureCorrect(images);
-        if (!renderPrepareSuccess)
-        {
-            ptlprintf("Error in %s, exposure correction failed\n", __FUNCTION__);
-            //appendLog("视频拼接初始化失败\n");
-            //syncErrorMessage = "视频拼接初始化失败。";
-            appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
-        }
-    }
-
     if (render.getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
@@ -302,9 +294,21 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
+    renderPrepareSuccess = correct.prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
+    if (!renderPrepareSuccess)
+    {
+        ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
+        //appendLog("视频拼接初始化失败\n");
+        //syncErrorMessage = "视频拼接初始化失败。";
+        appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
     //appendLog("视频拼接初始化成功\n");
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
+    syncedFramesBufferForProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();
@@ -346,7 +350,10 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
 
 bool PanoramaLiveStreamTask2::Impl::getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames)
 {
-    return syncedFramesBufferForShow.pull(frames);
+    if (allowGetSyncedFramesBufferForShow)
+        return syncedFramesBufferForShow.pull(frames);
+    else
+        return false;
 }
 
 bool PanoramaLiveStreamTask2::Impl::getStitchedVideoFrame(avp::AudioVideoFrame2& frame)
@@ -586,6 +593,92 @@ void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
     }
 }
 
+bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
+{
+    expos.clear();
+
+    if (!videoOpenSuccess || !audioVideoSource)
+    {
+        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_CORRECT);
+        return false;
+    }
+
+    if (!streamThreadJoined)
+    {
+        ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_CORRECT);
+        return false;
+    }
+
+    if (!fileThreadJoined)
+    {
+        ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_CORRECT);
+        return false;
+    }
+
+    // Notice, we use the frames in syncedFramesBufferForShow,
+    // so we first disable other threads from getting frames from this buffer,
+    // and then try to get frames from it for several times
+    allowGetSyncedFramesBufferForShow = 0;
+    std::vector<avp::AudioVideoFrame2> frames;
+    int maxPullFrameTimes = 32;
+    bool success = false;
+    for (int i = 0; i < maxPullFrameTimes; i++)
+    {
+        if (syncedFramesBufferForShow.pull(frames))
+        {
+            success = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    allowGetSyncedFramesBufferForShow = 1;
+    if (!success)
+    {
+        ptlprintf("Error in %s, could not get frames from synced frames buffer for show\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CORRECT_FAIL);
+        return false;
+    }
+
+    std::vector<cv::Mat> images(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        images[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data[0], frames[i].steps[0]);
+
+    bool ok = correct.correct(images, exposures);
+    if (!ok)
+    {
+        syncErrorMessage = getText(TI_CORRECT_FAIL);
+        resetExposures();
+        ptlprintf("Error in %s, exposure correct failed\n", __FUNCTION__);
+        return false;
+    }
+
+    expos = exposures;
+    setLUTs(exposures);
+    return true;
+}
+
+bool PanoramaLiveStreamTask2::Impl::setExposures(const std::vector<double>& expos)
+{
+    if (expos.size() != numVideos)
+    {
+        ptlprintf("Error in %s, input exposures vector length invalid\n", __FUNCTION__);
+        return false;
+    }
+
+    exposures = expos;
+    setLUTs(exposures);
+    return true;
+}
+
+void PanoramaLiveStreamTask2::Impl::resetExposures()
+{
+    exposures.clear();
+    clearLUTs();
+}
+
 double PanoramaLiveStreamTask2::Impl::getVideoSourceFrameRate() const
 {
     return videoSourceFrameRate;
@@ -663,6 +756,7 @@ void PanoramaLiveStreamTask2::Impl::initAll()
     fileThreadJoined = 1;
 
     finish = 0;
+    allowGetSyncedFramesBufferForShow = 1;
     pixelType = avp::PixelTypeBGR32;
     elemType = CV_8UC4;
 }
@@ -702,6 +796,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     std::vector<long long int> timeStamps;
     std::vector<cv::Mat> src(numVideos);
     cv::cuda::GpuMat bgr32;
+    std::vector<std::vector<unsigned char> > localLookUpTables;
     MixedAudioVideoFrame renderFrame, sendFrame, saveFrame;
     cv::cuda::GpuMat bgr1, y1, u1, v1, uv1;
     cv::cuda::GpuMat bgr2, y2, u2, v2, uv2;
@@ -748,9 +843,15 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
 
             for (int i = 0; i < numVideos; i++)
                 src[i] = mems[i].createMatHeader();
-            //procTimer.start();
-            ok = render.render(src, timeStamps, bgr32);
-            //procTimer.end();
+            if (luts.size())
+            {
+                getLuts(localLookUpTables);
+                //procTimer.start();
+                ok = render.render(src, timeStamps, bgr32, localLookUpTables);
+                //procTimer.end();
+            }
+            else
+                ok = render.render(src, timeStamps, bgr32);
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
@@ -1070,6 +1171,24 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
     ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
+void PanoramaLiveStreamTask2::Impl::setLUTs(const std::vector<double>& exposures)
+{
+    std::lock_guard<std::mutex> lg(mtxLuts);
+    ExposureColorCorrect::getExposureLUTs(exposures, luts);
+}
+
+void PanoramaLiveStreamTask2::Impl::clearLUTs()
+{
+    std::lock_guard<std::mutex> lg(mtxLuts);
+    luts.clear();
+}
+
+void PanoramaLiveStreamTask2::Impl::getLuts(std::vector<std::vector<unsigned char> >& LUTs)
+{
+    std::lock_guard<std::mutex> lg(mtxLuts);
+    LUTs = luts;
+}
+
 void PanoramaLiveStreamTask2::Impl::setAsyncErrorMessage(const std::string& message)
 {
     std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
@@ -1155,6 +1274,21 @@ bool PanoramaLiveStreamTask2::beginSaveToDisk(const std::string& dir, int panoTy
 void PanoramaLiveStreamTask2::stopSaveToDisk()
 {
     ptrImpl->stopSaveToDisk();
+}
+
+bool PanoramaLiveStreamTask2::calcExposures(std::vector<double>& exposures)
+{
+    return ptrImpl->calcExposures(exposures);
+}
+
+bool PanoramaLiveStreamTask2::setExposures(const std::vector<double>& exposures)
+{
+    return ptrImpl->setExposures(exposures);
+}
+
+void PanoramaLiveStreamTask2::resetExposures()
+{
+    ptrImpl->resetExposures();
 }
 
 double PanoramaLiveStreamTask2::getVideoSourceFrameRate() const

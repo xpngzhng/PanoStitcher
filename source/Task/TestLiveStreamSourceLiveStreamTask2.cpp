@@ -265,10 +265,10 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    cv::Size sz(2048, 1024);
+    cv::Size sz(1920, 960);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
-    highQualityBlend = true;
+    //highQualityBlend = true;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
@@ -284,6 +284,22 @@ int main(int argc, char* argv[])
     {
         printf("camera_param_path empty, no stitch\n");
     }
+
+    //std::vector<double> exposures;
+    //ok = task.calcExposures(exposures);
+    //if (!ok)
+    //{
+    //    std::string msg;
+    //    task.getLastSyncErrorMessage(msg);
+    //    printf("%s\n", msg.c_str());
+    //    task.closeAll();
+    //    return 0;
+    //}
+    //printf("exposures: ");
+    //for (int i = 0; i < exposures.size(); i++)
+    //    printf("%f ", exposures[i]);
+    //printf("\n");
+    //task.setExposures(exposures);
 
     streamURL = parser.get<std::string>("pano_stream_url");
     //streamURL = "rtsp://192.168.1.234/test.sdp";/*"rtsp://127.0.0.1/test.sdp"*/

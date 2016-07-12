@@ -235,6 +235,10 @@ public:
         const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDuration);
     void stopSaveToDisk();
 
+    bool calcExposures(std::vector<double>& exposures);
+    bool setExposures(const std::vector<double>& exposures);
+    void resetExposures();
+
     double getVideoSourceFrameRate() const;
     double getStitchFrameRate() const;
     void getLastSyncErrorMessage(std::string& message) const;

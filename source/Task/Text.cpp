@@ -70,6 +70,11 @@ static IndexTextsPair indexTextsPairs[] =
     TI_WRITE_LAUNCH, { "保存任务启动", "Saving to hard disk task launched" },
     TI_WRITE_FINISH, { "保存任务结束", "Saving to hard disk task finished" },
 
+    TI_SOURCE_NOT_OPENED_CANNOT_CORRECT, { "尚未打开音视频源，无法进行曝光校正", "Video (and audio) sources have not been opened, cannot apply exposure correction" },
+    TI_LIVE_RUNNING_CLOSE_BEFORE_CORRECT, { "直播任务正在进行中，清先关闭直播任务，再进行曝光校正", "Live stream task is running, terminate it before applying exposure correction" },
+    TI_WRITE_RUNNING_CLOSE_BEFORE_CORRECT, { "保存任务正在进行中，请先关闭保存任务，再进行曝光校正", "Saving to hard disk task is running, terminate it before applying exposure correction" },
+    TI_CORRECT_FAIL, { "曝光校正失败", "Exposure correction failed\n" },
+
     TI_ACQUIRE_VIDEO_SOURCE_FAIL_TASK_TERMINATE, { "获取视频源数据发生错误，任务终止", "Could not acquire data from video source(s), all the running tasks terminated" },
     TI_ACQUIRE_AUDIO_SOURCE_FAIL_TASK_TERMINATE, { "获取音频源数据发生错误，任务终止", "Could not acquire data from audio source, all the running tasks terminated" },
     TI_LIVE_FAIL_TASK_TERMINATE, { "推流发生错误，任务终止", "Could not send data to stream media server, all the running tasks terminated" },

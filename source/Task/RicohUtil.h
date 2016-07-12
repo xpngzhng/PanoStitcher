@@ -195,8 +195,8 @@ public:
     ~CudaPanoramaRender2() { };
     bool prepare(const std::string& path, const std::string& customMaskPath,
         int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool exposureCorrect(const std::vector<cv::Mat>& images);
-    bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps, cv::cuda::GpuMat& dst);
+    bool render(const std::vector<cv::Mat>& src, const std::vector<long long int> timeStamps, cv::cuda::GpuMat& dst, 
+        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
     void clear();
     int getNumImages() const;
 private:
@@ -213,7 +213,6 @@ private:
     CudaTilingMultibandBlendFast mbBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;
     cv::cuda::GpuMat accumGPU;
-    std::vector<std::vector<unsigned char> > luts;
     int numImages;
     int success;
 };
@@ -285,3 +284,19 @@ private:
     int success;
 };
 #endif
+
+class ImageVisualCorrect
+{
+public:
+    ImageVisualCorrect() : numImages(0), srcWidth(0), srcHeight(0), equiRectWidth(0), equiRectHeight(0), success(0) {};
+    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+
+private:
+    ExposureColorCorrect corrector;
+    std::vector<cv::Mat> maps;
+    int numImages;
+    int srcWidth, srcHeight;
+    int equiRectWidth, equiRectHeight;
+    int success;
+};
