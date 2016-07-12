@@ -137,12 +137,17 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
             return false;
         }
-        if (contours.size() != numVideos)
-        {
-            ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
-            return false;
-        }
+        // Notice !! 
+        // For new implementation of loadIntervaledContours, the two level vectors
+        // are num intervals x num videos in each interval, instead of
+        // num videos x num intervals of each video,
+        // so the following if condition should be deleted
+        //if (contours.size() != numVideos)
+        //{
+        //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+        //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        //    return false;
+        //}
         if (!cvtContoursToMasks(contours, dstMasks, customMasks))
         {
             ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);

@@ -92,7 +92,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
 
         if (hasOffsets)
         {
-            if (!readers[i].seek(1000000.0 * count / fps + 0.5, avp::VIDEO))
+            if (!readers[i].seekByIndex(count, avp::VIDEO))
             {
                 ptlprintf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
                 ok = false;
