@@ -1,8 +1,10 @@
 #include "ZBlend.h"
 #include "ZBlendAlgo.h"
+#include "opencv2/imgproc.hpp"
 #include <iostream>
 
 void getLUT(std::vector<unsigned char>& lut, double k);
+void isGradSmall(const cv::Mat& image, int thresh, cv::Mat& mask, cv::Mat& blurred, cv::Mat& grad16S);
 
 void calcTintTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
     std::vector<std::vector<unsigned char> >& luts)
@@ -310,8 +312,20 @@ void tintAdjust(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 {
     int numImages = images.size();
 
+    std::vector<cv::Mat> grayImages(numImages);
+    for (int i = 0; i < numImages; i++)
+        cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
+
+    //std::vector<cv::Mat> outMasks(numImages);
+    //cv::Mat gradSmallMask, blur, grad;
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    isGradSmall(grayImages[i], 2, gradSmallMask, blur, grad);
+    //    outMasks[i] = masks[i] & gradSmallMask;
+    //}
+
     std::vector<double> rgGains, bgGains;
-    getTintTransformsPairWiseMimicSiftPanoPaper(images, masks, rgGains, bgGains);
+    getTintTransformsPairWiseMimicSiftPanoPaper(images, masks/*outMasks*/, rgGains, bgGains);
 
     std::vector<double> diff(numImages);
     for (int i = 0; i < numImages; i++)

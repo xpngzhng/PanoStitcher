@@ -297,7 +297,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderPrepareSuccess = correct.prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
         //appendLog("视频拼接初始化失败\n");
         //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");

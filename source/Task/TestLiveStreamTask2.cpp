@@ -432,7 +432,7 @@ int main(int argc, char* argv[])
         fileEncoder = parser.get<std::string>("pano_file_encoder");
         if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
             streamEncoder = "h264";
-        fileEncoder = "h264";
+        fileEncoder = "nvenc_h264";
         fileEncodePreset = parser.get<std::string>("pano_file_encode_preset");
         if (fileEncodePreset != "ultrafast" || fileEncodePreset != "superfast" ||
             fileEncodePreset != "veryfast" || fileEncodePreset != "faster" ||

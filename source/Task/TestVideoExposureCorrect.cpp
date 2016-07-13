@@ -76,18 +76,19 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
 void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& params,
     std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
-int main1()
+// main 1
+int main()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
-        "F:\\panovideo\\test\\test7\\changtai.pvs"
-        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/;
+        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
+        "F:\\panovideo\\test\\test6\\zhanxiang.xml";
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
     loadVideoFileNamesAndOffset(configFileName, fileNames, offsets);
 
     int numVideos = fileNames.size();
-    int globalOffset = 1095;
+    int globalOffset = 3000/*1095*/;
     //int globalOffset = 0;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
@@ -143,7 +144,7 @@ int main1()
 
         linearBlender.blend(reprojImages, bareBlend);
 
-        //compensateBGR(reprojImages, masks, adjustImages);
+        compensate(reprojImages, masks, adjustImages);
         std::vector<double> es, bs, rs;
         std::vector<std::vector<double> > esBGR;
         correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
@@ -161,9 +162,9 @@ int main1()
         linearBlender.blend(adjustImages, adjustLinearBlend);
         multiBlender.blend(adjustImages, adjustMultiBlend);
 
-        //tintAdjust(adjustImages, masks, tintImages);
-        for (int i = 0; i < numVideos; i++)
-            transform(reprojImages[i], tintImages[i], tintLuts[i]);
+        tintAdjust(adjustImages, masks, tintImages);
+        //for (int i = 0; i < numVideos; i++)
+        //    transform(reprojImages[i], tintImages[i], tintLuts[i]);
         linearBlender.blend(tintImages, tintLinearBlend);
         multiBlender.blend(tintImages, tintMultiBlend);
         
@@ -173,7 +174,7 @@ int main1()
         cv::imshow("adjust multiband", adjustMultiBlend);
         cv::imshow("tint linear", tintLinearBlend);
         cv::imshow("tint multiband", tintMultiBlend);
-        int key = cv::waitKey(20);
+        int key = cv::waitKey(0);
         if (key == 'q')
             break;
 
@@ -195,8 +196,8 @@ int main1()
     return 0;
 }
 
-
-int main()
+// main 2
+int main2()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         "F:\\panovideo\\test\\test7\\changtai.pvs"

@@ -2,6 +2,7 @@
 #include "ZBlendAlgo.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
 #include <map>
 #include <iostream>
 
@@ -22,6 +23,27 @@ void getIntsctMasksAroundDistTransSeams(const std::vector<cv::Mat>& masks, std::
                 continue;
             temp = extendMasks[i] & extendMasks[j];
             outMasks[i] |= temp;
+        }
+    }
+}
+
+void isGradSmall(const cv::Mat& image, int thresh, cv::Mat& mask, cv::Mat& blurred, cv::Mat& grad16S)
+{
+    CV_Assert(image.type() == CV_8UC1 && thresh > 0);
+    cv::GaussianBlur(image, blurred, cv::Size(3, 3), 1.0);
+    cv::Laplacian(blurred, grad16S, CV_16S);
+
+    int rows = image.rows, cols = image.cols;
+    mask.create(rows, cols, CV_8UC1);
+    int minusThresh = -thresh;
+    for (int i = 0; i < rows; i++)
+    {
+        const short* ptrGrad = grad16S.ptr<short>(i);
+        unsigned char* ptrMask = mask.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            short g = *(ptrGrad++);
+            *(ptrMask++) = (g >= minusThresh && g <= thresh) ? 255 : 0;            
         }
     }
 }
@@ -394,6 +416,13 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
 
     std::vector<cv::Mat> outMasks;
     getIntsctMasksAroundDistTransSeams(masks, outMasks);
+
+    //cv::Mat gradSmallMask, blur, grad;
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    isGradSmall(grayImages[i], 4, gradSmallMask, blur, grad);
+    //    outMasks[i] &= gradSmallMask;
+    //}
 
     std::vector<double> gains;
     getTransformsGrayPairWiseMutualError(grayImages, outMasks, gains);
