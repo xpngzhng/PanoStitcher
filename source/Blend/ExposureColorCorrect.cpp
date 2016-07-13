@@ -192,6 +192,17 @@ bool ExposureColorCorrect::correctColorExposure(const std::vector<cv::Mat>& imag
     return true;
 }
 
+void ExposureColorCorrect::clear()
+{
+    prepareSuccess = 0;
+    numImages = 0;
+    rows = 0;
+    cols = 0;
+    origMasks.clear();
+    splitExtendMasks.clear();
+    transImages.clear();
+}
+
 bool ExposureColorCorrect::getExposureLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts)
 {
     luts.clear();

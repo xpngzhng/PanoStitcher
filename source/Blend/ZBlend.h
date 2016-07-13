@@ -300,6 +300,7 @@ public:
     bool correctExposureAndWhiteBalance(const std::vector<cv::Mat>& images, std::vector<double>& exposures, 
         std::vector<double>& redRatios, std::vector<double>& blueRatios);
     bool correctColorExposure(const std::vector<cv::Mat>& images, std::vector<std::vector<double> >& exposures);
+    void clear();
     static bool getExposureLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
     static bool getExposureAndWhiteBalanceLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios, 
         const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);

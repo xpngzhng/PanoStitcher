@@ -1801,3 +1801,15 @@ bool ImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::vector
     bool ok = corrector.correctExposure(reprojImages, exposures);
     return ok;
 }
+
+void ImageVisualCorrect::clear()
+{
+    corrector.clear();
+    maps.clear();
+    numImages = 0;
+    srcWidth = 0;
+    srcHeight = 0;
+    equiRectWidth = 0;
+    equiRectHeight = 0;
+    success = 0;
+}

@@ -337,6 +337,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderThread->join();
         renderThread.reset(0);
         render.clear();
+        correct.clear();
         //postProcThread->join();
         //postProcThread.reset(0);
         renderPrepareSuccess = 0;

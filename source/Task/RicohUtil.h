@@ -291,6 +291,7 @@ public:
     ImageVisualCorrect() : numImages(0), srcWidth(0), srcHeight(0), equiRectWidth(0), equiRectHeight(0), success(0) {};
     bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
     bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+    void clear();
 
 private:
     ExposureColorCorrect corrector;
