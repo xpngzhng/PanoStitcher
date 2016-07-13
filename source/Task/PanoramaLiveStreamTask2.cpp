@@ -75,8 +75,6 @@ struct PanoramaLiveStreamTask2::Impl
     void procVideo();
 
     CudaLogoFilter logoFilter;
-    //std::unique_ptr<std::thread> postProcThread;
-    //void postProc();
 
     avp::AudioVideoWriter3 streamWriter;
     std::string streamURL;
@@ -139,10 +137,7 @@ struct PanoramaLiveStreamTask2::Impl
     int allowGetSyncedFramesBufferForShow;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
-    //AudioVideoFramePool procFramePool;
     CudaHostMemVideoFrameMemoryPool procFramePool, sendFramePool, saveFramePool;
-    //ForShowFrameQueue procFrameBufferForShow;
-    //ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
     ForShowMixedFrameQueue procFrameBufferForShow;
     ForceWaitMixedFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 };
@@ -338,8 +333,6 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderThread.reset(0);
         render.clear();
         correct.clear();
-        //postProcThread->join();
-        //postProcThread.reset(0);
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
         procFramePool.clear();
@@ -977,41 +970,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-//void PanoramaLiveStreamTask2::Impl::postProc()
-//{
-//    size_t id = std::this_thread::get_id().hash();
-//    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
-//
-//    avp::AudioVideoFrame2 frame;
-//    while (true)
-//    {
-//        if (finish || renderEndFlag)
-//            break;
-//
-//        procFramePool.get(frame);
-//        cv::Mat result(frame.height, frame.width, elemType, frame.data[0], frame.steps[0]);
-//
-//        if (!render.getResult(result, frame.timeStamp))
-//            continue;
-//
-//        //ztool::Timer timer;
-//        logoFilter.addLogo(result);
-//        procFrameBufferForShow.push(frame);
-//        if (streamOpenSuccess)
-//            procFrameBufferForSend.push(frame);
-//        if (fileConfigSet)
-//            procFrameBufferForSave.push(frame);
-//        //timer.end();
-//        //ptlprintf("%f\n", timer.elapse());
-//    }
-//
-//    //procFrameBufferForShow.stop();
-//    procFrameBufferForSend.stop();
-//    procFrameBufferForSave.stop();
-//
-//    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
-//}
-
 void PanoramaLiveStreamTask2::Impl::streamSend()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -1036,31 +994,6 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
                 break;
             }
         }
-        /*
-        if (frame.data[0])
-        {
-            avp::AudioVideoFrame2 shallow;
-            //ptlprintf("%s, %lld\n", frame.mediaType == avp::VIDEO ? "VIDEO" : "AUDIO", frame.timeStamp);
-            if (frame.mediaType == avp::VIDEO && streamFrameSize != renderFrameSize)
-            {
-                cv::Mat srcMat(renderFrameSize, elemType, frame.data[0], frame.steps[0]);
-                cv::resize(srcMat, dstMat, streamFrameSize, 0, 0, cv::INTER_NEAREST);
-                unsigned char* data[4] = { dstMat.data };
-                int steps[4] = { dstMat.step };
-                shallow = avp::AudioVideoFrame2(data, steps, pixelType, dstMat.cols, dstMat.rows, frame.timeStamp);
-            }
-            else
-                shallow = frame;
-            bool ok = streamWriter.write(shallow);
-            if (!ok)
-            {
-                ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
-                setAsyncErrorMessage("推流发生错误，任务终止。");
-                finish = 1;
-                break;
-            }
-        }
-        */
     }
     streamWriter.close();
 
@@ -1143,19 +1076,6 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
                     appendLog(std::string(buf) + " " + getText(TI_BEGIN_WRITE) + "\n");
                 fileFirstTimeStamp = frame.frame.timeStamp;
             }
-            /*
-            avp::AudioVideoFrame2 shallow;
-            if (frame.mediaType == avp::VIDEO && fileFrameSize != renderFrameSize)
-            {
-                cv::Mat srcMat(renderFrameSize, elemType, frame.data[0], frame.steps[0]);
-                cv::resize(srcMat, dstMat, fileFrameSize, 0, 0, cv::INTER_NEAREST);
-                unsigned char* data[4] = { dstMat.data };
-                int steps[4] = { dstMat.step };
-                shallow = avp::AudioVideoFrame2(data, steps, pixelType, dstMat.cols, dstMat.rows, frame.timeStamp);
-            }
-            else
-                shallow = frame;
-            */
 
             ok = writer.write(frame.frame);
             if (!ok)
