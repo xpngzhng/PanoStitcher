@@ -634,10 +634,10 @@ bool PanoramaLiveStreamTask::Impl::openLiveStream(const std::string& name,
     streamVideoBitRate = videoBPS;
     streamVideoEncodePreset = videoPreset;
     streamAudioBitRate = audioBPS;
-    if (streamVideoEncodePreset != "ultrafast" || streamVideoEncodePreset != "superfast" ||
-        streamVideoEncodePreset != "veryfast" || streamVideoEncodePreset != "faster" ||
-        streamVideoEncodePreset != "fast" || streamVideoEncodePreset != "medium" || streamVideoEncodePreset != "slow" ||
-        streamVideoEncodePreset != "slower" || streamVideoEncodePreset != "veryslow")
+    if (streamVideoEncodePreset != "ultrafast" && streamVideoEncodePreset != "superfast" &&
+        streamVideoEncodePreset != "veryfast" && streamVideoEncodePreset != "faster" &&
+        streamVideoEncodePreset != "fast" && streamVideoEncodePreset != "medium" && streamVideoEncodePreset != "slow" &&
+        streamVideoEncodePreset != "slower" && streamVideoEncodePreset != "veryslow")
         streamVideoEncodePreset = "veryfast";
 
     std::vector<avp::Option> writerOpts;
@@ -719,10 +719,10 @@ bool PanoramaLiveStreamTask::Impl::beginSaveToDisk(const std::string& dir, int w
     fileDuration = fileDurationInSeconds;
     if (fileVideoEncoder != "h264" && fileVideoEncoder != "h264_qsv")
         fileVideoEncoder = "h264";
-    if (fileVideoEncodePreset != "ultrafast" || fileVideoEncodePreset != "superfast" ||
-        fileVideoEncodePreset != "veryfast" || fileVideoEncodePreset != "faster" ||
-        fileVideoEncodePreset != "fast" || fileVideoEncodePreset != "medium" || fileVideoEncodePreset != "slow" ||
-        fileVideoEncodePreset != "slower" || fileVideoEncodePreset != "veryslow")
+    if (fileVideoEncodePreset != "ultrafast" && fileVideoEncodePreset != "superfast" &&
+        fileVideoEncodePreset != "veryfast" && fileVideoEncodePreset != "faster" &&
+        fileVideoEncodePreset != "fast" && fileVideoEncodePreset != "medium" && fileVideoEncodePreset != "slow" &&
+        fileVideoEncodePreset != "slower" && fileVideoEncodePreset != "veryslow")
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
 

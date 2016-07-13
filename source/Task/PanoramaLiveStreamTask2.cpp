@@ -435,10 +435,10 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
     streamVideoBitRate = videoBPS;
     streamVideoEncodePreset = videoPreset;
     streamAudioBitRate = audioBPS;
-    if (streamVideoEncodePreset != "ultrafast" || streamVideoEncodePreset != "superfast" ||
-        streamVideoEncodePreset != "veryfast" || streamVideoEncodePreset != "faster" ||
-        streamVideoEncodePreset != "fast" || streamVideoEncodePreset != "medium" || streamVideoEncodePreset != "slow" ||
-        streamVideoEncodePreset != "slower" || streamVideoEncodePreset != "veryslow")
+    if (streamVideoEncodePreset != "ultrafast" && streamVideoEncodePreset != "superfast" &&
+        streamVideoEncodePreset != "veryfast" && streamVideoEncodePreset != "faster" &&
+        streamVideoEncodePreset != "fast" && streamVideoEncodePreset != "medium" && streamVideoEncodePreset != "slow" &&
+        streamVideoEncodePreset != "slower" && streamVideoEncodePreset != "veryslow")
         streamVideoEncodePreset = "veryfast";
 
     std::vector<avp::Option> writerOpts;
@@ -556,12 +556,15 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     fileDuration = fileDurationInSeconds;
     if (fileVideoEncoder != "h264" && fileVideoEncoder != "h264_qsv" && fileVideoEncoder != "nvenc_h264")
         fileVideoEncoder = "h264";
-    if (fileVideoEncodePreset != "ultrafast" || fileVideoEncodePreset != "superfast" ||
-        fileVideoEncodePreset != "veryfast" || fileVideoEncodePreset != "faster" ||
-        fileVideoEncodePreset != "fast" || fileVideoEncodePreset != "medium" || fileVideoEncodePreset != "slow" ||
-        fileVideoEncodePreset != "slower" || fileVideoEncodePreset != "veryslow")
+    if (fileVideoEncodePreset != "ultrafast" && fileVideoEncodePreset != "superfast" &&
+        fileVideoEncodePreset != "veryfast" && fileVideoEncodePreset != "faster" &&
+        fileVideoEncodePreset != "fast" && fileVideoEncodePreset != "medium" && fileVideoEncodePreset != "slow" &&
+        fileVideoEncodePreset != "slower" && fileVideoEncodePreset != "veryslow")
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
+
+    fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
+    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     procFrameBufferForSave.resume();
     fileEndFlag = 0;
@@ -570,9 +573,6 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
 
     //appendLog("启动保存视频任务\n");
     appendLog(getText(TI_WRITE_LAUNCH) + "\n");
-
-    fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
-    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     return true;
 }
