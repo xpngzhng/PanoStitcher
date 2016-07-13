@@ -28,7 +28,7 @@ static IndexTextsPair indexTextsPairs[] =
     TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE, { "写入视频失败，任务终止", "Could not write panorama video, task terminated" },
     TI_STITCH_FAIL_TASK_TERMINATE, { "视频拼接发生错误，任务终止", "Could not stitch panorama frame, task terminated" },
 
-    TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LANCH_NEW, { "音视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Audio video sources task is running, termiate current task before lanching a new one" },
+    TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "音视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Audio video sources task is running, termiate current task before lanching a new one" },
 
     TI_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Video sources task is running, terminate current task before launching a new one" },
     TI_VIDEO_SOURCE_EMPTY, { "视频源地址为空，请重新设定", "Video sources URLs are empty, please reset" },
@@ -54,9 +54,9 @@ static IndexTextsPair indexTextsPairs[] =
     TI_STITCH_TASK_FINISH, { "视频拼接任务结束", "Stitching task finished" },
 
     TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_LIVE, { "尚未打开音视频源，无法启动直播任务", "Video (and audio) sources have not been opened, cannot launch live stream task" },
-    TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE, { "尚未启动拼接任务，无法启动直播任务", "Stitching task has not been lanched, cannot launch live stream task" },
+    TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE, { "尚未启动拼接任务，无法启动直播任务", "Stitching task has not been launched, cannot launch live stream task" },
     TI_LIVE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "直播任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Live stream task is running, terminate current task before launching a new one" },
-    TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE, { "参数错误，无法启动推流任务", "Invalid pamameters, cannot lanch live stream task" },
+    TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE, { "参数错误，无法启动推流任务", "Invalid pamameters, cannot launch live stream task" },
     TI_SERVER_CONNECT_FAIL, { "流媒体服务器连接失败", "Could not connect stream media server" },
     TI_SERVER_CONNECT_SUCCESS, { "流媒体服务器连接成功", "Sucessfully connected stream media server" },
     TI_LIVE_TASK_LAUNCH_SUCCESS, { "直播任务启动", "Live stream task launched" },
@@ -64,13 +64,14 @@ static IndexTextsPair indexTextsPairs[] =
     TI_SERVER_DISCONNECT, { "流媒体服务器连接断开", "Disconnected stream media server" },
 
     TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_WRITE, { "尚未打开音视频源，无法启动保存任务", "Video (and audio) sources have not been opened, cannot launch saving to hard disk task" },
-    TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE, { "尚未启动拼接任务，无法启动保存任务", "Stitching task has not been lanched, cannot launch saving to hard disk task" },
+    TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE, { "尚未启动拼接任务，无法启动保存任务", "Stitching task has not been launched, cannot launch saving to hard disk task" },
     TI_WRITE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "保存任务正在进行中，请先关闭正在执行的任务，再启动新的任务。", "Saving to hard disk task is running, terminate current task before launching a new one" },
-    TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE, { "参数错误，无法启动保存任务", "Invalid pamameters, cannot lanch saving to hard disk task" },
+    TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE, { "参数错误，无法启动保存任务", "Invalid pamameters, cannot launch saving to hard disk task" },
     TI_WRITE_LAUNCH, { "保存任务启动", "Saving to hard disk task launched" },
     TI_WRITE_FINISH, { "保存任务结束", "Saving to hard disk task finished" },
 
     TI_SOURCE_NOT_OPENED_CANNOT_CORRECT, { "尚未打开音视频源，无法进行曝光校正", "Video (and audio) sources have not been opened, cannot apply exposure correction" },
+    TI_STITCH_NOT_RUNNING_CANNOT_CORRECT, { "尚未启动拼接任务，无法进行曝光校正", "Stitching task has not been launched, cannot apply exposure correction" },
     TI_LIVE_RUNNING_CLOSE_BEFORE_CORRECT, { "直播任务正在进行中，清先关闭直播任务，再进行曝光校正", "Live stream task is running, terminate it before applying exposure correction" },
     TI_WRITE_RUNNING_CLOSE_BEFORE_CORRECT, { "保存任务正在进行中，请先关闭保存任务，再进行曝光校正", "Saving to hard disk task is running, terminate it before applying exposure correction" },
     TI_CORRECT_FAIL, { "曝光校正失败", "Exposure correction failed\n" },

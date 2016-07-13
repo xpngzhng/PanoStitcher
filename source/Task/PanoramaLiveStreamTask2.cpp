@@ -164,7 +164,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
     {
         ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
         //syncErrorMessage = "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务。";
-        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LANCH_NEW);
+        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
 
@@ -188,7 +188,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
     if (audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LANCH_NEW);
+        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
 
@@ -605,16 +605,23 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
         return false;
     }
 
+    if (!renderPrepareSuccess || renderThreadJoined)
+    {
+        ptlprintf("Error in %s, render not running, cannot apply exposure correct\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_CORRECT);
+        return false;
+    }
+
     if (!streamThreadJoined)
     {
-        ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        ptlprintf("Error in %s, live streaming running, stop before applying exposure correct\n", __FUNCTION__);
         syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_CORRECT);
         return false;
     }
 
     if (!fileThreadJoined)
     {
-        ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        ptlprintf("Error in %s, saving to disk running, stop before applying exposure correct\n", __FUNCTION__);
         syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_CORRECT);
         return false;
     }
