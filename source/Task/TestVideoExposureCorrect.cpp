@@ -79,20 +79,20 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
 // main 1
 int main()
 {
-    std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
+    std::string configFileName = "F:\\panovideo\\test\\SP7\\gopro.pvs"
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
-        "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/;
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
     loadVideoFileNamesAndOffset(configFileName, fileNames, offsets);
 
     int numVideos = fileNames.size();
-    int globalOffset = 3000/*1095*/;
-    //int globalOffset = 0;
+    //int globalOffset = 3000/*1095*/;
+    int globalOffset = 0;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
-    int readSkipCount = 3;
+    int readSkipCount = 0;
 
     std::vector<avp::AudioVideoReader3> readers;
     cv::Size srcSize;
