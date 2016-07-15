@@ -300,6 +300,8 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
+    ptlprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
+        __FUNCTION__, width, height, highQualityBlend);
     //appendLog("视频拼接初始化成功\n");
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
@@ -445,7 +447,8 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
     {
-        ptlprintf("Could not open streaming url with frame rate = %f and bit rate = %d\n", videoFrameRate, streamVideoBitRate);
+        ptlprintf("Error in %s, Could not open streaming url with frame rate = %f and bit rate = %d\n", 
+            __FUNCTION__, videoFrameRate, streamVideoBitRate);
         //appendLog("流媒体服务器连接失败\n");
         //syncErrorMessage = "流媒体服务器连接失败。";
         appendLog(getText(TI_SERVER_CONNECT_FAIL) + "\n");
@@ -453,6 +456,8 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         return false;
     }
 
+    ptlprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
+        __FUNCTION__, streamURL.c_str(), streamPanoType, streamFrameSize.width, streamFrameSize.height);
     //appendLog("流媒体服务器连接成功\n");
     appendLog(getText(TI_SERVER_CONNECT_SUCCESS) + "\n");
 
@@ -475,8 +480,8 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
         procFrameBufferForSend.stop();
         streamThread->join();
         streamThread.reset(0);
-        streamOpenSuccess = 0;
         streamThreadJoined = 1;
+        streamOpenSuccess = 0;
         sendFramePool.clear();
 
         //appendLog("推流任务结束\n");
@@ -536,6 +541,9 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         fileYMap.upload(ymap);
     }
 
+    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
+    fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
+
     fileDir = dir;
     if (fileDir.back() != '\\' && fileDir.back() != '/')
         fileDir.append("/");
@@ -556,8 +564,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
 
-    fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
-    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
+    ptlprintf("Info in %s, save to disk params: dir %s, pano type %d, width %d, height %d\n",
+        __FUNCTION__, fileDir.c_str(), filePanoType, fileFrameSize.width, fileFrameSize.height);
 
     procFrameBufferForSave.resume();
     fileEndFlag = 0;
@@ -982,7 +990,15 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
         if (finish || streamEndFlag)
             break;
         procFrameBufferForSend.pull(frame);
-        if (frame.frame.data[0] && (frame.frame.mediaType == avp::AUDIO || frame.frame.mediaType == avp::VIDEO))
+        // IMPORTANT NOTICE!!!
+        // We should check the frame width and height, frame size may change from one live stream task to another.
+        // But I DO NOT CLEAR THE BUFFER in the procVideo thread, since it is very difficult.
+        // Examining the frame size before sending it to the writer is much more easy.
+        // The frame which size does not match is discarded.
+        if (frame.frame.data[0] && 
+            (frame.frame.mediaType == avp::AUDIO || 
+             (frame.frame.mediaType == avp::VIDEO && 
+              frame.frame.width == streamFrameSize.width && frame.frame.height == streamFrameSize.height)))
         {
             bool ok = streamWriter.write(frame.frame);
             if (!ok)
@@ -1044,7 +1060,15 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             break;
         procFrameBufferForSave.pull(frame);
         //printf("pass pull frame\n");
-        if (frame.frame.data[0] && (frame.frame.mediaType == avp::AUDIO || frame.frame.mediaType == avp::VIDEO))
+        // IMPORTANT NOTICE!!!
+        // We should check the frame width and height, frame size may change from one saving to disk task to another.
+        // But I DO NOT CLEAR THE BUFFER in the procVideo thread, since it is very difficult.
+        // Examining the frame size before sending it to the writer is much more easy.
+        // The frame which size does not match is discarded.
+        if (frame.frame.data[0] && 
+            (frame.frame.mediaType == avp::AUDIO || 
+             (frame.frame.mediaType == avp::VIDEO &&
+              frame.frame.width == fileFrameSize.width && frame.frame.height == fileFrameSize.height)))
         {
             if (fileFirstTimeStamp < 0)
                 fileFirstTimeStamp = frame.frame.timeStamp;
