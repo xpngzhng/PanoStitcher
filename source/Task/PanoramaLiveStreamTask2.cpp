@@ -848,11 +848,11 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             {
                 getLuts(localLookUpTables);
                 //procTimer.start();
-                ok = render.render(src, timeStamps, bgr32, localLookUpTables);
+                ok = render.render(src, bgr32, localLookUpTables);
                 //procTimer.end();
             }
             else
-                ok = render.render(src, timeStamps, bgr32);
+                ok = render.render(src, bgr32);
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
