@@ -248,27 +248,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
-    syncedFramesBufferForProc.clear();
-    if (!highQualityBlend)
-    {
-        std::vector<cv::cuda::HostMem> mems;
-        std::vector<long long int> timeStamps;
-        syncedFramesBufferForProc.pull(mems, timeStamps);
-        std::vector<cv::Mat> images(numVideos);
-        for (int i = 0; i < numVideos; i++)
-            images[i] = mems[i].createMatHeader();
-        renderPrepareSuccess = render.exposureCorrect(images);
-        if (!renderPrepareSuccess)
-        {
-            ptlprintf("Error in %s, exposure correction failed\n", __FUNCTION__);
-            //appendLog("视频拼接初始化失败\n");
-            //syncErrorMessage = "视频拼接初始化失败。";
-            appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
-        }
-    }
-
     if (render.getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
@@ -305,6 +284,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     //appendLog("视频拼接初始化成功\n");
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
+    syncedFramesBufferForProc.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSave.clear();
     procFrameBufferForSend.clear();

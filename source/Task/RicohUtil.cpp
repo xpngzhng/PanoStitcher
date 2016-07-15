@@ -1174,169 +1174,8 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
     return true;
 }
 
-bool CudaPanoramaRender2::exposureCorrect(const std::vector<cv::Mat>& images)
-{
-    if (!success)
-    {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
-        return false;
-    }
-
-    if (highQualityBlend)
-    {
-        ptlprintf("Error in %s, this function only used for linear blend, not high quality blend\n", __FUNCTION__);
-        return false;
-    }
-
-    if (images.size() != numImages)
-    {
-        ptlprintf("Error in %s, images.size %d, required %d, unmatch\n", images.size(), numImages);
-        return false;
-    }
-
-    luts.clear();
-
-    std::vector<cv::Mat> masks(numImages), imagesC3(numImages), reprojImagesC3(numImages);
-    for (int i = 0; i < numImages; i++)
-        cv::cvtColor(images[i], imagesC3[i], CV_BGRA2BGR);
-    reproject(imagesC3, reprojImagesC3, masks, params, dstSize);
-
-    MultibandBlendGainAdjust adjust;
-    bool ok = false;
-    ok = adjust.prepare(masks, 50);
-    if (!ok)
-    {
-        ptlprintf("Error in %s, prepare for gain ajust failed\n", __FUNCTION__);
-        return false;
-    }
-    
-    // cv::fitLine may fail, especially when reprojImagesC3 are black images
-    try
-    {
-        ok = adjust.calcGain(reprojImagesC3, luts);
-    }
-    catch (...)
-    {
-        ok = false;
-    }
-    if (!ok)
-    {
-        luts.clear();
-        ptlprintf("Error in %s, calc gain failed, no gain adjust, program goes on\n", __FUNCTION__);
-        return true;
-    }
-
-    bool identity = true;
-    for (int i = 0; i < numImages; i++)
-    {
-        bool currIdentity = true;
-        for (int j = 0; j < 256; j++)
-        {
-            if (abs(int(luts[i][j]) - j) > 2)
-            {
-                currIdentity = false;
-                break;
-            }
-        }
-        if (!currIdentity)
-        {
-            identity = false;
-            break;
-        }
-    }
-    if (identity)
-    {
-        luts.clear();
-        ptlprintf("Info in %s, gain adjust produced almost identity transform, look up tables cleared\n");
-    }
-
-    return true;
-}
-
-bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst)
-{
-    if (!success)
-    {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
-        return false;
-    }
-
-    if (src.size() != numImages)
-    {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
-        return false;
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        if (src[i].size() != srcSize)
-        {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
-                __FUNCTION__, i, src[i].size().width, src[i].size().height,
-                srcSize.width, srcSize.height);
-            return false;
-        }
-
-        if (src[i].type() != CV_8UC4)
-        {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
-            return false;
-        }
-
-    }
-
-    try
-    {
-        if (!highQualityBlend)
-        {
-            accumGPU.setTo(0);
-            srcImagesGPU.resize(numImages);
-            reprojImagesGPU.resize(numImages);
-            for (int i = 0; i < numImages; i++)
-                srcImagesGPU[i].upload(src[i], streams[i]);
-            if (!luts.empty())
-            {
-                for (int i = 0; i < numImages; i++)
-                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
-            }
-            for (int i = 0; i < numImages; i++)
-                cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                streams[i].waitForCompletion();
-            accumGPU.convertTo(dst, CV_8U);
-        }
-        else
-        {
-            srcImagesGPU.resize(numImages);
-            reprojImagesGPU.resize(numImages);
-            // Add the following two lines to prevent exception if dstSize is around (1200, 600)
-            //for (int i = 0; i < numImages; i++)
-            //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
-            // Further test shows that the above two lines cannot prevent cuda runtime
-            // from throwing exception, so they are commented.
-            // It seems that the only way to avoid exception is to call 
-            // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
-            // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
-            for (int i = 0; i < numImages; i++)
-                srcImagesGPU[i].upload(src[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                streams[i].waitForCompletion();
-
-            mbBlender.blend(reprojImagesGPU, dst);
-        }
-    }
-    catch (std::exception& e)
-    {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
-        return false;
-    }
-
-    return true;
-}
-
-bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst)
+bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst,
+    const std::vector<std::vector<unsigned char> >& luts)
 {
     if (!success)
     {
@@ -1365,8 +1204,24 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
             ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
-
     }
+
+    bool correct = true;
+    if (luts.size() != numImages)
+        correct = false;
+    if (luts.size() == numImages)
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            if (luts[i].size() != 256)
+            {
+                correct = false;
+                break;
+            }
+        }
+    }
+    if (!correct && luts.size())
+        ptlprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
 
     try
     {
@@ -1377,7 +1232,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
             reprojImagesGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 srcImagesGPU[i].upload(src[i], streams[i]);
-            if (!luts.empty())
+            if (correct)
             {
                 for (int i = 0; i < numImages; i++)
                     cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
@@ -1402,6 +1257,11 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
             // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
             for (int i = 0; i < numImages; i++)
                 srcImagesGPU[i].upload(src[i], streams[i]);
+            if (correct)
+            {
+                for (int i = 0; i < numImages; i++)
+                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+            }
             for (int i = 0; i < numImages; i++)
                 cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
             for (int i = 0; i < numImages; i++)
@@ -1440,6 +1300,111 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vec
     return true;
 }
 
+bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
+    const std::vector<std::vector<unsigned char> >& luts)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (src.size() != numImages)
+    {
+        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        return false;
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+        {
+            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height,
+                srcSize.width, srcSize.height);
+            return false;
+        }
+
+        if (src[i].type() != CV_8UC4)
+        {
+            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            return false;
+        }
+    }
+
+    bool correct = true;
+    if (luts.size() != numImages)
+        correct = false;
+    if (luts.size() == numImages)
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            if (luts[i].size() != 256)
+            {
+                correct = false;
+                break;
+            }
+        }
+    }
+    if (!correct && luts.size())
+        ptlprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
+
+    try
+    {
+        if (!highQualityBlend)
+        {
+            accumGPU.setTo(0);
+            srcImagesGPU.resize(numImages);
+            reprojImagesGPU.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                srcImagesGPU[i].upload(src[i], streams[i]);
+            if (correct)
+            {
+                for (int i = 0; i < numImages; i++)
+                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+            }
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                streams[i].waitForCompletion();
+            accumGPU.convertTo(dst, CV_8U);
+        }
+        else
+        {
+            srcImagesGPU.resize(numImages);
+            reprojImagesGPU.resize(numImages);
+            // Add the following two lines to prevent exception if dstSize is around (1200, 600)
+            //for (int i = 0; i < numImages; i++)
+            //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
+            // Further test shows that the above two lines cannot prevent cuda runtime
+            // from throwing exception, so they are commented.
+            // It seems that the only way to avoid exception is to call 
+            // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
+            // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
+            for (int i = 0; i < numImages; i++)
+                srcImagesGPU[i].upload(src[i], streams[i]);
+            if (correct)
+            {
+                for (int i = 0; i < numImages; i++)
+                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+            }
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+            for (int i = 0; i < numImages; i++)
+                streams[i].waitForCompletion();
+
+            mbBlender.blend(reprojImagesGPU, dst);
+        }
+    }
+    catch (std::exception& e)
+    {
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
+    }
+
+    return true;
+}
+
 void CudaPanoramaRender2::clear()
 {
     params.clear();
@@ -1453,7 +1418,6 @@ void CudaPanoramaRender2::clear()
     reprojImagesGPU.clear();
     weightsGPU.clear();
     streams.clear();
-    luts.clear();
     highQualityBlend = 0;
     numImages = 0;
     success = 0;

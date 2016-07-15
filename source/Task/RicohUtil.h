@@ -195,9 +195,10 @@ public:
     ~CudaPanoramaRender2() { };
     bool prepare(const std::string& path, const std::string& customMaskPath,
         int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool exposureCorrect(const std::vector<cv::Mat>& images);
-    bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst);
-    bool render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst);
+    bool render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst,
+        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
+    bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
+        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
     void clear();
     int getNumImages() const;
 private:
@@ -214,7 +215,6 @@ private:
     CudaTilingMultibandBlendFast mbBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;
     cv::cuda::GpuMat accumGPU;
-    std::vector<std::vector<unsigned char> > luts;
     int numImages;
     int success;
 };
