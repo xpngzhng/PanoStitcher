@@ -541,8 +541,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         fileYMap.upload(ymap);
     }
 
-    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
     fileIsLibX264 = (fileVideoEncoder == "h264" || fileVideoEncoder == "libx264") ? 1 : 0;
+    saveFramePool.init(fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, width, height);
 
     fileDir = dir;
     if (fileDir.back() != '\\' && fileDir.back() != '/')
@@ -998,6 +998,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
         if (frame.frame.data[0] && 
             (frame.frame.mediaType == avp::AUDIO || 
              (frame.frame.mediaType == avp::VIDEO && 
+              (streamIsLibX264 ? (frame.frame.pixelType == avp::PixelTypeYUV420P) : (frame.frame.pixelType == avp::PixelTypeNV12)) &&
               frame.frame.width == streamFrameSize.width && frame.frame.height == streamFrameSize.height)))
         {
             bool ok = streamWriter.write(frame.frame);
@@ -1067,7 +1068,8 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         // The frame which size does not match is discarded.
         if (frame.frame.data[0] && 
             (frame.frame.mediaType == avp::AUDIO || 
-             (frame.frame.mediaType == avp::VIDEO &&
+             (frame.frame.mediaType == avp::VIDEO && 
+              (fileIsLibX264 ? (frame.frame.pixelType == avp::PixelTypeYUV420P) : (frame.frame.pixelType == avp::PixelTypeNV12)) &&
               frame.frame.width == fileFrameSize.width && frame.frame.height == fileFrameSize.height)))
         {
             if (fileFirstTimeStamp < 0)
