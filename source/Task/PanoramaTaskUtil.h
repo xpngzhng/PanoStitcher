@@ -25,20 +25,22 @@ void ptlprintf(const char* format, ...);
 
 struct IntervaledContour
 {
+    int videoIndex;
     int width;
     int height;
-    double begIncInMilliSec;
-    double endExcInMilliSec;
+    int begIndexInc;
+    int endIndexInc;
     std::vector<std::vector<cv::Point> > contours;
 };
 
 struct IntervaledMask
 {
-    IntervaledMask() : begInc(-1LL), endExc(-1LL) {};
-    IntervaledMask(long long int begInc_, long long int endExc_, const cv::Mat& mask_)
-        : begInc(begInc_), endExc(endExc_), mask(mask_) {};
-    long long int begInc;
-    long long int endExc;
+    IntervaledMask() : begIndexInc(-1), endIndexInc(-1) {};
+    IntervaledMask(int index_, int begInc_, int endExc_, const cv::Mat& mask_)
+        : videoIndex(index_), begIndexInc(begInc_), endIndexInc(endExc_), mask(mask_) {};
+    int videoIndex;
+    int begIndexInc;
+    int endIndexInc;
     cv::Mat mask;
 };
 
@@ -51,9 +53,9 @@ struct CustomIntervaledMasks
     CustomIntervaledMasks() : width(0), height(0), initSuccess(0) {};
     void reset();
     bool init(int width, int height);
-    bool getMask(long long int time, cv::Mat& mask) const;
-    bool addMask(long long int begInc, long long int endExc, const cv::Mat& mask);
-    void clearMask(long long int begInc, long long int endExc, long long int precision = 1000);
+    bool getMask2(int index, cv::Mat& mask) const;
+    bool addMask2(int begIndexInc, int endIndexInc, const cv::Mat& mask);
+    void clearMask2(int begIndexInc, int endIndexInc);
     void clearAllMasks();
 
     int width, height;
@@ -61,10 +63,25 @@ struct CustomIntervaledMasks
     int initSuccess;
 };
 
+struct GeneralMasks
+{
+    GeneralMasks() : width(0), height(0), initSuccess(0) {};
+    void reset();
+    bool init(const std::vector<cv::Mat>& masks);
+    bool getMasks(const std::vector<int>& frameIndexes, std::vector<cv::Mat>& masks);
+    bool addMasks(const std::vector<IntervaledMask>& masks);
+
+    int width, height;
+    int numVideos;
+    std::vector<std::vector<IntervaledMask> > customMasks;
+    std::vector<cv::Mat> defaultMasks;
+    int initSuccess;
+};
+
 bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,
     CPUPanoramaPreviewTask& task);
 
-bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task,
+bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task, const std::vector<int>& offsets, 
     std::vector<std::vector<IntervaledContour> >& contours);
 
 bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::string>& videoFileNames, std::vector<int>& offsets);
@@ -73,5 +90,3 @@ bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector
 
 bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& contours, 
     const std::vector<cv::Mat>& boundedMasks, std::vector<CustomIntervaledMasks>& customMasks);
-
-

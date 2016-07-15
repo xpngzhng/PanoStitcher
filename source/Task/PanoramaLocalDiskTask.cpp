@@ -137,12 +137,17 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
             return false;
         }
-        if (contours.size() != numVideos)
-        {
-            ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
-            return false;
-        }
+        // Notice !! 
+        // For new implementation of loadIntervaledContours, the two level vectors
+        // are num intervals x num videos in each interval, instead of
+        // num videos x num intervals of each video,
+        // so the following if condition should be deleted
+        //if (contours.size() != numVideos)
+        //{
+        //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+        //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        //    return false;
+        //}
         if (!cvtContoursToMasks(contours, dstMasks, customMasks))
         {
             ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
@@ -269,7 +274,7 @@ void CPUPanoramaLocalDiskTask::Impl::run()
                 currMasks.resize(numVideos);
                 for (int i = 0; i < numVideos; i++)
                 {
-                    if (customMasks[i].getMask(frames[i].timeStamp, currMasks[i]))
+                    if (customMasks[i].getMask2(frames[i].frameIndex, currMasks[i]))
                         custom = true;
                     else
                         currMasks[i] = dstUniqueMasks[i];
@@ -491,6 +496,7 @@ struct StampedPinnedMemoryVector
 {
     std::vector<cv::cuda::HostMem> frames;
     std::vector<long long int> timeStamps;
+    std::vector<int> frameIndexes;
 };
 
 typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBuffer;
@@ -817,6 +823,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
         unsigned char* data[4] = { 0 };
         int steps[4] = { 0 };
 
+        videoFrames.frameIndexes.resize(numVideos);
         videoFrames.timeStamps.resize(numVideos);
         videoFrames.frames.resize(numVideos);
 
@@ -835,7 +842,10 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
                 continue;
             }
             else if (mediaType == avp::VIDEO)
+            {
                 videoFrames.timeStamps[audioIndex] = videoFrame.timeStamp;
+                videoFrames.frameIndexes[audioIndex] = videoFrame.frameIndex;
+            }
             else
                 break;
         }
@@ -856,7 +866,10 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
                 break;
             }
             if (mediaType == avp::VIDEO)
+            {
                 videoFrames.timeStamps[i] = videoFrame.timeStamp;
+                videoFrames.frameIndexes[i] = videoFrame.frameIndex;
+            }
             else
             {
                 successRead = false;
@@ -910,7 +923,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
-        bool ok = render.render(images, srcFrames.timeStamps, bgr32);
+        bool ok = render.render(images, srcFrames.frameIndexes, bgr32);
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);

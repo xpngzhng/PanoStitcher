@@ -77,13 +77,14 @@ int main(int argc, char* argv[])
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
-    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguan.xml";
+    std::string projFileName = "F:\\panovideo\\test\\colorgrid\\colorgrid.xml"
+        /*"F:\\panovideo\\test\\test1\\haiyangguan.xml"*/;
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaPreviewTask> task;
-    if (parser.get<bool>("use_cuda"))
-        task.reset(new CudaPanoramaPreviewTask);
-    else
+    //if (parser.get<bool>("use_cuda"))
+    //    task.reset(new CudaPanoramaPreviewTask);
+    //else
         task.reset(new CPUPanoramaPreviewTask);
 
     bool ok = task->init(srcVideoNames, projFileName, dstSize.width, dstSize.height);
@@ -111,10 +112,35 @@ int main(int argc, char* argv[])
         cpuTask->getMasks(masks);
         cpuTask->getUniqueMasks(uniqueMasks);
 
-        setIntervaledContoursToPreviewTask(contours, *cpuTask);
+        //setIntervaledContoursToPreviewTask(contours, *cpuTask);
         //for (int i = 0; i < masks.size(); i++)
-        //    cpuTask->setCustomMaskForOne(i, -1000000.0 / 48 * 200, 1000000.0 / 48 * 100, masks[i]);
-        //getIntervaledContoursFromPreviewTask(*cpuTask, contours);
+        //    cpuTask->setCustomMaskForOne(i, -200, 100, masks[i]);
+        int videoIndex;
+        int begIndex, endIndex;
+        
+        begIndex = 10, endIndex = 50;
+        videoIndex = 0;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+        videoIndex = 1;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+
+        begIndex = 70, endIndex = 90;
+        for (int i = 0; i < masks.size(); i++)
+            cpuTask->setCustomMaskForOne(i, offset[i] + begIndex, offset[i] + endIndex, masks[i]);
+
+        begIndex = 100, endIndex = 150;
+        videoIndex = 0;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+        videoIndex = 1;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+        videoIndex = 3;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+        videoIndex = 4;
+        cpuTask->setCustomMaskForOne(videoIndex, offset[videoIndex] + begIndex, offset[videoIndex] + endIndex, masks[videoIndex]);
+
+        getIntervaledContoursFromPreviewTask(*cpuTask, offset, contours);
+
+        int a = 0;
     }
 
     int numVideos = srcVideoNames.size();
@@ -143,10 +169,11 @@ int main(int argc, char* argv[])
         //for (int i = 0; i < numVideos; i++)
         //    cv::imshow(srcNames[i], src[i]);
         cv::imshow("render", dst);
-        int key = cv::waitKey(1);
+        int key = cv::waitKey(0);
         if (key == 'q')
             break;
         stitchCount++;
+        printf("stitch count %d\n", stitchCount);
         if (stitchCount % 20 == 0)
         {
             t.end();

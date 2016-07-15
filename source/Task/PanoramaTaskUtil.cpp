@@ -92,7 +92,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
 
         if (hasOffsets)
         {
-            if (!readers[i].seek(1000000.0 * count / fps + 0.5, avp::VIDEO))
+            if (!readers[i].seekByIndex(count, avp::VIDEO))
             {
                 ptlprintf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
                 ok = false;
@@ -279,7 +279,7 @@ PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
     return oldFunc;
 }
 
-
+/*
 bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,
     CPUPanoramaPreviewTask& task)
 {
@@ -349,6 +349,130 @@ bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task,
     }
     if (!success)
         contours.clear();
+    return success;
+}
+*/
+
+bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,
+    CPUPanoramaPreviewTask& task)
+{
+    std::vector<cv::Mat> boundedMasks;
+    if (!task.getMasks(boundedMasks))
+        return false;
+
+    int numIntervals = contours.size();
+    int numVideos = boundedMasks.size();
+    bool success = true;
+    IntervaledMask currItvMask;
+    for (int i = 0; i < numIntervals; i++)
+    {
+        int num = contours[i].size();
+        for (int j = 0; j < num; j++)
+        {
+            int videoIndex = contours[i][j].videoIndex;
+            if (videoIndex < 0 || videoIndex >= numVideos)
+            {
+                success = false;
+                break;
+            }
+            if (!cvtContourToMask(contours[i][j], boundedMasks[videoIndex], currItvMask))
+            {
+                success = false;
+                break;
+            }
+            if (!task.setCustomMaskForOne(videoIndex, currItvMask.begIndexInc, currItvMask.endIndexInc, currItvMask.mask))
+            {
+                success = false;
+                break;
+            }
+        }
+        if (!success)
+            break;
+    }
+
+    return success;
+}
+
+bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task, const std::vector<int>& offsets,
+    std::vector<std::vector<IntervaledContour> >& contours)
+{
+    contours.clear();
+    if (!task.isValid())
+        return false;
+
+    int numVideos = task.getNumSourceVideos();
+    if (numVideos != offsets.size())
+        return false;
+
+    std::vector<std::vector<IntervaledContour> > contoursNumVideosMajor;
+    contoursNumVideosMajor.resize(numVideos);
+    std::vector<int> begIndexesInc, endIndexesInc;
+    std::vector<cv::Mat> masks;
+    bool success = true;
+    for (int i = 0; i < numVideos; i++)
+    {
+        if (task.getAllCustomMasksForOne(i, begIndexesInc, endIndexesInc, masks))
+        {
+            int len = begIndexesInc.size();
+            contoursNumVideosMajor[i].resize(len);
+            for (int j = 0; j < len; j++)
+            {
+                if (!cvtMaskToContour(IntervaledMask(i, begIndexesInc[j], endIndexesInc[j], masks[j]), contoursNumVideosMajor[i][j]))
+                {
+                    success = false;
+                    break;
+                }
+            }
+            if (!success)
+                break;
+        }
+        else
+        {
+            success = false;
+            break;
+        }
+    }
+    if (!success)
+        contours.clear();
+
+    for (int i = 0; i < numVideos; i++)
+    {
+        int numIntervals = contoursNumVideosMajor[i].size();
+        for (int j = 0; j < numIntervals; j++)
+        {
+            contoursNumVideosMajor[i][j].begIndexInc -= offsets[i];
+            contoursNumVideosMajor[i][j].endIndexInc -= offsets[i];
+        }
+    }
+
+    typedef std::vector<IntervaledContour>::iterator Iterator;
+    for (int i = 0; i < numVideos; i++)
+    {
+        for (Iterator itrI = contoursNumVideosMajor[i].begin(); itrI != contoursNumVideosMajor[i].end();)
+        {
+            std::vector<IntervaledContour> currContours;
+            for (int j = 0; j < numVideos; j++)
+            {
+                if (i == j)
+                    continue;
+                for (Iterator itrJ = contoursNumVideosMajor[j].begin(); itrJ != contoursNumVideosMajor[j].end();)
+                {
+                    if (itrI->begIndexInc == itrJ->begIndexInc &&
+                        itrI->endIndexInc == itrJ->endIndexInc)
+                    {
+                        if (currContours.empty())
+                            currContours.push_back(*itrI);
+                        currContours.push_back(*itrJ);
+                        itrJ = contoursNumVideosMajor[j].erase(itrJ);
+                    }
+                    else
+                        ++itrJ;
+                }
+            }
+            contours.push_back(currContours);
+            itrI = contoursNumVideosMajor[i].erase(itrI);
+        }
+    }
     return success;
 }
 
@@ -438,6 +562,7 @@ bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::s
     return success;
 }
 
+/*
 bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
 {
     contours.clear();
@@ -489,9 +614,9 @@ bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector
                 ptrElement = itrContour->FirstChildElement("Height");
                 ptrElement->GetText(&currContour.height);
                 ptrElement = itrContour->FirstChildElement("Begin");
-                ptrElement->GetText(&currContour.begIncInMilliSec);
+                ptrElement->GetText(&currContour.begIndexInc);
                 ptrElement = itrContour->FirstChildElement("End");
-                ptrElement->GetText(&currContour.endExcInMilliSec);
+                ptrElement->GetText(&currContour.endIndexInc);
 
                 Element* ptrPoints = itrContour->FirstChildElement("Points", false);
                 if (ptrPoints == NULL)
@@ -528,3 +653,109 @@ bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector
         contours.clear();
     return success;
 }
+*/
+
+bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
+{
+    contours.clear();
+
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* ptrRoot = doc.FirstChildElement("Root", false);
+    if (ptrRoot == NULL)
+        return false;
+
+    Element* ptrContours = ptrRoot->FirstChildElement("Contours", false);
+    if (ptrContours == NULL)
+        return true;
+
+    Element* ptrContour = ptrContours->FirstChildElement("Contour", false);
+    if (ptrContour == NULL)
+        return true;
+
+    bool success = true;
+    for (ticpp::Iterator<ticpp::Element> itrContour(ptrContour, "Contour"); itrContour != itrContour.end(); itrContour++)
+    {
+        std::string attrib;
+        int width, height, begIndexInc, endIndexInc;
+        attrib = itrContour->GetAttributeOrDefault("Width", "-1");
+        width = atoi(attrib.c_str());
+        attrib = itrContour->GetAttributeOrDefault("Height", "-1");
+        height = atoi(attrib.c_str());
+        attrib = itrContour->GetAttributeOrDefault("Begin", "-1");
+        begIndexInc = atoi(attrib.c_str());
+        attrib = itrContour->GetAttributeOrDefault("End", "-1");
+        endIndexInc = atoi(attrib.c_str());
+        if (width <= 0 || height <= 0 || begIndexInc < 0 || endIndexInc < 0)
+        {
+            success = false;
+            break;
+        }
+
+        std::vector<IntervaledContour> currContours;
+        Element* ptrVideo = itrContour->FirstChildElement("Video", false);
+        if (ptrVideo == NULL)
+            continue;
+
+        for (ticpp::Iterator<ticpp::Element> itrVideo(ptrContour, "Video"); itrContour != itrContour.end(); ++itrContour)
+        {
+            std::string attrib = itrVideo->GetAttributeOrDefault("ID", "-1");
+            int videoIndex = atoi(attrib.c_str());
+            if (videoIndex < 0)
+            {
+                success = false;
+                break;
+            }
+
+            IntervaledContour currContour;
+            try
+            {
+                Element* ptrPoints = itrVideo->FirstChildElement("Points", false);
+                if (ptrPoints == NULL)
+                    continue;
+                for (ticpp::Iterator<ticpp::Element> itrPoints(ptrPoints, "Points"); itrPoints != itrPoints.end(); ++itrPoints)
+                {
+                    std::string text = itrPoints->GetText(false);
+                    if (text.empty())
+                        continue;
+                    currContour.contours.resize(currContour.contours.size() + 1);
+                    if (!cvtStringToPoints(text, currContour.contours.back()))
+                    {
+                        success = false;
+                        break;
+                    }
+                }
+                if (!success)
+                    break;
+            }
+            catch (...)
+            {
+                success = false;
+                break;
+            }
+
+            currContour.videoIndex = videoIndex;
+            currContour.width = width;
+            currContour.height = height;
+            currContour.begIndexInc = begIndexInc;
+            currContour.endIndexInc = endIndexInc;
+            currContours.push_back(currContour);
+        }
+        if (!success)
+            break;
+
+        contours.push_back(currContours);
+    }
+    if (!success)
+        contours.clear();
+    return success;
+}
+
