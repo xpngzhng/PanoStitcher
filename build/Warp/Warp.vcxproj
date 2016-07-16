@@ -25,6 +25,7 @@
     <ClInclude Include="..\..\source\Warp\Mtx33.h" />
     <ClInclude Include="..\..\source\Warp\RotateImage.h" />
     <ClInclude Include="..\..\source\Warp\Rotation.h" />
+    <ClInclude Include="..\..\source\Warp\Stabilize.h" />
     <ClInclude Include="..\..\source\Warp\Timer.h" />
     <ClInclude Include="..\..\source\Warp\ZReproject.h" />
   </ItemGroup>
@@ -34,6 +35,7 @@
     <ClCompile Include="..\..\source\Warp\PhotoParam.cpp" />
     <ClCompile Include="..\..\source\Warp\Remap.cpp" />
     <ClCompile Include="..\..\source\Warp\RotateImage.cpp" />
+    <ClCompile Include="..\..\source\Warp\Stabilize.cpp" />
     <ClCompile Include="..\..\source\Warp\ZReproject.cpp" />
   </ItemGroup>
   <ItemGroup>
