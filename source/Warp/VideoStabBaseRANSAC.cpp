@@ -272,14 +272,13 @@ int main()
     std::vector<cv::Mat> dstSrcMaps;
     getReprojectMapsAndMasks(params, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
 
-    //TilingMultibandBlend blender;
-    TilingMultibandBlendFast blender;
-    blender.prepare(dstMasks, 16, 2);
-
-    const char* outPath = "stab_merge_test1_compensate_new_long_fast.avi";
+    const char* outPath = "stab_merge_test1_compensate_new_long_slow.avi";
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     /*
+    TilingMultibandBlend blender;
+    blender.prepare(dstMasks, 16, 2);
+
     cv::Mat blendImage;
     int frameCount = 0;
     int maxCount = angles.size();
@@ -329,6 +328,10 @@ int main()
     }
     */
 
+    /*
+    TilingMultibandBlendFast blender;
+    blender.prepare(dstMasks, 16, 2);
+
     cv::Mat blendImage;
     int frameCount = 0;
     int maxCount = angles.size();
@@ -377,8 +380,59 @@ int main()
         if (frameCount >= maxCount)
             break;
     }
+    */
 
-    return 0;
+    BlendConfig config;
+    config.setBlendMultiBand(8, 4);
+    config.setSeamDistanceTransform();
+
+    cv::Mat blendImage;
+    int frameCount = 0;
+    int maxCount = angles.size();
+    std::vector<cv::Mat> srcImages(numVideos);
+    std::vector<cv::Mat> dstImages, compImages;
+    ztool::Timer timer;
+    cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    while (true)
+    {
+        printf("currCount = %d\n", frameCount);
+        bool success = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (!caps[i].read(srcImages[i]))
+            {
+                success = false;
+                break;
+            }
+        }
+        if (!success)
+            break;
+
+        accumOrig += angles[frameCount];
+        accumProc += anglesProc[frameCount];
+        printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+            accumOrig[0], accumOrig[1], accumOrig[2],
+            accumProc[0], accumProc[1], accumProc[2]);
+        cv::Vec3d diff = accumProc - accumOrig;
+
+        printf("reproject:\n");
+        std::vector<PhotoParam> currParams = params;
+        rotateCameras(currParams, diff[0], diff[1], diff[2]);
+        getReprojectMapsAndMasks(currParams, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
+        reprojectParallel(srcImages, dstImages, dstSrcMaps);
+
+        //timer.start();
+        printf("blend:\n");
+        parallelBlend(config, dstImages, dstMasks, blendImage);
+        //timer.end();
+        //printf("%f\n", timer.elapse());
+
+        writer.write(blendImage);
+
+        frameCount++;
+        if (frameCount >= maxCount)
+            break;
+    }
 
     
     return 0;
