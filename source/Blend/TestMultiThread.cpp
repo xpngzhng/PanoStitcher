@@ -22,12 +22,12 @@ void compare(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
         unsigned char* ptrDst = dst.ptr<unsigned char>(i);
         for (int j = 0; j < cols; j++)
         {
-            /*if (ptrSrc1[0] == ptrSrc2[0] &&
+            if (ptrSrc1[0] == ptrSrc2[0] &&
                 ptrSrc1[1] == ptrSrc2[1] &&
-                ptrSrc1[2] == ptrSrc2[2])*/
-            if (abs(int(ptrSrc1[0] - int(ptrSrc2[0]))) < 2 &&
+                ptrSrc1[2] == ptrSrc2[2])
+            /*if (abs(int(ptrSrc1[0] - int(ptrSrc2[0]))) < 2 &&
                 abs(int(ptrSrc1[1] - int(ptrSrc2[1]))) < 2 &&
-                abs(int(ptrSrc1[2] - int(ptrSrc2[2]))) < 2)
+                abs(int(ptrSrc1[2] - int(ptrSrc2[2]))) < 2)*/
                 *ptrDst = 0;
             else
                 *ptrDst = 255;
@@ -194,6 +194,30 @@ int main()
     std::vector<cv::Mat> images, masks;
     cv::Size imageSize;
     getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
+
+    TilingMultibandBlendFast blenderFast;
+    cv::Mat resultFast;
+    blenderFast.prepare(masks, 10, 4);
+
+    TilingMultibandBlendFastParallel blenderFastParallel;
+    cv::Mat resultFastParallel;
+    blenderFastParallel.prepare(masks, 10, 4);
+
+    //masks[1].setTo(0);
+    blenderFast.blend(images, masks, resultFast);
+    blenderFastParallel.blend(images, masks, resultFastParallel);
+    //blenderFast.blend(images, resultFast);
+    //blenderFastParallel.blend(images, resultFastParallel);
+
+    cv::Mat diff;
+    compare(resultFast, resultFastParallel, diff);
+
+    cv::imshow("fast", resultFast);
+    cv::imshow("fast parallel", resultFastParallel);
+    cv::imshow("diff", diff);
+    cv::waitKey(0);
+    
+    return 0;
 
     /*cv::Mat result1, result2, result3;
 

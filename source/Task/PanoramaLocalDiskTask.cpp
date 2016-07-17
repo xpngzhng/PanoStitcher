@@ -12,6 +12,10 @@
 #include "Text.h"
 #include "opencv2/highgui.hpp"
 
+typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBufferForCpu;
+typedef std::vector<avp::AudioVideoFrame2> FrameVectorForCpu;
+typedef BoundedCompleteQueue<FrameVectorForCpu> FrameVectorBufferForCpu;
+
 struct CPUPanoramaLocalDiskTask::Impl
 {
     Impl();
@@ -41,13 +45,28 @@ struct CPUPanoramaLocalDiskTask::Impl
     std::vector<CustomIntervaledMasks> customMasks;
     TilingMultibandBlendFast blender;
     std::vector<cv::Mat> reprojImages;
-    cv::Mat blendImage;
     LogoFilter logoFilter;
     avp::AudioVideoWriter3 writer;
-    bool endFlag;
+
+    int decodeCount;
+    int procCount;
+    int encodeCount;
     std::atomic<int> finishPercent;
     int validFrameCount;
-    std::unique_ptr<std::thread> thread;
+
+    void decode();
+    void proc();
+    void encode();
+    std::unique_ptr<std::thread> decodeThread;
+    std::unique_ptr<std::thread> procThread;
+    std::unique_ptr<std::thread> encodeThread;
+
+    AudioVideoFramePool audioFramesMemoryPool;
+    AudioVideoFramePool srcVideoFramesMemoryPool;
+    AudioVideoFramePool dstVideoFramesMemoryPool;
+
+    FrameVectorBufferForCpu decodeFramesBuffer;
+    FrameBufferForCpu procFrameBuffer;
 
     std::string syncErrorMessage;
     std::mutex mtxAsyncErrorMessage;
@@ -58,6 +77,7 @@ struct CPUPanoramaLocalDiskTask::Impl
 
     bool initSuccess;
     bool finish;
+    bool isCanceled;
 };
 
 CPUPanoramaLocalDiskTask::Impl::Impl()
@@ -115,7 +135,36 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
         validFrameCount = dstVideoMaxFrameCount;
 
+    ok = srcVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, readers[0].getVideoWidth(), readers[0].getVideoHeight());
+    if (!ok)
+    {
+        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        return false;
+    }
+
+    if (audioIndex >= 0 && audioIndex < numVideos)
+    {
+        ok = audioFramesMemoryPool.initAsAudioFramePool(readers[audioIndex].getAudioSampleType(),
+            readers[audioIndex].getAudioNumChannels(), readers[audioIndex].getAudioChannelLayout(),
+            readers[audioIndex].getAudioNumSamples());
+        if (!ok)
+        {
+            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            return false;
+        }
+    }
+
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
+
+    ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, dstSize.width, dstSize.height);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        return false;
+    }
 
     ok = blender.prepare(dstMasks, 16, 2);
     //ok = blender.prepare(dstMasks, 50);
@@ -127,36 +176,36 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     }
 
     useCustomMasks = 0;
-    if (customMaskFile.size())
-    {
-        std::vector<std::vector<IntervaledContour> > contours;
-        ok = loadIntervaledContours(customMaskFile, contours);
-        if (!ok)
-        {
-            ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
-            return false;
-        }
-        // Notice !! 
-        // For new implementation of loadIntervaledContours, the two level vectors
-        // are num intervals x num videos in each interval, instead of
-        // num videos x num intervals of each video,
-        // so the following if condition should be deleted
-        //if (contours.size() != numVideos)
-        //{
-        //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
-        //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
-        //    return false;
-        //}
-        if (!cvtContoursToMasks(contours, dstMasks, customMasks))
-        {
-            ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
-            return false;
-        }
-        blender.getUniqueMasks(dstUniqueMasks);
-        useCustomMasks = 1;
-    }
+    //if (customMaskFile.size())
+    //{
+    //    std::vector<std::vector<IntervaledContour> > contours;
+    //    ok = loadIntervaledContours(customMaskFile, contours);
+    //    if (!ok)
+    //    {
+    //        ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
+    //        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+    //        return false;
+    //    }
+    //    // Notice !! 
+    //    // For new implementation of loadIntervaledContours, the two level vectors
+    //    // are num intervals x num videos in each interval, instead of
+    //    // num videos x num intervals of each video,
+    //    // so the following if condition should be deleted
+    //    //if (contours.size() != numVideos)
+    //    //{
+    //    //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+    //    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+    //    //    return false;
+    //    //}
+    //    if (!cvtContoursToMasks(contours, dstMasks, customMasks))
+    //    {
+    //        ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
+    //        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+    //        return false;
+    //    }
+    //    blender.getUniqueMasks(dstUniqueMasks);
+    //    useCustomMasks = 1;
+    //}
 
     ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC3);
     if (!ok)
@@ -189,6 +238,12 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         return false;
     }
 
+    decodeFramesBuffer.setMaxSize(4);
+    procFrameBuffer.setMaxSize(16);
+
+    decodeFramesBuffer.resume();
+    procFrameBuffer.resume();
+
     finishPercent.store(0);
 
     initSuccess = true;
@@ -196,6 +251,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     return true;
 }
 
+/*
 void CPUPanoramaLocalDiskTask::Impl::run()
 {
     if (!initSuccess)
@@ -338,6 +394,215 @@ void CPUPanoramaLocalDiskTask::Impl::run()
 
     finish = true;
 }
+*/
+
+void CPUPanoramaLocalDiskTask::Impl::decode()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    decodeCount = 0;
+    int mediaType;
+    while (true)
+    {
+        FrameVectorForCpu videoFrames(numVideos);
+        avp::AudioVideoFrame2 audioFrame;
+        unsigned char* data[4] = { 0 };
+        int steps[4] = { 0 };
+
+        if (audioIndex >= 0 && audioIndex < numVideos)
+        {
+            audioFramesMemoryPool.get(audioFrame);
+            srcVideoFramesMemoryPool.get(videoFrames[audioIndex]);
+            if (!readers[audioIndex].readTo(audioFrame, videoFrames[audioIndex], mediaType))
+                break;
+            if (mediaType == avp::AUDIO)
+            {
+                procFrameBuffer.push(audioFrame);
+                continue;
+            }
+            else if (mediaType == avp::VIDEO)
+            {
+                
+            }
+            else
+                break;
+        }
+
+        bool successRead = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (i == audioIndex)
+                continue;
+
+            srcVideoFramesMemoryPool.get(videoFrames[i]);
+            if (!readers[i].readTo(audioFrame, videoFrames[i], mediaType))
+            {
+                successRead = false;
+                break;
+            }
+            if (mediaType == avp::VIDEO)
+            {
+                
+            }
+            else
+            {
+                successRead = false;
+                break;
+            }
+        }
+        if (!successRead || isCanceled)
+            break;
+
+        decodeFramesBuffer.push(videoFrames);
+        decodeCount++;
+        //ptlprintf("decode count = %d\n", decodeCount);
+
+        if (decodeCount >= validFrameCount)
+            break;
+    }
+
+    if (!isCanceled)
+    {
+        while (decodeFramesBuffer.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    decodeFramesBuffer.stop();
+
+    for (int i = 0; i < numVideos; i++)
+        readers[i].close();
+
+    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void CPUPanoramaLocalDiskTask::Impl::proc()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    procCount = 0;
+    FrameVectorForCpu frames;
+    std::vector<cv::Mat> images(numVideos);
+    int index = audioIndex >= 0 ? audioIndex : 0;
+    bool ok = false;
+    while (true)
+    {
+        if (!decodeFramesBuffer.pull(frames))
+            break;
+
+        if (isCanceled)
+            break;
+
+        for (int i = 0; i < numVideos; i++)
+            images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
+        reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
+
+        avp::AudioVideoFrame2 videoFrame;
+        dstVideoFramesMemoryPool.get(videoFrame);
+        cv::Mat blendImage(videoFrame.height, videoFrame.width, CV_8UC3, videoFrame.data[0], videoFrame.steps[0]);
+
+        if (useCustomMasks)
+        {
+            bool custom = false;
+            currMasks.resize(numVideos);
+            for (int i = 0; i < numVideos; i++)
+            {
+                if (customMasks[i].getMask2(frames[i].frameIndex, currMasks[i]))
+                    custom = true;
+                else
+                    currMasks[i] = dstUniqueMasks[i];
+            }
+
+            if (custom)
+            {
+                //printf("custom masks\n");
+                blender.blend(reprojImages, currMasks, blendImage);
+            }
+            else
+                blender.blend(reprojImages, blendImage);
+        }
+        else
+            blender.blend(reprojImages, blendImage);
+
+        if (addLogo)
+            ok = logoFilter.addLogo(blendImage);
+        if (!ok)
+        {
+            ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+            //setAsyncErrorMessage("写入视频失败，任务终止。");
+            setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+            break;
+        }
+
+        videoFrame.timeStamp = frames[index].timeStamp;
+        procFrameBuffer.push(videoFrame);
+        procCount++;
+        //ptlprintf("proc count = %d\n", procCount);
+    }
+
+    if (!isCanceled)
+    {
+        while (procFrameBuffer.size())
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    procFrameBuffer.stop();
+
+    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void CPUPanoramaLocalDiskTask::Impl::encode()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    encodeCount = 0;
+    int step = 1;
+    if (validFrameCount > 0)
+        step = validFrameCount / 100.0 + 0.5;
+    if (step < 1)
+        step = 1;
+    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::Timer timerEncode;
+    encodeCount = 0;
+    avp::AudioVideoFrame2 frame;
+    while (true)
+    {
+        if (!procFrameBuffer.pull(frame))
+            break;
+
+        if (isCanceled)
+            break;
+
+        //timerEncode.start();
+        bool ok = writer.write(frame);
+        //timerEncode.end();
+        if (!ok)
+        {
+            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
+            setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
+            isCanceled = true;
+            break;
+        }
+
+        // Only when the frame is of type video can we increase encodeCount
+        if (frame.mediaType == avp::VIDEO)
+            encodeCount++;
+        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+
+        if (encodeCount % step == 0)
+            finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
+    }
+
+    writer.close();
+
+    finishPercent.store(100);
+
+    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
 
 bool CPUPanoramaLocalDiskTask::Impl::start()
 {
@@ -350,15 +615,35 @@ bool CPUPanoramaLocalDiskTask::Impl::start()
     if (finish)
         return false;
 
-    thread.reset(new std::thread(&CPUPanoramaLocalDiskTask::Impl::run, this));
+    decodeThread.reset(new std::thread(&CPUPanoramaLocalDiskTask::Impl::decode, this));
+    procThread.reset(new std::thread(&CPUPanoramaLocalDiskTask::Impl::proc, this));
+    encodeThread.reset(new std::thread(&CPUPanoramaLocalDiskTask::Impl::encode, this));
     return true;
 }
 
 void CPUPanoramaLocalDiskTask::Impl::waitForCompletion()
 {
-    if (thread && thread->joinable())
-        thread->join();
-    thread.reset(0);
+    if (decodeThread && decodeThread->joinable())
+        decodeThread->join();
+    decodeThread.reset();
+    if (procThread && procThread->joinable())
+        procThread->join();
+    procThread.reset(0);
+    if (encodeThread && encodeThread->joinable())
+        encodeThread->join();
+    encodeThread.reset(0);
+
+    audioFramesMemoryPool.clear();
+    srcVideoFramesMemoryPool.clear();
+    dstVideoFramesMemoryPool.clear();
+
+    decodeFramesBuffer.clear();
+    procFrameBuffer.clear();
+
+    if (!finish)
+        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+
+    finish = true;
 }
 
 int CPUPanoramaLocalDiskTask::Impl::getProgress() const
@@ -368,7 +653,7 @@ int CPUPanoramaLocalDiskTask::Impl::getProgress() const
 
 void CPUPanoramaLocalDiskTask::Impl::cancel()
 {
-    endFlag = true;
+    isCanceled = true;
 }
 
 void CPUPanoramaLocalDiskTask::Impl::getLastSyncErrorMessage(std::string& message) const
@@ -395,9 +680,22 @@ void CPUPanoramaLocalDiskTask::Impl::getLastAsyncErrorMessage(std::string& messa
 
 void CPUPanoramaLocalDiskTask::Impl::clear()
 {
-    if (thread && thread->joinable())
-        thread->join();
-    thread.reset(0);
+    if (decodeThread && decodeThread->joinable())
+        decodeThread->join();
+    decodeThread.reset();
+    if (procThread && procThread->joinable())
+        procThread->join();
+    procThread.reset(0);
+    if (encodeThread && encodeThread->joinable())
+        encodeThread->join();
+    encodeThread.reset(0);
+
+    audioFramesMemoryPool.clear();
+    srcVideoFramesMemoryPool.clear();
+    dstVideoFramesMemoryPool.clear();
+
+    decodeFramesBuffer.clear();
+    procFrameBuffer.clear();
 
     numVideos = 0;
     srcSize = cv::Size();
@@ -411,7 +709,7 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     dstSrcMaps.clear();
     reprojImages.clear();
     writer.close();
-    endFlag = false;
+    isCanceled = false;
 
     finishPercent.store(0);
 
@@ -499,9 +797,8 @@ struct StampedPinnedMemoryVector
     std::vector<int> frameIndexes;
 };
 
-typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBuffer;
-typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBuffer;
-typedef BoundedCompleteQueue<MixedAudioVideoFrame> MixedFrameBuffer;
+typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBufferForCuda;
+typedef BoundedCompleteQueue<MixedAudioVideoFrame> MixedFrameBufferForCuda;
 
 struct CudaPanoramaLocalDiskTask::Impl
 {
@@ -529,9 +826,9 @@ struct CudaPanoramaLocalDiskTask::Impl
     CudaPanoramaRender2 render;
     PinnedMemoryPool srcFramesMemoryPool;
     AudioVideoFramePool audioFramesMemoryPool;
-    FrameVectorBuffer decodeFramesBuffer;
+    FrameVectorBufferForCuda decodeFramesBuffer;
     CudaHostMemVideoFrameMemoryPool dstFramesMemoryPool;
-    MixedFrameBuffer procFrameBuffer;
+    MixedFrameBufferForCuda procFrameBuffer;
     cv::Mat blendImageCpu;
     CudaLogoFilter logoFilter;
     avp::AudioVideoWriter3 writer;
@@ -606,7 +903,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
         return false;
     }
@@ -618,7 +915,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
+            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
             return false;
         }
@@ -644,7 +941,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
         return false;
     }

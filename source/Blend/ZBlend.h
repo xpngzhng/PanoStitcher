@@ -135,8 +135,11 @@ public:
     ~TilingMultibandBlendFastParallel();
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
+    void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
+    void getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
 private:
+    std::vector<cv::Mat> uniqueMasks;
     std::vector<cv::Mat> resultPyr, resultUpPyr, resultWeightPyr;
     std::vector<std::vector<cv::Mat> > imagePyrs, image32SPyrs, imageUpPyrs;
     std::vector<std::vector<cv::Mat> > alphaPyrs, weightPyrs;
@@ -158,6 +161,11 @@ private:
     std::atomic<int> buildCount;
     bool threadEnd;
     void buildPyramid(int index);
+
+    std::vector<cv::Mat> customMasks, customAuxes;
+    std::vector<cv::Mat> customResultWeightPyr;
+    std::vector<std::vector<cv::Mat> > customWeightPyrs;
+    cv::Mat customMaskNot;
 };
 
 class TilingLinearBlend

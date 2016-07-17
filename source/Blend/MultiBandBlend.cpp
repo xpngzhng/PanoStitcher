@@ -1131,7 +1131,6 @@ bool TilingMultibandBlendFastParallel::prepare(const std::vector<cv::Mat>& masks
     cols = currCols;
     numImages = currNumMasks;
 
-    std::vector<cv::Mat> uniqueMasks;
     getNonIntersectingMasks(masks, uniqueMasks);
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
@@ -1199,6 +1198,10 @@ bool TilingMultibandBlendFastParallel::prepare(const std::vector<cv::Mat>& masks
     rowBuffers.resize(numImages);
     tabBuffers.resize(numImages);
 
+    customMasks.resize(numImages);
+    customAuxes.resize(numImages);
+    customWeightPyrs.resize(numImages);
+
     threadEnd = false;
     threads.clear();
     threads.resize(numImages);
@@ -1257,6 +1260,71 @@ void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images,
         blendImage.setTo(0, maskNot);
 }
 
+void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage)
+{
+    if (!success)
+        return;
+
+    CV_Assert(images.size() == numImages && masks.size() == numImages);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        CV_Assert(images[i].data && (images[i].type() == CV_8UC3 || images[i].type() == CV_16SC3) &&
+            images[i].rows == rows && images[i].cols == cols);
+        CV_Assert(masks[i].data && masks[i].type() == CV_8UC1 &&
+            masks[i].rows == rows && masks[i].cols == cols);
+    }
+
+    customMaskNot.create(rows, cols, CV_8UC1);
+    customMaskNot.setTo(0);
+    for (int i = 0; i < numImages; i++)
+        customMaskNot |= masks[i];
+    bool customFullMask = cv::countNonZero(customMaskNot) == rows * cols;
+
+    for (int i = 0; i < numImages; i++)
+    {
+        imageHeaders[i] = images[i];
+        customMasks[i] = masks[i];
+    }
+
+    buildCount.store(0);
+    cvBuildPyr.notify_all();
+
+    {
+        std::unique_lock<std::mutex> lk(mtxAccum);
+        cvAccum.wait(lk, [this] { return buildCount.load() == numImages; });
+    }
+
+        customResultWeightPyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            customResultWeightPyr[i].create(customWeightPyrs[0][i].size(), CV_32SC1);
+            customResultWeightPyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight(customWeightPyrs[i], customResultWeightPyr);
+        cv::bitwise_not(customMaskNot, customMaskNot);
+
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].setTo(0);
+    for (int i = 0; i < numImages; i++)
+        accumulate(imagePyrs[i], customWeightPyrs[i], resultPyr);
+
+    normalize(resultPyr, customResultWeightPyr);
+    restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr, restoreRowBuffer, restoreTabBuffer);
+    resultPyr[0].convertTo(blendImage, CV_8U);
+    if (!customFullMask)
+        blendImage.setTo(0, customMaskNot);
+}
+
+void TilingMultibandBlendFastParallel::getUniqueMasks(std::vector<cv::Mat>& masks) const
+{
+    if (success)
+        masks = uniqueMasks;
+    else
+        masks.clear();
+}
+
 void TilingMultibandBlendFastParallel::buildPyramid(int index)
 {
     const cv::Mat& image = imageHeaders[index];
@@ -1267,6 +1335,11 @@ void TilingMultibandBlendFastParallel::buildPyramid(int index)
     std::vector<cv::Mat>& weightPyr = weightPyrs[index];
     std::vector<unsigned char>& rowBuffer = rowBuffers[index];
     std::vector<unsigned char>& tabBuffer = tabBuffers[index];
+
+    const cv::Mat& customMask = customMasks[index];
+    cv::Mat& customAux = customAuxes[index];
+    std::vector<cv::Mat>& customWeightPyr = customWeightPyrs[index];
+
     while (true)
     {
         {
@@ -1275,6 +1348,14 @@ void TilingMultibandBlendFastParallel::buildPyramid(int index)
         }
         if (threadEnd)
             break;
+
+        if (customMask.data)
+        {
+            customAux.create(rows, cols, CV_16SC1);
+            customAux.setTo(0);
+            customAux.setTo(256, customMask);
+            createGaussPyramid(customAux, numLevels, true, customWeightPyr);
+        }
 
         imagePyr.resize(numLevels + 1);
         if (image.type() == CV_8UC3)
