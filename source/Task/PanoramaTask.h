@@ -232,6 +232,16 @@ enum PanoramaType
     PanoTypeCount
 };
 
+enum AsyncErrorSource
+{
+    ErrorNone = -1,
+    ErrorFromSources,
+    ErrorFromStitch,
+    ErrorFromLiveStream,
+    ErrorFromSaveToDisk,
+    ErrorCount
+};
+
 class PanoramaLiveStreamTask2
 {
 public:
@@ -263,7 +273,7 @@ public:
     double getStitchFrameRate() const;
     void getLastSyncErrorMessage(std::string& message) const;
     bool hasAsyncErrorMessage() const;
-    void getLastAsyncErrorMessage(std::string& message);
+    void getLastAsyncErrorMessage(std::string& message, int& fromWhere);
     void getLog(std::string& logInfo);
 
     bool getVideoSourceFrames(std::vector<avp::AudioVideoFrame2>& frames);

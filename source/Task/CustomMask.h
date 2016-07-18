@@ -8,7 +8,7 @@ template <typename MatType>
 struct IntervaledMaskTemplate
 {
     IntervaledMaskTemplate() : begInc(-1L), endExc(-1L) {};
-    IntervaledMaskTemplate(int videoIndex_, int begIndexInc_, long long int endIndexInc_, const MatType& mask_)
+    IntervaledMaskTemplate(int videoIndex_, int begIndexInc_, int endIndexInc_, const MatType& mask_)
         : videoIndex(videoIndex_), begIndexInc(begIndexInc_), endIndexInc(endIndexInc_), mask(mask_) {};
     int videoIndex;
     int begIndexInc;

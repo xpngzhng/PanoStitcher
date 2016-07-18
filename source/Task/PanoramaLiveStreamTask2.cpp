@@ -16,6 +16,9 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/cudawarping.hpp"
 
+typedef std::pair<int, std::string> AsyncErrorMessage;
+typedef CompleteQueue<AsyncErrorMessage> AsyncErrorMessageQueue;
+
 struct PanoramaLiveStreamTask2::Impl
 {
     Impl();
@@ -50,7 +53,7 @@ struct PanoramaLiveStreamTask2::Impl
     double getStitchFrameRate() const;
     void getLastSyncErrorMessage(std::string& message) const;
     bool hasAsyncErrorMessage() const;
-    void getLastAsyncErrorMessage(std::string& message);
+    void getLastAsyncErrorMessage(std::string& message, int& fromWhere);
     void getLog(std::string& logInfo);
 
     void initAll();
@@ -120,11 +123,12 @@ struct PanoramaLiveStreamTask2::Impl
 
     std::string syncErrorMessage;
 
-    std::mutex mtxAsyncErrorMessage;
-    std::string asyncErrorMessage;
+    //std::mutex mtxAsyncErrorMessage;
+    //std::string asyncErrorMessage;
     int hasAsyncError;
-    void setAsyncErrorMessage(const std::string& message);
-    void clearAsyncErrorMessage();
+    void addAsyncErrorMessage(const std::string& message, int fromWhere);
+    void clearAsyncErrorMessages();
+    AsyncErrorMessageQueue asyncErrorMessageQueue;
 
     std::mutex mtxLog;
     std::string log;
@@ -708,16 +712,30 @@ bool PanoramaLiveStreamTask2::Impl::hasAsyncErrorMessage() const
     return hasAsyncError;
 }
 
-void PanoramaLiveStreamTask2::Impl::getLastAsyncErrorMessage(std::string& message)
+void PanoramaLiveStreamTask2::Impl::getLastAsyncErrorMessage(std::string& message, int& fromWhere)
 {
+    //if (hasAsyncError)
+    //{
+    //    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+    //    message = asyncErrorMessage;
+    //    hasAsyncError = 0;
+    //}
+    //else
+    //    message.clear();
     if (hasAsyncError)
     {
-        std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
-        message = asyncErrorMessage;
-        hasAsyncError = 0;
+        AsyncErrorMessage msg;
+        asyncErrorMessageQueue.pull(msg);
+        fromWhere = msg.first;
+        message = msg.second;
+        if (!asyncErrorMessageQueue.size())
+            hasAsyncError = 0;
     }
     else
+    {
         message.clear();
+        fromWhere = ErrorNone;
+    }
 }
 
 void PanoramaLiveStreamTask2::Impl::getLog(std::string& logInfo)
@@ -737,7 +755,7 @@ void PanoramaLiveStreamTask2::Impl::initAll()
     videoSourceFrameRate = 0;
     stitchVideoFrameRate = 0;
     syncErrorMessage.clear();
-    clearAsyncErrorMessage();
+    clearAsyncErrorMessages();
     clearLog();
 
     videoFrameRate = 0;
@@ -865,7 +883,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                 //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-                setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
+                addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
             }
@@ -877,7 +895,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 {
                     ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                     //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-                    setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
+                    addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                     finish = 1;
                     break;
                 }
@@ -888,7 +906,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             {
                 ptlprintf("Error in %s [%8x], could not get cpu memory to copy from gpu\n", __FUNCTION__, id);
                 //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-                setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
+                addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
             }
@@ -1006,7 +1024,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
             {
                 ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
                 //setAsyncErrorMessage("推流发生错误，任务终止。");
-                setAsyncErrorMessage(getText(TI_LIVE_FAIL_TASK_TERMINATE));
+                addAsyncErrorMessage(getText(TI_LIVE_FAIL_TASK_TERMINATE), ErrorFromLiveStream);
                 finish = 1;
                 break;
             }
@@ -1108,7 +1126,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             {
                 ptlprintf("Error in %s [%8x], could not write current frame\n", __FUNCTION__, id);
                 //setAsyncErrorMessage(std::string(buf) + " 写入发生错误，任务终止。");
-                setAsyncErrorMessage(std::string(buf) + " " + getText(TI_WRITE_FAIL_TASK_TERMINATE));
+                addAsyncErrorMessage(std::string(buf) + " " + getText(TI_WRITE_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
                 break;
             }
         }
@@ -1143,18 +1161,16 @@ void PanoramaLiveStreamTask2::Impl::getLuts(std::vector<std::vector<unsigned cha
     LUTs = luts;
 }
 
-void PanoramaLiveStreamTask2::Impl::setAsyncErrorMessage(const std::string& message)
+void PanoramaLiveStreamTask2::Impl::addAsyncErrorMessage(const std::string& message, int fromWhere)
 {
-    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
     hasAsyncError = 1;
-    asyncErrorMessage = message;
+    asyncErrorMessageQueue.push(std::make_pair(fromWhere, message));
 }
 
-void PanoramaLiveStreamTask2::Impl::clearAsyncErrorMessage()
+void PanoramaLiveStreamTask2::Impl::clearAsyncErrorMessages()
 {
-    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
     hasAsyncError = 0;
-    asyncErrorMessage.clear();
+    asyncErrorMessageQueue.clear();
 }
 
 void PanoramaLiveStreamTask2::Impl::appendLog(const std::string& msg)
@@ -1265,9 +1281,9 @@ bool PanoramaLiveStreamTask2::hasAsyncErrorMessage() const
     return ptrImpl->hasAsyncErrorMessage();
 }
 
-void PanoramaLiveStreamTask2::getLastAsyncErrorMessage(std::string& message)
+void PanoramaLiveStreamTask2::getLastAsyncErrorMessage(std::string& message, int& fromWhere)
 {
-    return ptrImpl->getLastAsyncErrorMessage(message);
+    return ptrImpl->getLastAsyncErrorMessage(message, fromWhere);
 }
 
 void PanoramaLiveStreamTask2::getLog(std::string& logInfo)
