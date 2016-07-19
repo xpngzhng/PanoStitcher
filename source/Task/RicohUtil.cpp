@@ -1142,33 +1142,33 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
     }
 
     useCustomMasks = 0;
-    if (customMaskPath_.size())
-    {
-        if (highQualityBlend)
-        {
-            std::vector<std::vector<IntervaledContour> > contours;
-            ok = loadIntervaledContours(customMaskPath_, contours);
-            if (!ok)
-            {
-                ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
-                return false;
-            }
-            //if (contours.size() != numImages)
-            //{
-            //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
-            //    return false;
-            //}
-            if (!cvtContoursToCudaMasks(contours, masks, customMasks))
-            {
-                ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
-                return false;
-            }
-            mbBlender.getUniqueMasks(dstUniqueMasksGPU);
-            useCustomMasks = 1;
-        }
-        else
-            ptlprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
-    }
+    //if (customMaskPath_.size())
+    //{
+    //    if (highQualityBlend)
+    //    {
+    //        std::vector<std::vector<IntervaledContour> > contours;
+    //        ok = loadIntervaledContours(customMaskPath_, contours);
+    //        if (!ok)
+    //        {
+    //            ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
+    //            return false;
+    //        }
+    //        //if (contours.size() != numImages)
+    //        //{
+    //        //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+    //        //    return false;
+    //        //}
+    //        if (!cvtContoursToCudaMasks(contours, masks, customMasks))
+    //        {
+    //            ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
+    //            return false;
+    //        }
+    //        mbBlender.getUniqueMasks(dstUniqueMasksGPU);
+    //        useCustomMasks = 1;
+    //    }
+    //    else
+    //        ptlprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
+    //}
 
     success = 1;
     return true;

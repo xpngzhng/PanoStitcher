@@ -1067,6 +1067,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         ptlprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
         //appendLog(std::string(buf) + " 无法打开，任务终止\n");
         appendLog(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE) + "\n");
+        addAsyncErrorMessage(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
         return;
     }
     else
@@ -1132,7 +1133,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         }
         else
         {
-            ptlprintf("Frame error\n");
+            //ptlprintf("Frame error\n");
         }
     }
     if (ok)

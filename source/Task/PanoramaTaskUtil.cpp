@@ -1,9 +1,16 @@
 #include "PanoramaTaskUtil.h"
 #include "CudaPanoramaTaskUtil.h"
 #include "Image.h"
+#include "Text.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <stdarg.h>
+
+void setLanguage(bool isChinese)
+{
+    setTextLanguage(isChinese);
+    setLogoLanguage(isChinese);
+}
 
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader3>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)

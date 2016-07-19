@@ -2,6 +2,8 @@
 
 #include <string>
 
+void setTextLanguage(bool isChinese);
+
 enum TextIndex
 {
     TI_PERIOD,

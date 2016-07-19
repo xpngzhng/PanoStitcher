@@ -1,5 +1,6 @@
 #include "ticpp.h"
 #include "ZReproject.h"
+#include "Rotation.h"
 #include "Mtx33.h"
 
 #include <fstream>
@@ -929,6 +930,7 @@ const static double radOverDeg = 3.1415926535898 / 180.0;
 
 void rotateCamera(PhotoParam& param, double yaw, double pitch, double roll)
 {
+    /*
     Mtx33 rot;
     rot.SetRotationPT(yaw, pitch, roll);
     double currYaw = param.yaw * radOverDeg;
@@ -938,6 +940,20 @@ void rotateCamera(PhotoParam& param, double yaw, double pitch, double roll)
     pos.SetRotationPT(currYaw, currPitch, currRoll);
     pos = rot * pos;
     pos.GetRotationPT(currYaw, currPitch, currRoll);
+    param.yaw = currYaw * degOverRad;
+    param.pitch = currPitch * degOverRad;
+    param.roll = currRoll * degOverRad;
+    */
+
+    cv::Matx33d rot;
+    setRotationRM(rot, yaw, pitch, roll);
+    double currYaw = param.yaw * radOverDeg;
+    double currPitch = param.pitch * radOverDeg;
+    double currRoll = param.roll * radOverDeg;
+    cv::Matx33d pos;
+    setRotationRM(pos, currYaw, currPitch, currRoll);
+    pos = rot * pos;
+    getRotationRM(pos, currYaw, currPitch, currRoll);
     param.yaw = currYaw * degOverRad;
     param.pitch = currPitch * degOverRad;
     param.roll = currRoll * degOverRad;

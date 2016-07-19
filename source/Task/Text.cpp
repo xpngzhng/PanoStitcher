@@ -3,7 +3,7 @@
 
 static int lang = 0;
 
-void setLanguage(bool isChinese)
+void setTextLanguage(bool isChinese)
 {
     lang = isChinese ? 0 : 1;
 }
