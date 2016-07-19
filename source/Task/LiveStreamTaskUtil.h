@@ -66,9 +66,8 @@ public:
 protected:
     void setProp(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
-        int* ptrFinish, LogCallbackFunction logCallbackFunc, void* logCallbackData,
-        FrameRateCallbackFunction videoFrameRateCallbackFunc, void* videoFrameRateCallbackData);
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, 
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave, int* ptrFinish);
     void init();
     void videoSink();
 
@@ -87,11 +86,6 @@ protected:
     int audioEndFlag;
     int audioThreadJoined;
 
-    LogCallbackFunction logCallbackFunc;
-    void* logCallbackData;
-    FrameRateCallbackFunction videoFrameRateCallbackFunc;
-    void* videoFrameRateCallbackData;
-    
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     std::unique_ptr<std::vector<AudioVideoFramePool> > ptrVideoFramePools;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
@@ -109,9 +103,8 @@ struct FFmpegAudioVideoSource : public AudioVideoSource
 public:
     FFmpegAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
-        int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
-        FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, 
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave, int* ptrFinish);
     ~FFmpegAudioVideoSource();
     bool open(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
         bool openAudio = false, const avp::Device& device = avp::Device(), int sampleRate = 0);
@@ -173,9 +166,8 @@ struct JuJingAudioVideoSource : public AudioVideoSource
 public:
     JuJingAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
         void* ptrSyncedFramesBufferForProc, int forCuda,
-        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave,
-        int* ptrFinish, LogCallbackFunction logCallbackFunc = 0, void* logCallbackData = 0,
-        FrameRateCallbackFunction videoFrameRateCallbackFunc = 0, void* videoFrameRateCallbackData = 0);
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend, 
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave, int* ptrFinish);
     ~JuJingAudioVideoSource();
     bool open(const std::vector<std::string>& urls);
     void close();
