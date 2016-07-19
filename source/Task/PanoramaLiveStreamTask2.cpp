@@ -77,7 +77,7 @@ struct PanoramaLiveStreamTask2::Impl
     int renderThreadJoined;
     void procVideo();
 
-    CudaLogoFilter logoFilter;
+    CudaWatermarkFilter watermarkFilter;
 
     avp::AudioVideoWriter3 streamWriter;
     std::string streamURL;
@@ -281,8 +281,8 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
-    if (addLogo)
-        renderPrepareSuccess = logoFilter.init(width, height);
+    if (addWatermark)
+        renderPrepareSuccess = watermarkFilter.init(width, height);
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
@@ -888,9 +888,9 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 break;
             }
 
-            if (addLogo)
+            if (addWatermark)
             {
-                ok = logoFilter.addLogo(bgr32);
+                ok = watermarkFilter.addWatermark(bgr32);
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);

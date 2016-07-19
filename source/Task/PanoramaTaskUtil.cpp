@@ -2,6 +2,7 @@
 #include "CudaPanoramaTaskUtil.h"
 #include "Image.h"
 #include "Text.h"
+#include "ZReproject.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <stdarg.h>
@@ -9,7 +10,7 @@
 void setLanguage(bool isChinese)
 {
     setTextLanguage(isChinese);
-    setLogoLanguage(isChinese);
+    setWatermarkLanguage(isChinese);
 }
 
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
@@ -147,23 +148,27 @@ static void alphaBlend(cv::Mat& image, const cv::Mat& logo)
     }
 }
 
-bool LogoFilter::init(int width_, int height_, int type_)
+bool WatermarkFilter::init(int width_, int height_, int type_)
 {
     initSuccess = false;
     if (width_ < 0 || height_ < 0 || (type_ != CV_8UC3 && type_ != CV_8UC4))
+    {
+        ptlprintf("Error in %s, width(%d) height(%d) type(%d) not satisfied\n",
+            __FUNCTION__, width_, height_, type_);
         return false;
+    }
 
     width = width_;
     height = height_;
     type = type_;
 
-    cv::Mat origLogo(logoHeight, logoWidth, CV_8UC4, logoData);
+    cv::Mat origLogo(watermarkHeight, watermarkWidth, CV_8UC4, watermarkData);
 
     int blockWidth = 512, blockHeight = 512;
     rects.clear();
-    if (width < logoWidth || height < logoHeight)
+    if (width < watermarkWidth || height < watermarkHeight)
     {
-        cv::Rect logoRect(logoWidth / 2 - width / 2, logoHeight / 2 - height / 2, width, height);
+        cv::Rect logoRect(watermarkWidth / 2 - width / 2, watermarkHeight / 2 - height / 2, width, height);
         logo = origLogo(logoRect);
         rects.push_back(cv::Rect(0, 0, width, height));
     }
@@ -176,9 +181,9 @@ bool LogoFilter::init(int width_, int height_, int type_)
         {
             for (int j = 0; j < w; j++)
             {
-                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - logoWidth / 2, 
-                                             i * blockHeight + blockHeight / 2 - logoHeight / 2, 
-                                             logoWidth, logoHeight) & 
+                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - watermarkWidth / 2,
+                                             i * blockHeight + blockHeight / 2 - watermarkHeight / 2,
+                                             watermarkWidth, watermarkHeight) &
                                     full;
                 if (thisRect.area())
                     rects.push_back(thisRect);
@@ -190,7 +195,7 @@ bool LogoFilter::init(int width_, int height_, int type_)
     return true;
 }
 
-bool LogoFilter::addLogo(cv::Mat& image) const
+bool WatermarkFilter::addWatermark(cv::Mat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != type)
         return false;
@@ -206,7 +211,93 @@ bool LogoFilter::addLogo(cv::Mat& image) const
     return true;
 }
 
-bool CudaLogoFilter::init(int width_, int height_)
+void WatermarkFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    rects.clear();
+    logo.release();
+}
+
+bool LogoFilter::init(const std::string& logoFileName, int hFov, int width_, int height_)
+{
+    initSuccess = false;
+
+    if (width_ <= 0 || height_ <= 0)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        return false;
+    }
+
+    if (hFov <= 0 || hFov > 180)
+    {
+        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        return false;
+    }
+
+    cv::Mat origLogo = cv::imread(logoFileName, -1);
+    if (!origLogo.data)
+    {
+        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        return false;
+    }
+    if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
+    {
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        return false;
+    }
+
+    PhotoParam param;
+    param.imageType = PhotoParam::ImageTypeFullFrameFishEye;
+    param.hfov = hFov;
+    param.pitch = -90;
+    param.cropWidth = origLogo.cols;
+    param.cropHeight = origLogo.rows;
+    cv::Mat map, mask;
+    getReprojectMapAndMask(param, origLogo.size(), cv::Size(width_, height_), map, mask);
+    cv::Mat logoReproj;
+    reprojectParallel(origLogo, logoReproj, map);
+
+    if (origLogo.type() == CV_8UC3)
+    {
+        logo.create(cv::Size(width_, height_), CV_8UC4);
+        int fromTo[] = { 0, 0, 1, 1, 2, 2, 3, 3 };
+        cv::Mat src[] = { logoReproj, mask };
+        cv::mixChannels(src, 2, &logo, 1, fromTo, 4);
+    }
+    else
+        logo = logoReproj;
+
+    width = width_;
+    height = height_;
+    initSuccess = true;
+    return true;
+}
+
+bool LogoFilter::addLogo(cv::Mat& image) const
+{
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d\n",
+            __FUNCTION__, initSuccess, height, width);
+        return false;
+    }
+
+    alphaBlend(image, logo);
+    return true;
+}
+
+void LogoFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    logo.release();
+}
+
+bool CudaWatermarkFilter::init(int width_, int height_)
 {
     initSuccess = false;
     if (width_ < 0 || height_ < 0)
@@ -215,13 +306,13 @@ bool CudaLogoFilter::init(int width_, int height_)
     width = width_;
     height = height_;
 
-    cv::Mat origLogo(logoHeight, logoWidth, CV_8UC4, logoData);
+    cv::Mat origLogo(watermarkHeight, watermarkWidth, CV_8UC4, watermarkData);
     cv::Mat fullLogo;
 
     int blockWidth = 512, blockHeight = 512;
-    if (width < logoWidth || height < logoHeight)
+    if (width < watermarkWidth || height < watermarkHeight)
     {
-        cv::Rect logoRect(logoWidth / 2 - width / 2, logoHeight / 2 - height / 2, width, height);
+        cv::Rect logoRect(watermarkWidth / 2 - width / 2, watermarkHeight / 2 - height / 2, width, height);
         fullLogo = origLogo(logoRect);
     }
     else
@@ -233,9 +324,9 @@ bool CudaLogoFilter::init(int width_, int height_)
         {
             for (int j = 0; j < w; j++)
             {
-                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - logoWidth / 2,
-                    i * blockHeight + blockHeight / 2 - logoHeight / 2,
-                    logoWidth, logoHeight) &
+                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - watermarkWidth / 2,
+                    i * blockHeight + blockHeight / 2 - watermarkHeight / 2,
+                    watermarkWidth, watermarkHeight) &
                     full;
                 cv::Mat fullLogoPart = fullLogo(thisRect);
                 cv::Mat origLogoPart = origLogo(cv::Rect(0, 0, thisRect.width, thisRect.height));
@@ -249,7 +340,7 @@ bool CudaLogoFilter::init(int width_, int height_)
     return true;
 }
 
-bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
+bool CudaWatermarkFilter::addWatermark(cv::cuda::GpuMat& image) const
 {
     if (!initSuccess)
         return false;
@@ -259,6 +350,94 @@ bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
 
     alphaBlend8UC4(image, logo);
     return true;
+}
+
+void CudaWatermarkFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    logo.release();
+}
+
+bool CudaLogoFilter::init(const std::string& logoFileName, int hFov, int width_, int height_)
+{
+    initSuccess = false;
+
+    if (width_ <= 0 || height_ <= 0)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        return false;
+    }
+
+    if (hFov <= 0 || hFov > 180)
+    {
+        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        return false;
+    }
+
+    cv::Mat origLogo = cv::imread(logoFileName, -1);
+    if (!origLogo.data)
+    {
+        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        return false;
+    }
+    if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
+    {
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        return false;
+    }
+
+    PhotoParam param;
+    param.imageType = PhotoParam::ImageTypeFullFrameFishEye;
+    param.hfov = hFov;
+    param.pitch = -90;
+    param.cropWidth = origLogo.cols;
+    param.cropHeight = origLogo.rows;
+    cv::Mat map, mask;
+    getReprojectMapAndMask(param, origLogo.size(), cv::Size(width_, height_), map, mask);
+    cv::Mat logoReproj;
+    reprojectParallel(origLogo, logoReproj, map);
+
+    cv::Mat logoCpu;
+    if (origLogo.type() == CV_8UC3)
+    {
+        logoCpu.create(cv::Size(width_, height_), CV_8UC4);
+        int fromTo[] = { 0, 0, 1, 1, 2, 2, 3, 3 };
+        cv::Mat src[] = { logoReproj, mask };
+        cv::mixChannels(src, 2, &logoCpu, 1, fromTo, 4);
+    }
+    else
+        logoCpu = logoReproj;
+
+    logo.upload(logoCpu);
+
+    width = width_;
+    height = height_;
+    initSuccess = true;
+    return true;
+}
+
+bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
+{
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d\n",
+            __FUNCTION__, initSuccess, height, width);
+        return false;
+    }
+
+    alphaBlend8UC4(image, logo);
+    return true;
+}
+
+void CudaLogoFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    logo.release();
 }
 
 void ptLogDefaultCallback(const char* format, va_list vl)

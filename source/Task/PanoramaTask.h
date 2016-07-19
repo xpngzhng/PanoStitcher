@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-void setAddLogo(bool addLogo);
+void setAddWatermark(bool addWatermark);
 
 void setLanguage(bool isChinese);
 
@@ -119,9 +119,9 @@ class PanoramaLocalDiskTask
 public:
     virtual ~PanoramaLocalDiskTask() {};
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
-        int dstVideoMaxFrameCount) = 0;
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount) = 0;
     virtual bool start() = 0;
     virtual void waitForCompletion() = 0;
     virtual int getProgress() const = 0;
@@ -137,9 +137,9 @@ public:
     CPUPanoramaLocalDiskTask();
     ~CPUPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        int dstVideoMaxFrameCount);
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -158,9 +158,9 @@ public:
     CudaPanoramaLocalDiskTask();
     ~CudaPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-        int dstVideoMaxFrameCount);
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
     int getProgress() const;

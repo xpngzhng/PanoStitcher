@@ -104,8 +104,10 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     panoVideoName = "libx264.mp4";
-    bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, panoVideoName,
-        dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+    std::string logoFileName = "F:\\image\\Earth_global.png";
+    int fov = 45;
+    bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, logoFileName, fov, 
+        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

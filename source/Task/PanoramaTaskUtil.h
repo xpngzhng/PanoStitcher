@@ -8,15 +8,28 @@
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader3>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount);
 
-struct LogoFilter
+struct WatermarkFilter
 {
-    LogoFilter() : initSuccess(false), width(0), height(0), type(0) {}
+    WatermarkFilter() : initSuccess(false), width(0), height(0), type(0) {}
     bool init(int width, int height, int type);
-    bool addLogo(cv::Mat& image) const;
+    bool addWatermark(cv::Mat& image) const;
+    void clear();
     
     int width, height, type;
     cv::Mat logo;
     std::vector<cv::Rect> rects;
+    bool initSuccess;
+};
+
+struct LogoFilter
+{
+    LogoFilter() : initSuccess(false), width(0), height(0) {}
+    bool init(const std::string& logoFileName, int hFov, int width, int height);
+    bool addLogo(cv::Mat& image) const;
+    void clear();
+
+    int width, height;
+    cv::Mat logo;
     bool initSuccess;
 };
 

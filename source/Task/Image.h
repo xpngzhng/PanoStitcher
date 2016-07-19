@@ -1,10 +1,10 @@
 #pragma once
 
-const int logoWidth = 256;
-const int logoHeight = 128;
+const int watermarkWidth = 256;
+const int watermarkHeight = 128;
 
-extern unsigned char* logoData;
+extern unsigned char* watermarkData;
 
-void setLogoLanguage(bool isChinese);
+void setWatermarkLanguage(bool isChinese);
 
-extern int addLogo;
+extern int addWatermark;

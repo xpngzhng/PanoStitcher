@@ -4,11 +4,24 @@
 #include "opencv2/core/cuda.hpp"
 #include <mutex>
 
+struct CudaWatermarkFilter
+{
+    CudaWatermarkFilter() : initSuccess(false), width(0), height(0) {}
+    bool init(int width, int height);
+    bool addWatermark(cv::cuda::GpuMat& image) const;
+    void clear();
+
+    int width, height;
+    cv::cuda::GpuMat logo;
+    bool initSuccess;
+};
+
 struct CudaLogoFilter
 {
     CudaLogoFilter() : initSuccess(false), width(0), height(0) {}
-    bool init(int width, int height);
+    bool init(const std::string& logoFileName, int hFov, int width, int height);
     bool addLogo(cv::cuda::GpuMat& image) const;
+    void clear();
 
     int width, height;
     cv::cuda::GpuMat logo;

@@ -21,8 +21,9 @@ struct CPUPanoramaLocalDiskTask::Impl
     Impl();
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-        int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
@@ -45,7 +46,8 @@ struct CPUPanoramaLocalDiskTask::Impl
     std::vector<CustomIntervaledMasks> customMasks;
     TilingMultibandBlendFast blender;
     std::vector<cv::Mat> reprojImages;
-    LogoFilter logoFilter;
+    WatermarkFilter watermarkFilter;
+    std::unique_ptr<LogoFilter> logoFilter;
     avp::AudioVideoWriter3 writer;
 
     int decodeCount;
@@ -91,7 +93,8 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 }
 
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, 
+    const std::string& logoFile, int logoHFov, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
     int dstVideoMaxFrameCount)
 {
@@ -207,12 +210,25 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     //    useCustomMasks = 1;
     //}
 
-    ok = logoFilter.init(dstSize.width, dstSize.height, CV_8UC3);
+    ok = watermarkFilter.init(dstSize.width, dstSize.height, CV_8UC3);
     if (!ok)
     {
-        ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
         return false;
+    }
+
+    if (!logoFile.empty() && logoHFov > 0)
+    {
+        logoFilter.reset(new LogoFilter);
+        ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
+        if (!ok)
+        {
+            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            logoFilter.reset();
+            return false;
+        }
     }
 
     std::vector<avp::Option> options;
@@ -525,11 +541,21 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
         else
             blender.blend(reprojImages, blendImage);
 
-        if (addLogo)
-            ok = logoFilter.addLogo(blendImage);
+        if (logoFilter)
+            ok = logoFilter->addLogo(blendImage);
         if (!ok)
         {
             ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+            //setAsyncErrorMessage("写入视频失败，任务终止。");
+            setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+            break;
+        }
+
+        if (addWatermark)
+            ok = watermarkFilter.addWatermark(blendImage);
+        if (!ok)
+        {
+            ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
             //setAsyncErrorMessage("写入视频失败，任务终止。");
             setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
             break;
@@ -640,6 +666,9 @@ void CPUPanoramaLocalDiskTask::Impl::waitForCompletion()
     decodeFramesBuffer.clear();
     procFrameBuffer.clear();
 
+    watermarkFilter.clear();
+    logoFilter.reset();
+
     if (!finish)
         ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
 
@@ -697,6 +726,9 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     decodeFramesBuffer.clear();
     procFrameBuffer.clear();
 
+    watermarkFilter.clear();
+    logoFilter.reset();
+
     numVideos = 0;
     srcSize = cv::Size();
     dstSize = cv::Size();
@@ -747,11 +779,13 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 }
 
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov, 
+    const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, dstVideoFile, dstWidth, dstHeight,
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, 
+        logoFile, logoHFov, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
@@ -805,7 +839,8 @@ struct CudaPanoramaLocalDiskTask::Impl
     Impl();
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
     bool start();
@@ -830,7 +865,8 @@ struct CudaPanoramaLocalDiskTask::Impl
     CudaHostMemVideoFrameMemoryPool dstFramesMemoryPool;
     MixedFrameBufferForCuda procFrameBuffer;
     cv::Mat blendImageCpu;
-    CudaLogoFilter logoFilter;
+    CudaWatermarkFilter watermarkFilter;
+    std::unique_ptr<CudaLogoFilter> logoFilter;
     avp::AudioVideoWriter3 writer;
     int isLibX264;
 
@@ -870,7 +906,8 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 }
 
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, 
+    const std::string& logoFile, int logoHFov, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
@@ -946,12 +983,25 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    ok = logoFilter.init(dstSize.width, dstSize.height);
+    ok = watermarkFilter.init(dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
         return false;
+    }
+
+    if (!logoFile.empty() && logoHFov > 0)
+    {
+        logoFilter.reset(new CudaLogoFilter);
+        ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
+        if (!ok)
+        {
+            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            logoFilter.reset();
+            return false;
+        }
     }
 
     std::vector<avp::Option> options;
@@ -1028,6 +1078,9 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
     decodeFramesBuffer.clear();
     procFrameBuffer.clear();
 
+    watermarkFilter.clear();
+    logoFilter.reset();
+
     if (!finish)
         ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
 
@@ -1085,6 +1138,9 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
 
     decodeFramesBuffer.clear();
     procFrameBuffer.clear();
+
+    watermarkFilter.clear();
+    logoFilter.reset();
 
     decodeCount = 0;
     procCount = 0;
@@ -1230,12 +1286,24 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             break;
         }
 
-        if (addLogo)
+        if (logoFilter)
         {
-            ok = logoFilter.addLogo(bgr32);
+            ok = logoFilter->addLogo(bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+                ptlprintf("Error in %s, add logo failed\n", __FUNCTION__);
+                //setAsyncErrorMessage("写入视频失败，任务终止。");
+                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+                break;
+            }
+        }
+
+        if (addWatermark)
+        {
+            ok = watermarkFilter.addWatermark(bgr32);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, add watermark failed\n", __FUNCTION__);
                 //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                 setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
                 isCanceled = true;
@@ -1366,11 +1434,13 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 }
 
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+    const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, dstVideoFile, dstWidth, dstHeight,
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, 
+        logoFile, logoHFov, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 

@@ -107,7 +107,7 @@ struct PanoramaLiveStreamTask::Impl
     int renderThreadJoined;
     void procVideo();
 
-    LogoFilter logoFilter;
+    WatermarkFilter watermarkFilter;
     std::unique_ptr<std::thread> postProcThread;
     void postProc();
 
@@ -522,8 +522,8 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
         return false;
     }
 
-    if (addLogo)
-        renderPrepareSuccess = logoFilter.init(width, height, elemType);
+    if (addWatermark)
+        renderPrepareSuccess = watermarkFilter.init(width, height, elemType);
     if (!renderPrepareSuccess)
     {
         ptlprintf("Could not init logo filter\n");
@@ -1236,7 +1236,7 @@ void PanoramaLiveStreamTask::Impl::postProc()
             continue;
 
         //ztool::Timer timer;
-        logoFilter.addLogo(result);
+        watermarkFilter.addWatermark(result);
         procFrameBufferForShow.push(frame);
         if (streamOpenSuccess)
             procFrameBufferForSend.push(frame);
