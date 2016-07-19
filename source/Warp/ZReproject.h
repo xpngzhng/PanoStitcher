@@ -134,6 +134,8 @@ void reprojectParallelTo16S(const cv::Mat& src, cv::Mat& dst, const cv::Mat& dst
 
 void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst, const std::vector<cv::Mat>& dstSrcMaps);
 
+void reprojectParallelTo32F(const cv::Mat& src, cv::Mat& dst, const cv::Mat& dstSrcMap);
+
 void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
     const cv::Mat& dstSrcMap, const cv::Mat& weight);
 

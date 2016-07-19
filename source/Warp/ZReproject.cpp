@@ -8,6 +8,25 @@ inline int weightedSum(const unsigned char rgb[4], const double w[4])
     return res;
 }
 
+inline double weightedSumTo64F(const unsigned char src[4], const double w[4])
+{
+    return src[0] * w[0] + src[1] * w[1] + src[2] * w[2] + src[3] * w[3];
+}
+
+inline double weightedSumTo32S(const double src[4], const double w[4])
+{
+    int res = src[0] * w[0] + src[1] * w[1] + src[2] * w[2] + src[3] * w[3];
+    res = res > 255 ? 255 : res;
+    res = res < 0 ? 0 : res;
+    return res;
+}
+
+template<typename DstElemType>
+inline DstElemType weightedSum(const double src[4], const double w[4])
+{
+    return cv::saturate_cast<DstElemType>(src[0] * w[0] + src[1] * w[1] + src[2] * w[2] + src[3] * w[3]);
+}
+
 inline void calcWeights(double deta, double weight[4])
 {
     //double deta2 = deta * deta;
@@ -23,16 +42,16 @@ inline void calcWeights(double deta, double weight[4])
     weight[0] = (-deta * (1.0 + deta * (-2.0 + deta)));
 }
 
-template<typename DstElemType>
-inline void bicubicResampling(int width, int height, int step, const unsigned char* data,
-    double x, double y, DstElemType rgb[3])
+template<typename DstElemType, int NumChannels>
+inline void bicubicResampling(int width, int height, int step, const unsigned char* src,
+    double x, double y, DstElemType dst[NumChannels])
 {
     int x2 = (int)x;
     int y2 = (int)y;
     int nx[4];
     int ny[4];
     unsigned char rgb1[4];
-    unsigned char rgb2[4];
+    double rgb2[4];
 
     for (int i = 0; i < 4; ++i)
     {
@@ -63,25 +82,25 @@ inline void bicubicResampling(int width, int height, int step, const unsigned ch
     calcWeights(u, tweight1);//weight
     calcWeights(v, tweight2);//weight
 
-    for (int k = 0; k < 3; ++k)
+    for (int k = 0; k < NumChannels; ++k)
     {
         for (int j = 0; j < 4; j++)
         {
             // 按行去每个通道
             for (int i = 0; i < 4; i++)
             {
-                rgb1[i] = data[ny[j] * step + nx[i] * 3 + k];
+                rgb1[i] = src[ny[j] * step + nx[i] * NumChannels + k];
             }
             //4*4区域的三个通道
-            rgb2[j] = weightedSum(rgb1, tweight1);
+            rgb2[j] = weightedSumTo64F(rgb1, tweight1);
         }
-        rgb[k] = weightedSum(rgb2, tweight2);
+        dst[k] = weightedSum<DstElemType>(rgb2, tweight2);
     }
 }
 
-template<typename DstElemType>
-inline void bilinearResampling(int width, int height, int step, const unsigned char* data,
-    double x, double y, DstElemType rgb[3])
+template<typename DstElemType, int NumChannels>
+inline void bilinearResampling(int width, int height, int step, const unsigned char* src,
+    double x, double y, DstElemType dst[NumChannels])
 {
     int x0 = x, y0 = y, x1 = x0 + 1, y1 = y0 + 1;
     if (x0 < 0) x0 = 0;
@@ -93,26 +112,21 @@ inline void bilinearResampling(int width, int height, int step, const unsigned c
     double w00 = wx1 * wy1, w01 = wx0 * wy1;
     double w10 = wx1 * wy0, w11 = wx0 * wy0;
 
-    double b = 0, g = 0, r = 0;
+    double res[NumChannels] = { 0 };
     const unsigned char* ptr;
-    ptr = data + step * y0 + x0 * 3;
-    b += *(ptr++) * w00;
-    g += *(ptr++) * w00;
-    r += *(ptr++) * w00;
-    b += *(ptr++) * w01;
-    g += *(ptr++) * w01;
-    r += *(ptr++) * w01;
-    ptr = data + step * y1 + x0 * 3;
-    b += *(ptr++) * w10;
-    g += *(ptr++) * w10;
-    r += *(ptr++) * w10;
-    b += *(ptr++) * w11;
-    g += *(ptr++) * w11;
-    r += *(ptr++) * w11;
+    ptr = src + step * y0 + x0 * NumChannels;
+    for (int i = 0; i < NumChannels; i++)
+        res[i] += *(ptr++) * w00;
+    for (int i = 0; i < NumChannels; i++)
+        res[i] += *(ptr++) * w01;
+    ptr = src + step * y1 + x0 * NumChannels;
+    for (int i = 0; i < NumChannels; i++)
+        res[i] += *(ptr++) * w10;
+    for (int i = 0; i < NumChannels; i++)
+        res[i] += *(ptr++) * w11;
 
-    rgb[0] = b;
-    rgb[1] = g;
-    rgb[2] = r;
+    for (int i = 0; i < NumChannels; i++)
+        dst[i] = cv::saturate_cast<DstElemType>(res[i]);
 }
 
 void getReprojectMapAndMask(const PhotoParam& param,
@@ -316,7 +330,7 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
                 if (sx >= 0 && sy >= 0 && sx < srcWidth && sy < srcHeight)
                 {
                     uchar dest[3];
-                    bicubicResampling(srcWidth, srcHeight, srcStep, ptrSrc, sx, sy, dest);
+                    bicubicResampling<unsigned char, 3>(srcWidth, srcHeight, srcStep, ptrSrc, sx, sy, dest);
                     ptrDst[w][0] = dest[0];
                     ptrDst[w][1] = dest[1];
                     ptrDst[w][2] = dest[2];
@@ -365,7 +379,7 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
                     (sx - centx) * (sx - centx) + (sy - centy) * (sy - centy) < sqrDist)
                 {
                     uchar dest[3];
-                    bicubicResampling(srcWidth, srcHeight, srcStep, ptrSrc, sx, sy, dest);
+                    bicubicResampling<unsigned char, 3>(srcWidth, srcHeight, srcStep, ptrSrc, sx, sy, dest);
                     ptrDst[w][0] = dest[0];
                     ptrDst[w][1] = dest[1];
                     ptrDst[w][2] = dest[2];
@@ -404,7 +418,7 @@ void reproject(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
             if (pt.x >= 0 && pt.y >= 0 && pt.x < srcWidth && pt.y < srcHeight)
             {
                 uchar dest[3];
-                bicubicResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
+                bicubicResampling<unsigned char, 3>(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
                 ptrDstRow[w][0] = dest[0];
                 ptrDstRow[w][1] = dest[1];
                 ptrDstRow[w][2] = dest[2];
@@ -422,7 +436,7 @@ void reproject(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst, const
         reproject(src[i], dst[i], maps[i]);
 }
 
-template<typename DstElemType>
+template<typename DstElemType, int NumChannels>
 class ZReprojectLoop : public cv::ParallelLoopBody
 {
 public:
@@ -450,12 +464,12 @@ public:
                 {
                     //DstElemType dest[3];
                     //resampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
-                    bilinearResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, ptrDstRow);
+                    bilinearResampling<DstElemType, NumChannels>(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, ptrDstRow);
                     //ptrDstRow[w * 3] = dest[0];
                     //ptrDstRow[w * 3 + 1] = dest[1];
                     //ptrDstRow[w * 3 + 2] = dest[2];
                 }
-                ptrDstRow += 3;
+                ptrDstRow += NumChannels;
             }
         }
     }
@@ -469,10 +483,36 @@ public:
 
 void reprojectParallel(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
 {
-    dst.create(map.size(), CV_8UC3);
+    //dst.create(map.size(), CV_8UC3);
+    //dst.setTo(0);
+    //ZReprojectLoop<unsigned char, 3> loop(src, dst, map);
+    //cv::parallel_for_(cv::Range(0, dst.rows), loop);
+
+    CV_Assert(src.data && src.depth() == CV_8U);
+    int numChannels = src.channels();
+    CV_Assert(numChannels > 0 && numChannels <= 4);
+    dst.create(map.size(), CV_MAKETYPE(CV_8U, numChannels));
     dst.setTo(0);
-    ZReprojectLoop<unsigned char> loop(src, dst, map);
-    cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    if (numChannels == 1)
+    {
+        ZReprojectLoop<unsigned char, 1> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 2)
+    {
+        ZReprojectLoop<unsigned char, 2> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 3)
+    {
+        ZReprojectLoop<unsigned char, 3> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 4)
+    {
+        ZReprojectLoop<unsigned char, 4> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
 }
 
 void reprojectParallel(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst, const std::vector<cv::Mat>& maps)
@@ -487,7 +527,7 @@ void reprojectParallelTo16S(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map
 {
     dst.create(map.size(), CV_16SC3);
     dst.setTo(0);
-    ZReprojectLoop<short> loop(src, dst, map);
+    ZReprojectLoop<short, 3> loop(src, dst, map);
     cv::parallel_for_(cv::Range(0, dst.rows), loop);
 }
 
@@ -497,6 +537,35 @@ void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat
     dst.resize(numImages);
     for (int i = 0; i < numImages; i++)
         reprojectParallelTo16S(src[i], dst[i], maps[i]);
+}
+
+void reprojectParallelTo32F(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
+{
+    CV_Assert(src.data && src.depth() == CV_8U);
+    int numChannels = src.channels();
+    CV_Assert(numChannels > 0 && numChannels <= 4);
+    dst.create(map.size(), CV_MAKETYPE(CV_32F, numChannels));
+    dst.setTo(0);
+    if (numChannels == 1)
+    {
+        ZReprojectLoop<float, 1> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 2)
+    {
+        ZReprojectLoop<float, 2> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 3)
+    {
+        ZReprojectLoop<float, 3> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 4)
+    {
+        ZReprojectLoop<float, 4> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
 }
 
 void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
@@ -520,7 +589,7 @@ void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
             if (pt.x >= 0 && pt.y >= 0 && pt.x < srcWidth && pt.y < srcHeight)
             {
                 uchar dest[3];
-                bicubicResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
+                bilinearResampling<unsigned char, 3>(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
                 float alpha = ptrWeight[w];
                 ptrDstRow[w][0] += dest[0] * alpha;
                 ptrDstRow[w][1] += dest[1] * alpha;
@@ -557,7 +626,7 @@ public:
                 if (pt.x >= 0 && pt.y >= 0 && pt.x < srcWidth && pt.y < srcHeight)
                 {
                     uchar dest[3];
-                    bilinearResampling(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
+                    bilinearResampling<unsigned char, 3>(srcWidth, srcHeight, srcStep, srcData, pt.x, pt.y, dest);
                     float alpha = ptrWeight[w];
                     ptrDstRow[w][0] += dest[0] * alpha;
                     ptrDstRow[w][1] += dest[1] * alpha;
