@@ -87,7 +87,9 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
             currValidFrameCount -= count;
             if (currValidFrameCount <= 0)
             {
-                ptlprintf("Error in %s, video not long enough\n", __FUNCTION__);
+                ptlprintf("Error in %s, video at index %d has only %d frames, "
+                    "should be saught to frame indexed %d, video not long enough\n", 
+                    __FUNCTION__, i, readers[i].getVideoNumFrames(), offsets[i]);
                 ok = false;
                 break;
             }
@@ -102,7 +104,8 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
         {
             if (!readers[i].seekByIndex(count, avp::VIDEO))
             {
-                ptlprintf("Error in %s, cannot seek to target frame\n", __FUNCTION__);
+                ptlprintf("Error in %s, video at index %d cannot be saught to frame indexed %d\n", 
+                    __FUNCTION__, i, count);
                 ok = false;
                 break;
             }
