@@ -34,11 +34,37 @@ static void toEquiRect(const PhotoParam& param, const cv::Size& srcSize, const c
     }
 }
 
+static void smooth(const std::vector<std::vector<double> >& src, int radius, std::vector<std::vector<double> >& dst)
+{
+    dst.clear();
+    if (src.empty())
+        return;
+    int size = src.size();
+    int length = src[0].size();
+    dst.resize(size);
+    std::vector<double> sum(length);
+    for (int i = 0; i < size; i++)
+    {
+        int beg = std::max(0, i - radius);
+        int end = std::min(i + radius, size - 1);
+        for (int k = 0; k < length; k++)
+            sum[k] = 0;
+        for (int j = beg; j <= end; j++)
+        {
+            for (int k = 0; k < length; k++)
+                sum[k] += src[j][k];
+        }
+        dst[i].resize(length);
+        for (int k = 0; k < length; k++)
+            dst[i][k] = sum[k] * (1.0 / (end + 1 - beg));
+    }
+}
+
 int main()
 {
     cv::Ptr<cv::ORB> ptrOrb = cv::ORB::create(250);
     cv::BFMatcher matcher(cv::NORM_L2, true);
-    const char* videoPath = "F:\\QQRecord\\452103256\\FileRecv\\mergetest1new.avi";
+    const char* videoPath = "F:\\QQRecord\\452103256\\FileRecv\\mergetest2new.avi";
     cv::VideoCapture cap(videoPath);
     int numFrames = cap.get(CV_CAP_PROP_FRAME_COUNT);
     cap.release();
@@ -46,77 +72,63 @@ int main()
     std::vector<cv::Vec3d> angles;
     angles.reserve(numFrames);
 
-    cv::Size frameSize = cv::Size(2048, 1024);
+    std::vector<std::vector<double> > es, bs, rs;
+    es.reserve(numFrames);
+    bs.reserve(numFrames);
+    rs.reserve(numFrames);
 
-    //ReprojectParam pi;
-    //pi.LoadConfig("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml");
-    //pi.SetPanoSize(frameSize);
+    cv::Size frameSize = cv::Size(1280, 640);
+
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
+    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
+    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml", params);
 
-    std::vector<std::string> srcVideoNames;
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
-    int numVideos = srcVideoNames.size();
+    std::vector<cv::Mat> dstMasks;
+    std::vector<cv::Mat> dstSrcMaps;
+    getReprojectMapsAndMasks(params, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
 
-    int offset[] = { 563, 0, 268, 651, 91, 412 };
-    int numSkip = 2100;
-
-    //ReprojectParam pi;
-    //pi.LoadConfig("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml");
-    //pi.SetPanoSize(frameSize);
+    ExposureColorCorrect correct;
+    correct.prepare(dstMasks);
 
     //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
     //int numVideos = srcVideoNames.size();
 
-    //int offset[] = {554, 0, 436, 1064, 164, 785};
-    //int numSkip = 3000;
+    //int offset[] = { 563, 0, 268, 651, 91, 412 };
+    //int numSkip = 2100;
+
+    std::vector<std::string> srcVideoNames;
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    int numVideos = srcVideoNames.size();
+
+    int offset[] = {554, 0, 436, 1064, 164, 785};
+    int numSkip = 3000;
 
     std::vector<cv::VideoCapture> caps(numVideos);
     for (int i = 0; i < numVideos; i++)
     {
         caps[i].open(srcVideoNames[i]);
         int count = offset[i] + numSkip;
-        cv::Mat frame;
-        for (int j = 0; j < count; j++)
-            caps[i].read(frame);
+        //cv::Mat frame;
+        //for (int j = 0; j < count; j++)
+        //    caps[i].read(frame);
+        caps[i].set(cv::CAP_PROP_POS_FRAMES, count);
     }
 
-    //std::vector<cv::Mat> dstMasks1;
-    //std::vector<cv::Mat> dstSrcMaps1;
-    //std::vector<cv::Mat> images1(numVideos), reprojImages1;
-    //getReprojectMapsAndMasks(pi, cv::Size(1280, 960), dstSrcMaps1, dstMasks1);
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    caps[i].read(images1[i]);
-    //}
-    //reproject(images1, reprojImages1, dstSrcMaps1);
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    char buf[128];        
-    //    sprintf(buf, "image%d.bmp", i);
-    //    cv::imwrite(buf, images1[i]);
-    //    sprintf(buf, "mask%d.bmp", i);
-    //    cv::imwrite(buf, dstMasks1[i]);
-    //    sprintf(buf, "reprojimage%d.bmp", i);
-    //    cv::imwrite(buf, reprojImages1[i]);
-    //}
-    //return 0;
-
     cv::Size srcSize(1280, 960);
-    int width = 2048, height = 1024;
-    cv::Mat color, gray;
-    std::vector<cv::Mat> frames(numVideos);
+    int width = srcSize.width, height = srcSize.height;
+    cv::Mat gray;
+    std::vector<cv::Mat> frames(numVideos), reprojFrames(numVideos);
     std::vector<cv::Mat> descsPrev(numVideos), descsCurr(numVideos);
     std::vector<std::vector<cv::KeyPoint> > pointsPrev(numVideos), pointsCurr(numVideos);
     std::vector<std::vector<cv::DMatch> > matches(numVideos);
@@ -128,11 +140,18 @@ int main()
 
     for (int i = 0; i < numVideos; i++)
     {
-        caps[i].read(color);
-        cv::cvtColor(color, gray, CV_BGR2GRAY);
+        caps[i].read(frames[i]);
+        cv::cvtColor(frames[i], gray, CV_BGR2GRAY);
         ptrOrb->detectAndCompute(gray, cv::Mat(), pointsPrev[i], descsPrev[i]);
     }
     angles.push_back(cv::Vec3d(0, 0, 0));
+
+    reprojectParallel(frames, reprojFrames, dstSrcMaps);
+    std::vector<double> e, b, r;
+    correct.correctExposureAndWhiteBalance(reprojFrames, e, r, b);
+    es.push_back(e);
+    rs.push_back(r);
+    bs.push_back(b);
 
     int count = 0;
 
@@ -149,7 +168,7 @@ int main()
             }
         }
         ++count;
-        if (/*count > 1000 ||*/ !success)
+        if (/*count > 300 ||*/ !success)
             break;
 
         //showCombined.setTo(0);
@@ -159,8 +178,6 @@ int main()
             ptrOrb->detectAndCompute(gray, cv::Mat(), pointsCurr[i], descsCurr[i]);
             matcher.match(descsPrev[i], descsCurr[i], matches[i]);
             extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
-            //toEquiRect(pi, i, srcSize, points1[i], srcEquiRectPts[i]);
-            //toEquiRect(pi, i, srcSize, points2[i], dstEquiRectPts[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points1[i], srcEquiRectPts[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points2[i], dstEquiRectPts[i]);
             //drawDirection(srcEquiRectPts[i], dstEquiRectPts[i], showCombined);
@@ -201,6 +218,12 @@ int main()
             pointsCurr[i].swap(pointsPrev[i]);
             cv::swap(descsCurr[i], descsPrev[i]);
         }
+
+        reprojectParallel(frames, reprojFrames, dstSrcMaps);
+        correct.correctExposureAndWhiteBalance(reprojFrames, e, r, b);
+        es.push_back(e);
+        rs.push_back(r);
+        bs.push_back(b);
     }
 
     for (int i = 0; i < numVideos; i++)
@@ -255,24 +278,28 @@ int main()
     //draw(anglesProcAccum,colors, angleShow);
     //cv::imshow("angles proc accum", angleShow);
     //cv::waitKey(0);
-    //return 0;    
+    //return 0;  
+
+    int num = es.size();
+    std::vector<std::vector<double> > rsProc, bsProc;
+    smooth(rs, 96, rsProc);
+    smooth(bs, 96, bsProc);
+
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
 
     for (int i = 0; i < numVideos; i++)
     {
         caps[i].open(srcVideoNames[i]);
         int count = offset[i] + numSkip;
-        cv::Mat frame;
-        for (int j = 0; j < count; j++)
-            caps[i].read(frame);
+        //cv::Mat frame;
+        //for (int j = 0; j < count; j++)
+        //    caps[i].read(frame);
+        caps[i].set(cv::CAP_PROP_POS_FRAMES, count);
     }
 
-    frameSize = cv::Size(800, 400);
+    //frameSize = cv::Size(800, 400);
 
-    std::vector<cv::Mat> dstMasks;
-    std::vector<cv::Mat> dstSrcMaps;
-    getReprojectMapsAndMasks(params, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
-
-    const char* outPath = "stab_merge_test1_compensate_new_long_slow.avi";
+    const char* outPath = "stab_exposure_color_correct_2.avi";
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     /*
@@ -314,6 +341,10 @@ int main()
         getReprojectMapsAndMasks(currParams, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
         reprojectParallel(srcImages, dstImages, dstSrcMaps);
 
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+        transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
+
         //timer.start();
         printf("blend:\n");
         blender.blendAndCompensate(dstImages, dstMasks, blendImage);
@@ -328,7 +359,7 @@ int main()
     }
     */
 
-    /*
+    
     TilingMultibandBlendFast blender;
     blender.prepare(dstMasks, 16, 2);
 
@@ -365,6 +396,10 @@ int main()
         printf("reproject:\n");
         reprojectParallel(srcImages, dstImages, dstSrcMaps);
 
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+            transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
+
         //timer.start();
         printf("blend:\n");
         blender.blend(dstImages, blendImage);
@@ -380,8 +415,9 @@ int main()
         if (frameCount >= maxCount)
             break;
     }
-    */
+    
 
+    /*
     BlendConfig config;
     config.setBlendMultiBand(8, 4);
     config.setSeamDistanceTransform();
@@ -421,6 +457,10 @@ int main()
         getReprojectMapsAndMasks(currParams, cv::Size(1280, 960), frameSize, dstSrcMaps, dstMasks);
         reprojectParallel(srcImages, dstImages, dstSrcMaps);
 
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+            transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
+
         //timer.start();
         printf("blend:\n");
         parallelBlend(config, dstImages, dstMasks, blendImage);
@@ -433,7 +473,7 @@ int main()
         if (frameCount >= maxCount)
             break;
     }
-
+    */
     
     return 0;
 }
