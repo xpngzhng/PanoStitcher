@@ -525,10 +525,36 @@ void reprojectParallel(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& ds
 
 void reprojectParallelTo16S(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
 {
-    dst.create(map.size(), CV_16SC3);
+    //dst.create(map.size(), CV_16SC3);
+    //dst.setTo(0);
+    //ZReprojectLoop<short, 3> loop(src, dst, map);
+    //cv::parallel_for_(cv::Range(0, dst.rows), loop);
+
+    CV_Assert(src.data && src.depth() == CV_8U);
+    int numChannels = src.channels();
+    CV_Assert(numChannels > 0 && numChannels <= 4);
+    dst.create(map.size(), CV_MAKETYPE(CV_16S, numChannels));
     dst.setTo(0);
-    ZReprojectLoop<short, 3> loop(src, dst, map);
-    cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    if (numChannels == 1)
+    {
+        ZReprojectLoop<short, 1> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 2)
+    {
+        ZReprojectLoop<short, 2> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 3)
+    {
+        ZReprojectLoop<short, 3> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
+    else if (numChannels == 4)
+    {
+        ZReprojectLoop<short, 4> loop(src, dst, map);
+        cv::parallel_for_(cv::Range(0, dst.rows), loop);
+    }
 }
 
 void reprojectParallelTo16S(const std::vector<cv::Mat>& src, std::vector<cv::Mat>& dst, const std::vector<cv::Mat>& maps)

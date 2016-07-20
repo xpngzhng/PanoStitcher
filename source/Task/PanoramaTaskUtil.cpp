@@ -151,6 +151,8 @@ static void alphaBlend(cv::Mat& image, const cv::Mat& logo)
 bool WatermarkFilter::init(int width_, int height_, int type_)
 {
     initSuccess = false;
+    clear();
+
     if (width_ < 0 || height_ < 0 || (type_ != CV_8UC3 && type_ != CV_8UC4))
     {
         ptlprintf("Error in %s, width(%d) height(%d) type(%d) not satisfied\n",
@@ -223,8 +225,9 @@ void WatermarkFilter::clear()
 bool LogoFilter::init(const std::string& logoFileName, int hFov, int width_, int height_)
 {
     initSuccess = false;
+    clear();
 
-    if (width_ <= 0 || height_ <= 0)
+    if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
         ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
@@ -240,6 +243,60 @@ bool LogoFilter::init(const std::string& logoFileName, int hFov, int width_, int
     if (!origLogo.data)
     {
         ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        return false;
+    }
+    if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
+    {
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        return false;
+    }
+
+    PhotoParam param;
+    param.imageType = PhotoParam::ImageTypeFullFrameFishEye;
+    param.hfov = hFov;
+    param.pitch = -90;
+    param.cropWidth = origLogo.cols;
+    param.cropHeight = origLogo.rows;
+    cv::Mat map, mask;
+    getReprojectMapAndMask(param, origLogo.size(), cv::Size(width_, height_), map, mask);
+    cv::Mat logoReproj;
+    reprojectParallel(origLogo, logoReproj, map);
+
+    if (origLogo.type() == CV_8UC3)
+    {
+        logo.create(cv::Size(width_, height_), CV_8UC4);
+        int fromTo[] = { 0, 0, 1, 1, 2, 2, 3, 3 };
+        cv::Mat src[] = { logoReproj, mask };
+        cv::mixChannels(src, 2, &logo, 1, fromTo, 4);
+    }
+    else
+        logo = logoReproj;
+
+    width = width_;
+    height = height_;
+    initSuccess = true;
+    return true;
+}
+
+bool LogoFilter::init(const cv::Mat& origLogo, int hFov, int width_, int height_)
+{
+    clear();
+
+    if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        return false;
+    }
+
+    if (hFov <= 0 || hFov > 180)
+    {
+        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        return false;
+    }
+
+    if (!origLogo.data)
+    {
+        ptlprintf("Error in %s, orig logo image empty\n", __FUNCTION__);
         return false;
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
@@ -300,8 +357,13 @@ void LogoFilter::clear()
 bool CudaWatermarkFilter::init(int width_, int height_)
 {
     initSuccess = false;
-    if (width_ < 0 || height_ < 0)
+    clear();
+
+    if (width_ < 0 || height_ < 0 || width_ != height_ * 2)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
+    }
 
     width = width_;
     height = height_;
@@ -364,7 +426,7 @@ bool CudaLogoFilter::init(const std::string& logoFileName, int hFov, int width_,
 {
     initSuccess = false;
 
-    if (width_ <= 0 || height_ <= 0)
+    if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
         ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;

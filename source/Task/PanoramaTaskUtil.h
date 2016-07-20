@@ -25,6 +25,7 @@ struct LogoFilter
 {
     LogoFilter() : initSuccess(false), width(0), height(0) {}
     bool init(const std::string& logoFileName, int hFov, int width, int height);
+    bool init(const cv::Mat& logo, int hFov, int width, int height);
     bool addLogo(cv::Mat& image) const;
     void clear();
 
