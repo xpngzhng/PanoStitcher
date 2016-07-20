@@ -28,7 +28,7 @@ void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
 
 int main()
 {
-    int height = 600;
+    int height = 800;
     cv::Size dstSize = cv::Size(height * 2, height);
 
     //{
@@ -77,10 +77,15 @@ int main()
 
     {
         std::vector<std::string> paths;
-        paths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
-        paths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
-        paths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
-        paths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
+        //paths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
+        //paths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
+        //paths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
+        //paths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
+
+        paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -92,9 +97,10 @@ int main()
         }            
 
         std::vector<PhotoParam> params;
-        loadPhotoParamFromPTS("F:\\panoimage\\detuoffice2\\4port.pts", params);
+        //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice2\\4port.pts", params);
         //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
         //rotateCameras(params, 0, 0, 3.1415926 / 2);
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
@@ -118,16 +124,16 @@ int main()
             cv::waitKey(0);
         }
 
-        //cv::Mat splitMats[2];
-        //cv::Mat fromGpuMats[2];
-        //for (int i = 0; i < numImages; i++)
-        //{
-        //    cv::split(maps[i], splitMats);
-        //    xmaps[i].download(fromGpuMats[0]);
-        //    ymaps[i].download(fromGpuMats[1]);
-        //    compare(fromGpuMats[0], splitMats[0]);
-        //    compare(fromGpuMats[1], splitMats[1]);
-        //}
+        cv::Mat splitMats[2];
+        cv::Mat fromGpuMats[2];
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::split(maps[i], splitMats);
+            xmaps[i].download(fromGpuMats[0]);
+            ymaps[i].download(fromGpuMats[1]);
+            compare(fromGpuMats[0], splitMats[0]);
+            compare(fromGpuMats[1], splitMats[1]);
+        }
     }
 
     return 0;

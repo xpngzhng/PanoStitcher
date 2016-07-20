@@ -87,9 +87,11 @@ __device__ void cvtBGRToYUV2x2Block(const unsigned char* bgrTopData, const unsig
     
     int u00 = ITUR_BT_601_CRU * r00 + ITUR_BT_601_CGU * g00 + ITUR_BT_601_CBU * b00 + halfShift + shifted128;
     int v00 = ITUR_BT_601_CBU * r00 + ITUR_BT_601_CGV * g00 + ITUR_BT_601_CBV * b00 + halfShift + shifted128;
+    int u10 = ITUR_BT_601_CRU * r10 + ITUR_BT_601_CGU * g10 + ITUR_BT_601_CBU * b10 + halfShift + shifted128;
+    int v10 = ITUR_BT_601_CBU * r10 + ITUR_BT_601_CGV * g10 + ITUR_BT_601_CBV * b10 + halfShift + shifted128;
 
-    *uData = clamp0255(u00 >> ITUR_BT_601_SHIFT);
-    *vData = clamp0255(v00 >> ITUR_BT_601_SHIFT);
+    *uData = clamp0255((u00 + u10) >> (ITUR_BT_601_SHIFT + 1));
+    *vData = clamp0255((v00 + v10) >> (ITUR_BT_601_SHIFT + 1));
 }
 
 __global__ void cvtBGR32ToYUV420P(const unsigned char* bgrData, int bgrStep,

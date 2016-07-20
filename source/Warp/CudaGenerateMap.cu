@@ -256,11 +256,21 @@ void cudaGenerateReprojectMap(const PhotoParam& photoParam_,
         photoParam.cropWidth = dstWidth;
         photoParam.cropHeight = dstHeight;
     }
-    CalcType centx = photoParam.cropX + photoParam.cropWidth / 2;
-    CalcType centy = photoParam.cropY + photoParam.cropHeight / 2;
-    CalcType sqrDist = photoParam.cropWidth > photoParam.cropHeight ?
-        photoParam.cropWidth * photoParam.cropWidth * 0.25 :
-        photoParam.cropHeight * photoParam.cropHeight * 0.25;
+    CalcType centx = 0, centy = 0, sqrDist = 0;
+    if (photoParam.circleR == 0)
+    {
+        centx = photoParam.cropX + photoParam.cropWidth / 2;
+        centy = photoParam.cropY + photoParam.cropHeight / 2;
+        sqrDist = photoParam.cropWidth > photoParam.cropHeight ?
+            photoParam.cropWidth * photoParam.cropWidth * 0.25 :
+            photoParam.cropHeight * photoParam.cropHeight * 0.25;
+    }
+    else
+    {
+        centx = photoParam.circleX;
+        centy = photoParam.circleY;
+        sqrDist = photoParam.circleR * photoParam.circleR;
+    }
 
     Remap remap;
     remap.init(photoParam, dstWidth, dstHeight, srcWidth, srcHeight);

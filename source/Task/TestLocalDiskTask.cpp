@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
         task.reset(new CPUPanoramaLocalDiskTask);
     
     panoVideoName = "libx264.mp4";
-    std::string logoFileName = "F:\\image\\Earth_global.png";
+    std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
     bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, logoFileName, fov, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
