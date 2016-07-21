@@ -168,7 +168,7 @@ int main()
             }
         }
         ++count;
-        if (count > 10 || !success)
+        if (count > 500 || !success)
             break;
 
         //showCombined.setTo(0);
@@ -351,10 +351,7 @@ int main()
         //timer.end();
         //printf("%f\n", timer.elapse());
 
-        cv::imshow("image", blendImage);
-        cv::waitKey(0);
-
-        //writer.write(blendImage);
+        writer.write(blendImage);
 
         frameCount++;
         if (frameCount >= maxCount)
