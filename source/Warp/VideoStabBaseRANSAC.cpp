@@ -80,8 +80,8 @@ int main()
     cv::Size frameSize = cv::Size(1280, 640);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
-    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml", params);
+    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
+    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml", params);
 
     std::vector<cv::Mat> dstMasks;
     std::vector<cv::Mat> dstSrcMaps;
@@ -90,29 +90,29 @@ int main()
     ExposureColorCorrect correct;
     correct.prepare(dstMasks);
 
-    std::vector<std::string> srcVideoNames;
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
-    int numVideos = srcVideoNames.size();
-
-    int offset[] = { 563, 0, 268, 651, 91, 412 };
-    int numSkip = 2100;
-
     //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
     //int numVideos = srcVideoNames.size();
 
-    //int offset[] = {554, 0, 436, 1064, 164, 785};
-    //int numSkip = 3000;
+    //int offset[] = { 563, 0, 268, 651, 91, 412 };
+    //int numSkip = 2100;
+
+    std::vector<std::string> srcVideoNames;
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    int numVideos = srcVideoNames.size();
+
+    int offset[] = {554, 0, 436, 1064, 164, 785};
+    int numSkip = 3000;
 
     std::vector<cv::VideoCapture> caps(numVideos);
     for (int i = 0; i < numVideos; i++)
@@ -168,7 +168,7 @@ int main()
             }
         }
         ++count;
-        if (/*count > 300 ||*/ !success)
+        if (count > 10 || !success)
             break;
 
         //showCombined.setTo(0);
@@ -299,11 +299,11 @@ int main()
 
     //frameSize = cv::Size(800, 400);
 
-    const char* outPath = "stab_exposure_color_correct_1.avi";
+    const char* outPath = "stab_exposure_color_correct_2.avi";
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     
-    TilingMultibandBlend blender;
+    TilingMultibandBlendFast blender;
     blender.prepare(dstMasks, 16, 2);
 
     cv::Mat blendImage;
@@ -351,7 +351,10 @@ int main()
         //timer.end();
         //printf("%f\n", timer.elapse());
 
-        writer.write(blendImage);
+        cv::imshow("image", blendImage);
+        cv::waitKey(0);
+
+        //writer.write(blendImage);
 
         frameCount++;
         if (frameCount >= maxCount)

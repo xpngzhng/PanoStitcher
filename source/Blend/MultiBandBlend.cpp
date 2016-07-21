@@ -1161,6 +1161,11 @@ void TilingMultibandBlendFast::blendAndCompensate(const std::vector<cv::Mat>& im
             images[i].convertTo(imagePyr[0], CV_16S);
         else if (images[i].type() == CV_16SC3)
             imagePyr[0] = images[i];
+
+        customAux.setTo(0);
+        customAux.setTo(256, masks[i]);
+        customAux.copyTo(tempAlphaPyr[0]);
+
         for (int j = 0; j < numLevels; j++)
         {
             pyramidDownTo32S(tempAlphaPyr[j], adjustAlphaPyr[j + 1], cv::Size(), cv::BORDER_WRAP);
@@ -1387,15 +1392,15 @@ void TilingMultibandBlendFastParallel::blend(const std::vector<cv::Mat>& images,
         cvAccum.wait(lk, [this] { return buildCount.load() == numImages; });
     }
 
-        customResultWeightPyr.resize(numLevels + 1);
-        for (int i = 0; i < numLevels + 1; i++)
-        {
-            customResultWeightPyr[i].create(customWeightPyrs[0][i].size(), CV_32SC1);
-            customResultWeightPyr[i].setTo(0);
-        }
-        for (int i = 0; i < numImages; i++)
-            accumulateWeight(customWeightPyrs[i], customResultWeightPyr);
-        cv::bitwise_not(customMaskNot, customMaskNot);
+    customResultWeightPyr.resize(numLevels + 1);
+    for (int i = 0; i < numLevels + 1; i++)
+    {
+        customResultWeightPyr[i].create(customWeightPyrs[0][i].size(), CV_32SC1);
+        customResultWeightPyr[i].setTo(0);
+    }
+    for (int i = 0; i < numImages; i++)
+        accumulateWeight(customWeightPyrs[i], customResultWeightPyr);
+    cv::bitwise_not(customMaskNot, customMaskNot);
 
     for (int i = 0; i <= numLevels; i++)
         resultPyr[i].setTo(0);
