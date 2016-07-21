@@ -107,6 +107,7 @@ public:
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
     void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
+    void blendAndCompensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
     void getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
 private:
@@ -124,6 +125,9 @@ private:
     std::vector<cv::Mat> customResultWeightPyr;
     std::vector<std::vector<cv::Mat> > customWeightPyrs;
     cv::Mat customAux, customMaskNot;
+
+    cv::Mat remain, matchArea;
+    std::vector<cv::Mat> adjustMasks, tempAlphaPyr, adjustAlphaPyr;
 };
 
 // DEPRECATED
