@@ -11,10 +11,19 @@
 #include "Image.h"
 #include "Text.h"
 #include "opencv2/highgui.hpp"
+#include <deque>
 
 typedef BoundedCompleteQueue<avp::AudioVideoFrame2> FrameBufferForCpu;
 typedef std::vector<avp::AudioVideoFrame2> FrameVectorForCpu;
 typedef BoundedCompleteQueue<FrameVectorForCpu> FrameVectorBufferForCpu;
+typedef std::deque<avp::AudioVideoFrame2> TempAudioFrameBufferForCpu;
+
+enum EncodeState
+{
+    VideoFrameNotCome,
+    FirstVideoFrameCome,
+    ClearTempAudioBuffer
+};
 
 struct CPUPanoramaLocalDiskTask::Impl
 {
@@ -597,6 +606,9 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
     ztool::Timer timerEncode;
     encodeCount = 0;
     avp::AudioVideoFrame2 frame;
+    int encodeState = VideoFrameNotCome;
+    int hasAudio = audioIndex >= 0 && audioIndex < numVideos;
+    TempAudioFrameBufferForCpu tempAudioFrames;
     while (true)
     {
         if (!procFrameBuffer.pull(frame))
@@ -604,6 +616,31 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
 
         if (isCanceled)
             break;
+
+        if (hasAudio)
+        {
+            if (frame.mediaType == avp::AUDIO)
+            {
+                if (encodeState == VideoFrameNotCome)
+                {
+                    tempAudioFrames.push_back(frame);
+                    continue;
+                }
+                else if (encodeState == FirstVideoFrameCome)
+                {
+                    while (tempAudioFrames.size())
+                    {
+                        avp::AudioVideoFrame2 audioFrame = tempAudioFrames.front();
+                        writer.write(audioFrame);
+                        tempAudioFrames.pop_front();
+                    }
+                    encodeState = ClearTempAudioBuffer;
+                }
+            }
+
+            if (frame.mediaType == avp::VIDEO && encodeState == VideoFrameNotCome)
+                encodeState = FirstVideoFrameCome;
+        }
 
         //timerEncode.start();
         bool ok = writer.write(frame);
@@ -837,6 +874,7 @@ struct StampedPinnedMemoryVector
 
 typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBufferForCuda;
 typedef BoundedCompleteQueue<MixedAudioVideoFrame> MixedFrameBufferForCuda;
+typedef std::deque<MixedAudioVideoFrame> TempAudioFrameBufferForCuda;
 
 struct CudaPanoramaLocalDiskTask::Impl
 {
@@ -1376,6 +1414,9 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
     ztool::Timer timerEncode;
     encodeCount = 0;
     MixedAudioVideoFrame frame;
+    int encodeState = VideoFrameNotCome;
+    int hasAudio = audioIndex >= 0 && audioIndex < numVideos;
+    TempAudioFrameBufferForCuda tempAudioFrames;
     while (true)
     {
         if (!procFrameBuffer.pull(frame))
@@ -1383,6 +1424,31 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
 
         if (isCanceled)
             break;
+
+        if (hasAudio)
+        {
+            if (frame.frame.mediaType == avp::AUDIO)
+            {
+                if (encodeState == VideoFrameNotCome)
+                {
+                    tempAudioFrames.push_back(frame);
+                    continue;
+                }
+                else if (encodeState == FirstVideoFrameCome)
+                {
+                    while (tempAudioFrames.size())
+                    {
+                        avp::AudioVideoFrame2 audioFrame = tempAudioFrames.front().frame;
+                        writer.write(audioFrame);
+                        tempAudioFrames.pop_front();
+                    }
+                    encodeState = ClearTempAudioBuffer;
+                }
+            }
+
+            if (frame.frame.mediaType == avp::VIDEO && encodeState == VideoFrameNotCome)
+                encodeState = FirstVideoFrameCome;
+        }
 
         //timerEncode.start();
         bool ok = writer.write(frame.frame);
