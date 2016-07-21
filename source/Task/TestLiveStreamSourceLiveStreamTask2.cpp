@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
 
     cv::CommandLineParser parser(argc, argv, keys);
 
-    setAddLogo(false);
+    setAddWatermark(false);
 
     stitchFrameSize.width = parser.get<int>("pano_stitch_frame_width");
     stitchFrameSize.height = parser.get<int>("pano_stitch_frame_height");
@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
     cv::Size sz(1920, 960);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
-    //highQualityBlend = true;
+    highQualityBlend = true;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
@@ -348,6 +348,7 @@ int main(int argc, char* argv[])
     }
 
     saveFile = parser.get<bool>("pano_save_file");
+    saveFile = true;
     if (saveFile)
     {
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");
@@ -373,7 +374,14 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height,
+        //task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height,
+        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        fileFrameSize.width = 3072;
+        fileFrameSize.height = 2048;
+        fileBitRate = 20000000;
+        fileDuration = 6000;
+        fileEncoder = "h264_qsv";
+        task.beginSaveToDisk(".", PanoTypeCube3x2, fileFrameSize.width, fileFrameSize.height,
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 

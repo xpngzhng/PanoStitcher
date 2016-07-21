@@ -542,23 +542,27 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
             blender.blend(reprojImages, blendImage);
 
         if (logoFilter)
-            ok = logoFilter->addLogo(blendImage);
-        if (!ok)
         {
-            ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
-            //setAsyncErrorMessage("写入视频失败，任务终止。");
-            setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
-            break;
+            ok = logoFilter->addLogo(blendImage);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+                //setAsyncErrorMessage("写入视频失败，任务终止。");
+                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+                break;
+            }
         }
 
         if (addWatermark)
-            ok = watermarkFilter.addWatermark(blendImage);
-        if (!ok)
         {
-            ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
-            //setAsyncErrorMessage("写入视频失败，任务终止。");
-            setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
-            break;
+            ok = watermarkFilter.addWatermark(blendImage);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
+                //setAsyncErrorMessage("写入视频失败，任务终止。");
+                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+                break;
+            }
         }
 
         videoFrame.timeStamp = frames[index].timeStamp;
