@@ -377,8 +377,8 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
             false, avp::SampleTypeUnknown, true, pixelType, "dshow", opts);
         if (!ok)
         {
-            ptlprintf("Could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
-                videoDevices[i].shortName.c_str(), videoDevices[i].numString.c_str(),
+            ptlprintf("Error in %s, could not open DirectShow video device %s[%s] with framerate = %s and video_size = %s\n",
+                __FUNCTION__, videoDevices[i].shortName.c_str(), videoDevices[i].numString.c_str(),
                 frameRateStr.c_str(), videoSizeStr.c_str());
             failExists = true;
         }
@@ -428,8 +428,8 @@ bool FFmpegAudioVideoSource::open(const std::vector<avp::Device>& devices, int w
             false, avp::PixelTypeUnknown, "dshow", audioOpts);
         if (!audioOpenSuccess)
         {
-            ptlprintf("Could not open DirectShow audio device %s[%s], skip\n",
-                audioDevice.shortName.c_str(), audioDevice.numString.c_str());
+            ptlprintf("Error in %s, could not open DirectShow audio device %s[%s], skip\n",
+                __FUNCTION__, audioDevice.shortName.c_str(), audioDevice.numString.c_str());
         }
         else
         {

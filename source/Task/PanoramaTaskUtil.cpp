@@ -151,6 +151,9 @@ static void alphaBlend(cv::Mat& image, const cv::Mat& logo)
     }
 }
 
+static const int blockWidth = 512;
+static const int blockHeight = 256;
+
 bool WatermarkFilter::init(int width_, int height_, int type_)
 {
     initSuccess = false;
@@ -169,7 +172,6 @@ bool WatermarkFilter::init(int width_, int height_, int type_)
 
     cv::Mat origLogo(watermarkHeight, watermarkWidth, CV_8UC4, watermarkData);
 
-    int blockWidth = 512, blockHeight = 512;
     rects.clear();
     if (width < watermarkWidth || height < watermarkHeight)
     {
@@ -203,7 +205,13 @@ bool WatermarkFilter::init(int width_, int height_, int type_)
 bool WatermarkFilter::addWatermark(cv::Mat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != type)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, type);
         return false;
+        return false;
+    }
 
     int size = rects.size();
     for (int i = 0; i < size; i++)
@@ -337,11 +345,12 @@ bool LogoFilter::init(const cv::Mat& origLogo, int hFov, int width_, int height_
 
 bool LogoFilter::addLogo(cv::Mat& image) const
 {
-    if (!initSuccess || !image.data || image.rows != height || image.cols != width)
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width ||
+        (image.type() != CV_8UC3 && image.type() != CV_8UC4))
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d) unsatisfied, "
-            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d\n",
-            __FUNCTION__, initSuccess, height, width);
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d or %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC3, CV_8UC4);
         return false;
     }
 
@@ -374,7 +383,6 @@ bool CudaWatermarkFilter::init(int width_, int height_)
     cv::Mat origLogo(watermarkHeight, watermarkWidth, CV_8UC4, watermarkData);
     cv::Mat fullLogo;
 
-    int blockWidth = 512, blockHeight = 512;
     if (width < watermarkWidth || height < watermarkHeight)
     {
         cv::Rect logoRect(watermarkWidth / 2 - width / 2, watermarkHeight / 2 - height / 2, width, height);
@@ -407,11 +415,13 @@ bool CudaWatermarkFilter::init(int width_, int height_)
 
 bool CudaWatermarkFilter::addWatermark(cv::cuda::GpuMat& image) const
 {
-    if (!initSuccess)
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
+            "requre initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC4);
         return false;
-
-    if (!image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
-        return false;
+    }
 
     alphaBlend8UC4(image, logo);
     return true;
@@ -485,11 +495,11 @@ bool CudaLogoFilter::init(const std::string& logoFileName, int hFov, int width_,
 
 bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
 {
-    if (!initSuccess || !image.data || image.rows != height || image.cols != width)
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d) unsatisfied, "
-            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d\n",
-            __FUNCTION__, initSuccess, height, width);
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC4);
         return false;
     }
 
