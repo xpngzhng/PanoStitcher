@@ -875,13 +875,40 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 finish = 1;
                 break;
             }
+            if (renderFrame.frame.width != renderFrameSize.width ||
+                renderFrame.frame.height != renderFrameSize.height ||
+                renderFrame.frame.pixelType != avp::PixelTypeBGR32)
+            {
+                ptlprintf("Error in %s [%8x], render frame obtained from proc frame pool not satisfied, "
+                    "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
+                    __FUNCTION__, id, renderFrame.frame.width, renderFrame.frame.height, renderFrame.frame.pixelType,
+                    renderFrameSize.width, renderFrameSize.height, avp::PixelTypeBGR32);
+                addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
+                finish = 1;
+                break;
+            }
             cv::Mat bgr = renderFrame.planes[0].createMatHeader();
             bgr32.download(bgr);
             renderFrame.frame.timeStamp = timeStamps[0];
             procFrameBufferForShow.push(renderFrame);
 
-            if (streamOpenSuccess)
+            if (streamOpenSuccess && sendFramePool.get(sendFrame))
             {
+                if (sendFrame.frame.width != streamFrameSize.width ||
+                    sendFrame.frame.height != streamFrameSize.height ||
+                    (streamIsLibX264 ? (sendFrame.frame.pixelType != avp::PixelTypeYUV420P) :
+                                       (sendFrame.frame.pixelType != avp::PixelTypeNV12)))
+                {
+                    ptlprintf("Error in %s [%8x], send frame obtained from send frame pool not satisfied, "
+                        "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
+                        __FUNCTION__, id, sendFrame.frame.width, sendFrame.frame.height, sendFrame.frame.pixelType,
+                        streamFrameSize.width, streamFrameSize.height, streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12);
+
+                    addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
+                    finish = 1;
+                    break;
+                }
+
                 if (streamPanoType == PanoTypeEquiRect)
                 {
                     if (streamFrameSize == renderFrameSize)
@@ -892,7 +919,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 else
                     cudaReproject(bgr32, bgr1, streamXMap, streamYMap);
 
-                sendFramePool.get(sendFrame);
                 if (streamIsLibX264)
                 {
                     cvtBGR32ToYUV420P(bgr1, y1, u1, v1);
@@ -915,8 +941,23 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 procFrameBufferForSend.push(sendFrame);
             }
 
-            if (fileConfigSet)
+            if (fileConfigSet && saveFramePool.get(saveFrame))
             {
+                if (saveFrame.frame.width != fileFrameSize.width ||
+                    saveFrame.frame.height != fileFrameSize.height ||
+                    (fileIsLibX264 ? (saveFrame.frame.pixelType != avp::PixelTypeYUV420P) :
+                                     (saveFrame.frame.pixelType != avp::PixelTypeNV12)))
+                {
+                    ptlprintf("Error in %s [%8x], save frame obtained from save frame pool not satisfied, "
+                        "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
+                        __FUNCTION__, id, saveFrame.frame.width, saveFrame.frame.height, saveFrame.frame.pixelType,
+                        fileFrameSize.width, fileFrameSize.height, fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12);
+
+                    addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
+                    finish = 1;
+                    break;
+                }
+
                 if (filePanoType == PanoTypeEquiRect)
                 {
                     if (fileFrameSize == renderFrameSize)
@@ -927,7 +968,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 else
                     cudaReproject(bgr32, bgr2, fileXMap, fileYMap);
 
-                saveFramePool.get(saveFrame);
                 if (fileIsLibX264)
                 {
                     cvtBGR32ToYUV420P(bgr2, y2, u2, v2);
