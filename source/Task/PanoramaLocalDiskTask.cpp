@@ -112,7 +112,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
         ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_PARAM_CHECK_FAIL)/*"参数校验失败。"*/;
+        syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
 
@@ -122,13 +122,13 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!loadPhotoParams(cameraParamFile, params))
     {
         ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
     if (params.size() != numVideos)
     {
         ptlprintf("Error in %s, params.size() != numVideos\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -140,7 +140,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL)/*"打开视频失败。"*/;
+        syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
 
@@ -151,7 +151,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -163,7 +163,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         if (!ok)
         {
             ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
     }
@@ -174,7 +174,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -183,7 +183,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -223,7 +223,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -234,7 +234,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         if (!ok)
         {
             ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
         }
@@ -259,7 +259,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     if (!ok)
     {
         ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL)/*"无法创建拼接视频。"*/;
+        syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
 
@@ -275,151 +275,6 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     finish = false;
     return true;
 }
-
-/*
-void CPUPanoramaLocalDiskTask::Impl::run()
-{
-    if (!initSuccess)
-    {
-        ptlprintf("Error in %s, could not run because init not success\n", __FUNCTION__);
-        return;
-    }
-
-    if (finish)
-        return;
-
-    ptlprintf("Info in %s, write video begin\n", __FUNCTION__);
-
-    int count = 0;
-    int step = 1;
-    if (validFrameCount > 0)
-        step = validFrameCount / 100.0 + 0.5;
-    if (step < 1)
-        step = 1;
-    ptlprintf("Info in %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
-
-    try
-    {
-        std::vector<avp::AudioVideoFrame2> frames(numVideos);
-        std::vector<cv::Mat> images(numVideos);
-        bool ok = true;
-        blendImage.create(dstSize, CV_8UC3);
-        int videoIndex = audioIndex >= 0 ? audioIndex : 0;
-        while (true)
-        {
-            ok = true;
-            if (audioIndex >= 0 && audioIndex < numVideos)
-            {
-                if (!readers[audioIndex].read(frames[audioIndex]))
-                    break;
-
-                if (frames[audioIndex].mediaType == avp::AUDIO)
-                {
-                    ok = writer.write(frames[audioIndex]);
-                    if (!ok)
-                    {
-                        ptlprintf("Error in %s, write audio frame fail\n", __FUNCTION__);
-                        //setAsyncErrorMessage("写入视频失败，任务终止。");
-                        setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
-                        break;
-                    }
-                    continue;
-                }
-                else
-                {
-                    images[audioIndex] = cv::Mat(frames[audioIndex].height, frames[audioIndex].width, CV_8UC3,
-                        frames[audioIndex].data[0], frames[audioIndex].steps[0]);
-                }
-            }
-            for (int i = 0; i < numVideos; i++)
-            {
-                if (i == audioIndex)
-                    continue;
-
-                if (!readers[i].read(frames[i]))
-                {
-                    ok = false;
-                    break;
-                }
-
-                images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
-            }
-            if (!ok || endFlag)
-                break;
-
-            reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
-
-            if (useCustomMasks)
-            {
-                bool custom = false;
-                currMasks.resize(numVideos);
-                for (int i = 0; i < numVideos; i++)
-                {
-                    if (customMasks[i].getMask2(frames[i].frameIndex, currMasks[i]))
-                        custom = true;
-                    else
-                        currMasks[i] = dstUniqueMasks[i];
-                }
-
-                if (custom)
-                {
-                    //printf("custom masks\n");
-                    blender.blend(reprojImages, currMasks, blendImage);
-                }
-                else
-                    blender.blend(reprojImages, blendImage);
-            }
-            else
-                blender.blend(reprojImages, blendImage);
-
-            if (addLogo)
-                ok = logoFilter.addLogo(blendImage);
-            if (!ok)
-            {
-                ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
-                //setAsyncErrorMessage("写入视频失败，任务终止。");
-                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
-                break;
-            }
-            unsigned char* data[4] = { blendImage.data, 0, 0, 0 };
-            int steps[4] = { blendImage.step, 0, 0, 0 };
-            avp::AudioVideoFrame2 frame(data, steps, avp::PixelTypeBGR24, 
-                blendImage.cols, blendImage.rows, frames[videoIndex].timeStamp);
-            ok = writer.write(frame);
-            if (!ok)
-            {
-                ptlprintf("Error in %s, write video frame fail\n", __FUNCTION__);
-                //setAsyncErrorMessage("写入视频失败，任务终止。");
-                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
-                break;
-            }
-
-            count++;
-            if (count % step == 0)
-                finishPercent.store(double(count) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
-
-            if (count >= validFrameCount)
-                break;
-        }
-
-        for (int i = 0; i < numVideos; i++)
-            readers[i].close();
-        writer.close();
-    }
-    catch (std::exception& e)
-    {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
-        //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
-        setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
-    }
-
-    finishPercent.store(100);
-
-    ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
-
-    finish = true;
-}
-*/
 
 void CPUPanoramaLocalDiskTask::Impl::decode()
 {
@@ -556,7 +411,6 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
             if (!ok)
             {
                 ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
-                //setAsyncErrorMessage("写入视频失败，任务终止。");
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -568,7 +422,6 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
             if (!ok)
             {
                 ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
-                //setAsyncErrorMessage("写入视频失败，任务终止。");
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -648,7 +501,6 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
-            //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -958,7 +810,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
         ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_PARAM_CHECK_FAIL)/*"参数校验失败。"*/;
+        syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
 
@@ -972,7 +824,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL)/*"打开视频失败。"*/;
+        syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
 
@@ -983,7 +835,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -995,7 +847,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         if (!ok)
         {
             ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
     }
@@ -1004,14 +856,14 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
     if (render.getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -1021,7 +873,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -1029,7 +881,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
@@ -1040,7 +892,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         if (!ok)
         {
             ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
         }
@@ -1066,7 +918,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (!ok)
     {
         ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL)/*"无法创建拼接视频。"*/;
+        syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
 
@@ -1322,7 +1174,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
-            //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -1334,7 +1185,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             if (!ok)
             {
                 ptlprintf("Error in %s, add logo failed\n", __FUNCTION__);
-                //setAsyncErrorMessage("写入视频失败，任务终止。");
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -1346,7 +1196,6 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             if (!ok)
             {
                 ptlprintf("Error in %s, add watermark failed\n", __FUNCTION__);
-                //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                 setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
                 isCanceled = true;
                 break;
@@ -1456,7 +1305,6 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
-            //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;

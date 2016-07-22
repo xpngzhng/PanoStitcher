@@ -123,8 +123,6 @@ struct PanoramaLiveStreamTask2::Impl
 
     std::string syncErrorMessage;
 
-    //std::mutex mtxAsyncErrorMessage;
-    //std::string asyncErrorMessage;
     int hasAsyncError;
     void addAsyncErrorMessage(const std::string& message, int fromWhere);
     void clearAsyncErrorMessages();
@@ -162,7 +160,6 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
     if (audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
-        //syncErrorMessage = "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务。";
         syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -233,14 +230,14 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_STITCH)/*"尚未打开音视频源，无法启动拼接任务。"*/;
+        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_STITCH);
         return false;
     }
 
     if (!renderThreadJoined)
     {
         ptlprintf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_RUNNING_CLOSE_BEFORE_LAUNCH_NEW)/*"视频拼接任务正在进行中，请先关闭正在执行的任务，再启动新的任务。"*/;
+        syncErrorMessage = getText(TI_STITCH_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
 
@@ -253,8 +250,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);
-        //appendLog("视频拼接初始化失败\n");
-        //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -263,8 +258,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (render.getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
-        //appendLog("视频拼接初始化失败\n");
-        //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -274,8 +267,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not init proc frame pool\n", __FUNCTION__);
-        //appendLog("视频拼接初始化失败\n");
-        //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -286,8 +277,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
-        //appendLog("视频拼接初始化失败\n");
-        //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -297,8 +286,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
-        //appendLog("视频拼接初始化失败\n");
-        //syncErrorMessage = "视频拼接初始化失败。";
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -306,7 +293,6 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
 
     ptlprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
         __FUNCTION__, width, height, highQualityBlend);
-    //appendLog("视频拼接初始化成功\n");
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
     syncedFramesBufferForProc.clear();
@@ -321,9 +307,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderEndFlag = 0;
     renderThreadJoined = 0;
     renderThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::procVideo, this));
-    //postProcThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::postProc, this));
 
-    //appendLog("视频拼接任务启动成功\n");
     appendLog(getText(TI_STITCH_TASK_LAUNCH_SUCCESS) + "\n");
 
     return true;
@@ -343,7 +327,6 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderThreadJoined = 1;
         procFramePool.clear();
 
-        //appendLog("视频拼接任务结束\n");
         appendLog(getText(TI_STITCH_TASK_FINISH) + "\n");
     }
 }
@@ -380,21 +363,21 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_LIVE)/*"尚未打开音视频源，无法启动推流任务。"*/;
+        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_LIVE);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
         ptlprintf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE)/*"尚未启动拼接任务，无法启动推流任务。"*/;
+        syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE);
         return false;
     }
 
     if (!streamThreadJoined)
     {
         ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW)/*"推流任务正在进行中，请先关闭正在执行的任务，再启动新的任务。"*/;
+        syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
 
@@ -406,7 +389,7 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
     {
         ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
             __FUNCTION__, panoType, width, height);
-        syncErrorMessage = getText(TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE)/*"参数错误，无法启动推流任务。"*/;
+        syncErrorMessage = getText(TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE);
         return false;
     }
 
@@ -453,8 +436,6 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
     {
         ptlprintf("Error in %s, Could not open streaming url with frame rate = %f and bit rate = %d\n", 
             __FUNCTION__, videoFrameRate, streamVideoBitRate);
-        //appendLog("流媒体服务器连接失败\n");
-        //syncErrorMessage = "流媒体服务器连接失败。";
         appendLog(getText(TI_SERVER_CONNECT_FAIL) + "\n");
         syncErrorMessage = getText(TI_SERVER_CONNECT_FAIL);
         return false;
@@ -462,7 +443,6 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
 
     ptlprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
         __FUNCTION__, streamURL.c_str(), streamPanoType, streamFrameSize.width, streamFrameSize.height);
-    //appendLog("流媒体服务器连接成功\n");
     appendLog(getText(TI_SERVER_CONNECT_SUCCESS) + "\n");
 
     procFrameBufferForSend.resume();
@@ -470,7 +450,6 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
     streamThreadJoined = 0;
     streamThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::streamSend, this));
 
-    //appendLog("推流任务启动成功\n");
     appendLog(getText(TI_LIVE_TASK_LAUNCH_SUCCESS) + "\n");
 
     return true;
@@ -488,8 +467,6 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
         streamOpenSuccess = 0;
         sendFramePool.clear();
 
-        //appendLog("推流任务结束\n");
-        //appendLog("断开与流媒体服务器连接\n");
         appendLog(getText(TI_LIVE_TASK_FINISH) + "\n");
         appendLog(getText(TI_SERVER_DISCONNECT) + "\n");
     }
@@ -501,21 +478,21 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_WRITE)/*"尚未打开音视频源，无法启动保存任务。"*/;
+        syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_WRITE);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
         ptlprintf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE)/*"尚未启动拼接任务，无法启动保存任务。"*/;
+        syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE);
         return false;
     }
 
     if (!fileThreadJoined)
     {
         ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW)/*"保存任务正在进行中，请先关闭正在执行的任务，再启动新的任务。"*/;
+        syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
 
@@ -527,7 +504,7 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     {
         ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
             __FUNCTION__, panoType, width, height);
-        syncErrorMessage = getText(TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE)/*"参数错误，无法启动保存任务。"*/;
+        syncErrorMessage = getText(TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE);
         return false;
     }
 
@@ -576,7 +553,6 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
     fileThreadJoined = 0;
     fileThread.reset(new std::thread(&PanoramaLiveStreamTask2::Impl::fileSave, this));
 
-    //appendLog("启动保存视频任务\n");
     appendLog(getText(TI_WRITE_LAUNCH) + "\n");
 
     return true;
@@ -594,7 +570,6 @@ void PanoramaLiveStreamTask2::Impl::stopSaveToDisk()
         fileConfigSet = 0;
         saveFramePool.clear();
 
-        //appendLog("结束保存视频任务\n");
         appendLog(getText(TI_WRITE_FINISH) + "\n");
     }
 }
@@ -650,7 +625,8 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
     allowGetSyncedFramesBufferForShow = 1;
     if (!success)
     {
-        ptlprintf("Error in %s, could not get frames from synced frames buffer for show\n", __FUNCTION__);
+        ptlprintf("Error in %s, could not get frames from synced frames buffer for show, "
+            "so exposure correct failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CORRECT_FAIL);
         return false;
     }
@@ -714,14 +690,6 @@ bool PanoramaLiveStreamTask2::Impl::hasAsyncErrorMessage() const
 
 void PanoramaLiveStreamTask2::Impl::getLastAsyncErrorMessage(std::string& message, int& fromWhere)
 {
-    //if (hasAsyncError)
-    //{
-    //    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
-    //    message = asyncErrorMessage;
-    //    hasAsyncError = 0;
-    //}
-    //else
-    //    message.clear();
     if (hasAsyncError)
     {
         AsyncErrorMessage msg;
@@ -882,7 +850,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
-                //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                 addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
@@ -894,7 +861,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
-                    //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                     addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                     finish = 1;
                     break;
@@ -905,7 +871,6 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], could not get cpu memory to copy from gpu\n", __FUNCTION__, id);
-                //setAsyncErrorMessage("视频拼接发生错误，任务终止。");
                 addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
@@ -1023,7 +988,6 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
-                //setAsyncErrorMessage("推流发生错误，任务终止。");
                 addAsyncErrorMessage(getText(TI_LIVE_FAIL_TASK_TERMINATE), ErrorFromLiveStream);
                 finish = 1;
                 break;
@@ -1065,13 +1029,11 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
     if (!ok)
     {
         ptlprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
-        //appendLog(std::string(buf) + " 无法打开，任务终止\n");
         appendLog(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE) + "\n");
         addAsyncErrorMessage(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
         return;
     }
     else
-        //appendLog(std::string(buf) + " 开始写入\n");
         appendLog(std::string(buf) + " " + getText(TI_BEGIN_WRITE) + "\n");
     long long int fileFirstTimeStamp = -1;
     while (true)
@@ -1097,7 +1059,6 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             if (frame.frame.timeStamp - fileFirstTimeStamp > fileDuration * 1000000LL)
             {
                 writer.close();
-                //appendLog(std::string(buf) + " 写入结束\n");
                 appendLog(std::string(buf) + " " + getText(TI_END_WRITE) + "\n");
 
                 time(&rawTime);
@@ -1112,12 +1073,10 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
                 if (!ok)
                 {
                     ptlprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
-                    //appendLog(std::string(buf) + " 无法打开，任务终止\n");
                     appendLog(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE) + "\n");
                     break;
                 }
                 else
-                    //appendLog(std::string(buf) + " 开始写入\n");
                     appendLog(std::string(buf) + " " + getText(TI_BEGIN_WRITE) + "\n");
                 fileFirstTimeStamp = frame.frame.timeStamp;
             }
@@ -1126,7 +1085,6 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], could not write current frame\n", __FUNCTION__, id);
-                //setAsyncErrorMessage(std::string(buf) + " 写入发生错误，任务终止。");
                 addAsyncErrorMessage(std::string(buf) + " " + getText(TI_WRITE_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
                 break;
             }
@@ -1137,7 +1095,6 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         }
     }
     if (ok)
-        //appendLog(std::string(buf) + " 写入结束\n");
         appendLog(std::string(buf) + " " + getText(TI_END_WRITE) + "\n");
     writer.close();
 
