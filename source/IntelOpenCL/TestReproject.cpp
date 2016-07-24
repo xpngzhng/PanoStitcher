@@ -104,17 +104,6 @@ int main(int argc, char** argv)
         weights[i].copyTo(weightWrapper);
     }
 
-    std::vector<IOclMat> mapMats(numImages), iweightMats(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        mapMats[i].create(dstSize, CV_16SC2, oclobjects.context);
-        iweightMats[i].create(dstSize, CV_32SC4, oclobjects.context);
-        cv::Mat mapHeader = mapMats[i].toOpenCVMat();
-        cv::Mat weightHeader = iweightMats[i].toOpenCVMat();
-        cv::Mat maskTemp;
-        getReprojectMap16SAndWeight32SAndMask(params[i], src[i].size(), dstSize, mapHeader, weightHeader, maskTemp);
-    }
-
     IOclMat dstMat32F;
     dstMat32F.create(dstSize.height, dstSize.width, CV_32FC4, oclobjects.context);
 
@@ -182,49 +171,6 @@ int main(int argc, char** argv)
         cerr << "[ ERROR ] Unknown/internal error happened.\n";
         ret = EXIT_FAILURE;
     }
-
-    /*
-    try
-    {
-        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel2");
-        OpenCLProgramOneKernel setZeroKern(oclobjects, L"MatOp.txt", "", "setZeroKernel");
-
-        int numIters = 100;
-        ztool::Timer t;
-
-        for (int k = 0; k < numIters; k++)
-        {
-            ioclSetZero(dstMat32F, oclobjects, setZeroKern);
-            for (int i = 0; i < numImages; i++)
-                ioclReprojectAccumulateWeightedTo32F2(srcMats[i], dstMat32F, mapMats[i], iweightMats[i], weightMats[i], oclobjects, rprjKern);
-        }
-        t.end();
-        printf("time = %f\n", t.elapse() * 1000 / numIters);
-
-        cv::Mat d;
-        cv::Mat dstMat32FWrapper(dstMat32F.rows, dstMat32F.cols, dstMat32F.type, dstMat32F.data, dstMat32F.step);
-        dstMat32FWrapper.convertTo(d, CV_8U);
-
-        cv::imshow("dst2", d);
-        cv::waitKey(0);
-
-    }
-    catch (const Error& error)
-    {
-        cerr << "[ ERROR ] Sample application specific error: " << error.what() << "\n";
-        ret = EXIT_FAILURE;
-    }
-    catch (const std::exception& error)
-    {
-        cerr << "[ ERROR ] " << error.what() << "\n";
-        ret = EXIT_FAILURE;
-    }
-    catch (...)
-    {
-        cerr << "[ ERROR ] Unknown/internal error happened.\n";
-        ret = EXIT_FAILURE;
-    }
-    */
 
     return ret;
 }
