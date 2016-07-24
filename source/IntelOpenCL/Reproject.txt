@@ -266,7 +266,7 @@ __kernel void reprojectCubicKernel(__global const unsigned char* srcData, int sr
         resamplingGlobal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, ptrDst);
 }
 
-__kernel void reprojectWeighedAccumulateTo32FKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
+__kernel void reprojectWeightedAccumulateTo32FKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
     __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
     __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep,
     __global const unsigned char* weightData, int weightStep)

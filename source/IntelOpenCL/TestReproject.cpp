@@ -133,7 +133,7 @@ int main(int argc, char** argv)
 
     try
     {
-        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel");
+        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeightedAccumulateTo32FKernel");
         OpenCLProgramOneKernel setZeroKern(oclobjects, L"MatOp.txt", "", "setZeroKernel");
 
         int numIters = 1000;
