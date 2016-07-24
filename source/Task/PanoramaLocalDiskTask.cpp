@@ -31,7 +31,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
     bool start();
@@ -50,11 +50,12 @@ struct CPUPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
-    std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
-    int useCustomMasks;
-    std::vector<CustomIntervaledMasks> customMasks;
-    TilingMultibandBlendFast blender;
-    std::vector<cv::Mat> reprojImages;
+    //std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
+    //int useCustomMasks;
+    //std::vector<CustomIntervaledMasks> customMasks;
+    //TilingMultibandBlendFast blender;
+    //std::vector<cv::Mat> reprojImages;
+    CPUPanoramaRender render;
     WatermarkFilter watermarkFilter;
     std::unique_ptr<LogoFilter> logoFilter;
     avp::AudioVideoWriter3 writer;
@@ -103,9 +104,9 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, 
-    const std::string& logoFile, int logoHFov, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
-    int dstVideoMaxFrameCount)
+    const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile, 
+    int dstWidth, int dstHeight,  int dstVideoBitRate, const std::string& dstVideoEncoder, 
+    const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
     clear();
 
@@ -118,19 +119,19 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     numVideos = srcVideoFiles.size();
 
-    std::vector<PhotoParam> params;
-    if (!loadPhotoParams(cameraParamFile, params))
-    {
-        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-        return false;
-    }
-    if (params.size() != numVideos)
-    {
-        ptlprintf("Error in %s, params.size() != numVideos\n", __FUNCTION__);
-        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-        return false;
-    }
+    //std::vector<PhotoParam> params;
+    //if (!loadPhotoParams(cameraParamFile, params))
+    //{
+    //    ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
+    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+    //    return false;
+    //}
+    //if (params.size() != numVideos)
+    //{
+    //    ptlprintf("Error in %s, params.size() != numVideos\n", __FUNCTION__);
+    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+    //    return false;
+    //}
 
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
@@ -168,7 +169,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         }
     }
 
-    getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
+    //getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
     ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, dstSize.width, dstSize.height);
     if (!ok)
@@ -178,16 +179,30 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         return false;
     }
 
-    ok = blender.prepare(dstMasks, 16, 2);
+    //ok = blender.prepare(dstMasks, 16, 2);
     //ok = blender.prepare(dstMasks, 50);
+    //if (!ok)
+    //{
+    //    ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+    //    return false;
+    //}
+    ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
-    useCustomMasks = 0;
+    if (render.getNumImages() != readers.size())
+    {
+        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    //useCustomMasks = 0;
     //if (customMaskFile.size())
     //{
     //    std::vector<std::vector<IntervaledContour> > contours;
@@ -376,34 +391,36 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
 
         for (int i = 0; i < numVideos; i++)
             images[i] = cv::Mat(frames[i].height, frames[i].width, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
-        reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
+        //reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
 
         avp::AudioVideoFrame2 videoFrame;
         dstVideoFramesMemoryPool.get(videoFrame);
         cv::Mat blendImage(videoFrame.height, videoFrame.width, CV_8UC3, videoFrame.data[0], videoFrame.steps[0]);
 
-        if (useCustomMasks)
-        {
-            bool custom = false;
-            currMasks.resize(numVideos);
-            for (int i = 0; i < numVideos; i++)
-            {
-                if (customMasks[i].getMask2(frames[i].frameIndex, currMasks[i]))
-                    custom = true;
-                else
-                    currMasks[i] = dstUniqueMasks[i];
-            }
+        render.render(images, blendImage);
 
-            if (custom)
-            {
-                //printf("custom masks\n");
-                blender.blend(reprojImages, currMasks, blendImage);
-            }
-            else
-                blender.blend(reprojImages, blendImage);
-        }
-        else
-            blender.blend(reprojImages, blendImage);
+        //if (useCustomMasks)
+        //{
+        //    bool custom = false;
+        //    currMasks.resize(numVideos);
+        //    for (int i = 0; i < numVideos; i++)
+        //    {
+        //        if (customMasks[i].getMask2(frames[i].frameIndex, currMasks[i]))
+        //            custom = true;
+        //        else
+        //            currMasks[i] = dstUniqueMasks[i];
+        //    }
+
+        //    if (custom)
+        //    {
+        //        //printf("custom masks\n");
+        //        blender.blend(reprojImages, currMasks, blendImage);
+        //    }
+        //    else
+        //        blender.blend(reprojImages, blendImage);
+        //}
+        //else
+        //    blender.blend(reprojImages, blendImage);
 
         if (logoFilter)
         {
@@ -626,13 +643,14 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     srcSize = cv::Size();
     dstSize = cv::Size();
     readers.clear();
-    dstMasks.clear();
-    dstUniqueMasks.clear();
-    currMasks.clear();
-    useCustomMasks = 0;
-    customMasks.clear();
-    dstSrcMaps.clear();
-    reprojImages.clear();
+    //dstMasks.clear();
+    //dstUniqueMasks.clear();
+    //currMasks.clear();
+    //useCustomMasks = 0;
+    //customMasks.clear();
+    //dstSrcMaps.clear();
+    //reprojImages.clear();
+    render.clear();
     writer.close();
     isCanceled = false;
 
@@ -673,12 +691,12 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov, 
-    const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, 
-        logoFile, logoHFov, dstVideoFile, dstWidth, dstHeight,
+        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
@@ -734,7 +752,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        const std::string& dstVideoFile, int dstWidth, int dstHeight,
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
     bool start();
@@ -801,9 +819,9 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile, 
-    const std::string& logoFile, int logoHFov, const std::string& dstVideoFile, int dstWidth, int dstHeight,
-    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
-    int dstVideoMaxFrameCount)
+    const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile, 
+    int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder, 
+    const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
     clear();
 
@@ -852,7 +870,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         }
     }
 
-    ok = render.prepare(cameraParamFile, customMaskFile, 1, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, customMaskFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
         ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -1032,6 +1050,8 @@ void CudaPanoramaLocalDiskTask::Impl::clear()
 
     decodeFramesBuffer.clear();
     procFrameBuffer.clear();
+
+    render.clear();
 
     watermarkFilter.clear();
     logoFilter.reset();
@@ -1353,12 +1373,12 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
     const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-    const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile, 
-        logoFile, logoHFov, dstVideoFile, dstWidth, dstHeight,
+        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 

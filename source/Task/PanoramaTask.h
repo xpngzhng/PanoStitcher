@@ -120,7 +120,7 @@ public:
     virtual ~PanoramaLocalDiskTask() {};
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount) = 0;
     virtual bool start() = 0;
     virtual void waitForCompletion() = 0;
@@ -138,7 +138,7 @@ public:
     ~CPUPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();
@@ -159,7 +159,7 @@ public:
     ~CudaPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
     void waitForCompletion();

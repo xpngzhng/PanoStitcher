@@ -258,7 +258,9 @@ bool LogoFilter::init(const std::string& logoFileName, int hFov, int width_, int
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+            "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4, 
+            origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
     }
 
@@ -312,7 +314,9 @@ bool LogoFilter::init(const cv::Mat& origLogo, int hFov, int width_, int height_
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+            "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
+            origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
     }
 
@@ -459,7 +463,9 @@ bool CudaLogoFilter::init(const std::string& logoFileName, int hFov, int width_,
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3 or CV_8UC4\n", __FUNCTION__);
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+            "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
+            origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
     }
 

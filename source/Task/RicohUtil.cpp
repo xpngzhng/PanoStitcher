@@ -1428,7 +1428,7 @@ int CudaPanoramaRender2::getNumImages() const
     return success ? numImages : 0;
 }
 
-bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
+bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -1451,7 +1451,6 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     }
 
     highQualityBlend = highQualityBlend_;
-    completeQueue = completeQueue_;
     srcSize = srcSize_;
     dstSize = dstSize_;
 
@@ -1470,11 +1469,6 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
             getWeightsLinearBlend32F(masks, 50, weights);
             accum.create(dstSize, CV_32FC3);
         }
-
-        pool.init(dstSize.height, dstSize.width, CV_8UC3);
-
-        if (completeQueue)
-            cpQueue.setMaxSize(4);
     }
     catch (std::exception& e)
     {
@@ -1486,7 +1480,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     return true;
 }
 
-bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int timeStamp)
+bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (!success)
     {
@@ -1520,28 +1514,20 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
 
     try
     {
-        cv::Mat blendImage;
-        if (!pool.get(blendImage))
-            return false;
-
         if (!highQualityBlend)
         {
             accum.setTo(0);
             for (int i = 0; i < numImages; i++)
                 reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
-            accum.convertTo(blendImage, CV_8U);
+            accum.convertTo(dst, CV_8U);
         }
         else
         {
             reprojImages.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
-            mbBlender.blend(reprojImages, blendImage);
+            mbBlender.blend(reprojImages, dst);
         }
-        if (completeQueue)
-            cpQueue.push(std::make_pair(blendImage, timeStamp));
-        else
-            rtQueue.push(std::make_pair(blendImage, timeStamp));
     }
     catch (std::exception& e)
     {
@@ -1552,54 +1538,15 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, long long int ti
     return true;
 }
 
-bool CPUPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
-{
-    std::pair<cv::Mat, long long int> item;
-    bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
-    if (ret)
-    {
-        item.first.copyTo(dst);
-        timeStamp = item.second;
-    }
-    return ret;
-}
-
-void CPUPanoramaRender::stop()
-{
-    rtQueue.stop();
-    cpQueue.stop();
-}
-
-void CPUPanoramaRender::resume()
-{
-    rtQueue.resume();
-    cpQueue.resume();
-}
-
-void CPUPanoramaRender::waitForCompletion()
-{
-    if (completeQueue)
-    {
-        while (cpQueue.size())
-            std::this_thread::sleep_for(std::chrono::microseconds(25));
-    }
-    else
-    {
-        while (rtQueue.size())
-            std::this_thread::sleep_for(std::chrono::microseconds(25));
-    }
-}
-
 void CPUPanoramaRender::clear()
 {
     maps.clear();
     reprojImages.clear();
     weights.clear();
-    rtQueue.stop();
-    cpQueue.stop();
-    pool.clear();
-    rtQueue.clear();
-    cpQueue.clear();
+    accum.release();
+    success = 0;
+    numImages = 0;
+    highQualityBlend = 0;
 }
 
 int CPUPanoramaRender::getNumImages() const
