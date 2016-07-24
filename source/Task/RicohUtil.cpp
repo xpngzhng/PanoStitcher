@@ -1080,7 +1080,7 @@ int CudaPanoramaRender::getNumImages() const
     return success ? numImages : 0;
 }
 
-bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& customMaskPath_, int highQualityBlend_, 
+bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -1141,162 +1141,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, const std::string& c
         return false;
     }
 
-    useCustomMasks = 0;
-    //if (customMaskPath_.size())
-    //{
-    //    if (highQualityBlend)
-    //    {
-    //        std::vector<std::vector<IntervaledContour> > contours;
-    //        ok = loadIntervaledContours(customMaskPath_, contours);
-    //        if (!ok)
-    //        {
-    //            ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
-    //            return false;
-    //        }
-    //        //if (contours.size() != numImages)
-    //        //{
-    //        //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
-    //        //    return false;
-    //        //}
-    //        if (!cvtContoursToCudaMasks(contours, masks, customMasks))
-    //        {
-    //            ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
-    //            return false;
-    //        }
-    //        mbBlender.getUniqueMasks(dstUniqueMasksGPU);
-    //        useCustomMasks = 1;
-    //    }
-    //    else
-    //        ptlprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
-    //}
-
     success = 1;
-    return true;
-}
-
-bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst,
-    const std::vector<std::vector<unsigned char> >& luts)
-{
-    if (!success)
-    {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
-        return false;
-    }
-
-    if (src.size() != numImages || frameIndexes.size() != numImages)
-    {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
-        return false;
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        if (src[i].size() != srcSize)
-        {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
-                __FUNCTION__, i, src[i].size().width, src[i].size().height,
-                srcSize.width, srcSize.height);
-            return false;
-        }
-
-        if (src[i].type() != CV_8UC4)
-        {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
-            return false;
-        }
-    }
-
-    bool correct = true;
-    if (luts.size() != numImages)
-        correct = false;
-    if (luts.size() == numImages)
-    {
-        for (int i = 0; i < numImages; i++)
-        {
-            if (luts[i].size() != 256)
-            {
-                correct = false;
-                break;
-            }
-        }
-    }
-    if (!correct && luts.size())
-        ptlprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
-
-    try
-    {
-        if (!highQualityBlend)
-        {
-            accumGPU.setTo(0);
-            srcImagesGPU.resize(numImages);
-            reprojImagesGPU.resize(numImages);
-            for (int i = 0; i < numImages; i++)
-                srcImagesGPU[i].upload(src[i], streams[i]);
-            if (correct)
-            {
-                for (int i = 0; i < numImages; i++)
-                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
-            }
-            for (int i = 0; i < numImages; i++)
-                cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                streams[i].waitForCompletion();
-            accumGPU.convertTo(dst, CV_8U);
-        }
-        else
-        {
-            srcImagesGPU.resize(numImages);
-            reprojImagesGPU.resize(numImages);
-            // Add the following two lines to prevent exception if dstSize is around (1200, 600)
-            //for (int i = 0; i < numImages; i++)
-            //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
-            // Further test shows that the above two lines cannot prevent cuda runtime
-            // from throwing exception, so they are commented.
-            // It seems that the only way to avoid exception is to call 
-            // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
-            // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
-            for (int i = 0; i < numImages; i++)
-                srcImagesGPU[i].upload(src[i], streams[i]);
-            if (correct)
-            {
-                for (int i = 0; i < numImages; i++)
-                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
-            }
-            for (int i = 0; i < numImages; i++)
-                cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                streams[i].waitForCompletion();
-
-            if (useCustomMasks)
-            {
-                bool custom = false;
-                currMasksGPU.resize(numImages);
-                for (int i = 0; i < numImages; i++)
-                {
-                    if (customMasks[i].getMask2(frameIndexes[i], currMasksGPU[i]))
-                        custom = true;
-                    else
-                        currMasksGPU[i] = dstUniqueMasksGPU[i];
-                }
-
-                if (custom)
-                {
-                    printf("custom masks\n");
-                    mbBlender.blend(reprojImagesGPU, currMasksGPU, dst);
-                }
-                else
-                    mbBlender.blend(reprojImagesGPU, dst);
-            }
-            else
-                mbBlender.blend(reprojImagesGPU, dst);
-        }
-    }
-    catch (std::exception& e)
-    {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
-        return false;
-    }
-
     return true;
 }
 
@@ -1410,8 +1255,6 @@ void CudaPanoramaRender2::clear()
     params.clear();
     dstUniqueMasksGPU.clear();
     currMasksGPU.clear();
-    useCustomMasks = 0;
-    customMasks.clear();
     dstSrcXMapsGPU.clear();
     dstSrcYMapsGPU.clear();
     srcImagesGPU.clear();

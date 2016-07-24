@@ -193,10 +193,7 @@ class CudaPanoramaRender2
 public:
     CudaPanoramaRender2() : success(0) {};
     ~CudaPanoramaRender2() { };
-    bool prepare(const std::string& path, const std::string& customMaskPath,
-        int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, const std::vector<int> frameIndexes, cv::cuda::GpuMat& dst,
-        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
+    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
         const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
     void clear();
@@ -205,8 +202,6 @@ private:
     cv::Size srcSize, dstSize;
     std::vector<PhotoParam> params;
     std::vector<cv::cuda::GpuMat> dstUniqueMasksGPU, currMasksGPU;
-    int useCustomMasks;
-    std::vector<CudaCustomIntervaledMasks> customMasks;
     std::vector<cv::cuda::GpuMat> dstSrcXMapsGPU, dstSrcYMapsGPU;
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;

@@ -245,7 +245,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    renderPrepareSuccess = render.prepare(renderConfigName, "", highQualityBlend, 
+    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, 
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {

@@ -870,7 +870,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         }
     }
 
-    ok = render.prepare(cameraParamFile, customMaskFile, highQualityBlend, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
         ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -1190,7 +1190,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
-        bool ok = render.render(images, srcFrames.frameIndexes, bgr32);
+        bool ok = render.render(images, bgr32);
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
