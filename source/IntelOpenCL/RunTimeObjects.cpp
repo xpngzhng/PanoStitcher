@@ -29,7 +29,13 @@ bool init()
         return false;
     }
 
+    hasInit = 1;
     return true;
 }
 
+}
+
+bool ioclInit()
+{
+    return iocl::init();
 }

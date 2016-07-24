@@ -157,12 +157,14 @@
     <ClInclude Include="..\..\source\IntelOpenCL\IntelOpenCLInterface.h" />
     <ClInclude Include="..\..\source\IntelOpenCL\IntelOpenCLMat.h" />
     <ClInclude Include="..\..\source\IntelOpenCL\oclobject.hpp" />
+    <ClInclude Include="..\..\source\IntelOpenCL\RunTimeObjects.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\IntelOpenCL\basic.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\MatOp.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\oclobject.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\Reproject.cpp" />
+    <ClCompile Include="..\..\source\IntelOpenCL\RunTimeObjects.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\TestReproject.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

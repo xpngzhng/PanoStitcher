@@ -1,5 +1,6 @@
 #include "ZReproject.h"
 #include "IntelOpenCLInterface.h"
+#include "RunTimeObjects.h"
 #include "../../source/Blend/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
@@ -82,7 +83,15 @@ int main(int argc, char** argv)
     getWeightsLinearBlend32F(masks, 50, weights);
 
     // Create the necessary OpenCL objects up to device queue.
-    OpenCLBasic oclobjects("Intel", "GPU");
+    //OpenCLBasic oclobjects("Intel", "GPU");
+    bool ok = iocl::init();
+    if (!ok)
+    {
+        printf("OpenCL init failed\n");
+        return 0;
+    }
+
+    OpenCLBasic& oclobjects = *iocl::ocl;
 
     std::vector<IOclMat> srcMats(numImages);
     std::vector<IOclMat> xmapMats(numImages), ymapMats(numImages), weightMats(numImages);
@@ -112,10 +121,9 @@ int main(int argc, char** argv)
 
     try
     {
-        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectLinearKernel");
         for (int i = 0; i < numImages; i++)
         {
-            ioclReproject(srcMats[i], dstMat, xmapMats[i], ymapMats[i], oclobjects, rprjKern);
+            ioclReproject(srcMats[i], dstMat, xmapMats[i], ymapMats[i]);
             cv::Mat head = dstMat.toOpenCVMat();
             cv::imshow("rprj", head);
             cv::waitKey(0);
@@ -133,17 +141,14 @@ int main(int argc, char** argv)
 
     try
     {
-        OpenCLProgramOneKernel rprjKern(oclobjects, L"Reproject.txt", "", "reprojectWeightedAccumulateTo32FKernel");
-        OpenCLProgramOneKernel setZeroKern(oclobjects, L"MatOp.txt", "", "setZeroKernel");
-
         int numIters = 1000;
         ztool::Timer t;
 
         for (int k = 0; k < numIters; k++)
         {
-            ioclSetZero(dstMat32F, oclobjects, setZeroKern);
+            ioclSetZero(dstMat32F);
             for (int i = 0; i < numImages; i++)
-                ioclReprojectAccumulateWeightedTo32F(srcMats[i], dstMat32F, xmapMats[i], ymapMats[i], weightMats[i], oclobjects, rprjKern);
+                ioclReprojectWeightedAccumulateTo32F(srcMats[i], dstMat32F, xmapMats[i], ymapMats[i], weightMats[i]);
         }
         t.end();
         printf("time = %f\n", t.elapse() * 1000 / numIters);
