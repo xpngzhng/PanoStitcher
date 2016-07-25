@@ -1,0 +1,59 @@
+__constant int BILINEAR_INTER_SHIFT = 10;
+__constant int BILINEAR_INTER_BACK_SHIFT = BILINEAR_INTER_SHIFT * 2;
+__constant int BILINEAR_UNIT = 1 << BILINEAR_INTER_SHIFT;
+
+__kernel void reprojectLinearKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
+    __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
+    __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep)
+{
+    int dstx = get_global_id(0);
+    int dsty = get_global_id(1);
+    if (dstx >= dstWidth || dsty >= dstHeight)
+        return;
+
+    float srcx = *((__global const float*)(xmapData + dsty * xmapStep) + dstx);
+    float srcy = *((__global const float*)(ymapData + dsty * ymapStep) + dstx);
+
+    __global DST_TYPE* ptrDst = (__global DST_TYPE*)(dstData + dsty * dstStep) + dstx * 4;
+    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
+        ptrDst[3] = ptrDst[2] = ptrDst[1] = ptrDst[0] = 0;
+    else
+    {
+        int x0 = srcx, y0 = srcy;
+        int x1 = x0 + (x0 < srcWidth - 1), y1 = y0 + (y0 < srcHeight - 1);
+        int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
+        int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
+        int b = 0, g = 0, r = 0, w = 0;
+        uchar4 val;
+        
+        val = *((__global const uchar4*)(srcData + srcStep * y0) + x0);
+        w = deltax1 * deltay1;
+        b += val.x * w;
+        g += val.y * w;
+        r += val.z * w;
+        
+        val = *((__global const uchar4*)(srcData + srcStep * y0) + x1);
+        w = deltax0 * deltay1;
+        b += val.x * w;
+        g += val.y * w;
+        r += val.z * w;
+
+        val = *((__global const uchar4*)(srcData + srcStep * y1) + x0);
+        w = deltax1 * deltay0;
+        b += val.x * w;
+        g += val.y * w;
+        r += val.z * w;
+
+        val = *((__global const uchar4*)(srcData + srcStep * y1) + x1);
+        w = deltax0 * deltay0;
+        b += val.x * w;
+        g += val.y * w;
+        r += val.z * w;
+
+        ptrDst[0] = b >> BILINEAR_INTER_BACK_SHIFT;
+        ptrDst[1] = g >> BILINEAR_INTER_BACK_SHIFT;
+        ptrDst[2] = r >> BILINEAR_INTER_BACK_SHIFT;
+        ptrDst[3] = 0;
+    }
+}
+

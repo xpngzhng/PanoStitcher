@@ -21,9 +21,9 @@ bool init()
         ocl = new OpenCLBasic("Intel", "GPU");
 
         setZero = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel");
-        reproject = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectLinearKernel");
-        reprojectTo16S = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectLinearTo16SKernel");
-        reprojectWeightedAccumulateTo32F = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeightedAccumulateTo32FKernel");
+        reproject = new OpenCLProgramOneKernel(*ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=uchar");
+        reprojectTo16S = new OpenCLProgramOneKernel(*ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=short");
+        reprojectWeightedAccumulateTo32F = new OpenCLProgramOneKernel(*ocl, L"ReprojectWeightedAccumulate.txt", "", "reprojectWeightedAccumulateTo32FKernel");
     }
     catch (const std::exception& e)
     {
