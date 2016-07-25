@@ -189,6 +189,37 @@ int main1(int argc, char** argv)
     return ret;
 }
 
+template<typename ElemType, int Depth, int NumChannels>
+void compare(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
+{
+    CV_Assert(src1.data && src2.data && src1.depth() == Depth && src2.depth() == Depth &&
+        src1.channels() == NumChannels && src2.channels() == NumChannels && src1.size() == src2.size());
+
+    int rows = src1.rows, cols = src1.cols;
+    dst.create(rows, cols, CV_8UC1);
+    for (int i = 0; i < rows; i++)
+    {
+        const ElemType* ptrSrc1 = src1.ptr<ElemType>(i);
+        const ElemType* ptrSrc2 = src2.ptr<ElemType>(i);
+        unsigned char* ptrDst = dst.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            int same = 1;
+            for (int k = 0; k < NumChannels; k++)
+            {
+                if (ptrSrc1[k] != ptrSrc2[k])
+                {
+                    same = 0;
+                    break;
+                }
+            }
+            *(ptrDst++) = same ? 0 : 255;
+            ptrSrc1 += NumChannels;
+            ptrSrc2 += NumChannels;
+        }
+    }
+}
+
 #include "../Blend/Pyramid.h"
 int main()
 {
@@ -220,8 +251,12 @@ int main()
     ioclPyramidDown8UC1To8UC1(iSrc, iDst, cv::Size());
     header = iDst.toOpenCVMat();
 
+    cv::Mat diff;
+    compare<unsigned char, CV_8U, 1>(down, header, diff);
+
     cv::imshow("cpu", down);
     cv::imshow("intel gpu", header);
+    cv::imshow("diff", diff);
     cv::waitKey(0);
 
     return 0;
