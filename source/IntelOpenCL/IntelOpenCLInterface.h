@@ -23,4 +23,6 @@ void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, c
 void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst, 
     const IOclMat& xmap, const IOclMat& ymap, const IOclMat& weight);
 
+void ioclPyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize);
+
 

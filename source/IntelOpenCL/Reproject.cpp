@@ -136,7 +136,7 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
     err = clSetKernelArg(kernel, 11, sizeof(int), &ymap.step);
     SAMPLE_CHECK_ERRORS(err);
 
-    size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
+    size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
     size_t offset[2] = { 0, 0 };
 

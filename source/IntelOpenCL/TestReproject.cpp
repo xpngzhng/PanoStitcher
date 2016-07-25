@@ -23,7 +23,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main(int argc, char** argv)
+int main1(int argc, char** argv)
 {
     //cv::Size dstSize = cv::Size(3072, 1536);
     //cv::Size dstSize = cv::Size(2560, 1280);
@@ -187,4 +187,42 @@ int main(int argc, char** argv)
     }
 
     return ret;
+}
+
+#include "../Blend/Pyramid.h"
+int main()
+{
+    bool ok = iocl::init();
+    if (!ok)
+    {
+        printf("OpenCL init failed\n");
+        return 0;
+    }
+
+    std::vector<std::string> paths;
+    //retrievePaths("F:\\panoimage\\beijing\\filelist.txt", paths);
+    //std::string configFilePath = "F:\\panoimage\\beijing\\temp_camera_param.xml";
+    retrievePaths("F:\\panoimage\\detuoffice2\\filelist.txt", paths);
+
+    cv::Mat colorSrc = cv::imread(paths[0]);
+    cv::Mat graySrc;
+    cv::cvtColor(colorSrc, graySrc, CV_BGR2GRAY);
+
+    cv::Mat down;
+    pyramidDown(graySrc, down, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
+
+    IOclMat iSrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
+    IOclMat iDst;
+
+    cv::Mat header = iSrc.toOpenCVMat();
+    graySrc.copyTo(header);
+
+    ioclPyramidDown8UC1To8UC1(iSrc, iDst, cv::Size());
+    header = iDst.toOpenCVMat();
+
+    cv::imshow("cpu", down);
+    cv::imshow("intel gpu", header);
+    cv::waitKey(0);
+
+    return 0;
 }
