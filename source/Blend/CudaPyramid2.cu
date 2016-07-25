@@ -536,7 +536,7 @@ __global__ void pyrDown16SC4To16SC4(const unsigned char* srcData, int srcRows, i
         if (dstx < dstCols)
         {
             int scale = getElem<int>(scaleData, scaleStep, y, dstx);
-            getRowPtr<short4>(dstData, dstStep, y)[dstx] = scale ? ((sum << 8) - sum) / scale : make_short4(0, 0, 0, 0);
+            getRowPtr<short4>(dstData, dstStep, y)[dstx] = scale ? ((sum << 8) / scale) : make_short4(0, 0, 0, 0);
         }
     }
 }
