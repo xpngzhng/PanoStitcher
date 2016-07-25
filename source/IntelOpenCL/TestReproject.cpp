@@ -119,6 +119,9 @@ int main(int argc, char** argv)
     IOclMat dstMat;
     dstMat.create(dstSize.height, dstSize.width, CV_8UC4, oclobjects.context);
 
+    IOclMat dstMat16S;
+    dstMat16S.create(dstSize.height, dstSize.width, CV_16SC4, oclobjects.context);
+    cv::Mat dst;
     try
     {
         for (int i = 0; i < numImages; i++)
@@ -126,6 +129,12 @@ int main(int argc, char** argv)
             ioclReproject(srcMats[i], dstMat, xmapMats[i], ymapMats[i]);
             cv::Mat head = dstMat.toOpenCVMat();
             cv::imshow("rprj", head);
+
+            ioclReprojectTo16S(srcMats[i], dstMat16S, xmapMats[i], ymapMats[i]);
+            head = dstMat16S.toOpenCVMat();
+            head.convertTo(dst, CV_8U);
+            cv::imshow("rprj16S", dst);
+
             cv::waitKey(0);
         }
     }

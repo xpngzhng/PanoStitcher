@@ -18,6 +18,8 @@ void ioclSetZero(IOclMat& mat);
 
 void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap);
 
+void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap);
+
 void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst, 
     const IOclMat& xmap, const IOclMat& ymap, const IOclMat& weight);
 

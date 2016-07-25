@@ -146,6 +146,55 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
     SAMPLE_CHECK_ERRORS(err);
 }
 
+void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap)
+{
+    CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
+        xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&
+        iocl::ocl && iocl::ocl->context && iocl::ocl->queue &&
+        iocl::reproject && iocl::reproject->kernel);
+
+    dst.create(xmap.rows, ymap.cols, CV_16SC4, iocl::ocl->context);
+
+    cl_int err = CL_SUCCESS;
+
+    cl_kernel kernel = iocl::reprojectTo16S->kernel;
+    cl_command_queue queue = iocl::ocl->queue;
+
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), (void *)&src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &dst.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 7, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 8, sizeof(cl_mem), (void *)&xmap.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 9, sizeof(int), &xmap.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 10, sizeof(cl_mem), (void *)&ymap.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 11, sizeof(int), &ymap.step);
+    SAMPLE_CHECK_ERRORS(err);
+
+    size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
+    size_t localWorkSize[2] = { 16, 16 };
+    size_t offset[2] = { 0, 0 };
+
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, offset, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clFinish(queue);
+    SAMPLE_CHECK_ERRORS(err);
+}
+
 void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst,
     const IOclMat& xmap, const IOclMat& ymap, const IOclMat& weight)
 {

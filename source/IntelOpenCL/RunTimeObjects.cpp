@@ -7,6 +7,7 @@ OpenCLBasic* ocl = 0;
 
 OpenCLProgramOneKernel* setZero = 0;
 OpenCLProgramOneKernel* reproject = 0;
+OpenCLProgramOneKernel* reprojectTo16S = 0;
 OpenCLProgramOneKernel* reprojectWeightedAccumulateTo32F = 0;
 
 static int hasInit = 0;
@@ -21,6 +22,7 @@ bool init()
 
         setZero = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel");
         reproject = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectLinearKernel");
+        reprojectTo16S = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectLinearTo16SKernel");
         reprojectWeightedAccumulateTo32F = new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeightedAccumulateTo32FKernel");
     }
     catch (const std::exception& e)
