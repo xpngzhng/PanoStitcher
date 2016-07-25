@@ -250,8 +250,8 @@ int main()
     cv::cvtColor(color, colorSrc, CV_BGR2BGRA);
     cv::Mat graySrc;
     cv::cvtColor(color, graySrc, CV_BGR2GRAY);
-    graySrc.setTo(255);
-    colorSrc.setTo(cv::Scalar::all(255));
+    //graySrc.setTo(255);
+    //colorSrc.setTo(cv::Scalar::all(255));
 
     cv::Mat colorDst, colorDst32S, grayDst;
     pyramidDown(colorSrc, colorDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);

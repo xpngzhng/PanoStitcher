@@ -36,12 +36,15 @@ bool init()
         pyrDown8UC1To8UC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=uchar -D DST_TYPE=uchar -D WORK_TYPE=int -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
             "-D CONVERT_WORK_TYPE=convert_int -D CONVERT_DST_TYPE=convert_uchar");
-        pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
-            "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
-            "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_uchar4");
-        //pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDown8UC4To8UC4.txt", "", "pyrDownKernel",
+        //pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"pyr_down.cl", "", "pyrDown_C4_D0",
         //    "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
         //    "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_uchar4");
+        //pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
+        //    "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
+        //    "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_uchar4");
+        pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDown8UC4To8UC4.txt", "", "pyrDownKernel",
+            "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
+            "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_uchar4");
         
         pyrDown8UC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=uchar4 -D DST_TYPE=int4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP "
