@@ -25,4 +25,6 @@ void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst,
 
 void ioclPyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize);
 
+void ioclPyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize);
 
+void ioclPyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize);

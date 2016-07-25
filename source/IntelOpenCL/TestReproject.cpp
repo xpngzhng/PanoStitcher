@@ -214,6 +214,16 @@ void compare(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
                 }
             }
             *(ptrDst++) = same ? 0 : 255;
+            if (!same)
+            {
+                printf("diff at (%3d, %3d) ", j, i);
+                for (int k = 0; k < NumChannels; k++)
+                    printf("%d ", ptrSrc1[k]);
+                printf("vs ");
+                for (int k = 0; k < NumChannels; k++)
+                    printf("%d ", ptrSrc2[k]);
+                printf("\n");
+            }
             ptrSrc1 += NumChannels;
             ptrSrc2 += NumChannels;
         }
@@ -235,28 +245,57 @@ int main()
     //std::string configFilePath = "F:\\panoimage\\beijing\\temp_camera_param.xml";
     retrievePaths("F:\\panoimage\\detuoffice2\\filelist.txt", paths);
 
-    cv::Mat colorSrc = cv::imread(paths[0]);
+    cv::Mat color = cv::imread(paths[0]);
+    cv::Mat colorSrc;
+    cv::cvtColor(color, colorSrc, CV_BGR2BGRA);
     cv::Mat graySrc;
-    cv::cvtColor(colorSrc, graySrc, CV_BGR2GRAY);
+    cv::cvtColor(color, graySrc, CV_BGR2GRAY);
+    graySrc.setTo(255);
+    colorSrc.setTo(cv::Scalar::all(255));
 
-    cv::Mat down;
-    pyramidDown(graySrc, down, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
+    cv::Mat colorDst, colorDst32S, grayDst;
+    pyramidDown(colorSrc, colorDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
+    pyramidDownTo32S(colorSrc, colorDst32S, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
+    pyramidDown(graySrc, grayDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
 
-    IOclMat iSrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
-    IOclMat iDst;
+    IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
+    IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
+    IOclMat iColorDst, iColorDst32S, iGrayDst;
 
-    cv::Mat header = iSrc.toOpenCVMat();
+    cv::Mat header = iColorSrc.toOpenCVMat();
+    colorSrc.copyTo(header);
+
+    //cv::imshow("color", header);
+
+    ioclPyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
+    header = iColorDst.toOpenCVMat();
+
+    cv::Mat diffColor;
+    compare<unsigned char, CV_8U, 4>(colorDst, header, diffColor);
+
+    cv::imshow("cpu color", colorDst);
+    cv::imshow("intel gpu color", header);
+    cv::imshow("diff color", diffColor);
+    cv::waitKey(0);
+
+    ioclPyramidDown8UC4To32SC4(iColorSrc, iColorDst32S, cv::Size());
+    header = iColorDst32S.toOpenCVMat();
+    cv::Mat diffColor32S;
+    compare<int, CV_32S, 4>(colorDst32S, header, diffColor32S);
+    cv::imshow("diff 32s", diffColor32S);
+    cv::waitKey(0);
+
+    header = iGraySrc.toOpenCVMat();
     graySrc.copyTo(header);
+    ioclPyramidDown8UC1To8UC1(iGraySrc, iGrayDst, cv::Size());
+    header = iGrayDst.toOpenCVMat();
 
-    ioclPyramidDown8UC1To8UC1(iSrc, iDst, cv::Size());
-    header = iDst.toOpenCVMat();
+    cv::Mat diffGray;
+    compare<unsigned char, CV_8U, 1>(grayDst, header, diffGray);
 
-    cv::Mat diff;
-    compare<unsigned char, CV_8U, 1>(down, header, diff);
-
-    cv::imshow("cpu", down);
-    cv::imshow("intel gpu", header);
-    cv::imshow("diff", diff);
+    cv::imshow("cpu gray", grayDst);
+    cv::imshow("intel gpu gray", header);
+    cv::imshow("diff gray", diffGray);
     cv::waitKey(0);
 
     return 0;
