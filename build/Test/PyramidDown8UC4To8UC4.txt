@@ -33,7 +33,7 @@ inline uchar4 getSourceElem(__global uchar* data, int step, int row, int col)
     return ((__global uchar4*)(data + row * step))[col];
 }
 
-__kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, int srcStep, __global uchar *dst, int dstRows, int dstCols, int dstStep)
+__kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, int srcStep, __global uchar *dstData, int dstRows, int dstCols, int dstStep)
 {
     const int x = get_global_id(0);
     const int y = get_group_id(1);
@@ -52,36 +52,36 @@ __kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, 
 
     if (src_y >= 2 && src_y < srcRows - 2 && x >= 2 && x < srcCols - 2)
     {
-        sum =       co3 * convert_float4((((__global uchar4*)(srcData + (src_y - 2) * srcStep))[x]));
-        sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y - 1) * srcStep))[x]));
-        sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + (src_y    ) * srcStep))[x]));
-        sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y + 1) * srcStep))[x]));
-        sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + (src_y + 2) * srcStep))[x]));
+        sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, src_y - 2, x));
+        sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y - 1, x));
+        sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, src_y    , x));
+        sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y + 1, x));
+        sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, src_y + 2, x));
 
         smem[2 + get_local_id(0)] = sum;
 
         if (get_local_id(0) < 2)
         {
-            const int left_x = x - 2;
+            const int leftx = x - 2;
 
-            sum =       co3 * convert_float4((((__global uchar4*)(srcData + (src_y - 2) * srcStep))[left_x]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y - 1) * srcStep))[left_x]));
-            sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + (src_y    ) * srcStep))[left_x]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y + 1) * srcStep))[left_x]));
-            sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + (src_y + 2) * srcStep))[left_x]));
+            sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, src_y - 2, leftx));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y - 1, leftx));
+            sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, src_y    , leftx));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y + 1, leftx));
+            sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, src_y + 2, leftx));
 
             smem[get_local_id(0)] = sum;
         }
 
         if (get_local_id(0) > 253)
         {
-            const int right_x = x + 2;
+            const int rightx = x + 2;
 
-            sum =       co3 * convert_float4((((__global uchar4*)(srcData + (src_y - 2) * srcStep))[right_x]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y - 1) * srcStep))[right_x]));
-            sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + (src_y    ) * srcStep))[right_x]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + (src_y + 1) * srcStep))[right_x]));
-            sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + (src_y + 2) * srcStep))[right_x]));
+            sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, src_y - 2, rightx));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y - 1, rightx));
+            sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, src_y    , rightx));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, src_y + 1, rightx));
+            sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, src_y + 2, rightx));
 
             smem[4 + get_local_id(0)] = sum;
         }
@@ -90,11 +90,11 @@ __kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, 
     {
         int col = idx_col(x, last_col);
 
-        sum =       co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 2, last_row) * srcStep))[col]));
-        sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 1, last_row) * srcStep))[col]));
-        sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y    , last_row) * srcStep))[col]));
-        sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 1, last_row) * srcStep))[col]));
-        sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 2, last_row) * srcStep))[col]));
+        sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 2, last_row), col));
+        sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 1, last_row), col));
+        sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y    , last_row), col));
+        sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 1, last_row), col));
+        sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 2, last_row), col));
 
         smem[2 + get_local_id(0)] = sum;
 
@@ -104,11 +104,11 @@ __kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, 
 
             col = idx_col(left_x, last_col);
 
-            sum =       co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 2, last_row) * srcStep))[col]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 1, last_row) * srcStep))[col]));
-            sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y    , last_row) * srcStep))[col]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 1, last_row) * srcStep))[col]));
-            sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 2, last_row) * srcStep))[col]));
+            sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 2, last_row), col));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 1, last_row), col));
+            sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y    , last_row), col));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 1, last_row), col));
+            sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 2, last_row), col));
 
             smem[get_local_id(0)] = sum;
         }
@@ -119,11 +119,11 @@ __kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, 
 
             col = idx_col(right_x, last_col);
 
-            sum =       co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 2, last_row) * srcStep))[col]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y - 1, last_row) * srcStep))[col]));
-            sum = sum + co1 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y    , last_row) * srcStep))[col]));
-            sum = sum + co2 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 1, last_row) * srcStep))[col]));
-            sum = sum + co3 * convert_float4((((__global uchar4*)(srcData + idx_row(src_y + 2, last_row) * srcStep))[col]));
+            sum =       co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 2, last_row), col));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y - 1, last_row), col));
+            sum = sum + co1 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y    , last_row), col));
+            sum = sum + co2 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 1, last_row), col));
+            sum = sum + co3 * convert_float4(getSourceElem(srcData, srcStep, idx_row(src_y + 2, last_row), col));
 
             smem[4 + get_local_id(0)] = sum;
         }
@@ -144,6 +144,6 @@ __kernel void pyrDownKernel(__global uchar * srcData, int srcRows, int srcCols, 
         const int dst_x = (get_group_id(0) * get_local_size(0) + tid2) / 2;
 
         if (dst_x < dstCols)
-            ((__global uchar4*)(dst + y * dstStep))[dst_x] = convert_uchar4_sat_rte(sum);
+            ((__global uchar4*)(dstData + y * dstStep))[dst_x] = convert_uchar4_sat_rte(sum);
     }
 }
