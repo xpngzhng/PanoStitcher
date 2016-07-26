@@ -594,6 +594,11 @@ bool TilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int maxLev
     return true;
 }
 
+void TilingMultibandBlend::blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage)
+{
+    CV_Assert(0);
+}
+
 void TilingMultibandBlend::tile(const cv::Mat& image, const cv::Mat& mask, int index)
 {
     if (!success)

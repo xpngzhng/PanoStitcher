@@ -9,6 +9,8 @@ void setAddWatermark(bool addWatermark);
 
 void setLanguage(bool isChinese);
 
+void setCPUMultibandBlendMultiThread(bool multiThread);
+
 typedef void(*PanoTaskLogCallbackFunc)(const char*, va_list);
 
 PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func);

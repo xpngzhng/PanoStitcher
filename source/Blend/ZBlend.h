@@ -80,13 +80,25 @@ void serialBlend(const BlendConfig& config, const cv::Mat& image, const cv::Mat&
 void parallelBlend(const BlendConfig& config, const std::vector<cv::Mat>& images,
     const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
 
-class TilingMultibandBlend
+class MultibandBlendBase
+{
+public:
+    virtual ~MultibandBlendBase() {};
+    virtual bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength) { return false; }
+    virtual void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage) {};
+    virtual void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage) {};
+    virtual void blendAndCompensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage) {};
+};
+
+class TilingMultibandBlend : public MultibandBlendBase
 {
 public:
     TilingMultibandBlend() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
+    ~TilingMultibandBlend() {};
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void tile(const cv::Mat& image, const cv::Mat& mask, int index);
     void composite(cv::Mat& blendImage);
+    void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
     void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
     void blendAndCompensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
 
@@ -100,10 +112,11 @@ private:
     bool success;
 };
 
-class TilingMultibandBlendFast
+class TilingMultibandBlendFast : public MultibandBlendBase
 {
 public:
     TilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
+    ~TilingMultibandBlendFast() {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
     void blend(const std::vector<cv::Mat>& images, cv::Mat& blendImage);
     void blend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, cv::Mat& blendImage);
@@ -132,7 +145,7 @@ private:
 
 // DEPRECATED
 // Just only a little faster than TilingMultibandBlendFast at the expense of more memory consumption
-class TilingMultibandBlendFastParallel
+class TilingMultibandBlendFastParallel : public MultibandBlendBase
 {
 public:
     TilingMultibandBlendFastParallel() : numImages(0), rows(0), cols(0), numLevels(0), success(false), threadEnd(true) {}

@@ -229,7 +229,7 @@ private:
     std::vector<cv::Mat> maps;
     std::vector<cv::Mat> reprojImages;
     int highQualityBlend;
-    TilingMultibandBlendFast mbBlender;
+    std::unique_ptr<MultibandBlendBase> mbBlender;
     std::vector<cv::Mat> weights;
     cv::Mat accum;
     int numImages;

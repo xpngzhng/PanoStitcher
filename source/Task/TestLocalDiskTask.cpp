@@ -54,6 +54,7 @@ int main(int argc, char* argv[])
     //avp::setLogCallback(bstLogVlPrintf);
     //setPanoTaskLogCallback(bstLogVlPrintf);
     //setLanguage(false);
+    setCPUMultibandBlendMultiThread(true);
 
     cv::Size srcSize, dstSize;
     std::vector<std::string> srcVideoNames;
@@ -108,7 +109,7 @@ int main(int argc, char* argv[])
     std::string logoFileName = "F:\\image\\Earth_global.png"/*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
     bool ok = task->init(srcVideoNames, offset, 5, projFileName, projFileName, logoFileName, fov, 1, 
-        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 20 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

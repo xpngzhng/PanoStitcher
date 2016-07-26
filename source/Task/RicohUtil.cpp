@@ -1271,6 +1271,13 @@ int CudaPanoramaRender2::getNumImages() const
     return success ? numImages : 0;
 }
 
+static int cpuMultibandBlendMT = 0;
+
+void setCPUMultibandBlendMultiThread(bool multiThread)
+{
+    cpuMultibandBlendMT = multiThread;
+}
+
 bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -1304,8 +1311,15 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
         getReprojectMapsAndMasks(params, srcSize, dstSize, maps, masks);
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, 20, 2))
+            if (cpuMultibandBlendMT)
+                mbBlender.reset(new TilingMultibandBlendFastParallel);
+            else
+                mbBlender.reset(new TilingMultibandBlendFast);
+            if (!mbBlender->prepare(masks, 20, 2))
+            {
+                ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
+            }
         }
         else
         {
@@ -1369,7 +1383,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
             reprojImages.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
-            mbBlender.blend(reprojImages, dst);
+            mbBlender->blend(reprojImages, dst);
         }
     }
     catch (std::exception& e)
