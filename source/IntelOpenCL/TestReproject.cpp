@@ -264,11 +264,45 @@ int main()
     pyramidDownTo32S(colorSrc, colorDst32S, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
     pyramidDown(graySrc, grayDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
 
+    IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
+    IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
+    IOclMat iColorDst32F, iGrayDst32F;
+
+    cv::Mat header;
+
+    cv::Mat diffFor32F, cvtFor32F;
+
+    header = iColorSrc32F.toOpenCVMat();
+    colorSrc.convertTo(header, CV_32F);
+    t.start();
+    for (int i = 0; i < 100; i++)
+    ioclPyramidDown32FC4(iColorSrc32F, iColorDst32F, cv::Size());
+    t.end();
+    printf("t = %f\n", t.elapse());
+    header = iColorDst32F.toOpenCVMat();
+    header.convertTo(cvtFor32F, CV_8U);
+    compare<unsigned char, CV_8U, 4>(colorDst, cvtFor32F, diffFor32F);
+    cv::imshow("cpu color", colorDst);
+    cv::imshow("intel gpu color", cvtFor32F);
+    cv::imshow("diff color", diffFor32F);
+    cv::waitKey(0);
+
+    header = iGraySrc32F.toOpenCVMat();
+    graySrc.convertTo(header, CV_32F);
+    ioclPyramidDown32FC1(iGraySrc32F, iGrayDst32F, cv::Size());
+    header = iGrayDst32F.toOpenCVMat();
+    header.convertTo(cvtFor32F, CV_8U);
+    compare<unsigned char, CV_8U, 1>(grayDst, cvtFor32F, diffFor32F);
+    cv::imshow("cpu gray", grayDst);
+    cv::imshow("intel gpu gray", cvtFor32F);
+    cv::imshow("diff gray", diffFor32F);
+    cv::waitKey(0);
+
     IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
     IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
     IOclMat iColorDst, iColorDst32S, iGrayDst;
 
-    cv::Mat header = iColorSrc.toOpenCVMat();
+    header = iColorSrc.toOpenCVMat();
     colorSrc.copyTo(header);
 
     //cv::imshow("color", header);

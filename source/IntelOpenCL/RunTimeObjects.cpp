@@ -15,7 +15,8 @@ OpenCLProgramOneKernel* pyrDown8UC1To8UC1 = 0;
 OpenCLProgramOneKernel* pyrDown8UC4To8UC4 = 0;
 OpenCLProgramOneKernel* pyrDown8UC4To32SC4 = 0;
 
-OpenCLProgramOneKernel* pyrDown16SC1To16SC1 = 0;
+OpenCLProgramOneKernel* pyrDown32FC1 = 0;
+OpenCLProgramOneKernel* pyrDown32FC4 = 0;
 
 static int hasInit = 0;
 bool init()
@@ -43,6 +44,10 @@ bool init()
             "-D SRC_TYPE=uchar4 -D DST_TYPE=int4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_int4_sat_rtz");
 
+        pyrDown32FC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownPureFP.txt", "", "pyrDownKernel",
+            "-D TYPE=float -D VERT_REFLECT -D HORI_WRAP");
+        pyrDown32FC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownPureFP.txt", "", "pyrDownKernel",
+            "-D TYPE=float4 -D VERT_REFLECT -D HORI_WRAP");
     }
     catch (const std::exception& e)
     {
