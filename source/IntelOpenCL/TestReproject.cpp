@@ -253,8 +253,14 @@ int main()
     //graySrc.setTo(255);
     //colorSrc.setTo(cv::Scalar::all(255));
 
+    ztool::Timer t;
+
     cv::Mat colorDst, colorDst32S, grayDst;
+    t.start();
+    for (int i = 0; i < 100; i++)
     pyramidDown(colorSrc, colorDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
+    t.end();
+    printf("t = %f\n", t.elapse());
     pyramidDownTo32S(colorSrc, colorDst32S, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
     pyramidDown(graySrc, grayDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
 
@@ -266,8 +272,11 @@ int main()
     colorSrc.copyTo(header);
 
     //cv::imshow("color", header);
-
+    t.start();
+    for (int i = 0; i < 100; i++)
     ioclPyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
+    t.end();
+    printf("t = %f\n", t.elapse());
     header = iColorDst.toOpenCVMat();
 
     cv::Mat diffColor;
