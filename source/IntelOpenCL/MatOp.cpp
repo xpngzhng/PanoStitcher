@@ -30,7 +30,7 @@ void ioclSetZero(IOclMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& setZero
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void ioclSetZero(IOclMat& mat)
+void setZero(IOclMat& mat)
 {
     CV_Assert(mat.data && iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::setZero && iocl::setZero->kernel);
 

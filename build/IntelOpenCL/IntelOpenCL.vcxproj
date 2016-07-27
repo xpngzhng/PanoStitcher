@@ -156,7 +156,9 @@
     <ClInclude Include="..\..\source\IntelOpenCL\basic.hpp" />
     <ClInclude Include="..\..\source\IntelOpenCL\IntelOpenCLInterface.h" />
     <ClInclude Include="..\..\source\IntelOpenCL\IntelOpenCLMat.h" />
+    <ClInclude Include="..\..\source\IntelOpenCL\MatOp.h" />
     <ClInclude Include="..\..\source\IntelOpenCL\oclobject.hpp" />
+    <ClInclude Include="..\..\source\IntelOpenCL\Pyramid.h" />
     <ClInclude Include="..\..\source\IntelOpenCL\RunTimeObjects.h" />
   </ItemGroup>
   <ItemGroup>

@@ -28,7 +28,7 @@ SAMPLE_CHECK_ERRORS(err);\
 err = clFinish(queue);\
 SAMPLE_CHECK_ERRORS(err)
 
-void ioclPyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC1To8UC1->kernel);
@@ -75,7 +75,7 @@ void ioclPyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSiz
     PYR_DOWN_MAIN_BODY;
 }
 
-void ioclPyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC4To8UC4->kernel);
@@ -122,7 +122,7 @@ void ioclPyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSiz
     PYR_DOWN_MAIN_BODY;
 }
 
-void ioclPyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC4To32SC4->kernel);
@@ -169,7 +169,7 @@ void ioclPyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSi
     PYR_DOWN_MAIN_BODY;
 }
 
-void ioclPyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_32FC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown32FC1->kernel);
@@ -216,7 +216,7 @@ void ioclPyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void ioclPyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_32FC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown32FC4->kernel);

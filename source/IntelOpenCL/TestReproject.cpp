@@ -1,6 +1,8 @@
 #include "ZReproject.h"
 #include "IntelOpenCLInterface.h"
 #include "RunTimeObjects.h"
+#include "Pyramid.h"
+#include "MatOp.h"
 #include "../../source/Blend/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
@@ -155,7 +157,7 @@ int main1(int argc, char** argv)
 
         for (int k = 0; k < numIters; k++)
         {
-            ioclSetZero(dstMat32F);
+            setZero(dstMat32F);
             for (int i = 0; i < numImages; i++)
                 ioclReprojectWeightedAccumulateTo32F(srcMats[i], dstMat32F, xmapMats[i], ymapMats[i], weightMats[i]);
         }
@@ -277,7 +279,7 @@ int main()
     colorSrc.convertTo(header, CV_32F);
     t.start();
     for (int i = 0; i < 100; i++)
-    ioclPyramidDown32FC4(iColorSrc32F, iColorDst32F, cv::Size());
+    pyramidDown32FC4(iColorSrc32F, iColorDst32F, cv::Size());
     t.end();
     printf("t = %f\n", t.elapse());
     header = iColorDst32F.toOpenCVMat();
@@ -290,7 +292,7 @@ int main()
 
     header = iGraySrc32F.toOpenCVMat();
     graySrc.convertTo(header, CV_32F);
-    ioclPyramidDown32FC1(iGraySrc32F, iGrayDst32F, cv::Size());
+    pyramidDown32FC1(iGraySrc32F, iGrayDst32F, cv::Size());
     header = iGrayDst32F.toOpenCVMat();
     header.convertTo(cvtFor32F, CV_8U);
     compare<unsigned char, CV_8U, 1>(grayDst, cvtFor32F, diffFor32F);
@@ -329,7 +331,7 @@ int main()
     //cv::imshow("color", header);
     t.start();
     for (int i = 0; i < 100; i++)
-    ioclPyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
+    pyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
     t.end();
     printf("t = %f\n", t.elapse());
     header = iColorDst.toOpenCVMat();
@@ -342,7 +344,7 @@ int main()
     cv::imshow("diff color", diffColor);
     cv::waitKey(0);
 
-    ioclPyramidDown8UC4To32SC4(iColorSrc, iColorDst32S, cv::Size());
+    pyramidDown8UC4To32SC4(iColorSrc, iColorDst32S, cv::Size());
     header = iColorDst32S.toOpenCVMat();
     cv::Mat diffColor32S;
     compare<int, CV_32S, 4>(colorDst32S, header, diffColor32S);
@@ -351,7 +353,7 @@ int main()
 
     header = iGraySrc.toOpenCVMat();
     graySrc.copyTo(header);
-    ioclPyramidDown8UC1To8UC1(iGraySrc, iGrayDst, cv::Size());
+    pyramidDown8UC1To8UC1(iGraySrc, iGrayDst, cv::Size());
     header = iGrayDst.toOpenCVMat();
 
     cv::Mat diffGray;
