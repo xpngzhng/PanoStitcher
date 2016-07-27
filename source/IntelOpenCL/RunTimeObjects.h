@@ -2,8 +2,6 @@
 
 #include "oclobject.hpp"
 
-#define PYR_UP_OPENCV 0
-
 namespace iocl
 {
 

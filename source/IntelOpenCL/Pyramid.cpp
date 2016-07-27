@@ -227,7 +227,6 @@ void pyramidUp8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     cl_kernel kernel = iocl::pyrUp8UC4To8UC4->kernel;
     cl_command_queue queue = iocl::ocl->queue;
 
-#if !PYR_UP_OPENCV
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 1, sizeof(int), &src.rows);
@@ -244,30 +243,6 @@ void pyramidUp8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 7, sizeof(int), &dst.step);
     SAMPLE_CHECK_ERRORS(err);
-#else
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&dst.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 2, sizeof(int), &src.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 4, sizeof(int), &src.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    int ofs = 0;
-    err = clSetKernelArg(kernel, 6, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 7, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    int srcStep = src.step / src.elemSize(), dstStep = dst.step / dst.elemSize();
-    err = clSetKernelArg(kernel, 8, sizeof(int), &srcStep);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 9, sizeof(int), &dstStep);
-    SAMPLE_CHECK_ERRORS(err);
-#endif    
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -296,7 +271,6 @@ void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     cl_kernel kernel = iocl::pyrUp16SC4To16SC4->kernel;
     cl_command_queue queue = iocl::ocl->queue;
 
-#if !PYR_UP_OPENCV
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 1, sizeof(int), &src.rows);
@@ -313,30 +287,6 @@ void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 7, sizeof(int), &dst.step);
     SAMPLE_CHECK_ERRORS(err);
-#else
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&dst.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 2, sizeof(int), &src.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 4, sizeof(int), &src.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    int ofs = 0;
-    err = clSetKernelArg(kernel, 6, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 7, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    int srcStep = src.step / src.elemSize(), dstStep = dst.step / dst.elemSize();
-    err = clSetKernelArg(kernel, 8, sizeof(int), &srcStep);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 9, sizeof(int), &dstStep);
-    SAMPLE_CHECK_ERRORS(err);
-#endif    
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -365,7 +315,6 @@ void pyramidUp32SC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     cl_kernel kernel = iocl::pyrUp32SC4To32SC4->kernel;
     cl_command_queue queue = iocl::ocl->queue;
 
-#if !PYR_UP_OPENCV
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 1, sizeof(int), &src.rows);
@@ -382,30 +331,6 @@ void pyramidUp32SC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     SAMPLE_CHECK_ERRORS(err);
     err = clSetKernelArg(kernel, 7, sizeof(int), &dst.step);
     SAMPLE_CHECK_ERRORS(err);
-#else
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&dst.mem);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 2, sizeof(int), &src.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.rows);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 4, sizeof(int), &src.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.cols);
-    SAMPLE_CHECK_ERRORS(err);
-    int ofs = 0;
-    err = clSetKernelArg(kernel, 6, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 7, sizeof(int), &ofs);
-    SAMPLE_CHECK_ERRORS(err);
-    int srcStep = src.step / src.elemSize(), dstStep = dst.step / dst.elemSize();
-    err = clSetKernelArg(kernel, 8, sizeof(int), &srcStep);
-    SAMPLE_CHECK_ERRORS(err);
-    err = clSetKernelArg(kernel, 9, sizeof(int), &dstStep);
-    SAMPLE_CHECK_ERRORS(err);
-#endif    
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(dst.cols, 16), (size_t)round_up_aligned(dst.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
