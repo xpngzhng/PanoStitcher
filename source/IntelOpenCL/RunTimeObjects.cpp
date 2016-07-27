@@ -21,6 +21,8 @@ OpenCLProgramOneKernel* pyrDown32FC4 = 0;
 OpenCLProgramOneKernel* pyrDown16SC1To16SC1 = 0;
 OpenCLProgramOneKernel* pyrDown16SC1To32SC1 = 0;
 
+OpenCLProgramOneKernel* pyrDown16SC4ScaleTo16SC4 = 0;
+
 static int hasInit = 0;
 bool init()
 {
@@ -58,6 +60,10 @@ bool init()
         pyrDown16SC1To32SC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=short -D DST_TYPE=int -D WORK_TYPE=float -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float -D CONVERT_DST_TYPE=convert_int_sat_rtz");
+
+        pyrDown16SC4ScaleTo16SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
+            "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=float4 -D SCALE_TYPE=int -D SCALE -D VERT_REFLECT -D HORI_WRAP "
+            "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_short4_sat_rtz");
     }
     catch (const std::exception& e)
     {

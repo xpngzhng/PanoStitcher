@@ -232,6 +232,25 @@ void compare(const cv::Mat& src1, const cv::Mat& src2, cv::Mat& dst)
     }
 }
 
+void calcDistImage(cv::Mat& dist, cv::Size size)
+{
+    dist.create(size, CV_32FC1);
+    float centx = size.width / 2.F, centy = size.height / 2.F;
+    float maxDist = centx * centx + centy * centy;
+    float scale = 1.F / maxDist;
+    for (int i = 0; i < size.height; i++)
+    {
+        float* ptr = dist.ptr<float>(i);
+        for (int j = 0; j < size.width; j++)
+        {
+            float diffx = j - centx;
+            float diffy = i - centy;
+            //*(ptr++) = (maxDist - diffx * diffx - diffy * diffy) * scale;
+            *(ptr++) = (diffx * diffx + diffy * diffy) * scale;
+        }
+    }
+}
+
 #include "../Blend/Pyramid.h"
 int main()
 {
@@ -362,6 +381,27 @@ int main()
     cv::imshow("cpu gray", grayDst);
     cv::imshow("intel gpu gray", header);
     cv::imshow("diff gray", diffGray);
+    cv::waitKey(0);
+
+    cv::Mat dist;
+    calcDistImage(dist, cv::Size((iColorSrc.cols + 1) / 2, (iColorSrc.rows + 1) / 2));
+    cv::imshow("dist", dist);
+    cv::waitKey(0);
+
+    IOclMat scale32S(dist.size(), CV_32SC1, iocl::ocl->context);
+    header = scale32S.toOpenCVMat();
+    dist.convertTo(header, CV_32S, 256 * 256);
+
+    IOclMat iColorSrc16S(iColorSrc.size(), CV_16SC4, iocl::ocl->context), iColorDst16S;
+    header = iColorSrc16S.toOpenCVMat();
+    colorSrc.convertTo(header, CV_16S);
+
+    pyramidDown16SC4To16SC4(iColorSrc16S, scale32S, iColorDst16S);
+
+    cv::Mat back;
+    header = iColorDst16S.toOpenCVMat();
+    header.convertTo(back, CV_8U);
+    cv::imshow("scale color", back);
     cv::waitKey(0);
 
     return 0;

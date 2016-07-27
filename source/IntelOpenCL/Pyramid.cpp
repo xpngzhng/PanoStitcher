@@ -167,3 +167,45 @@ void pyramidDown16SC1To32SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
 
     PYR_DOWN_MAIN_BODY;
 }
+
+void pyramidDown16SC4To16SC4(const IOclMat& src, const IOclMat& scale, IOclMat& dst)
+{
+    CV_Assert(src.data && src.type == CV_16SC4 && scale.data && scale.type == CV_32SC1);
+    CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown16SC4ScaleTo16SC4->kernel);
+
+    dst.create(scale.size(), CV_16SC4, iocl::ocl->context);
+
+    cl_int err = CL_SUCCESS;
+
+    cl_kernel kernel = iocl::pyrDown16SC4ScaleTo16SC4->kernel;
+    cl_command_queue queue = iocl::ocl->queue;
+
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), (void *)&src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &dst.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 7, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 8, sizeof(cl_mem), (void *)&scale.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 9, sizeof(int), &scale.step);
+
+    size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 256), (size_t)round_up_aligned(dst.rows, 1) };
+    size_t localWorkSize[2] = { 256, 1 };
+    size_t offset[2] = { 0, 0 };
+
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, offset, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clFinish(queue);
+    SAMPLE_CHECK_ERRORS(err);
+}

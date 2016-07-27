@@ -21,6 +21,8 @@ extern OpenCLProgramOneKernel* pyrDown8UC4To32SC4;
 extern OpenCLProgramOneKernel* pyrDown16SC1To16SC1;
 extern OpenCLProgramOneKernel* pyrDown16SC1To32SC1;
 
+extern OpenCLProgramOneKernel* pyrDown16SC4ScaleTo16SC4;
+
 extern OpenCLProgramOneKernel* pyrDown32FC1;
 extern OpenCLProgramOneKernel* pyrDown32FC4;
 
