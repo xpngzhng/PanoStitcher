@@ -32,3 +32,11 @@ void ioclPyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSi
 void ioclPyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize);
 
 void ioclPyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize);
+
+void pyramidDown16SC1To16SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize = cv::Size());
+
+void pyramidDown16SC1To32SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize = cv::Size());
+
+void pyramidDown16SC4To16SC4(const IOclMat& src, const IOclMat& scale, IOclMat& dst);
+
+void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize = cv::Size());
