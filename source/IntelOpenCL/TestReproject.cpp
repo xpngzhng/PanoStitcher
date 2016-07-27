@@ -276,9 +276,11 @@ int main()
 
     ztool::Timer t;
 
+    int numRuns = 10;
+
     cv::Mat colorDst, colorDst32S, grayDst, grayDst32S;
     t.start();
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < numRuns; i++)
     pyramidDown(colorSrc, colorDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
     t.end();
     printf("t = %f\n", t.elapse());
@@ -287,8 +289,6 @@ int main()
     pyramidDownTo32S(graySrc, grayDst32S, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
 
     cv::Mat header, diff, cvtBack;
-
-    int numRuns = 10;
 
     // test floating point version
     {
@@ -425,7 +425,7 @@ int main()
         IOclMat colorSrc32S(sz, CV_32SC4, iocl::ocl->context);
         IOclMat colorDst8U, colorDst16S, colorDst32S;
 
-        colorDst.setTo(cv::Scalar::all(255));
+        //colorDst.setTo(cv::Scalar::all(255));
 
         header = colorSrc8U.toOpenCVMat();
         colorDst.copyTo(header);

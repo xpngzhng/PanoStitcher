@@ -1,3 +1,4 @@
+#include "RunTimeObjects.h"
 #include "oclobject.hpp"
 
 namespace iocl
@@ -69,6 +70,7 @@ bool init()
             "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=float4 -D SCALE_TYPE=int -D SCALE -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_short4_sat_rtz");
 
+#if !PYR_UP_OPENCV
         pyrUp8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_uchar4_sat_rtz");
@@ -78,6 +80,14 @@ bool init()
         pyrUp32SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=int4 -D DST_TYPE=int4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_int4_sat_rtz");
+#else
+        pyrUp8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"pyr_up.cl", "", "pyrUp",
+            "-D Type=uchar4 -D floatType=float4 -D convertToType=convert_uchar4_sat_rte -D convertToFloat=convert_float4");
+        pyrUp16SC4To16SC4 = new OpenCLProgramOneKernel(*ocl, L"pyr_up.cl", "", "pyrUp",
+            "-D Type=short4 -D floatType=float4 -D convertToType=convert_short4_sat_rte -D convertToFloat=convert_float4");
+        pyrUp32SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"pyr_up.cl", "", "pyrUp",
+            "-D Type=int4 -D floatType=float4 -D convertToType=convert_int4_sat_rte -D convertToFloat=convert_float4");
+#endif
     }
     catch (const std::exception& e)
     {

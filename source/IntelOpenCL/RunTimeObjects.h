@@ -2,6 +2,8 @@
 
 #include "oclobject.hpp"
 
+#define PYR_UP_OPENCV 0
+
 namespace iocl
 {
 
@@ -10,7 +12,6 @@ bool init();
 extern OpenCLBasic* ocl;
 
 extern OpenCLProgramOneKernel* setZero;
-
 
 extern OpenCLProgramOneKernel* reproject;
 extern OpenCLProgramOneKernel* reprojectTo16S;
