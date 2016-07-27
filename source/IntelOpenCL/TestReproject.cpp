@@ -286,123 +286,171 @@ int main()
     pyramidDown(graySrc, grayDst, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
     pyramidDownTo32S(graySrc, grayDst32S, cv::Size(), cv::BORDER_WRAP, cv::BORDER_REFLECT_101);
 
-    IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
-    IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
-    IOclMat iColorDst32F, iGrayDst32F;
+    cv::Mat header, diff, cvtBack;
 
-    cv::Mat header;
+    int numRuns = 10;
 
-    cv::Mat diffFor32F, cvtFor32F;
+    // test floating point version
+    {
+        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
+        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
+        IOclMat iColorDst32F, iGrayDst32F;
 
-    header = iColorSrc32F.toOpenCVMat();
-    colorSrc.convertTo(header, CV_32F);
-    t.start();
-    for (int i = 0; i < 100; i++)
-    pyramidDown32FC4(iColorSrc32F, iColorDst32F, cv::Size());
-    t.end();
-    printf("t = %f\n", t.elapse());
-    header = iColorDst32F.toOpenCVMat();
-    header.convertTo(cvtFor32F, CV_8U);
-    compare<unsigned char, CV_8U, 4>(colorDst, cvtFor32F, diffFor32F);
-    cv::imshow("cpu color", colorDst);
-    cv::imshow("intel gpu color", cvtFor32F);
-    cv::imshow("diff color", diffFor32F);
-    cv::waitKey(0);
+        header = iColorSrc32F.toOpenCVMat();
+        colorSrc.convertTo(header, CV_32F);
+        t.start();
+        for (int i = 0; i < numRuns; i++)
+            pyramidDown32FC4(iColorSrc32F, iColorDst32F, cv::Size());
+        t.end();
+        printf("t = %f\n", t.elapse());
+        header = iColorDst32F.toOpenCVMat();
+        header.convertTo(cvtBack, CV_8U);
+        compare<unsigned char, CV_8U, 4>(colorDst, cvtBack, diff);
+        cv::imshow("cpu color", colorDst);
+        cv::imshow("intel gpu color", cvtBack);
+        cv::imshow("diff color", diff);
+        cv::waitKey(0);
 
-    header = iGraySrc32F.toOpenCVMat();
-    graySrc.convertTo(header, CV_32F);
-    pyramidDown32FC1(iGraySrc32F, iGrayDst32F, cv::Size());
-    header = iGrayDst32F.toOpenCVMat();
-    header.convertTo(cvtFor32F, CV_8U);
-    compare<unsigned char, CV_8U, 1>(grayDst, cvtFor32F, diffFor32F);
-    cv::imshow("cpu gray", grayDst);
-    cv::imshow("intel gpu gray", cvtFor32F);
-    cv::imshow("diff gray", diffFor32F);
-    cv::waitKey(0);
+        header = iGraySrc32F.toOpenCVMat();
+        graySrc.convertTo(header, CV_32F);
+        pyramidDown32FC1(iGraySrc32F, iGrayDst32F, cv::Size());
+        header = iGrayDst32F.toOpenCVMat();
+        header.convertTo(cvtBack, CV_8U);
+        compare<unsigned char, CV_8U, 1>(grayDst, cvtBack, diff);
+        cv::imshow("cpu gray", grayDst);
+        cv::imshow("intel gpu gray", cvtBack);
+        cv::imshow("diff gray", diff);
+        cv::waitKey(0);
+    }
 
-    cv::Mat diffFor16S, cvtFor16S;
-    IOclMat iGraySrc16S(graySrc.size(), CV_16SC1, iocl::ocl->context);
-    header = iGraySrc16S.toOpenCVMat();
-    graySrc.convertTo(header, CV_16S);
-    IOclMat iGrayDst16S;
-    pyramidDown16SC1To16SC1(iGraySrc16S, iGrayDst16S);
-    header = iGrayDst16S.toOpenCVMat();
-    header.convertTo(cvtFor16S, CV_8U);
-    compare<unsigned char, CV_8U, 1>(grayDst, cvtFor16S, diffFor16S);
-    cv::imshow("diff gray 16S", diffFor16S);
-    cv::waitKey(0);
+    // test short version
+    {
+        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1, iocl::ocl->context);
+        header = iGraySrc16S.toOpenCVMat();
+        graySrc.convertTo(header, CV_16S);
+        IOclMat iGrayDst16S;
+        pyramidDown16SC1To16SC1(iGraySrc16S, iGrayDst16S);
+        header = iGrayDst16S.toOpenCVMat();
+        header.convertTo(cvtBack, CV_8U);
+        compare<unsigned char, CV_8U, 1>(grayDst, cvtBack, diff);
+        cv::imshow("diff gray 16S", diff);
+        cv::waitKey(0);
 
-    IOclMat iGrayDst32S;
-    pyramidDown16SC1To32SC1(iGraySrc16S, iGrayDst32S);
-    header = iGrayDst32S.toOpenCVMat();
-    cv::Mat diffFor32S;
-    compare<int, CV_32S, 1>(grayDst32S, header, diffFor32S);
-    cv::imshow("diff gray 32S", diffFor32S);
-    cv::waitKey(0);
+        IOclMat iGrayDst32S;
+        pyramidDown16SC1To32SC1(iGraySrc16S, iGrayDst32S);
+        header = iGrayDst32S.toOpenCVMat();
+        cv::Mat diffFor32S;
+        compare<int, CV_32S, 1>(grayDst32S, header, diffFor32S);
+        cv::imshow("diff gray 32S", diffFor32S);
+        cv::waitKey(0);
+    }
 
-    IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
-    IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
-    IOclMat iColorDst, iColorDst32S, iGrayDst;
+    // test uchar version
+    {
+        IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
+        IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
+        IOclMat iColorDst, iColorDst32S, iGrayDst;
 
-    header = iColorSrc.toOpenCVMat();
-    colorSrc.copyTo(header);
+        header = iColorSrc.toOpenCVMat();
+        colorSrc.copyTo(header);
 
-    //cv::imshow("color", header);
-    t.start();
-    for (int i = 0; i < 100; i++)
-    pyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
-    t.end();
-    printf("t = %f\n", t.elapse());
-    header = iColorDst.toOpenCVMat();
+        //cv::imshow("color", header);
+        t.start();
+        for (int i = 0; i < numRuns; i++)
+            pyramidDown8UC4To8UC4(iColorSrc, iColorDst, cv::Size());
+        t.end();
+        printf("t = %f\n", t.elapse());
+        header = iColorDst.toOpenCVMat();
 
-    cv::Mat diffColor;
-    compare<unsigned char, CV_8U, 4>(colorDst, header, diffColor);
+        compare<unsigned char, CV_8U, 4>(colorDst, header, diff);
 
-    cv::imshow("cpu color", colorDst);
-    cv::imshow("intel gpu color", header);
-    cv::imshow("diff color", diffColor);
-    cv::waitKey(0);
+        cv::imshow("cpu color", colorDst);
+        cv::imshow("intel gpu color", header);
+        cv::imshow("diff color", diff);
+        cv::waitKey(0);
 
-    pyramidDown8UC4To32SC4(iColorSrc, iColorDst32S, cv::Size());
-    header = iColorDst32S.toOpenCVMat();
-    cv::Mat diffColor32S;
-    compare<int, CV_32S, 4>(colorDst32S, header, diffColor32S);
-    cv::imshow("diff 32s", diffColor32S);
-    cv::waitKey(0);
+        pyramidDown8UC4To32SC4(iColorSrc, iColorDst32S, cv::Size());
+        header = iColorDst32S.toOpenCVMat();
+        cv::Mat diffColor32S;
+        compare<int, CV_32S, 4>(colorDst32S, header, diffColor32S);
+        cv::imshow("diff 32s", diffColor32S);
+        cv::waitKey(0);
 
-    header = iGraySrc.toOpenCVMat();
-    graySrc.copyTo(header);
-    pyramidDown8UC1To8UC1(iGraySrc, iGrayDst, cv::Size());
-    header = iGrayDst.toOpenCVMat();
+        header = iGraySrc.toOpenCVMat();
+        graySrc.copyTo(header);
+        pyramidDown8UC1To8UC1(iGraySrc, iGrayDst, cv::Size());
+        header = iGrayDst.toOpenCVMat();
 
-    cv::Mat diffGray;
-    compare<unsigned char, CV_8U, 1>(grayDst, header, diffGray);
+        cv::Mat diffGray;
+        compare<unsigned char, CV_8U, 1>(grayDst, header, diffGray);
 
-    cv::imshow("cpu gray", grayDst);
-    cv::imshow("intel gpu gray", header);
-    cv::imshow("diff gray", diffGray);
-    cv::waitKey(0);
+        cv::imshow("cpu gray", grayDst);
+        cv::imshow("intel gpu gray", header);
+        cv::imshow("diff gray", diffGray);
+        cv::waitKey(0);
+    }
 
-    cv::Mat dist;
-    calcDistImage(dist, cv::Size((iColorSrc.cols + 1) / 2, (iColorSrc.rows + 1) / 2));
-    cv::imshow("dist", dist);
-    cv::waitKey(0);
+    // test pyramid down scale version
+    {
+        cv::Mat dist;
+        calcDistImage(dist, cv::Size((colorSrc.cols + 1) / 2, (colorSrc.rows + 1) / 2));
+        cv::imshow("dist", dist);
+        cv::waitKey(0);
 
-    IOclMat scale32S(dist.size(), CV_32SC1, iocl::ocl->context);
-    header = scale32S.toOpenCVMat();
-    dist.convertTo(header, CV_32S, 256 * 256);
+        IOclMat scale32S(dist.size(), CV_32SC1, iocl::ocl->context);
+        header = scale32S.toOpenCVMat();
+        dist.convertTo(header, CV_32S, 256 * 256);
 
-    IOclMat iColorSrc16S(iColorSrc.size(), CV_16SC4, iocl::ocl->context), iColorDst16S;
-    header = iColorSrc16S.toOpenCVMat();
-    colorSrc.convertTo(header, CV_16S);
+        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4, iocl::ocl->context), iColorDst16S;
+        header = iColorSrc16S.toOpenCVMat();
+        colorSrc.convertTo(header, CV_16S);
 
-    pyramidDown16SC4To16SC4(iColorSrc16S, scale32S, iColorDst16S);
+        t.start();
+        for (int i = 0; i < numRuns; i++)
+            pyramidDown16SC4To16SC4(iColorSrc16S, scale32S, iColorDst16S);
+        t.end();
+        printf("t = %f\n", t.elapse());
 
-    cv::Mat back;
-    header = iColorDst16S.toOpenCVMat();
-    header.convertTo(back, CV_8U);
-    cv::imshow("scale color", back);
-    cv::waitKey(0);
+        cv::Mat back;
+        header = iColorDst16S.toOpenCVMat();
+        header.convertTo(back, CV_8U);
+        cv::imshow("scale color", back);
+        cv::waitKey(0);
+    }
+
+    {
+        cv::Size sz = colorDst.size();
+        IOclMat colorSrc8U(sz, CV_8UC4, iocl::ocl->context);
+        IOclMat colorSrc16S(sz, CV_16SC4, iocl::ocl->context);
+        IOclMat colorSrc32S(sz, CV_32SC4, iocl::ocl->context);
+        IOclMat colorDst8U, colorDst16S, colorDst32S;
+
+        colorDst.setTo(cv::Scalar::all(255));
+
+        header = colorSrc8U.toOpenCVMat();
+        colorDst.copyTo(header);
+        cv::imshow("src", header);
+        pyramidUp8UC4To8UC4(colorSrc8U, colorDst8U);
+        header = colorDst8U.toOpenCVMat();
+        cv::imshow("up 8U", header);
+        cv::waitKey(0);
+
+        header = colorSrc16S.toOpenCVMat();
+        colorDst.convertTo(header, CV_16S);
+        pyramidUp16SC4To16SC4(colorSrc16S, colorDst16S);
+        header = colorDst16S.toOpenCVMat();
+        header.convertTo(cvtBack, CV_8U);
+        cv::imshow("up 16S", cvtBack);
+        cv::waitKey(0);
+
+        header = colorSrc16S.toOpenCVMat();
+        colorDst.convertTo(header, CV_16S);
+        pyramidUp16SC4To16SC4(colorSrc16S, colorDst16S);
+        header = colorDst16S.toOpenCVMat();
+        header.convertTo(cvtBack, CV_8U);
+        cv::imshow("up 32S", cvtBack);
+        cv::waitKey(0);
+    }
 
     return 0;
 }
