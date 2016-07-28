@@ -113,7 +113,7 @@ __kernel void accumulate16SC4To32SC4(__global const unsigned char* srcData, int 
         //getRowPtr<int4>(dstData, dstStep, y)[x] = getRowPtr<int4>(dstData, dstStep, y)[x] + 
         //    getElem<short>(weightData, weightStep, y, x) * getElem<short4>(srcData, srcStep, y, x);
 		((__global int4*)(dstData + dstStep * y))[x] = ((__global int4*)(dstData + dstStep * y))[x] +
-		    convert_int4(((__global const short*)(weightData + weightStep * y))[x] * ((__global const short4*)(srcData + srcStep * y))[x]);
+		    (int)(((__global const short*)(weightData + weightStep * y))[x]) * convert_int4(((__global const short4*)(srcData + srcStep * y))[x]);
     }
 }
 

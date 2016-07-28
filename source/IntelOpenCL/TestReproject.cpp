@@ -513,7 +513,7 @@ int main()
     }
 
     IOclTilingMultibandBlendFast blender;
-    blender.prepare(masks, 10, 4);
+    blender.prepare(masks, 10, 16);
     IOclMat blendImage;
     blender.blend(srcImages, blendImage);
 
