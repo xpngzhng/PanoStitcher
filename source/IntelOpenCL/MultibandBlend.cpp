@@ -204,34 +204,6 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
         }
     }
 
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    char buf[128];
-    //    for (int j = 0; j < numLevels + 1; j++)
-    //    {
-    //        cv::Mat image;
-    //        cv::Mat header = weightPyrs[i][j].toOpenCVMat();
-    //        header.convertTo(image, CV_8U);
-    //        sprintf(buf, "level %d", j);
-    //        cv::imshow(buf, image);
-    //        cv::waitKey(0);
-    //    }
-    //}
-
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    char buf[128];
-    //    for (int j = 1; j < numLevels + 1; j++)
-    //    {
-    //        cv::Mat image;
-    //        cv::Mat header = alphaPyrs[i][j].toOpenCVMat();
-    //        header.convertTo(image, CV_8U, 1.0 / 256);
-    //        sprintf(buf, "level %d", j);
-    //        cv::imshow(buf, image);
-    //        cv::waitKey(0);
-    //    }
-    //}
-
     std::vector<cv::Size> sizes;
     getPyramidLevelSizes(sizes, rows, cols, numLevels);
 
@@ -294,35 +266,23 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
             images[i].copyTo(imagePyr[0]);
         for (int j = 0; j < numLevels; j++)
         {
-            //pyramidDown16SC4To16SC4(imagePyr[j], imagePyr[j + 1], cv::Size(), true);
             pyramidDown16SC4To16SC4(imagePyr[j], alphaPyrs[i][j + 1], imagePyr[j + 1]);
-            //show16S("level", imagePyr[j + 1].toOpenCVMat());
-            //cv::waitKey(0);
         }
         for (int j = 0; j < numLevels; j++)
         {
             pyramidUp16SC4To16SC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size());
             subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
         }
-        //show16S("level", imagePyr[numLevels].toOpenCVMat());
-        //cv::waitKey(0);
         accumulate(imagePyr, weightPyrs[i], resultPyr);
     }
-    //for (int i = 0; i < numLevels + 1; i++)
-    //{
-        //show32S("level", resultPyr[i].toOpenCVMat());
-        //cv::waitKey(0);
-    //}
         
     if (fullMask)
         normalize(resultPyr);
     else
         normalize(resultPyr, resultWeightPyr);
     restoreImageFromLaplacePyramid(resultPyr, resultUpPyr);
-    //resultPyr[0].convertTo(blendImage, CV_8U);
     convert32SC4To8UC4(resultPyr[0], blendImage);
     if (!fullMask)
-        //blendImage.setTo(0, maskNot);
         setZero8UC4Mask8UC1(blendImage, maskNot);
 }
 
