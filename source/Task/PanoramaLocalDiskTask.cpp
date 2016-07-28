@@ -50,11 +50,6 @@ struct CPUPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
-    //std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
-    //int useCustomMasks;
-    //std::vector<CustomIntervaledMasks> customMasks;
-    //TilingMultibandBlendFast blender;
-    //std::vector<cv::Mat> reprojImages;
     CPUPanoramaRender render;
     WatermarkFilter watermarkFilter;
     std::unique_ptr<LogoFilter> logoFilter;
@@ -119,20 +114,6 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     numVideos = srcVideoFiles.size();
 
-    //std::vector<PhotoParam> params;
-    //if (!loadPhotoParams(cameraParamFile, params))
-    //{
-    //    ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
-    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-    //    return false;
-    //}
-    //if (params.size() != numVideos)
-    //{
-    //    ptlprintf("Error in %s, params.size() != numVideos\n", __FUNCTION__);
-    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-    //    return false;
-    //}
-
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
 
@@ -169,8 +150,6 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         }
     }
 
-    //getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
-
     ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, dstSize.width, dstSize.height);
     if (!ok)
     {
@@ -179,14 +158,6 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         return false;
     }
 
-    //ok = blender.prepare(dstMasks, 16, 2);
-    //ok = blender.prepare(dstMasks, 50);
-    //if (!ok)
-    //{
-    //    ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
-    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-    //    return false;
-    //}
     ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
@@ -643,13 +614,6 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     srcSize = cv::Size();
     dstSize = cv::Size();
     readers.clear();
-    //dstMasks.clear();
-    //dstUniqueMasks.clear();
-    //currMasks.clear();
-    //useCustomMasks = 0;
-    //customMasks.clear();
-    //dstSrcMaps.clear();
-    //reprojImages.clear();
     render.clear();
     writer.close();
     isCanceled = false;
