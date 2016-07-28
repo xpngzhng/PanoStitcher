@@ -1746,14 +1746,6 @@ bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, IOclMat& dst)
             reprojImages.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 ioclReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
-            for (int i = 0; i < numImages; i++)
-            {
-                cv::Mat image;
-                cv::Mat header = reprojImages[i].toOpenCVMat();
-                header.convertTo(image, CV_8U);
-                cv::imshow("reproj", image);
-                cv::waitKey(0);
-            }
             mbBlender.blend(reprojImages, dst);
         }
     }
