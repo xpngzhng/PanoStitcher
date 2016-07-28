@@ -1629,6 +1629,12 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 {
     clear();
 
+    if (!iocl::init())
+    {
+        ptlprintf("Error in %s, intel opencl initialize failed\n", __FUNCTION__);
+        return false;
+    }
+
     success = 0;
 
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&

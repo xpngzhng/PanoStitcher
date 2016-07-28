@@ -31,7 +31,7 @@ int main()
 
     std::string camPath = "F:\\panoimage\\zhanxiang\\zhanxiang.xml";
     CPUPanoramaRender cpuRender;
-    cpuRender.prepare(camPath, true, src[0].size(), dstSize);
+    cpuRender.prepare(camPath, false, src[0].size(), dstSize);
     cv::Mat cpuBlendImage;
 
     t.start();
@@ -58,7 +58,7 @@ int main()
         ioclSrc[i].upload(temp8U, iocl::ocl->context);
     }
     IOclPanoramaRender gpuRender;
-    gpuRender.prepare(camPath, true, src[0].size(), dstSize);
+    gpuRender.prepare(camPath, false, src[0].size(), dstSize);
     IOclMat gpuBlendImage;
 
     t.start();

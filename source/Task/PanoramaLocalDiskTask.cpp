@@ -699,6 +699,630 @@ void CPUPanoramaLocalDiskTask::getLastAsyncErrorMessage(std::string& message)
     return ptrImpl->getLastAsyncErrorMessage(message);
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#if 0
+struct IOclPanoramaLocalDiskTask::Impl
+{
+    Impl();
+    ~Impl();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
+        int dstVideoMaxFrameCount);
+    bool start();
+    void waitForCompletion();
+    int getProgress() const;
+    void cancel();
+
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
+
+    void run();
+    void clear();
+
+    int numVideos;
+    int audioIndex;
+    cv::Size srcSize, dstSize;
+    std::vector<avp::AudioVideoReader3> readers;
+    IOclPanoramaRender render;
+    WatermarkFilter watermarkFilter;
+    std::unique_ptr<LogoFilter> logoFilter;
+    avp::AudioVideoWriter3 writer;
+
+    int decodeCount;
+    int procCount;
+    int encodeCount;
+    std::atomic<int> finishPercent;
+    int validFrameCount;
+
+    void decode();
+    void proc();
+    void encode();
+    std::unique_ptr<std::thread> decodeThread;
+    std::unique_ptr<std::thread> procThread;
+    std::unique_ptr<std::thread> encodeThread;
+
+    AudioVideoFramePool audioFramesMemoryPool;
+    AudioVideoFramePool srcVideoFramesMemoryPool;
+    AudioVideoFramePool dstVideoFramesMemoryPool;
+
+    FrameVectorBufferForCpu decodeFramesBuffer;
+    FrameBufferForCpu procFrameBuffer;
+
+    std::string syncErrorMessage;
+    std::mutex mtxAsyncErrorMessage;
+    std::string asyncErrorMessage;
+    int hasAsyncError;
+    void setAsyncErrorMessage(const std::string& message);
+    void clearAsyncErrorMessage();
+
+    bool initSuccess;
+    bool finish;
+    bool isCanceled;
+};
+
+IOclPanoramaLocalDiskTask::Impl::Impl()
+{
+    clear();
+}
+
+IOclPanoramaLocalDiskTask::Impl::~Impl()
+{
+    clear();
+}
+
+bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
+    int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile,
+    const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile,
+    int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder,
+    const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
+{
+    clear();
+
+    if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
+    {
+        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
+        return false;
+    }
+
+    numVideos = srcVideoFiles.size();
+
+    dstSize.width = dstWidth;
+    dstSize.height = dstHeight;
+
+    bool ok = false;
+    ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
+        return false;
+    }
+
+    if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
+        validFrameCount = dstVideoMaxFrameCount;
+
+    ok = srcVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, readers[0].getVideoWidth(), readers[0].getVideoHeight());
+    if (!ok)
+    {
+        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    if (audioIndex >= 0 && audioIndex < numVideos)
+    {
+        ok = audioFramesMemoryPool.initAsAudioFramePool(readers[audioIndex].getAudioSampleType(),
+            readers[audioIndex].getAudioNumChannels(), readers[audioIndex].getAudioChannelLayout(),
+            readers[audioIndex].getAudioNumSamples());
+        if (!ok)
+        {
+            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            return false;
+        }
+    }
+
+    ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    if (render.getNumImages() != readers.size())
+    {
+        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    ok = watermarkFilter.init(dstSize.width, dstSize.height, CV_8UC4);
+    if (!ok)
+    {
+        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    if (!logoFile.empty() && logoHFov > 0)
+    {
+        logoFilter.reset(new LogoFilter);
+        ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
+        if (!ok)
+        {
+            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            logoFilter.reset();
+            return false;
+        }
+    }
+
+    std::vector<avp::Option> options;
+    options.push_back(std::make_pair("preset", dstVideoPreset));
+    options.push_back(std::make_pair("bf", "0"));
+    std::string format = (dstVideoEncoder == "h264_qsv" || dstVideoEncoder == "nvenc_h264") ? dstVideoEncoder : "h264";
+    if (audioIndex >= 0 && audioIndex < numVideos)
+    {
+        ok = writer.open(dstVideoFile, "", true,
+            true, "aac", readers[audioIndex].getAudioSampleType(), readers[audioIndex].getAudioChannelLayout(),
+            readers[audioIndex].getAudioSampleRate(), 128000,
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
+    }
+    else
+    {
+        ok = writer.open(dstVideoFile, "", false, false, "", avp::SampleTypeUnknown, 0, 0, 0,
+            true, format, avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), dstVideoBitRate, options);
+    }
+    if (!ok)
+    {
+        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
+        return false;
+    }
+
+    decodeFramesBuffer.setMaxSize(4);
+    procFrameBuffer.setMaxSize(16);
+
+    decodeFramesBuffer.resume();
+    procFrameBuffer.resume();
+
+    finishPercent.store(0);
+
+    initSuccess = true;
+    finish = false;
+    return true;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::decode()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    decodeCount = 0;
+    int mediaType;
+    while (true)
+    {
+        FrameVectorForCpu videoFrames(numVideos);
+        avp::AudioVideoFrame2 audioFrame;
+        unsigned char* data[4] = { 0 };
+        int steps[4] = { 0 };
+
+        if (audioIndex >= 0 && audioIndex < numVideos)
+        {
+            audioFramesMemoryPool.get(audioFrame);
+            srcVideoFramesMemoryPool.get(videoFrames[audioIndex]);
+            if (!readers[audioIndex].readTo(audioFrame, videoFrames[audioIndex], mediaType))
+                break;
+            if (mediaType == avp::AUDIO)
+            {
+                procFrameBuffer.push(audioFrame);
+                continue;
+            }
+            else if (mediaType == avp::VIDEO)
+            {
+
+            }
+            else
+                break;
+        }
+
+        bool successRead = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (i == audioIndex)
+                continue;
+
+            srcVideoFramesMemoryPool.get(videoFrames[i]);
+            if (!readers[i].readTo(audioFrame, videoFrames[i], mediaType))
+            {
+                successRead = false;
+                break;
+            }
+            if (mediaType == avp::VIDEO)
+            {
+
+            }
+            else
+            {
+                successRead = false;
+                break;
+            }
+        }
+        if (!successRead || isCanceled)
+            break;
+
+        decodeFramesBuffer.push(videoFrames);
+        decodeCount++;
+        //ptlprintf("decode count = %d\n", decodeCount);
+
+        if (decodeCount >= validFrameCount)
+            break;
+    }
+
+    if (!isCanceled)
+    {
+        while (decodeFramesBuffer.size())
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+    }
+    decodeFramesBuffer.stop();
+
+    for (int i = 0; i < numVideos; i++)
+        readers[i].close();
+
+    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+#include "RunTimeObjects.h"
+void IOclPanoramaLocalDiskTask::Impl::proc()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    procCount = 0;
+    FrameVectorForCpu frames;
+    std::vector<IOclMat> images(numVideos);
+    int index = audioIndex >= 0 ? audioIndex : 0;
+    bool ok = false;
+    while (true)
+    {
+        if (!decodeFramesBuffer.pull(frames))
+            break;
+
+        if (isCanceled)
+            break;
+
+        for (int i = 0; i < numVideos; i++)
+            images[i] = IOclMat(frames[i].height, frames[i].width, CV_8UC4, frames[i].data[0], frames[i].steps[0], iocl::ocl->context);
+        //reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
+
+        avp::AudioVideoFrame2 videoFrame;
+        dstVideoFramesMemoryPool.get(videoFrame);
+        IOclMat blendImageHeader(videoFrame.height, videoFrame.width, CV_8UC4, videoFrame.data[0], videoFrame.steps[0], iocl::ocl->context);
+        cv::Mat blendImage(videoFrame.height, videoFrame.width, CV_8UC4, videoFrame.data[0], videoFrame.steps[0]);
+        render.render(images, blendImageHeader);
+
+        if (logoFilter)
+        {
+            ok = logoFilter->addLogo(blendImage);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+                break;
+            }
+        }
+
+        if (addWatermark)
+        {
+            ok = watermarkFilter.addWatermark(blendImage);
+            if (!ok)
+            {
+                ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
+                setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
+                break;
+            }
+        }
+
+        videoFrame.timeStamp = frames[index].timeStamp;
+        procFrameBuffer.push(videoFrame);
+        procCount++;
+        //ptlprintf("proc count = %d\n", procCount);
+    }
+
+    if (!isCanceled)
+    {
+        while (procFrameBuffer.size())
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    procFrameBuffer.stop();
+
+    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+void IOclPanoramaLocalDiskTask::Impl::encode()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    encodeCount = 0;
+    int step = 1;
+    if (validFrameCount > 0)
+        step = validFrameCount / 100.0 + 0.5;
+    if (step < 1)
+        step = 1;
+    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::Timer timerEncode;
+    encodeCount = 0;
+    avp::AudioVideoFrame2 frame;
+    int encodeState = VideoFrameNotCome;
+    int hasAudio = audioIndex >= 0 && audioIndex < numVideos;
+    TempAudioFrameBufferForCpu tempAudioFrames;
+    while (true)
+    {
+        if (!procFrameBuffer.pull(frame))
+            break;
+
+        if (isCanceled)
+            break;
+
+        if (hasAudio)
+        {
+            if (frame.mediaType == avp::AUDIO)
+            {
+                if (encodeState == VideoFrameNotCome)
+                {
+                    tempAudioFrames.push_back(frame);
+                    continue;
+                }
+                else if (encodeState == FirstVideoFrameCome)
+                {
+                    while (tempAudioFrames.size())
+                    {
+                        avp::AudioVideoFrame2 audioFrame = tempAudioFrames.front();
+                        writer.write(audioFrame);
+                        tempAudioFrames.pop_front();
+                    }
+                    encodeState = ClearTempAudioBuffer;
+                }
+            }
+
+            if (frame.mediaType == avp::VIDEO && encodeState == VideoFrameNotCome)
+                encodeState = FirstVideoFrameCome;
+        }
+
+        //timerEncode.start();
+        bool ok = writer.write(frame);
+        //timerEncode.end();
+        if (!ok)
+        {
+            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
+            isCanceled = true;
+            break;
+        }
+
+        // Only when the frame is of type video can we increase encodeCount
+        if (frame.mediaType == avp::VIDEO)
+            encodeCount++;
+        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+
+        if (encodeCount % step == 0)
+            finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
+    }
+
+    writer.close();
+
+    finishPercent.store(100);
+
+    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+
+bool IOclPanoramaLocalDiskTask::Impl::start()
+{
+    if (!initSuccess)
+    {
+        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
+        return false;
+    }
+
+    if (finish)
+        return false;
+
+    decodeThread.reset(new std::thread(&IOclPanoramaLocalDiskTask::Impl::decode, this));
+    procThread.reset(new std::thread(&IOclPanoramaLocalDiskTask::Impl::proc, this));
+    encodeThread.reset(new std::thread(&IOclPanoramaLocalDiskTask::Impl::encode, this));
+    return true;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::waitForCompletion()
+{
+    if (decodeThread && decodeThread->joinable())
+        decodeThread->join();
+    decodeThread.reset();
+    if (procThread && procThread->joinable())
+        procThread->join();
+    procThread.reset(0);
+    if (encodeThread && encodeThread->joinable())
+        encodeThread->join();
+    encodeThread.reset(0);
+
+    audioFramesMemoryPool.clear();
+    srcVideoFramesMemoryPool.clear();
+    dstVideoFramesMemoryPool.clear();
+
+    decodeFramesBuffer.clear();
+    procFrameBuffer.clear();
+
+    watermarkFilter.clear();
+    logoFilter.reset();
+
+    if (!finish)
+        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+
+    finish = true;
+}
+
+int IOclPanoramaLocalDiskTask::Impl::getProgress() const
+{
+    return finishPercent.load();
+}
+
+void IOclPanoramaLocalDiskTask::Impl::cancel()
+{
+    isCanceled = true;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::getLastSyncErrorMessage(std::string& message) const
+{
+    message = syncErrorMessage;
+}
+
+bool IOclPanoramaLocalDiskTask::Impl::hasAsyncErrorMessage() const
+{
+    return hasAsyncError;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::getLastAsyncErrorMessage(std::string& message)
+{
+    if (hasAsyncError)
+    {
+        std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+        message = asyncErrorMessage;
+        hasAsyncError = 0;
+    }
+    else
+        message.clear();
+}
+
+void IOclPanoramaLocalDiskTask::Impl::clear()
+{
+    if (decodeThread && decodeThread->joinable())
+        decodeThread->join();
+    decodeThread.reset();
+    if (procThread && procThread->joinable())
+        procThread->join();
+    procThread.reset(0);
+    if (encodeThread && encodeThread->joinable())
+        encodeThread->join();
+    encodeThread.reset(0);
+
+    audioFramesMemoryPool.clear();
+    srcVideoFramesMemoryPool.clear();
+    dstVideoFramesMemoryPool.clear();
+
+    decodeFramesBuffer.clear();
+    procFrameBuffer.clear();
+
+    watermarkFilter.clear();
+    logoFilter.reset();
+
+    numVideos = 0;
+    srcSize = cv::Size();
+    dstSize = cv::Size();
+    readers.clear();
+    render.clear();
+    writer.close();
+    isCanceled = false;
+
+    finishPercent.store(0);
+
+    validFrameCount = 0;
+
+    syncErrorMessage.clear();
+    clearAsyncErrorMessage();
+
+    initSuccess = false;
+    finish = true;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::setAsyncErrorMessage(const std::string& message)
+{
+    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+    hasAsyncError = 1;
+    asyncErrorMessage = message;
+}
+
+void IOclPanoramaLocalDiskTask::Impl::clearAsyncErrorMessage()
+{
+    std::lock_guard<std::mutex> lg(mtxAsyncErrorMessage);
+    hasAsyncError = 0;
+    asyncErrorMessage.clear();
+}
+
+IOclPanoramaLocalDiskTask::IOclPanoramaLocalDiskTask()
+{
+    ptrImpl.reset(new Impl);
+}
+
+IOclPanoramaLocalDiskTask::~IOclPanoramaLocalDiskTask()
+{
+
+}
+
+bool IOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+    const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+    int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
+    int dstVideoMaxFrameCount)
+{
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile,
+        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
+        dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+}
+
+bool IOclPanoramaLocalDiskTask::start()
+{
+    return ptrImpl->start();
+}
+
+void IOclPanoramaLocalDiskTask::waitForCompletion()
+{
+    ptrImpl->waitForCompletion();
+}
+
+int IOclPanoramaLocalDiskTask::getProgress() const
+{
+    return ptrImpl->getProgress();
+}
+
+void IOclPanoramaLocalDiskTask::cancel()
+{
+    ptrImpl->cancel();
+}
+
+void IOclPanoramaLocalDiskTask::getLastSyncErrorMessage(std::string& message) const
+{
+    ptrImpl->getLastSyncErrorMessage(message);
+}
+
+bool IOclPanoramaLocalDiskTask::hasAsyncErrorMessage() const
+{
+    return ptrImpl->hasAsyncErrorMessage();
+}
+
+void IOclPanoramaLocalDiskTask::getLastAsyncErrorMessage(std::string& message)
+{
+    return ptrImpl->getLastAsyncErrorMessage(message);
+}
+#endif
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct StampedPinnedMemoryVector
 {
     std::vector<cv::cuda::HostMem> frames;

@@ -154,6 +154,27 @@ private:
     std::unique_ptr<Impl> ptrImpl;
 };
 
+class IOclPanoramaLocalDiskTask : public PanoramaLocalDiskTask
+{
+public:
+    IOclPanoramaLocalDiskTask();
+    ~IOclPanoramaLocalDiskTask();
+    bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+        const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
+        const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
+    bool start();
+    void waitForCompletion();
+    int getProgress() const;
+    void cancel();
+    void getLastSyncErrorMessage(std::string& message) const;
+    bool hasAsyncErrorMessage() const;
+    void getLastAsyncErrorMessage(std::string& message);
+private:
+    struct Impl;
+    std::unique_ptr<Impl> ptrImpl;
+};
+
 class CudaPanoramaLocalDiskTask : public PanoramaLocalDiskTask
 {
 public:
