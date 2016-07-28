@@ -3,25 +3,25 @@
 #include "MatOp.h"
 #include "Pyramid.h"
 #include "../Blend/ZBlendAlgo.h"
-#include "opencv2/highgui.hpp"
-#include <iostream>
-#include <fstream>
+//#include "opencv2/highgui.hpp"
+//#include <iostream>
+//#include <fstream>
 
-static void show16S(const std::string& winName, cv::Mat& image)
-{
-    CV_Assert(image.data && image.depth() == CV_16S);
-    cv::Mat temp;
-    image.convertTo(temp, CV_8U, 0.5, 128);
-    cv::imshow(winName, temp);
-}
-
-static void show32S(const std::string& winName, cv::Mat& image)
-{
-    CV_Assert(image.data && image.depth() == CV_32S);
-    cv::Mat temp;
-    image.convertTo(temp, CV_8U, 0.5 / 258, 127);
-    cv::imshow(winName, temp);
-}
+//static void show16S(const std::string& winName, cv::Mat& image)
+//{
+//    CV_Assert(image.data && image.depth() == CV_16S);
+//    cv::Mat temp;
+//    image.convertTo(temp, CV_8U, 0.5, 128);
+//    cv::imshow(winName, temp);
+//}
+//
+//static void show32S(const std::string& winName, cv::Mat& image)
+//{
+//    CV_Assert(image.data && image.depth() == CV_32S);
+//    cv::Mat temp;
+//    image.convertTo(temp, CV_8U, 0.5 / 256, 127);
+//    cv::imshow(winName, temp);
+//}
 
 static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int cols, int numLevels)
 {
@@ -114,15 +114,7 @@ static void accumulate(const std::vector<IOclMat>& imagePyr, const std::vector<I
         imagePyr.size() == resultPyr.size());
     int size = imagePyr.size();
     for (int i = 0; i < size; i++)
-    {
         accumulate16SC4To32SC4(imagePyr[i], weightPyr[i], resultPyr[i]);
-        //if (i == size - 1)
-        //    std::cout << resultPyr[i].toOpenCVMat() << std::endl;
-        //show16S("image", imagePyr[i].toOpenCVMat());
-        //show16S("weight", weightPyr[i].toOpenCVMat());
-        //show32S("result", resultPyr[i].toOpenCVMat());
-        //cv::waitKey(0);
-    }
 }
 
 static void normalize(std::vector<IOclMat>& pyr)
@@ -310,16 +302,7 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
         for (int j = 0; j < numLevels; j++)
         {
             pyramidUp16SC4To16SC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size());
-            if (i == 0 && j == 3)
-            {
-                std::ofstream fs("level.txt");
-                fs << imageUpPyr[j].toOpenCVMat() << std::endl;
-                fs.close();
-            }
             subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
-            show16S("up level", imageUpPyr[j].toOpenCVMat());
-            show16S("level", imagePyr[j].toOpenCVMat());
-            cv::waitKey(0);
         }
         //show16S("level", imagePyr[numLevels].toOpenCVMat());
         //cv::waitKey(0);

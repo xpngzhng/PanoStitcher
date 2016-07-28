@@ -526,7 +526,7 @@ int main()
     IOclMat blendImage;
 
     t.start();
-    //for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
     blender.blend(srcImages, blendImage);
     t.end();
     printf("t = %f\n", t.elapse());
@@ -539,7 +539,7 @@ int main()
     cpuBlender.prepare(masks, 10, 4);
     cv::Mat cpuBlendImage;
     t.start();
-    //for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 10; i++)
     cpuBlender.blend(images, cpuBlendImage);
     t.end();
     printf("t = %f\n", t.elapse());
