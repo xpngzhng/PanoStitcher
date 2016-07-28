@@ -4,6 +4,7 @@
 #include "Pyramid.h"
 #include "MatOp.h"
 #include "../../source/Blend/Timer.h"
+#include "../../source/Blend/ZBlend.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -291,6 +292,7 @@ int main2()
     cv::Mat header, diff, cvtBack;
 
     // test floating point version
+    /*
     {
         IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
         IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
@@ -322,8 +324,9 @@ int main2()
         cv::imshow("diff gray", diff);
         cv::waitKey(0);
     }
-
+    */
     // test short version
+    /*
     {
         IOclMat iGraySrc16S(graySrc.size(), CV_16SC1, iocl::ocl->context);
         header = iGraySrc16S.toOpenCVMat();
@@ -344,8 +347,9 @@ int main2()
         cv::imshow("diff gray 32S", diffFor32S);
         cv::waitKey(0);
     }
-
+    */
     // test uchar version
+    /*
     {
         IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
         IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
@@ -389,8 +393,9 @@ int main2()
         cv::imshow("diff gray", diffGray);
         cv::waitKey(0);
     }
-
+    */
     // test pyramid down scale version
+    /*
     {
         cv::Mat dist;
         calcDistImage(dist, cv::Size((colorSrc.cols + 1) / 2, (colorSrc.rows + 1) / 2));
@@ -417,8 +422,10 @@ int main2()
         cv::imshow("scale color", back);
         cv::waitKey(0);
     }
-
+    */
     {
+        cv::Mat oldColorDst = colorDst;
+        cv::resize(oldColorDst, colorDst, cv::Size(128, 64));
         cv::Size sz = colorDst.size();
         IOclMat colorSrc8U(sz, CV_8UC4, iocl::ocl->context);
         IOclMat colorSrc16S(sz, CV_16SC4, iocl::ocl->context);
@@ -512,13 +519,30 @@ int main()
         srcImages[i].upload(temp16S, iocl::ocl->context);
     }
 
+    ztool::Timer t;
+
     IOclTilingMultibandBlendFast blender;
-    blender.prepare(masks, 10, 16);
+    blender.prepare(masks, 10, 4);
     IOclMat blendImage;
+
+    t.start();
+    //for (int i = 0; i < 10; i++)
     blender.blend(srcImages, blendImage);
+    t.end();
+    printf("t = %f\n", t.elapse());
 
     cv::Mat header = blendImage.toOpenCVMat();
     cv::imshow("blend image", header);
     cv::waitKey(0);
+
+    TilingMultibandBlendFast cpuBlender;
+    cpuBlender.prepare(masks, 10, 4);
+    cv::Mat cpuBlendImage;
+    t.start();
+    //for (int i = 0; i < 10; i++)
+    cpuBlender.blend(images, cpuBlendImage);
+    t.end();
+    printf("t = %f\n", t.elapse());
+
     return 0;
 }

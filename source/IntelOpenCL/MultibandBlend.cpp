@@ -5,6 +5,7 @@
 #include "../Blend/ZBlendAlgo.h"
 #include "opencv2/highgui.hpp"
 #include <iostream>
+#include <fstream>
 
 static void show16S(const std::string& winName, cv::Mat& image)
 {
@@ -309,19 +310,26 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
         for (int j = 0; j < numLevels; j++)
         {
             pyramidUp16SC4To16SC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size());
+            if (i == 0 && j == 3)
+            {
+                std::ofstream fs("level.txt");
+                fs << imageUpPyr[j].toOpenCVMat() << std::endl;
+                fs.close();
+            }
             subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
-            //show16S("level", imagePyr[j].toOpenCVMat());
-            //cv::waitKey(0);
+            show16S("up level", imageUpPyr[j].toOpenCVMat());
+            show16S("level", imagePyr[j].toOpenCVMat());
+            cv::waitKey(0);
         }
         //show16S("level", imagePyr[numLevels].toOpenCVMat());
         //cv::waitKey(0);
         accumulate(imagePyr, weightPyrs[i], resultPyr);
     }
-    for (int i = 0; i < numLevels + 1; i++)
-    {
-        show32S("level", resultPyr[i].toOpenCVMat());
-        cv::waitKey(0);
-    }
+    //for (int i = 0; i < numLevels + 1; i++)
+    //{
+        //show32S("level", resultPyr[i].toOpenCVMat());
+        //cv::waitKey(0);
+    //}
         
     if (fullMask)
         normalize(resultPyr);

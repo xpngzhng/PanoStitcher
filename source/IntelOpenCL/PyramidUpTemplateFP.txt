@@ -78,7 +78,7 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
         int srcy = ((get_group_id(1) * get_local_size(1)) / 2 + localy) - 1;
 
         srcx = ((srcx < 0) || (srcx >= srcCols)) ? horiBorder(srcx, srcCols) : srcx;
-        srcy = ((srcy < 0) || (srcy >= srcRows)) ? horiBorder(srcy, srcRows) : srcy;
+        srcy = ((srcy < 0) || (srcy >= srcRows)) ? vertBorder(srcy, srcRows) : srcy;
 
         s_srcPatch[localy][localx] = CONVERT_WORK_TYPE(getSourceElem(srcData, srcStep, srcy, srcx));
     }
