@@ -252,7 +252,7 @@ void calcDistImage(cv::Mat& dist, cv::Size size)
 }
 
 #include "../Blend/Pyramid.h"
-int main()
+int main2()
 {
     bool ok = iocl::init();
     if (!ok)
@@ -452,5 +452,73 @@ int main()
         cv::waitKey(0);
     }
 
+    return 0;
+}
+
+#include "ZBlendAlgo.h"
+int main()
+{
+    bool ok = ioclInit();
+    if (!ok)
+    {
+        printf("OpenCL init failed\n");
+        return 0;
+    }
+
+    std::vector<std::string> contentPaths;
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
+
+    ztool::Timer timer;
+    timer.start();
+
+    int numImages = contentPaths.size();
+    std::vector<cv::Mat> images, masks;
+    cv::Size imageSize;
+    getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
+
+    cv::Mat temp8U, temp16S;
+    std::vector<IOclMat> srcImages(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::cvtColor(images[i], temp8U, CV_BGR2BGRA);
+        temp8U.convertTo(temp16S, CV_16S);
+        srcImages[i].upload(temp16S, iocl::ocl->context);
+    }
+
+    IOclTilingMultibandBlendFast blender;
+    blender.prepare(masks, 10, 4);
+    IOclMat blendImage;
+    blender.blend(srcImages, blendImage);
+
+    cv::Mat header = blendImage.toOpenCVMat();
+    cv::imshow("blend image", header);
+    cv::waitKey(0);
     return 0;
 }

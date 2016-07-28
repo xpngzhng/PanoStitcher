@@ -151,6 +151,11 @@ struct IOclMat
         smem.reset();
     }
 
+    void release()
+    {
+        clear();
+    }
+
     void create(int rows_, int cols_, int type_, cl_context ctx_)
     {
         if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK) && ctx == ctx_)
@@ -221,12 +226,43 @@ struct IOclMat
         create(size_.height, size_.width, type_, data_, step_, ctx_);
     }
 
+    void copyTo(IOclMat& other) const
+    {
+        other.create(size(), type, ctx);
+        cv::Mat src = toOpenCVMat();
+        cv::Mat dst = other.toOpenCVMat();
+        src.copyTo(dst);
+    }
+
+    IOclMat clone() const
+    {
+        IOclMat other;
+        copyTo(other);
+        return other;
+    }
+
     cv::Mat toOpenCVMat() const
     {
         if (data)
             return cv::Mat(rows, cols, type, data, step);
         else
             return cv::Mat();
+    }
+
+    void upload(const cv::Mat& mat, cl_context ctx_)
+    {
+        CV_Assert(mat.data);
+        create(mat.size(), mat.type(), ctx_);
+        cv::Mat header = toOpenCVMat();
+        mat.copyTo(header);
+    }
+
+    void download(cv::Mat& mat) const
+    {
+        CV_Assert(data);
+        mat.create(size(), type);
+        cv::Mat header = toOpenCVMat();
+        header.copyTo(mat);
     }
 
     void setZero()

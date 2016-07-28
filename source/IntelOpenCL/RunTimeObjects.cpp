@@ -6,7 +6,19 @@ namespace iocl
 
 OpenCLBasic* ocl = 0;
 
+OpenCLProgramOneKernel* convert32SC4To8UC4 = 0;
+
 OpenCLProgramOneKernel* setZero = 0;
+OpenCLProgramOneKernel* setZero8UC4Mask8UC1 = 0;
+OpenCLProgramOneKernel* setVal16SC1 = 0;
+OpenCLProgramOneKernel* setVal16SC1Mask8UC1 = 0;
+OpenCLProgramOneKernel* scaledSet16SC1Mask32SC1 = 0;
+OpenCLProgramOneKernel* subtract16SC4 = 0;
+OpenCLProgramOneKernel* add32SC4 = 0;
+OpenCLProgramOneKernel* accumulate16SC1To32SC1 = 0;
+OpenCLProgramOneKernel* accumulate16SC4To32SC4 = 0;
+OpenCLProgramOneKernel* normalizeByShift32SC4 = 0;
+OpenCLProgramOneKernel* normalizeByDivide32SC4 = 0;
 
 OpenCLProgramOneKernel* reproject = 0;
 OpenCLProgramOneKernel* reprojectTo16S = 0;
@@ -38,7 +50,19 @@ bool init()
     {
         ocl = new OpenCLBasic("Intel", "GPU");
 
+        convert32SC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "convert32SC4To8UC4");
+
         setZero = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel");
+        setZero8UC4Mask8UC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZero8UC4Mask8UC1");
+        setVal16SC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setVal16SC1");
+        setVal16SC1Mask8UC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setVal16SC1Mask8UC1");
+        scaledSet16SC1Mask32SC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "scaledSet16SC1Mask32SC1");
+        subtract16SC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "subtract16SC4");
+        add32SC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "add32SC4");
+        accumulate16SC1To32SC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "accumulate16SC1To32SC1");
+        accumulate16SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "accumulate16SC4To32SC4");
+        normalizeByShift32SC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "normalizeByShift32SC4");
+        normalizeByDivide32SC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "normalizeByDivide32SC4");
 
         reproject = new OpenCLProgramOneKernel(*ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=uchar");
         reprojectTo16S = new OpenCLProgramOneKernel(*ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=short");

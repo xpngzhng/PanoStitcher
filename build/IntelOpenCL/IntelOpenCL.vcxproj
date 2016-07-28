@@ -164,6 +164,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\source\IntelOpenCL\basic.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\MatOp.cpp" />
+    <ClCompile Include="..\..\source\IntelOpenCL\MultibandBlend.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\oclobject.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\Pyramid.cpp" />
     <ClCompile Include="..\..\source\IntelOpenCL\Reproject.cpp" />
