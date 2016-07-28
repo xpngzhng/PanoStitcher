@@ -5,7 +5,7 @@
 #include "../Blend/ZBlendAlgo.h"
 #include "opencv2/highgui.hpp"
 //#include <iostream>
-//#include <fstream>
+#include <fstream>
 
 //static void show16S(const std::string& winName, cv::Mat& image)
 //{
@@ -20,6 +20,13 @@ static void show32S(const std::string& winName, cv::Mat& image)
     CV_Assert(image.data && image.depth() == CV_32S);
     cv::Mat temp;
     image.convertTo(temp, CV_8U, 0.5 / 256, 127);
+    cv::imshow(winName, temp);
+}
+static void show32SUnscale(const std::string& winName, cv::Mat& image)
+{
+    CV_Assert(image.data && image.depth() == CV_32S);
+    cv::Mat temp;
+    image.convertTo(temp, CV_8U);
     cv::imshow(winName, temp);
 }
 
@@ -274,25 +281,55 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
             subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
         }
         accumulate(imagePyr, weightPyrs[i], resultPyr);
-        for (int j = 0; j < numLevels + 1; j++)
+        /*for (int j = 0; j < numLevels + 1; j++)
         {
             show32S("level", resultPyr[j].toOpenCVMat());
             cv::waitKey(0);
-        }
+        }*/
     }
-        
+    for (int j = 0; j < numLevels + 1; j++)
+    {
+        char buf[128];
+        sprintf(buf, "level_before_norm_%d.txt", j);
+        std::ofstream ofs(buf);
+        ofs << resultPyr[j].toOpenCVMat() << std::endl;
+        ofs.close();
+
+        show32S("level", resultPyr[j].toOpenCVMat());
+        cv::waitKey(0);
+    }
     if (fullMask)
         normalize(resultPyr);
     else
         normalize(resultPyr, resultWeightPyr);
     for (int j = 0; j < numLevels + 1; j++)
     {
+        char buf[128];
+        sprintf(buf, "level_after_norm_%d.txt", j);
+        std::ofstream ofs(buf);
+        ofs << resultPyr[j].toOpenCVMat() << std::endl;
+        ofs.close();
+
         show32S("level", resultPyr[j].toOpenCVMat());
         cv::waitKey(0);
     }
+    for (int j = 0; j < numLevels + 1; j++)
+    {
+        show32SUnscale("level", resultPyr[j].toOpenCVMat());
+        cv::waitKey(0);
+    }
     restoreImageFromLaplacePyramid(resultPyr, resultUpPyr);
+    for (int j = 0; j < numLevels + 1; j++)
+    {
+        show32S("level", resultPyr[j].toOpenCVMat());
+        cv::waitKey(0);
+    }
+    //normalize32SC4(resultPyr[0]);
     convert32SC4To8UC4(resultPyr[0], blendImage);
+    //show32SUnscale("result", resultPyr[0].toOpenCVMat());
+    //cv::waitKey(0);
     
+    printf("%s\n", fullMask ? "full mask" : "not full mask");
     if (!fullMask)
         setZero8UC4Mask8UC1(blendImage, maskNot);
 }
