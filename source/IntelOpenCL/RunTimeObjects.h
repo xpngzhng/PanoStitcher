@@ -10,6 +10,7 @@ bool init();
 extern OpenCLBasic* ocl;
 
 extern OpenCLProgramOneKernel* convert32SC4To8UC4;
+extern OpenCLProgramOneKernel* convert32FC4To8UC4;
 
 extern OpenCLProgramOneKernel* setZero;
 extern OpenCLProgramOneKernel* setZero8UC4Mask8UC1;

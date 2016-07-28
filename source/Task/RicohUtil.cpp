@@ -1399,6 +1399,7 @@ void CPUPanoramaRender::clear()
 {
     maps.clear();
     reprojImages.clear();
+    mbBlender.reset();
     weights.clear();
     accum.release();
     success = 0;
@@ -1621,6 +1622,166 @@ int IOclPanoramaRender::getNumImages() const
 }
 
 #endif
+
+#include "RunTimeObjects.h"
+bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
+{
+    clear();
+
+    success = 0;
+
+    if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
+        dstSize_.height * 2 == dstSize_.width))
+    {
+        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        return false;
+    }
+
+    std::vector<PhotoParam> params;
+    bool ok = loadPhotoParams(path_, params);
+    if (!ok || params.empty())
+    {
+        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        return false;
+    }
+
+    highQualityBlend = highQualityBlend_;
+    srcSize = srcSize_;
+    dstSize = dstSize_;
+
+    try
+    {
+        numImages = params.size();
+        std::vector<cv::Mat> masks;
+        xmaps.resize(numImages);
+        ymaps.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            xmaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+            ymaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+        }
+        std::vector<cv::Mat> xheaders(numImages), yheaders(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            xheaders[i] = xmaps[i].toOpenCVMat();
+            yheaders[i] = ymaps[i].toOpenCVMat();
+        }
+        getReprojectMaps32FAndMasks(params, srcSize, dstSize, xheaders, yheaders, masks);
+        if (highQualityBlend)
+        {
+            if (!mbBlender.prepare(masks, 20, 2))
+            {
+                ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
+                return false;
+            }
+        }
+        else
+        {
+            weights.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                weights[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+            std::vector<cv::Mat> headers(numImages);
+            for (int i = 0; i < numImages; i++)
+                headers[i] = weights[i].toOpenCVMat();
+            getWeightsLinearBlend32F(masks, 50, headers);
+            accum.create(dstSize, CV_32FC4, iocl::ocl->context);
+        }
+    }
+    catch (std::exception& e)
+    {
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
+    }
+
+    success = 1;
+    return true;
+}
+
+#include "MatOp.h"
+bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, IOclMat& dst)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (src.size() != numImages)
+    {
+        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        return false;
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        if (src[i].size() != srcSize)
+        {
+            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+                __FUNCTION__, i, src[i].size().width, src[i].size().height,
+                srcSize.width, srcSize.height);
+            return false;
+        }
+
+        if (src[i].type != CV_8UC4)
+        {
+            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type, CV_8UC4);
+            return false;
+        }
+
+    }
+
+    try
+    {
+        if (!highQualityBlend)
+        {
+            setZero(accum);
+            for (int i = 0; i < numImages; i++)
+                ioclReprojectWeightedAccumulateTo32F(src[i], accum, xmaps[i], ymaps[i], weights[i]);
+            //accum.convertTo(dst, CV_8U);
+            convert32FC4To8UC4(accum, dst);
+        }
+        else
+        {
+            reprojImages.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                ioclReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
+            for (int i = 0; i < numImages; i++)
+            {
+                cv::Mat image;
+                cv::Mat header = reprojImages[i].toOpenCVMat();
+                header.convertTo(image, CV_8U);
+                cv::imshow("reproj", image);
+                cv::waitKey(0);
+            }
+            mbBlender.blend(reprojImages, dst);
+        }
+    }
+    catch (std::exception& e)
+    {
+        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        return false;
+    }
+
+    return true;
+}
+
+void IOclPanoramaRender::clear()
+{
+    xmaps.clear();
+    ymaps.clear();
+    reprojImages.clear();
+    weights.clear();
+    accum.release();
+    success = 0;
+    numImages = 0;
+    highQualityBlend = 0;
+}
+
+int IOclPanoramaRender::getNumImages() const
+{
+    return success ? numImages : 0;
+}
 
 bool ImageVisualCorrect::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
 {

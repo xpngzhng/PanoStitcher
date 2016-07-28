@@ -9,6 +9,17 @@ __kernel void convert32SC4To8UC4(__global const unsigned char* srcData, int srcS
 	}
 }
 
+__kernel void convert32FC4To8UC4(__global const unsigned char* srcData, int srcStep, __global unsigned char* dstData, int dstStep,
+    int rows, int cols)
+{
+    const int x = get_global_id(0);
+    const int y = get_global_id(1);
+    if (x < cols && y < rows)
+    {
+	    ((__global uchar4*)(dstData + dstStep * y))[x] = convert_uchar4_sat_rtz(((__global const float4*)(srcData + srcStep * y))[x]);
+	}
+}
+
 __kernel void setZeroKernel(__global unsigned char* data, int width, int height, int step, int elemSize)
 {
     int x = get_global_id(0);

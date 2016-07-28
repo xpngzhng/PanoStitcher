@@ -3,7 +3,7 @@
 #include "MatOp.h"
 #include "Pyramid.h"
 #include "../Blend/ZBlendAlgo.h"
-//#include "opencv2/highgui.hpp"
+#include "opencv2/highgui.hpp"
 //#include <iostream>
 //#include <fstream>
 
@@ -15,13 +15,13 @@
 //    cv::imshow(winName, temp);
 //}
 //
-//static void show32S(const std::string& winName, cv::Mat& image)
-//{
-//    CV_Assert(image.data && image.depth() == CV_32S);
-//    cv::Mat temp;
-//    image.convertTo(temp, CV_8U, 0.5 / 256, 127);
-//    cv::imshow(winName, temp);
-//}
+static void show32S(const std::string& winName, cv::Mat& image)
+{
+    CV_Assert(image.data && image.depth() == CV_32S);
+    cv::Mat temp;
+    image.convertTo(temp, CV_8U, 0.5 / 256, 127);
+    cv::imshow(winName, temp);
+}
 
 static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int cols, int numLevels)
 {
@@ -274,14 +274,25 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
             subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j]);
         }
         accumulate(imagePyr, weightPyrs[i], resultPyr);
+        for (int j = 0; j < numLevels + 1; j++)
+        {
+            show32S("level", resultPyr[j].toOpenCVMat());
+            cv::waitKey(0);
+        }
     }
         
     if (fullMask)
         normalize(resultPyr);
     else
         normalize(resultPyr, resultWeightPyr);
+    for (int j = 0; j < numLevels + 1; j++)
+    {
+        show32S("level", resultPyr[j].toOpenCVMat());
+        cv::waitKey(0);
+    }
     restoreImageFromLaplacePyramid(resultPyr, resultUpPyr);
     convert32SC4To8UC4(resultPyr[0], blendImage);
+    
     if (!fullMask)
         setZero8UC4Mask8UC1(blendImage, maskNot);
 }

@@ -88,6 +88,33 @@ void convert32SC4To8UC4(const IOclMat& src, IOclMat& dst)
     SAMPLE_CHECK_ERRORS(err);
 }
 
+void convert32FC4To8UC4(const IOclMat& src, IOclMat& dst)
+{
+    CV_Assert(src.data && src.type == CV_32FC4);
+
+    dst.create(src.size(), CV_8UC4, iocl::ocl->context);
+
+    cl_int err = CL_SUCCESS;
+    cl_kernel kernel = iocl::convert32FC4To8UC4->kernel;
+    cl_command_queue queue = iocl::ocl->queue;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
+    clSetKernelArg(kernel, 1, sizeof(int), &src.step);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
+    clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
+    clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
+    clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+
+    size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(src.rows, 16) };
+    size_t localWorkSize[2] = { 16, 16 };
+    size_t offset[2] = { 0, 0 };
+
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, offset, globalWorkSize, localWorkSize, 0, NULL, NULL);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clFinish(queue);
+    SAMPLE_CHECK_ERRORS(err);
+}
+
 void setZero8UC4Mask8UC1(IOclMat& mat, const IOclMat& mask)
 {
     CV_Assert(mat.data && mat.type == CV_8UC4 && mask.data && mask.type == CV_8UC1 &&

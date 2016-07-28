@@ -7,6 +7,7 @@ namespace iocl
 OpenCLBasic* ocl = 0;
 
 OpenCLProgramOneKernel* convert32SC4To8UC4 = 0;
+OpenCLProgramOneKernel* convert32FC4To8UC4 = 0;
 
 OpenCLProgramOneKernel* setZero = 0;
 OpenCLProgramOneKernel* setZero8UC4Mask8UC1 = 0;
@@ -51,6 +52,7 @@ bool init()
         ocl = new OpenCLBasic("Intel", "GPU");
 
         convert32SC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "convert32SC4To8UC4");
+        convert32SC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "convert32FC4To8UC4");
 
         setZero = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel");
         setZero8UC4Mask8UC1 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZero8UC4Mask8UC1");

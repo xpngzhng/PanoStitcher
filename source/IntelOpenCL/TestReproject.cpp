@@ -526,7 +526,7 @@ int main()
     IOclMat blendImage;
 
     t.start();
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 1; i++)
     blender.blend(srcImages, blendImage);
     t.end();
     printf("t = %f\n", t.elapse());

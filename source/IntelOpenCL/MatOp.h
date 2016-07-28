@@ -4,6 +4,8 @@
 
 void convert32SC4To8UC4(const IOclMat& src, IOclMat& dst);
 
+void convert32FC4To8UC4(const IOclMat& src, IOclMat& dst);
+
 void setZero(IOclMat& mat);
 
 void setZero8UC4Mask8UC1(IOclMat& mat, const IOclMat& mask);

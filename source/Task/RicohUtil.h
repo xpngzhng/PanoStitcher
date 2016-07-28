@@ -272,6 +272,28 @@ private:
 };
 #endif
 
+#include "IntelOpenCLInterface.h"
+class IOclPanoramaRender
+{
+public:
+    IOclPanoramaRender() : success(0) {};
+    ~IOclPanoramaRender() { clear(); };
+    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool render(const std::vector<IOclMat>& src, IOclMat& dst);
+    void clear();
+    int getNumImages() const;
+private:
+    cv::Size srcSize, dstSize;
+    std::vector<IOclMat> xmaps, ymaps;
+    std::vector<IOclMat> reprojImages;
+    int highQualityBlend;
+    IOclTilingMultibandBlendFast mbBlender;
+    std::vector<IOclMat> weights;
+    IOclMat accum;
+    int numImages;
+    int success;
+};
+
 class ImageVisualCorrect
 {
 public:
