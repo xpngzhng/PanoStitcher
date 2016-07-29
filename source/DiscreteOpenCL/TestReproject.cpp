@@ -26,11 +26,11 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main1(int argc, char** argv)
+int main(int argc, char** argv)
 {
     //cv::Size dstSize = cv::Size(3072, 1536);
     //cv::Size dstSize = cv::Size(2560, 1280);
-    cv::Size dstSize = cv::Size(1920, 960);
+    cv::Size dstSize = cv::Size(2048, 1024);
 
     std::vector<std::string> paths;
     //retrievePaths("F:\\panoimage\\beijing\\filelist.txt", paths);
@@ -96,6 +96,8 @@ int main1(int argc, char** argv)
 
     std::vector<docl::GpuMat> srcGpu(numImages);
     std::vector<docl::GpuMat> xmapsGpu(numImages), ymapsGpu(numImages), weightsGpu(numImages);
+    std::vector<cv::cuda::GpuMat> srcCuda(numImages);
+    std::vector<cv::cuda::GpuMat> xmapsCuda(numImages), ymapsCuda(numImages), weightsCuda(numImages);
     cv::Mat src8UC4;
     for (int i = 0; i < numImages; i++)
     {
@@ -104,6 +106,10 @@ int main1(int argc, char** argv)
         xmapsGpu[i].upload(xmaps32F[i]);
         ymapsGpu[i].upload(ymaps32F[i]);
         weightsGpu[i].upload(weights[i]);
+        srcCuda[i].upload(src8UC4);
+        xmapsCuda[i].upload(xmaps32F[i]);
+        ymapsCuda[i].upload(ymaps32F[i]);
+        weightsCuda[i].upload(weights[i]);
     }
 
     cv::Mat dst, dst16S;
@@ -115,14 +121,14 @@ int main1(int argc, char** argv)
         {
             doclReproject(srcGpu[i], dstMatGpu, xmapsGpu[i], ymapsGpu[i]);
             dstMatGpu.download(dst);
-            cv::imshow("rprj", dst);
+            //cv::imshow("rprj", dst);
 
             doclReprojectTo16S(srcGpu[i], dstMat16SGpu, xmapsGpu[i], ymapsGpu[i]);
             dstMat16SGpu.download(dst16S);
             dst16S.convertTo(dst, CV_8U);
-            cv::imshow("rprj16S", dst);
+            //cv::imshow("rprj16S", dst);
 
-            cv::waitKey(0);
+            //cv::waitKey(0);
         }
     }
     catch (std::exception& e)
@@ -131,30 +137,60 @@ int main1(int argc, char** argv)
     }
     //return 0;
 
+    cv::cuda::GpuMat dstMatCuda, dstMat16SCuda;
+    //for (int k = 0; k < 10000; k++)
+    for (int i = 0; i < numImages; i++)
+    {
+        cudaReproject(srcCuda[i], dstMatCuda, xmapsCuda[i], ymapsCuda[i]);
+        dstMatCuda.download(dst);
+        //cv::imshow("rprj", dst);
+
+        cudaReprojectTo16S(srcCuda[i], dstMat16SCuda, xmapsCuda[i], ymapsCuda[i]);
+        dstMat16SCuda.download(dst16S);
+        dst16S.convertTo(dst, CV_8U);
+        //cv::imshow("rprj16S", dst);
+
+        //cv::waitKey(0);
+    }
+
     int width = dstSize.width;
     int height = dstSize.height;
     int ret = 0;
 
-    docl::GpuMat dstMat32FGpu(dstSize, CV_32FC4);
+    docl::GpuMat dst32FGpu(dstSize, CV_32FC4);
+    cv::cuda::GpuMat dst32FCuda(dstSize, CV_32FC4);
     cv::Mat dst32F;
     try
     {
         int numIters = 1000;
         ztool::Timer t;
 
+        t.start();
         for (int k = 0; k < numIters; k++)
         {
-            setZero(dstMat32FGpu);
+            setZero(dst32FGpu);
             for (int i = 0; i < numImages; i++)
-                doclReprojectWeightedAccumulateTo32F(srcGpu[i], dstMat32FGpu, xmapsGpu[i], ymapsGpu[i], weightsGpu[i]);
+                doclReprojectWeightedAccumulateTo32F(srcGpu[i], dst32FGpu, xmapsGpu[i], ymapsGpu[i], weightsGpu[i]);
         }
         t.end();
         printf("time = %f\n", t.elapse() * 1000 / numIters);
 
-        dstMat32FGpu.download(dst32F);
-        dst32F.convertTo(dst, CV_8U);
-        cv::imshow("dst", dst);
-        cv::waitKey(0);
+        _sleep(1000);
+
+        t.start();
+        for (int k = 0; k < numIters; k++)
+        {
+            dst32FCuda.setTo(0);
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectWeightedAccumulateTo32F(srcCuda[i], dst32FCuda, xmapsCuda[i], ymapsCuda[i], weightsCuda[i]);
+        }
+        t.end();
+        printf("time = %f\n", t.elapse() * 1000 / numIters);
+
+        //dst32FGpu.download(dst32F);
+        //dst32F.convertTo(dst, CV_8U);
+        //cv::imshow("dst", dst);
+        //cv::waitKey(0);
 
     }
     catch (const Error& error)
@@ -173,6 +209,40 @@ int main1(int argc, char** argv)
         ret = EXIT_FAILURE;
     }
 
+    ztool::Timer t;
+    int numIters = 1000;
+
+    std::vector<docl::GpuMat> reprojImagesGpu;
+    DOclTilingMultibandBlendFast blenderDOcl;
+    blenderDOcl.prepare(masks, 10, 4);
+    docl::GpuMat blendImageGpu;
+
+    t.start();
+    reprojImagesGpu.resize(numImages);
+    for (int k = 0; k < numIters; k++)
+    {
+        for (int i = 0; i < numImages; i++)
+            doclReprojectTo16S(srcGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i]);
+        blenderDOcl.blend(reprojImagesGpu, blendImageGpu);
+    }
+    t.end();
+    printf("proc ocl %f\n", t.elapse());
+
+    std::vector<cv::cuda::GpuMat> reprojImagesCuda;
+    CudaTilingMultibandBlendFast blenderCuda;
+    blenderCuda.prepare(masks, 10, 4);
+    cv::cuda::GpuMat blendImageCuda;
+
+    t.start();
+    reprojImagesCuda.resize(numImages);
+    for (int k = 0; k < numIters; k++)
+    {
+        for (int i = 0; i < numImages; i++)
+            cudaReprojectTo16S(srcCuda[i], reprojImagesCuda[i], xmapsCuda[i], ymapsCuda[i]);
+        blenderCuda.blend(reprojImagesCuda, blendImageCuda);
+    }
+    t.end();
+    printf("proc ocl %f\n", t.elapse());
     return ret;
 }
 
@@ -447,7 +517,7 @@ int main1(int argc, char** argv)
 //}
 //
 #include "ZBlendAlgo.h"
-int main()
+int main3()
 {
     bool ok = doclInit();
     if (!ok)
