@@ -407,6 +407,16 @@ struct GpuMat
         create(size, type);
     }
 
+    GpuMat(int rows, int cols, int type, cl_mem data, int step)
+    {
+        create(rows, cols, type, data, step);
+    }
+
+    GpuMat(const cv::Size& size, int type, cl_mem data, int step)
+    {
+        create(size.height, size.width, type, data, step);
+    }
+
     void clear()
     {
         mem = 0;
@@ -457,6 +467,22 @@ struct GpuMat
             }
             SAMPLE_CHECK_ERRORS(err);
         }
+    }
+
+    void create(int rows_, int cols_, int type_, cl_mem data_, int step_)
+    {
+        clear();
+
+        CV_Assert(rows_ > 0 && cols_ > 0 && data_ && step_ > 0);
+
+        rows = rows_;
+        cols = cols_;
+        step = step_;
+        type = type_ & CV_MAT_TYPE_MASK;
+        CV_Assert(ocl && ocl->context);
+        ctx = ocl->context;
+        mem = data_;
+        data = data_;
     }
 
     void create(const cv::Size& size_, int type_)

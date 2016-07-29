@@ -26,7 +26,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main(int argc, char** argv)
+int main1(int argc, char** argv)
 {
     //cv::Size dstSize = cv::Size(3072, 1536);
     //cv::Size dstSize = cv::Size(2560, 1280);
@@ -94,16 +94,16 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    std::vector<docl::GpuMat> srcMatsGpu(numImages);
-    std::vector<docl::GpuMat> xmapMatsGpu(numImages), ymapMatsGpu(numImages), weightMatsGpu(numImages);
+    std::vector<docl::GpuMat> srcGpu(numImages);
+    std::vector<docl::GpuMat> xmapsGpu(numImages), ymapsGpu(numImages), weightsGpu(numImages);
     cv::Mat src8UC4;
     for (int i = 0; i < numImages; i++)
     {
         cv::cvtColor(src[i], src8UC4, CV_BGR2BGRA);
-        srcMatsGpu[i].upload(src8UC4);
-        xmapMatsGpu[i].upload(xmaps32F[i]);
-        ymapMatsGpu[i].upload(ymaps32F[i]);
-        weightMatsGpu[i].upload(weights[i]);
+        srcGpu[i].upload(src8UC4);
+        xmapsGpu[i].upload(xmaps32F[i]);
+        ymapsGpu[i].upload(ymaps32F[i]);
+        weightsGpu[i].upload(weights[i]);
     }
 
     cv::Mat dst, dst16S;
@@ -113,11 +113,11 @@ int main(int argc, char** argv)
         //for (int k = 0; k < 10000; k++)
         for (int i = 0; i < numImages; i++)
         {
-            doclReproject(srcMatsGpu[i], dstMatGpu, xmapMatsGpu[i], ymapMatsGpu[i]);
+            doclReproject(srcGpu[i], dstMatGpu, xmapsGpu[i], ymapsGpu[i]);
             dstMatGpu.download(dst);
             cv::imshow("rprj", dst);
 
-            doclReprojectTo16S(srcMatsGpu[i], dstMat16SGpu, xmapMatsGpu[i], ymapMatsGpu[i]);
+            doclReprojectTo16S(srcGpu[i], dstMat16SGpu, xmapsGpu[i], ymapsGpu[i]);
             dstMat16SGpu.download(dst16S);
             dst16S.convertTo(dst, CV_8U);
             cv::imshow("rprj16S", dst);
@@ -139,14 +139,14 @@ int main(int argc, char** argv)
     cv::Mat dst32F;
     try
     {
-        int numIters = 1;
+        int numIters = 1000;
         ztool::Timer t;
 
         for (int k = 0; k < numIters; k++)
         {
             setZero(dstMat32FGpu);
             for (int i = 0; i < numImages; i++)
-                doclReprojectWeightedAccumulateTo32F(srcMatsGpu[i], dstMat32FGpu, xmapMatsGpu[i], ymapMatsGpu[i], weightMatsGpu[i]);
+                doclReprojectWeightedAccumulateTo32F(srcGpu[i], dstMat32FGpu, xmapsGpu[i], ymapsGpu[i], weightsGpu[i]);
         }
         t.end();
         printf("time = %f\n", t.elapse() * 1000 / numIters);
@@ -278,8 +278,8 @@ int main(int argc, char** argv)
 //    // test floating point version
 //    /*
 //    {
-//        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
-//        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
+//        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4);
+//        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1);
 //        IOclMat iColorDst32F, iGrayDst32F;
 //
 //        header = iColorSrc32F.toOpenCVMat();
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
 //    // test short version
 //    /*
 //    {
-//        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1, iocl::ocl->context);
+//        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1);
 //        header = iGraySrc16S.toOpenCVMat();
 //        graySrc.convertTo(header, CV_16S);
 //        IOclMat iGrayDst16S;
@@ -335,8 +335,8 @@ int main(int argc, char** argv)
 //    // test uchar version
 //    /*
 //    {
-//        IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
-//        IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
+//        IOclMat iColorSrc(colorSrc.size(), CV_8UC4);
+//        IOclMat iGraySrc(graySrc.size(), CV_8UC1);
 //        IOclMat iColorDst, iColorDst32S, iGrayDst;
 //
 //        header = iColorSrc.toOpenCVMat();
@@ -386,11 +386,11 @@ int main(int argc, char** argv)
 //        cv::imshow("dist", dist);
 //        cv::waitKey(0);
 //
-//        IOclMat scale32S(dist.size(), CV_32SC1, iocl::ocl->context);
+//        IOclMat scale32S(dist.size(), CV_32SC1);
 //        header = scale32S.toOpenCVMat();
 //        dist.convertTo(header, CV_32S, 256 * 256);
 //
-//        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4, iocl::ocl->context), iColorDst16S;
+//        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4), iColorDst16S;
 //        header = iColorSrc16S.toOpenCVMat();
 //        colorSrc.convertTo(header, CV_16S);
 //
@@ -411,9 +411,9 @@ int main(int argc, char** argv)
 //        cv::Mat oldColorDst = colorDst;
 //        cv::resize(oldColorDst, colorDst, cv::Size(128, 64));
 //        cv::Size sz = colorDst.size();
-//        IOclMat colorSrc8U(sz, CV_8UC4, iocl::ocl->context);
-//        IOclMat colorSrc16S(sz, CV_16SC4, iocl::ocl->context);
-//        IOclMat colorSrc32S(sz, CV_32SC4, iocl::ocl->context);
+//        IOclMat colorSrc8U(sz, CV_8UC4);
+//        IOclMat colorSrc16S(sz, CV_16SC4);
+//        IOclMat colorSrc32S(sz, CV_32SC4);
 //        IOclMat colorDst8U, colorDst16S, colorDst32S;
 //
 //        //colorDst.setTo(cv::Scalar::all(255));
@@ -446,87 +446,104 @@ int main(int argc, char** argv)
 //    return 0;
 //}
 //
-//#include "ZBlendAlgo.h"
-//int main()
-//{
-//    bool ok = ioclInit();
-//    if (!ok)
-//    {
-//        printf("OpenCL init failed\n");
-//        return 0;
-//    }
-//
-//    std::vector<std::string> contentPaths;
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-//    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-//    std::vector<std::string> maskPaths;
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-//    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
-//
-//    //std::vector<std::string> contentPaths;
-//    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
-//    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
-//    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
-//    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
-//    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
-//    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
-//    //std::vector<std::string> maskPaths;
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
-//    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
-//
-//    ztool::Timer timer;
-//    timer.start();
-//
-//    int numImages = contentPaths.size();
-//    std::vector<cv::Mat> images, masks;
-//    cv::Size imageSize;
-//    getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
-//
-//    cv::Mat temp8U, temp16S;
-//    std::vector<IOclMat> srcImages(numImages);
-//    for (int i = 0; i < numImages; i++)
-//    {
-//        cv::cvtColor(images[i], temp8U, CV_BGR2BGRA);
-//        temp8U.convertTo(temp16S, CV_16S);
-//        srcImages[i].upload(temp16S, iocl::ocl->context);
-//    }
-//
-//    ztool::Timer t;
-//
-//    IOclTilingMultibandBlendFast blender;
-//    blender.prepare(masks, 10, 4);
-//    IOclMat blendImage;
-//
-//    t.start();
-//    for (int i = 0; i < 1; i++)
-//    blender.blend(srcImages, blendImage);
-//    t.end();
-//    printf("t = %f\n", t.elapse());
-//
-//    cv::Mat header = blendImage.toOpenCVMat();
-//    cv::imshow("blend image", header);
-//    cv::waitKey(0);
-//
-//    TilingMultibandBlendFast cpuBlender;
-//    cpuBlender.prepare(masks, 10, 4);
-//    cv::Mat cpuBlendImage;
-//    t.start();
-//    for (int i = 0; i < 10; i++)
-//    cpuBlender.blend(images, cpuBlendImage);
-//    t.end();
-//    printf("t = %f\n", t.elapse());
-//
-//    return 0;
-//}
+#include "ZBlendAlgo.h"
+int main()
+{
+    bool ok = doclInit();
+    if (!ok)
+    {
+        printf("OpenCL init failed\n");
+        return 0;
+    }
+
+    std::vector<std::string> contentPaths;
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+    contentPaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
+
+    ztool::Timer timer;
+    timer.start();
+
+    int numImages = contentPaths.size();
+    std::vector<cv::Mat> images, masks;
+    cv::Size imageSize;
+    getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
+
+    cv::Mat temp8U, temp16S;
+    std::vector<docl::GpuMat> srcImagesDOcl(numImages);
+    std::vector<cv::cuda::GpuMat> srcImagesCuda(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::cvtColor(images[i], temp8U, CV_BGR2BGRA);
+        temp8U.convertTo(temp16S, CV_16S);
+        srcImagesDOcl[i].upload(temp16S);
+        srcImagesCuda[i].upload(temp16S);
+    }
+
+    ztool::Timer t;
+
+    DOclTilingMultibandBlendFast blenderDOcl;
+    blenderDOcl.prepare(masks, 10, 4);
+    docl::GpuMat blendImageDOcl;
+
+    t.start();
+    for (int i = 0; i < 100; i++)
+        blenderDOcl.blend(srcImagesDOcl, blendImageDOcl);
+    t.end();
+    printf("t = %f\n", t.elapse());
+
+    cv::Mat blendImage;
+    blendImageDOcl.download(blendImage);
+    cv::imshow("blend image docl", blendImage);
+    cv::waitKey(0);
+
+    CudaTilingMultibandBlendFast blenderCuda;
+    blenderCuda.prepare(masks, 10, 4);
+    cv::cuda::GpuMat blendImageCuda;
+
+    t.start();
+    for (int i = 0; i < 100; i++)
+        blenderCuda.blend(srcImagesCuda, blendImageCuda);
+    t.end();
+    printf("t = %f\n", t.elapse());
+
+    blendImageCuda.download(blendImage);
+    cv::imshow("blend image cuda", blendImage);
+    cv::waitKey(0);
+
+    TilingMultibandBlendFast cpuBlender;
+    cpuBlender.prepare(masks, 10, 4);
+    cv::Mat cpuBlendImage;
+    t.start();
+    for (int i = 0; i < 1; i++)
+    cpuBlender.blend(images, cpuBlendImage);
+    t.end();
+    printf("t = %f\n", t.elapse());
+
+    return 0;
+}
