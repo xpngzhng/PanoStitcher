@@ -42,12 +42,18 @@ void convert32SC4To8UC4(const docl::GpuMat& src, docl::GpuMat& dst)
     cl_kernel kernel = docl::convert32SC4To8UC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &src.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
-    clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
-    clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(src.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -69,12 +75,18 @@ void convert32FC4To8UC4(const docl::GpuMat& src, docl::GpuMat& dst)
     cl_kernel kernel = docl::convert32FC4To8UC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &src.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
-    clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
-    clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(src.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -95,12 +107,18 @@ void setZero8UC4Mask8UC1(docl::GpuMat& mat, const docl::GpuMat& mask)
     cl_kernel kernel = docl::setZero8UC4Mask8UC1->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
-    clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
-    clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &mask.mem);
-    clSetKernelArg(kernel, 5, sizeof(int), &mask.step);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), &mask.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &mask.step);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(mat.cols, 16), (size_t)round_up_aligned(mat.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -120,11 +138,16 @@ void setVal16SC1(docl::GpuMat& mat, short val)
     cl_kernel kernel = docl::setVal16SC1->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
-    clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
-    clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
-    clSetKernelArg(kernel, 4, sizeof(short), &val);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(short), &val);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(mat.cols, 16), (size_t)round_up_aligned(mat.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -145,13 +168,20 @@ void setVal16SC1Mask8UC1(docl::GpuMat& mat, short val, const docl::GpuMat& mask)
     cl_kernel kernel = docl::setVal16SC1Mask8UC1->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
-    clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
-    clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
-    clSetKernelArg(kernel, 4, sizeof(short), &val);
-    clSetKernelArg(kernel, 5, sizeof(cl_mem), &mask.mem);
-    clSetKernelArg(kernel, 6, sizeof(int), &mask.step);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(short), &val);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(cl_mem), &mask.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &mask.step);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(mat.cols, 16), (size_t)round_up_aligned(mat.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -171,13 +201,20 @@ void scaledSet16SC1Mask32SC1(docl::GpuMat& image, short val, const docl::GpuMat&
     cl_kernel kernel = docl::scaledSet16SC1Mask32SC1->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &image.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &image.rows);
-    clSetKernelArg(kernel, 2, sizeof(int), &image.cols);
-    clSetKernelArg(kernel, 3, sizeof(int), &image.step);
-    clSetKernelArg(kernel, 4, sizeof(short), &val);
-    clSetKernelArg(kernel, 5, sizeof(cl_mem), &mask.mem);
-    clSetKernelArg(kernel, 6, sizeof(int), &mask.step);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &image.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &image.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &image.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &image.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(short), &val);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(cl_mem), &mask.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &mask.step);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(image.cols, 16), (size_t)round_up_aligned(image.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -199,14 +236,22 @@ void subtract16SC4(const docl::GpuMat& a, const docl::GpuMat& b, docl::GpuMat& c
     cl_kernel kernel = docl::subtract16SC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &a.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &b.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &b.step);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &c.mem);
-    clSetKernelArg(kernel, 5, sizeof(int), &c.step);
-    clSetKernelArg(kernel, 6, sizeof(int), &a.rows);
-    clSetKernelArg(kernel, 7, sizeof(int), &a.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &a.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &a.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &b.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &b.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), &c.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &c.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &a.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 7, sizeof(int), &a.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(a.cols, 16), (size_t)round_up_aligned(a.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -228,14 +273,22 @@ void add32SC4(const docl::GpuMat& a, const docl::GpuMat& b, docl::GpuMat& c)
     cl_kernel kernel = docl::add32SC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &a.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &b.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &b.step);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &c.mem);
-    clSetKernelArg(kernel, 5, sizeof(int), &c.step);
-    clSetKernelArg(kernel, 6, sizeof(int), &a.rows);
-    clSetKernelArg(kernel, 7, sizeof(int), &a.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &a.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &a.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &b.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &b.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), &c.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &c.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &a.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 7, sizeof(int), &a.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(a.cols, 16), (size_t)round_up_aligned(a.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -255,12 +308,18 @@ void accumulate16SC1To32SC1(const docl::GpuMat& src, docl::GpuMat& dst)
     cl_kernel kernel = docl::accumulate16SC1To32SC1->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &src.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
-    clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
-    clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(src.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -281,14 +340,22 @@ void accumulate16SC4To32SC4(const docl::GpuMat& src, const docl::GpuMat& weight,
     cl_kernel kernel = docl::accumulate16SC4To32SC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &src.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &weight.step);
-    clSetKernelArg(kernel, 4, sizeof(cl_mem), &dst.mem);
-    clSetKernelArg(kernel, 5, sizeof(int), &dst.step);
-    clSetKernelArg(kernel, 6, sizeof(int), &src.rows);
-    clSetKernelArg(kernel, 7, sizeof(int), &src.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &src.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &src.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &weight.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(cl_mem), &dst.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &dst.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 6, sizeof(int), &src.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 7, sizeof(int), &src.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(src.cols, 16), (size_t)round_up_aligned(src.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -308,10 +375,14 @@ void normalize32SC4(docl::GpuMat& mat)
     cl_kernel kernel = docl::normalizeByShift32SC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
-    clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
-    clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &mat.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(int), &mat.cols);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &mat.step);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(mat.cols, 16), (size_t)round_up_aligned(mat.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };
@@ -332,12 +403,18 @@ void normalize32SC4(docl::GpuMat& mat, const docl::GpuMat& weight)
     cl_kernel kernel = docl::normalizeByDivide32SC4->kernel;
     cl_command_queue queue = docl::ocl->queue;
 
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
-    clSetKernelArg(kernel, 1, sizeof(int), &mat.step);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight.mem);
-    clSetKernelArg(kernel, 3, sizeof(int), &weight.step);
-    clSetKernelArg(kernel, 4, sizeof(int), &mat.rows);
-    clSetKernelArg(kernel, 5, sizeof(int), &mat.cols);
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 1, sizeof(int), &mat.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight.mem);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 3, sizeof(int), &weight.step);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 4, sizeof(int), &mat.rows);
+    SAMPLE_CHECK_ERRORS(err);
+    err = clSetKernelArg(kernel, 5, sizeof(int), &mat.cols);
+    SAMPLE_CHECK_ERRORS(err);
 
     size_t globalWorkSize[2] = { (size_t)round_up_aligned(mat.cols, 16), (size_t)round_up_aligned(mat.rows, 16) };
     size_t localWorkSize[2] = { 16, 16 };

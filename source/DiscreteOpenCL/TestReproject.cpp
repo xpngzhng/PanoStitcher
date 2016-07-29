@@ -26,7 +26,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main(int argc, char** argv)
+int main1(int argc, char** argv)
 {
     //cv::Size dstSize = cv::Size(3072, 1536);
     //cv::Size dstSize = cv::Size(2560, 1280);
@@ -616,4 +616,52 @@ int main3()
     printf("t = %f\n", t.elapse());
 
     return 0;
+}
+
+int main()
+{
+    bool ok = docl::init();
+    if (!ok)
+    {
+        printf("OpenCL init failed\n");
+        return 0;
+    }
+
+    ztool::Timer t;
+    int numIters = 1000;
+    cv::Mat mat = cv::imread("F:\\panoimage\\zhanxiang\\0 Panorama.tif");
+    docl::GpuMat gpuMat;
+
+    t.start();
+    for (int i = 0; i < numIters; i++)
+        gpuMat.upload(mat);
+    t.end();
+    printf("%f\n", t.elapse());
+
+    t.start();
+    for (int i = 0; i < numIters; i++)
+        gpuMat.download(mat);
+    t.end();
+    printf("%f\n", t.elapse());
+
+    gpuMat.release();
+
+    docl::HostMem hostMem;
+    hostMem.create(mat.size(), mat.type());
+    cv::Mat header = hostMem.mapToHost();
+    mat.copyTo(header);
+    hostMem.unmapFromHost(header);
+    header.release();
+
+    t.start();
+    for (int i = 0; i < numIters; i++)
+        gpuMat.upload(hostMem);
+    t.end();
+    printf("%f\n", t.elapse());
+
+    t.start();
+    for (int i = 0; i < numIters; i++)
+        gpuMat.download(hostMem);
+    t.end();
+    printf("%f\n", t.elapse());
 }

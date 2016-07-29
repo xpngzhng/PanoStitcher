@@ -291,12 +291,9 @@ struct HostMem
             step = elemSize1 * channels * cols;
             int err = 0;
             mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, rows * step, 0, &err);
-            smem.reset(mem, clReleaseMemObject);
-            if (err)
-            {
-                clear();
-            }
+            if (err) clear();
             SAMPLE_CHECK_ERRORS(err);
+            smem.reset(mem, clReleaseMemObject);
         }
     }
 
@@ -459,13 +456,10 @@ struct GpuMat
             step = elemSize1 * channels * cols;
             int err = 0;
             mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, rows * step, 0, &err);
+            if (err) clear();
+            SAMPLE_CHECK_ERRORS(err);
             data = mem;
             smem.reset(mem, clReleaseMemObject);
-            if (err)
-            {
-                clear();
-            }
-            SAMPLE_CHECK_ERRORS(err);
         }
     }
 
