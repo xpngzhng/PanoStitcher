@@ -73,7 +73,7 @@ __kernel void scaledSet16SC1Mask32SC1(__global unsigned char* imageData, int ima
     const int y = get_global_id(1);
     if (x < imageCols && y < imageRows)
     {
-        ((short*)(imageData + imageStep * y))[x] = ((int*)(maskData + maskStep * y))[x] ? val : 0;
+        ((__global short*)(imageData + imageStep * y))[x] = ((__global const int*)(maskData + maskStep * y))[x] ? val : 0;
     }
 }
 

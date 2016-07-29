@@ -4,37 +4,29 @@
 #include "oclobject.hpp"
 #include "CL/cl.h"
 
-void ioclSetZero(IOclMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& kern);
+bool doclInit();
 
-void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap,
-    OpenCLBasic& ocl, OpenCLProgramOneKernel& kern);
+void doclReproject(const docl::GpuMat& src, docl::GpuMat& dst, const docl::GpuMat& xmap, const docl::GpuMat& ymap);
 
-void ioclReprojectAccumulateWeightedTo32F(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap,
-    const IOclMat& weight, OpenCLBasic& ocl, OpenCLProgramOneKernel& kern);
+void doclReprojectTo16S(const docl::GpuMat& src, docl::GpuMat& dst, const docl::GpuMat& xmap, const docl::GpuMat& ymap);
 
-bool ioclInit();
+void doclReprojectWeightedAccumulateTo32F(const docl::GpuMat& src, docl::GpuMat& dst, 
+    const docl::GpuMat& xmap, const docl::GpuMat& ymap, const docl::GpuMat& weight);
 
-void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap);
-
-void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap);
-
-void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst, 
-    const IOclMat& xmap, const IOclMat& ymap, const IOclMat& weight);
-
-class IOclTilingMultibandBlendFast
+class DOclTilingMultibandBlendFast
 {
 public:
-    IOclTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
+    DOclTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
-    void blend(const std::vector<IOclMat>& images, IOclMat& blendImage);
-    void getUniqueMasks(std::vector<IOclMat>& masks) const;
+    void blend(const std::vector<docl::GpuMat>& images, docl::GpuMat& blendImage);
+    void getUniqueMasks(std::vector<docl::GpuMat>& masks) const;
 
 private:
-    std::vector<IOclMat> uniqueMasks;
-    std::vector<IOclMat> resultPyr, resultUpPyr, resultWeightPyr;
-    std::vector<IOclMat> imagePyr, image32SPyr, imageUpPyr;
-    std::vector<std::vector<IOclMat> > alphaPyrs, weightPyrs;
-    IOclMat maskNot;
+    std::vector<docl::GpuMat> uniqueMasks;
+    std::vector<docl::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
+    std::vector<docl::GpuMat> imagePyr, image32SPyr, imageUpPyr;
+    std::vector<std::vector<docl::GpuMat> > alphaPyrs, weightPyrs;
+    docl::GpuMat maskNot;
     int numImages;
     int rows, cols;
     int numLevels;

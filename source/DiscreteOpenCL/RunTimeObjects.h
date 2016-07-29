@@ -45,11 +45,3 @@ extern OpenCLProgramOneKernel* pyrUp16SC4To16SC4;
 extern OpenCLProgramOneKernel* pyrUp32SC4To32SC4;
 
 }
-
-//namespace docl
-//{
-//
-//bool init();
-//
-//extern OpenCLBasic* ocl;
-//}
