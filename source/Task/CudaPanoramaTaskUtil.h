@@ -42,13 +42,13 @@ void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, con
 void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32,
     cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 
-struct MixedAudioVideoFrame
+struct CudaMixedAudioVideoFrame
 {
-    MixedAudioVideoFrame() {}
+    CudaMixedAudioVideoFrame() {}
 
-    MixedAudioVideoFrame(const avp::AudioVideoFrame2& audio) : frame(audio) {}
+    CudaMixedAudioVideoFrame(const avp::AudioVideoFrame2& audio) : frame(audio) {}
 
-    MixedAudioVideoFrame(int pixelType, int width, int height)
+    CudaMixedAudioVideoFrame(int pixelType, int width, int height)
     {
         if (width <= 0 || height <= 0 || width % 2 != 0 || height % 2 != 0)
             return;
@@ -104,10 +104,10 @@ public:
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        MixedAudioVideoFrame test;
+        CudaMixedAudioVideoFrame test;
         try
         {
-            test = MixedAudioVideoFrame(pixelType_, width_, height_);
+            test = CudaMixedAudioVideoFrame(pixelType_, width_, height_);
         }
         catch (...)
         {
@@ -130,12 +130,12 @@ public:
         pool.clear();
     }
 
-    bool get(MixedAudioVideoFrame& mem)
+    bool get(CudaMixedAudioVideoFrame& mem)
     {
         std::lock_guard<std::mutex> lock(mtx);
         if (!hasInit)
         {
-            mem = MixedAudioVideoFrame();
+            mem = CudaMixedAudioVideoFrame();
             return false;
         }
 
@@ -155,10 +155,10 @@ public:
             return true;
         }
 
-        MixedAudioVideoFrame newMem(pixelType, width, height);
+        CudaMixedAudioVideoFrame newMem(pixelType, width, height);
         if (!newMem.planes[0].data)
         {
-            mem = MixedAudioVideoFrame();
+            mem = CudaMixedAudioVideoFrame();
             return false;
         }
 
@@ -168,7 +168,7 @@ public:
     }
 private:
     int pixelType, width, height;
-    std::vector<MixedAudioVideoFrame> pool;
+    std::vector<CudaMixedAudioVideoFrame> pool;
     std::mutex mtx;
     int hasInit;
 };

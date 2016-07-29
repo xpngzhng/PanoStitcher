@@ -341,7 +341,7 @@ bool PanoramaLiveStreamTask2::Impl::getVideoSourceFrames(std::vector<avp::AudioV
 
 bool PanoramaLiveStreamTask2::Impl::getStitchedVideoFrame(avp::AudioVideoFrame2& frame)
 {
-    MixedAudioVideoFrame mixedFrame;
+    CudaMixedAudioVideoFrame mixedFrame;
     bool ok = procFrameBufferForShow.pull(mixedFrame);
     frame = mixedFrame.frame;
     return ok;
@@ -792,7 +792,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     std::vector<cv::Mat> src(numVideos);
     cv::cuda::GpuMat bgr32;
     std::vector<std::vector<unsigned char> > localLookUpTables;
-    MixedAudioVideoFrame renderFrame, sendFrame, saveFrame;
+    CudaMixedAudioVideoFrame renderFrame, sendFrame, saveFrame;
     cv::cuda::GpuMat bgr1, y1, u1, v1, uv1;
     cv::cuda::GpuMat bgr2, y2, u2, v2, uv2;
     bool ok;
@@ -1007,7 +1007,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
     ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     cv::Mat dstMat;
-    MixedAudioVideoFrame frame;
+    CudaMixedAudioVideoFrame frame;
     while (true)
     {
         if (finish || streamEndFlag)
@@ -1053,7 +1053,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
     char buf[1024], shortNameBuf[1024];
     int count = 0;
     cv::Mat dstMat;
-    MixedAudioVideoFrame frame;
+    CudaMixedAudioVideoFrame frame;
     avp::AudioVideoWriter3 writer;
     std::vector<avp::Option> writerOpts;
     writerOpts.push_back(std::make_pair("preset", fileVideoEncodePreset));

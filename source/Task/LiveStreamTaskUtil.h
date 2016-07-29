@@ -40,8 +40,8 @@ typedef RealTimeQueue<avp::AudioVideoFrame2> ForShowFrameQueue;
 // for video frames for show
 typedef RealTimeQueue<std::vector<avp::AudioVideoFrame2> > ForShowFrameVectorQueue;
 
-typedef RealTimeQueue<MixedAudioVideoFrame> ForShowMixedFrameQueue;
-typedef ForceWaitRealTimeQueue<MixedAudioVideoFrame> ForceWaitMixedFrameQueue;
+typedef RealTimeQueue<CudaMixedAudioVideoFrame> ForShowMixedFrameQueue;
+typedef ForceWaitRealTimeQueue<CudaMixedAudioVideoFrame> ForceWaitMixedFrameQueue;
 
 class AudioVideoSource
 {

@@ -1331,8 +1331,8 @@ struct StampedPinnedMemoryVector
 };
 
 typedef BoundedCompleteQueue<StampedPinnedMemoryVector> FrameVectorBufferForCuda;
-typedef BoundedCompleteQueue<MixedAudioVideoFrame> MixedFrameBufferForCuda;
-typedef std::deque<MixedAudioVideoFrame> TempAudioFrameBufferForCuda;
+typedef BoundedCompleteQueue<CudaMixedAudioVideoFrame> MixedFrameBufferForCuda;
+typedef std::deque<CudaMixedAudioVideoFrame> TempAudioFrameBufferForCuda;
 
 struct CudaPanoramaLocalDiskTask::Impl
 {
@@ -1765,7 +1765,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     StampedPinnedMemoryVector srcFrames;
     std::vector<cv::Mat> images(numVideos);
     cv::cuda::GpuMat bgr32;
-    MixedAudioVideoFrame videoFrame;
+    CudaMixedAudioVideoFrame videoFrame;
     cv::cuda::GpuMat y, u, v, uv;
     int index = audioIndex >= 0 ? audioIndex : 0;
     while (true)
@@ -1870,7 +1870,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
     ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
-    MixedAudioVideoFrame frame;
+    CudaMixedAudioVideoFrame frame;
     int encodeState = VideoFrameNotCome;
     int hasAudio = audioIndex >= 0 && audioIndex < numVideos;
     TempAudioFrameBufferForCuda tempAudioFrames;
