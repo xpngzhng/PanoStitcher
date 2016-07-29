@@ -37,9 +37,14 @@ OpenCLProgramOneKernel* pyrDown16SC1To32SC1 = 0;
 
 OpenCLProgramOneKernel* pyrDown16SC4ScaleTo16SC4 = 0;
 
-OpenCLProgramOneKernel* pyrUp8UC4To8UC4;
-OpenCLProgramOneKernel* pyrUp16SC4To16SC4;
-OpenCLProgramOneKernel* pyrUp32SC4To32SC4;
+OpenCLProgramOneKernel* pyrUp8UC4To8UC4 = 0;
+OpenCLProgramOneKernel* pyrUp16SC4To16SC4 = 0;
+OpenCLProgramOneKernel* pyrUp32SC4To32SC4 = 0;
+
+OpenCLProgramOneKernel* alphaBlend8UC4 = 0;
+
+OpenCLProgramOneKernel* cvtBGR32ToYUV420P = 0;
+OpenCLProgramOneKernel* cvtBGR32ToNV12 = 0;
 
 static int hasInit = 0;
 bool init()
@@ -105,6 +110,10 @@ bool init()
         pyrUp32SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=int4 -D DST_TYPE=int4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_int4_sat_rtz");
+
+        alphaBlend8UC4 = new OpenCLProgramOneKernel(*ocl, L"ImageProc.txt", "", "alphaBlend8UC4");
+        cvtBGR32ToYUV420P = new OpenCLProgramOneKernel(*ocl, L"ImageProc.txt", "", "cvtBGR32ToYUV420P");
+        cvtBGR32ToNV12 = new OpenCLProgramOneKernel(*ocl, L"ImageProc.txt", "", "cvtBGR32ToNV12");
     }
     catch (const std::exception& e)
     {

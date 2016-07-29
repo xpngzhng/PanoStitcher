@@ -155,6 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\DiscreteOpenCL\basic.cpp" />
+    <ClCompile Include="..\..\source\DiscreteOpenCL\ImageProc.cpp" />
     <ClCompile Include="..\..\source\DiscreteOpenCL\MatOp.cpp" />
     <ClCompile Include="..\..\source\DiscreteOpenCL\MultibandBlend.cpp" />
     <ClCompile Include="..\..\source\DiscreteOpenCL\oclobject.cpp" />

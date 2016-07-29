@@ -44,4 +44,9 @@ extern OpenCLProgramOneKernel* pyrUp8UC4To8UC4;
 extern OpenCLProgramOneKernel* pyrUp16SC4To16SC4;
 extern OpenCLProgramOneKernel* pyrUp32SC4To32SC4;
 
+extern OpenCLProgramOneKernel* alphaBlend8UC4;
+
+extern OpenCLProgramOneKernel* cvtBGR32ToYUV420P;
+extern OpenCLProgramOneKernel* cvtBGR32ToNV12;
+
 }

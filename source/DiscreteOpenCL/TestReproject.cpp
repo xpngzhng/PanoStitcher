@@ -664,4 +664,38 @@ int main()
         gpuMat.download(hostMem);
     t.end();
     printf("%f\n", t.elapse());
+
+    cv::Mat src24 = cv::imread("F:\\panoimage\\zhanxiang\\[Group 0]-0_5-6 images.jpg");
+    cv::Mat src32;
+    cv::cvtColor(src24, src32, CV_BGR2BGRA);
+
+    docl::GpuMat bgr32Gpu, yGpu, uGpu, vGpu, uvGpu;
+    cv::Mat y, u, v, uv;
+
+    bgr32Gpu.upload(src32);
+    cvtBGR32ToYUV420P(bgr32Gpu, yGpu, uGpu, vGpu);
+    yGpu.download(y);
+    uGpu.download(u);
+    vGpu.download(v);
+    cv::imshow("y", y);
+    cv::imshow("u", u);
+    cv::imshow("v", v);
+    cv::waitKey(0);
+
+    cvtBGR32ToNV12(bgr32Gpu, yGpu, uvGpu);
+    yGpu.download(y);
+    uvGpu.download(uv);
+    cv::imshow("y", y);
+    cv::imshow("uv", uv);
+    cv::waitKey(0);
+
+    cv::Mat blender(src32.size(), CV_8UC4);
+    blender.setTo(cv::Scalar(64, 32, 128, 128));
+    docl::GpuMat blenderGpu;
+    blenderGpu.upload(blender);
+
+    alphaBlend8UC4(bgr32Gpu, blenderGpu);
+    bgr32Gpu.download(src32);
+    cv::imshow("blended", src32);
+    cv::waitKey(0);
 }

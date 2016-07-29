@@ -33,3 +33,9 @@ private:
     bool fullMask;
     bool success;
 };
+
+void alphaBlend8UC4(docl::GpuMat& target, const docl::GpuMat& blender);
+
+void cvtBGR32ToYUV420P(const docl::GpuMat& bgr32, docl::GpuMat& y, docl::GpuMat& u, docl::GpuMat& v);
+
+void cvtBGR32ToNV12(const docl::GpuMat& bgr32, docl::GpuMat& y, docl::GpuMat& uv);
