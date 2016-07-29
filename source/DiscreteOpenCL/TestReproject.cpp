@@ -648,9 +648,14 @@ int main()
 
     docl::HostMem hostMem;
     hostMem.create(mat.size(), mat.type());
-    cv::Mat header = hostMem.mapToHost();
-    mat.copyTo(header);
-    hostMem.unmapFromHost(header);
+    cv::Mat header;
+    for (int k = 0; k < 10; k++)
+    {
+        header = hostMem.mapToHost();
+        printf("ptr = %p\n", header.data);
+        mat.copyTo(header);
+        hostMem.unmapFromHost(header);
+    }
     header.release();
 
     t.start();

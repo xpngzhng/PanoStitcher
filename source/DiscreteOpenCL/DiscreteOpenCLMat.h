@@ -341,6 +341,30 @@ struct HostMem
         mappedPtr = 0;
     }
 
+    void* map()
+    {
+        CV_Assert(mapped == 0);
+        int err = 0;
+        mappedPtr = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+        SAMPLE_CHECK_ERRORS(err);
+        err = clFinish(ocl->queue);
+        SAMPLE_CHECK_ERRORS(err);
+        mapped = 1;
+        return mappedPtr;
+    }
+
+    void unmap(void* ptr)
+    {
+        CV_Assert(mapped == 1 && ptr == mappedPtr);
+        int err = 0;
+        err = clEnqueueUnmapMemObject(ocl->queue, mem, mappedPtr, 0, 0, 0);
+        SAMPLE_CHECK_ERRORS(err);
+        err = clFinish(ocl->queue);
+        SAMPLE_CHECK_ERRORS(err);
+        mapped = 0;
+        mappedPtr = 0;
+    }
+
     cv::Size size() const
     {
         return cv::Size(cols, rows);

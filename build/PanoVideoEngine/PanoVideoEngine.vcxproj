@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\source\Task\ConcurrentQueue.h" />
     <ClInclude Include="..\..\source\Task\CudaPanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\CustomMask.h" />
+    <ClInclude Include="..\..\source\Task\DOclPanoramaTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\Image.h" />
     <ClInclude Include="..\..\source\Task\LiveStreamTaskUtil.h" />
     <ClInclude Include="..\..\source\Task\PanoramaTask.h" />
@@ -127,7 +128,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -174,7 +175,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
