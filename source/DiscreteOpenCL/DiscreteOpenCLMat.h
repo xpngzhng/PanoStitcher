@@ -488,18 +488,18 @@ struct HostMem
     std::shared_ptr<_cl_mem> smem;
 };
 
-//struct HostMemLockGuard
-//{
-//    HostMemLockGuard(HostMem& hostMem_) : hostMem(hostMem_)
-//    {
-//        hostMem.lock();
-//    }
-//    ~HostMemLockGuard()
-//    {
-//        hostMem.unlock();
-//    }
-//    HostMem& hostMem;
-//};
+struct HostMemLockGuard
+{
+    HostMemLockGuard(HostMem& hostMem_) : hostMem(hostMem_)
+    {
+        hostMem.lock();
+    }
+    ~HostMemLockGuard()
+    {
+        hostMem.unlock();
+    }
+    HostMem& hostMem;
+};
 
 struct GpuMat
 {
@@ -638,29 +638,32 @@ struct GpuMat
         return other;
     }
 
-    void upload(const HostMem& mat)
+    void upload(HostMem& mat)
     {
         CV_Assert(mat.mem);
-
         create(mat.rows, mat.cols, mat.type);
-
-        int err = 0;
-        err = clEnqueueCopyBuffer(ocl->queue, mat.mem, mem, 0, 0, step * rows, 0, 0, 0);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
+        {
+            HostMemLockGuard lg(mat);
+            int err = 0;
+            err = clEnqueueCopyBuffer(ocl->queue, mat.mem, mem, 0, 0, step * rows, 0, 0, 0);
+            SAMPLE_CHECK_ERRORS(err);
+            err = clFinish(ocl->queue);
+            SAMPLE_CHECK_ERRORS(err);
+        }
     }
 
     void download(HostMem& mat) const
     {
         CV_Assert(mem);
-
         mat.create(rows, cols, type);
-        int err = 0;
-        err = clEnqueueCopyBuffer(ocl->queue, mem, mat.mem, 0, 0, step * rows, 0, 0, 0);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
+        {
+            HostMemLockGuard lg(mat);
+            int err = 0;
+            err = clEnqueueCopyBuffer(ocl->queue, mem, mat.mem, 0, 0, step * rows, 0, 0, 0);
+            SAMPLE_CHECK_ERRORS(err);
+            err = clFinish(ocl->queue);
+            SAMPLE_CHECK_ERRORS(err);
+        }
     }
 
     void upload(const cv::Mat& mat)

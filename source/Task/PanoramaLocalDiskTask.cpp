@@ -2552,15 +2552,8 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         if (isCanceled)
             break;
 
-        // IMPORTANT NOTICE!!! 
-        // We must LOCK the docl::HostMem before copying to docl::GpuMat
-        // then UNLOCK it!!!
         for (int i = 0; i < numVideos; i++)
-        {
-            srcFrames.frames[i].lock();
             images[i].upload(srcFrames.frames[i]);
-            srcFrames.frames[i].unlock();
-        }
 
         bool ok = render.render(images, bgr32);
         if (!ok)
@@ -2611,27 +2604,17 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
             //cv::Mat yy = videoFrame.planes[0].createMatHeader();
             //cv::Mat uu = videoFrame.planes[1].createMatHeader();
             //cv::Mat vv = videoFrame.planes[2].createMatHeader();
-            videoFrame.planes[0].lock();
             y.download(videoFrame.planes[0]);
-            videoFrame.planes[0].unlock();
-            videoFrame.planes[1].lock();
             u.download(videoFrame.planes[1]);
-            videoFrame.planes[1].unlock();
-            videoFrame.planes[2].lock();
             v.download(videoFrame.planes[2]);
-            videoFrame.planes[2].unlock();
         }
         else
         {
             cvtBGR32ToNV12(bgr32, y, uv);
             //cv::Mat yy = videoFrame.planes[0].createMatHeader();
             //cv::Mat uvuv = videoFrame.planes[1].createMatHeader();
-            videoFrame.planes[0].lock();
             y.download(videoFrame.planes[0]);
-            videoFrame.planes[0].unlock();
-            videoFrame.planes[1].lock();
             uv.download(videoFrame.planes[1]);
-            videoFrame.planes[1].unlock();
         }
 
         procFrameBuffer.push(videoFrame);
