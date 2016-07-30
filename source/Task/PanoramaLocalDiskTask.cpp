@@ -2552,6 +2552,9 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         if (isCanceled)
             break;
 
+        // IMPORTANT NOTICE!!! 
+        // We must LOCK the docl::HostMem before copying to docl::GpuMat
+        // then UNLOCK it!!!
         for (int i = 0; i < numVideos; i++)
         {
             srcFrames.frames[i].lock();
