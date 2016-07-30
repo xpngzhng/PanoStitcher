@@ -315,6 +315,9 @@ private:
     docl::GpuMat accum;
     int numImages;
     int success;
+
+    std::vector<std::unique_ptr<OpenCLProgramOneKernel> > reprojKernels;
+    std::vector<std::unique_ptr<OpenCLQueue> > queues;
 };
 
 class ImageVisualCorrect

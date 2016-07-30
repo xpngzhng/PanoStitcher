@@ -2,7 +2,6 @@
 
 #include "DiscreteOpenCLMat.h"
 #include "oclobject.hpp"
-#include "CL/cl.h"
 
 bool doclInit();
 
@@ -12,6 +11,13 @@ void doclReprojectTo16S(const docl::GpuMat& src, docl::GpuMat& dst, const docl::
 
 void doclReprojectWeightedAccumulateTo32F(const docl::GpuMat& src, docl::GpuMat& dst, 
     const docl::GpuMat& xmap, const docl::GpuMat& ymap, const docl::GpuMat& weight);
+
+void doclReprojectTo16S(const docl::GpuMat& src, docl::GpuMat& dst, const docl::GpuMat& xmap, const docl::GpuMat& ymap,
+    OpenCLProgramOneKernel& kern, OpenCLQueue& queue);
+
+void doclReprojectWeightedAccumulateTo32F(const docl::GpuMat& src, docl::GpuMat& dst,
+    const docl::GpuMat& xmap, const docl::GpuMat& ymap, const docl::GpuMat& weight,
+    OpenCLProgramOneKernel& kern, OpenCLQueue& queue);
 
 class DOclTilingMultibandBlendFast
 {

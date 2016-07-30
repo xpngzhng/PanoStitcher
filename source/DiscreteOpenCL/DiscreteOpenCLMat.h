@@ -218,6 +218,37 @@
 //};
 
 #include "RunTimeObjects.h"
+
+struct OpenCLQueue
+{
+public:
+    OpenCLQueue(const OpenCLBasic& ocl)
+    {
+        CV_Assert(ocl.context);
+        cl_int err = 0;
+        queue = clCreateCommandQueue(ocl.context, ocl.device, 0, &err);
+        SAMPLE_CHECK_ERRORS(err);
+    }
+
+    ~OpenCLQueue()
+    {
+        cl_int err = clReleaseCommandQueue(queue);
+        SAMPLE_CHECK_ERRORS(err);
+    }
+
+    void waitForCompletion()
+    {
+        cl_int err = clFinish(queue);
+        SAMPLE_CHECK_ERRORS(err);
+    }
+
+    cl_command_queue queue;
+
+private:
+    OpenCLQueue(const OpenCLQueue&);
+    OpenCLQueue& operator=(const OpenCLQueue&);
+};
+
 namespace docl
 {
 
@@ -385,6 +416,31 @@ struct HostMem
         }
     }
 
+    void lock(OpenCLQueue& q) const
+    {
+        if (data)
+        {
+            CV_Assert(locked == 0);
+            int err = 0;
+            err = clEnqueueUnmapMemObject(q.queue, mem, data, 0, 0, 0);
+            SAMPLE_CHECK_ERRORS(err);
+            locked = 1;
+        }
+    }
+
+    void unlock(OpenCLQueue& q) const
+    {
+        if (data)
+        {
+            CV_Assert(locked == 1);
+            int err;
+            void * ret = clEnqueueMapBuffer(q.queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            SAMPLE_CHECK_ERRORS(err);
+            CV_Assert(ret == data);
+            locked = 0;
+        }
+    }
+
     /*cv::Mat mapToHost()
     {
         CV_Assert(mapped == 0);
@@ -499,6 +555,20 @@ struct HostMemLockGuard
         hostMem.unlock();
     }
     const HostMem& hostMem;
+};
+
+struct HostMemQueuedLockGuard
+{
+    HostMemQueuedLockGuard(const HostMem& hostMem_, OpenCLQueue& q_) : hostMem(hostMem_), q(q_)
+    {
+        hostMem.lock(q);
+    }
+    ~HostMemQueuedLockGuard()
+    {
+        hostMem.unlock(q);
+    }
+    const HostMem& hostMem;
+    OpenCLQueue& q;
 };
 
 struct GpuMat
@@ -662,6 +732,30 @@ struct GpuMat
             err = clEnqueueCopyBuffer(ocl->queue, mem, mat.mem, 0, 0, step * rows, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
             err = clFinish(ocl->queue);
+            SAMPLE_CHECK_ERRORS(err);
+        }
+    }
+
+    void upload(const HostMem& mat, OpenCLQueue& q)
+    {
+        CV_Assert(mat.mem);
+        create(mat.rows, mat.cols, mat.type);
+        {
+            HostMemQueuedLockGuard lg(mat, q);
+            int err = 0;
+            err = clEnqueueCopyBuffer(q.queue, mat.mem, mem, 0, 0, step * rows, 0, 0, 0);
+            SAMPLE_CHECK_ERRORS(err);
+        }
+    }
+
+    void download(HostMem& mat, OpenCLQueue& q) const
+    {
+        CV_Assert(mem);
+        mat.create(rows, cols, type);
+        {
+            HostMemQueuedLockGuard lg(mat, q);
+            int err = 0;
+            err = clEnqueueCopyBuffer(q.queue, mem, mat.mem, 0, 0, step * rows, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
         }
     }

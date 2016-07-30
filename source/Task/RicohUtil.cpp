@@ -1835,6 +1835,14 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
                 ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
             }
+
+            reprojKernels.resize(numImages);
+            queues.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+            {
+                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=short"));
+                queues[i].reset(new OpenCLQueue(*docl::ocl));
+            }
         }
         else
         {
@@ -1891,11 +1899,11 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
 
     try
     {
-        images.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-            images[i].upload(src[i]);
         if (!highQualityBlend)
         {
+            images.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+                images[i].upload(src[i]);
             setZero(accum);
             for (int i = 0; i < numImages; i++)
                 doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i]);
@@ -1904,9 +1912,24 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
         }
         else
         {
+            //ztool::Timer t;
+            //images.resize(numImages);
+            //for (int i = 0; i < numImages; i++)
+            //    images[i].upload(src[i]);
+            //reprojImages.resize(numImages);
+            //for (int i = 0; i < numImages; i++)
+            //    doclReprojectTo16S(images[i], reprojImages[i], xmaps[i], ymaps[i]);
+            images.resize(numImages);
             reprojImages.resize(numImages);
             for (int i = 0; i < numImages; i++)
-                doclReprojectTo16S(images[i], reprojImages[i], xmaps[i], ymaps[i]);
+            {
+                images[i].upload(src[i], *queues[i]);
+                doclReprojectTo16S(images[i], reprojImages[i], xmaps[i], ymaps[i], *reprojKernels[i], *queues[i]);
+            }
+            for (int i = 0; i < numImages; i++)
+                queues[i]->waitForCompletion();
+            //t.end();
+            //printf("t = %f\n", t.elapse());
             mbBlender.blend(reprojImages, dst);
         }
     }
@@ -1930,6 +1953,9 @@ void DOclPanoramaRender::clear()
     success = 0;
     numImages = 0;
     highQualityBlend = 0;
+
+    reprojKernels.clear();
+    queues.clear();
 }
 
 int DOclPanoramaRender::getNumImages() const
