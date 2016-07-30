@@ -2007,10 +2007,10 @@ void CudaPanoramaLocalDiskTask::getLastAsyncErrorMessage(std::string& message)
 
 #include "DOclPanoramaTaskUtil.h"
 
-class PinnedMemoryPoolForDOcl
+class DOclPinnedMemoryPool
 {
 public:
-    PinnedMemoryPoolForDOcl() :
+    DOclPinnedMemoryPool() :
         rows(0), cols(0), type(0), hasInit(0)
     {
     }
@@ -2126,7 +2126,7 @@ struct DOclPanoramaLocalDiskTask::Impl
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
     DOclPanoramaRender render;
-    PinnedMemoryPoolForDOcl srcFramesMemoryPool;
+    DOclPinnedMemoryPool srcFramesMemoryPool;
     AudioVideoFramePool audioFramesMemoryPool;
     FrameVectorBufferForDOcl decodeFramesBuffer;
     DOclHostMemVideoFrameMemoryPool dstFramesMemoryPool;

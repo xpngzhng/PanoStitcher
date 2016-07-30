@@ -618,6 +618,7 @@ int main3()
     return 0;
 }
 
+#include "Pyramid.h"
 int main()
 {
     bool ok = docl::init();
@@ -678,6 +679,13 @@ int main()
     cv::Mat y, u, v, uv;
 
     bgr32Gpu.upload(src32);
+    docl::GpuMat bgr32GpuDown;
+    cv::Mat down;
+    pyramidDown8UC4To8UC4(bgr32Gpu, bgr32GpuDown);
+    bgr32GpuDown.download(down);
+    cv::imshow("down", down);
+    cv::waitKey(0);
+
     cvtBGR32ToYUV420P(bgr32Gpu, yGpu, uGpu, vGpu);
     yGpu.download(y);
     uGpu.download(u);

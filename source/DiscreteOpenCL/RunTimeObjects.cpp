@@ -1,6 +1,8 @@
 #include "RunTimeObjects.h"
 #include "oclobject.hpp"
 
+#define MULTIBAND_PYR_FLOAT 1
+
 namespace docl
 {
 
@@ -81,6 +83,9 @@ bool init()
         pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_uchar4_sat_rtz");
+        //pyrDown8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
+        //    "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
+        //    "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_uchar4_sat");
         pyrDown8UC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=uchar4 -D DST_TYPE=int4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_int4_sat_rtz");
@@ -90,26 +95,50 @@ bool init()
         pyrDown32FC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownPureFP.txt", "", "pyrDownKernel",
             "-D TYPE=float4 -D VERT_REFLECT -D HORI_WRAP");
 
+#if MULTIBAND_PYR_FLOAT
         pyrDown16SC1To16SC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=short -D DST_TYPE=short -D WORK_TYPE=float -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
             "-D CONVERT_WORK_TYPE=convert_float -D CONVERT_DST_TYPE=convert_short_sat_rtz");
         pyrDown16SC1To32SC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=short -D DST_TYPE=int -D WORK_TYPE=float -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float -D CONVERT_DST_TYPE=convert_int_sat_rtz");
+#else
+        pyrDown16SC1To16SC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
+            "-D SRC_TYPE=short -D DST_TYPE=short -D WORK_TYPE=int -D VERT_REFLECT -D HORI_WRAP -D NORMALIZE "
+            "-D CONVERT_WORK_TYPE=convert_int -D CONVERT_DST_TYPE=convert_short_sat");
+        pyrDown16SC1To32SC1 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
+            "-D SRC_TYPE=short -D DST_TYPE=int -D WORK_TYPE=int -D VERT_REFLECT -D HORI_WRAP "
+            "-D CONVERT_WORK_TYPE=convert_int -D CONVERT_DST_TYPE=convert_int_sat");
+#endif
 
+#if MULTIBAND_PYR_FLOAT
         pyrDown16SC4ScaleTo16SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplateFP.txt", "", "pyrDownKernel",
             "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=float4 -D SCALE_TYPE=int -D SCALE -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_short4_sat_rtz");
+#else
+        pyrDown16SC4ScaleTo16SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidDownTemplate.txt", "", "pyrDownKernel",
+            "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=int4 -D SCALE_TYPE=int -D SCALE -D VERT_REFLECT -D HORI_WRAP "
+            "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_short4_sat");
+#endif
 
         pyrUp8UC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=uchar4 -D DST_TYPE=uchar4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_uchar4_sat_rtz");
+#if MULTIBAND_PYR_FLOAT
         pyrUp16SC4To16SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_short4_sat_rtz");
         pyrUp32SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplateFP.txt", "", "pyrUpKernel",
             "-D SRC_TYPE=int4 -D DST_TYPE=int4 -D WORK_TYPE=float4 -D VERT_REFLECT -D HORI_WRAP "
             "-D CONVERT_WORK_TYPE=convert_float4 -D CONVERT_DST_TYPE=convert_int4_sat_rtz");
+#else
+        pyrUp16SC4To16SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplate.txt", "", "pyrUpKernel",
+            "-D SRC_TYPE=short4 -D DST_TYPE=short4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP "
+            "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_short4_sat");
+        pyrUp32SC4To32SC4 = new OpenCLProgramOneKernel(*ocl, L"PyramidUpTemplate.txt", "", "pyrUpKernel",
+            "-D SRC_TYPE=int4 -D DST_TYPE=int4 -D WORK_TYPE=int4 -D VERT_REFLECT -D HORI_WRAP "
+            "-D CONVERT_WORK_TYPE=convert_int4 -D CONVERT_DST_TYPE=convert_int4_sat");
+#endif
 
         alphaBlend8UC4 = new OpenCLProgramOneKernel(*ocl, L"ImageProc.txt", "", "alphaBlend8UC4");
         cvtBGR32ToYUV420P = new OpenCLProgramOneKernel(*ocl, L"ImageProc.txt", "", "cvtBGR32ToYUV420P");

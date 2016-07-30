@@ -60,8 +60,19 @@ inline __global DST_TYPE* getDestRowPtr(__global unsigned char* data, int step, 
     return (__global DST_TYPE*)(data + step * row);
 }
 
+#ifdef SCALE
+inline SCALE_TYPE getScaleElem(__global const unsigned char* data, int step, int row, int col)
+{
+    return ((__global SCALE_TYPE*)(data + step * row))[col];
+}
+#endif
+
 __kernel void pyrDownKernel(__global const unsigned char* srcData, int srcRows, int srcCols, int srcStep,
-    __global unsigned char* dstData, int dstRows, int dstCols, int dstStep)
+    __global unsigned char* dstData, int dstRows, int dstCols, int dstStep
+#ifdef SCALE
+   , __global const unsigned char* scaleData, int scaleStep
+#endif	
+	)
 {
     __local WORK_TYPE smem[PYR_DOWN_BLOCK_SIZE + 4];
 
@@ -160,10 +171,21 @@ __kernel void pyrDownKernel(__global const unsigned char* srcData, int srcRows, 
         const int dstx = (x + localx) / 2;
 
         if (dstx < dstCols)
+		{
 #ifdef NORMALIZE
             getDestRowPtr(dstData, dstStep, y)[dstx] = CONVERT_DST_TYPE((sum + 128) >> 8);
+#elif defined SCALE
+            SCALE_TYPE origScale = getScaleElem(scaleData, scaleStep, y, dstx);
+			if (origScale != 0)
+			{
+			    WORK_TYPE scale = origScale;
+				getDestRowPtr(dstData, dstStep, y)[dstx] = CONVERT_DST_TYPE((sum << 8) / scale);
+			}
+            else
+			    getDestRowPtr(dstData, dstStep, y)[dstx] = 0;
 #else
             getDestRowPtr(dstData, dstStep, y)[dstx] = CONVERT_DST_TYPE(sum);
 #endif
+        }
     }
 }
