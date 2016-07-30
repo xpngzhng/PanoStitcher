@@ -18,6 +18,9 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\source\Task\TestLocalDiskTask.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -107,7 +110,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;E:\Projects\Boost\build\lib;$(BOOST_PATH)\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;E:\Projects\levmar-2.6\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Blend-Debug.lib;Warp-Debug.lib;IntelOpenCL-Debug.lib;PanoVideoEngine-Debug.lib;AudioVideoProcessor-Debug.lib;TiCPP-Debug.lib;Log-Debug.lib;opencv_core300d.lib;opencv_imgproc300d.lib;opencv_features2d300d.lib;opencv_videoio300d.lib;opencv_highgui300d.lib;opencv_imgcodecs300d.lib;opencv_cudaarithm300d.lib;opencv_cudaimgproc300d.lib;opencv_cudawarping300d.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a_debug.lib;OpenCL.lib;libboost_log-vc120-mt-gd-1_59.lib;levmard.lib;cuda.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Blend-Debug.lib;Warp-Debug.lib;IntelOpenCL-Debug.lib;DiscreteOpenCL-Debug.lib;PanoVideoEngine-Debug.lib;AudioVideoProcessor-Debug.lib;TiCPP-Debug.lib;Log-Debug.lib;opencv_core300d.lib;opencv_imgproc300d.lib;opencv_features2d300d.lib;opencv_videoio300d.lib;opencv_highgui300d.lib;opencv_imgcodecs300d.lib;opencv_cudaarithm300d.lib;opencv_cudaimgproc300d.lib;opencv_cudawarping300d.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a_debug.lib;OpenCL.lib;libboost_log-vc120-mt-gd-1_59.lib;levmard.lib;cuda.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -148,7 +151,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
       <AdditionalLibraryDirectories>..\lib;E:\Projects\ffmpeg windows\ffmpeg\build\lib;E:\Projects\Boost\build\lib;$(BOOST_PATH)\lib;$(OPENCV_PATH)\x64\vc12\lib;$(INTELMEDIASDKROOT)\lib\$(Platform);$(CUDA_PATH)\lib\$(Platform);D:\ffmpeg-20150921\lib\x64;D:\libcurl\lib\x64;$(INTELOCLSDKROOT)\lib\x64;E:\Projects\levmar-2.6\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Blend-Release.lib;Warp-Release.lib;IntelOpenCL-Release.lib;PanoVideoEngine-Release.lib;AudioVideoProcessor-Release.lib;TiCPP-Release.lib;Log-Release.lib;opencv_core300.lib;opencv_imgproc300.lib;opencv_features2d300.lib;opencv_videoio300.lib;opencv_highgui300.lib;opencv_imgcodecs300.lib;opencv_cudaarithm300.lib;opencv_cudaimgproc300.lib;opencv_cudawarping300.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a.lib;OpenCL.lib;libboost_log-vc120-mt-1_59.lib;levmar.lib;cuda.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Blend-Release.lib;Warp-Release.lib;IntelOpenCL-Release.lib;DiscreteOpenCL-Release.lib;PanoVideoEngine-Release.lib;AudioVideoProcessor-Release.lib;TiCPP-Release.lib;Log-Release.lib;opencv_core300.lib;opencv_imgproc300.lib;opencv_features2d300.lib;opencv_videoio300.lib;opencv_highgui300.lib;opencv_imgcodecs300.lib;opencv_cudaarithm300.lib;opencv_cudaimgproc300.lib;opencv_cudawarping300.lib;avcodec.lib;avformat.lib;avdevice.lib;avutil.lib;swscale.lib;swresample.lib;libmfx.lib;cudart.lib;libcurl_a.lib;OpenCL.lib;libboost_log-vc120-mt-1_59.lib;levmar.lib;cuda.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>

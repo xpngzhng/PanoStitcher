@@ -651,10 +651,10 @@ int main()
     cv::Mat header;
     for (int k = 0; k < 10; k++)
     {
-        header = hostMem.mapToHost();
+        header = cv::Mat(hostMem.size(), hostMem.type, hostMem.data, hostMem.step)/*hostMem.mapToHost()*/;
         printf("ptr = %p\n", header.data);
         mat.copyTo(header);
-        hostMem.unmapFromHost(header);
+        //hostMem.unmapFromHost(header);
     }
     header.release();
 

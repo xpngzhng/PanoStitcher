@@ -521,6 +521,164 @@ void CudaLogoFilter::clear()
     logo.release();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include "DiscreteOpenCLInterface.h"
+#include "DOclPanoramaTaskUtil.h"
+
+bool DOclWatermarkFilter::init(int width_, int height_)
+{
+    initSuccess = false;
+    clear();
+
+    if (width_ < 0 || height_ < 0 || width_ != height_ * 2)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        return false;
+    }
+
+    width = width_;
+    height = height_;
+
+    cv::Mat origLogo(watermarkHeight, watermarkWidth, CV_8UC4, watermarkData);
+    cv::Mat fullLogo;
+
+    if (width < watermarkWidth || height < watermarkHeight)
+    {
+        cv::Rect logoRect(watermarkWidth / 2 - width / 2, watermarkHeight / 2 - height / 2, width, height);
+        fullLogo = origLogo(logoRect);
+    }
+    else
+    {
+        fullLogo = cv::Mat::zeros(height, width, CV_8UC4);
+        int w = (width + blockWidth - 1) / blockWidth, h = (height + blockHeight - 1) / blockHeight;
+        cv::Rect full(0, 0, width, height);
+        for (int i = 0; i < h; i++)
+        {
+            for (int j = 0; j < w; j++)
+            {
+                cv::Rect thisRect = cv::Rect(j * blockWidth + blockWidth / 2 - watermarkWidth / 2,
+                    i * blockHeight + blockHeight / 2 - watermarkHeight / 2,
+                    watermarkWidth, watermarkHeight) &
+                    full;
+                cv::Mat fullLogoPart = fullLogo(thisRect);
+                cv::Mat origLogoPart = origLogo(cv::Rect(0, 0, thisRect.width, thisRect.height));
+                origLogoPart.copyTo(fullLogoPart);
+            }
+        }
+    }
+    logo.upload(fullLogo);
+
+    initSuccess = true;
+    return true;
+}
+
+bool DOclWatermarkFilter::addWatermark(docl::GpuMat& image) const
+{
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type != CV_8UC4)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
+            "requre initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type, height, width, CV_8UC4);
+        return false;
+    }
+
+    alphaBlend8UC4(image, logo);
+    return true;
+}
+
+void DOclWatermarkFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    logo.release();
+}
+
+bool DOclLogoFilter::init(const std::string& logoFileName, int hFov, int width_, int height_)
+{
+    initSuccess = false;
+
+    if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
+    {
+        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        return false;
+    }
+
+    if (hFov <= 0 || hFov > 180)
+    {
+        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        return false;
+    }
+
+    cv::Mat origLogo = cv::imread(logoFileName, -1);
+    if (!origLogo.data)
+    {
+        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        return false;
+    }
+    if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
+    {
+        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+            "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
+            origLogo.type(), origLogo.depth(), origLogo.channels());
+        return false;
+    }
+
+    PhotoParam param;
+    param.imageType = PhotoParam::ImageTypeFullFrameFishEye;
+    param.hfov = hFov;
+    param.pitch = -90;
+    param.cropWidth = origLogo.cols;
+    param.cropHeight = origLogo.rows;
+    cv::Mat map, mask;
+    getReprojectMapAndMask(param, origLogo.size(), cv::Size(width_, height_), map, mask);
+    cv::Mat logoReproj;
+    reprojectParallel(origLogo, logoReproj, map);
+
+    cv::Mat logoCpu;
+    if (origLogo.type() == CV_8UC3)
+    {
+        logoCpu.create(cv::Size(width_, height_), CV_8UC4);
+        int fromTo[] = { 0, 0, 1, 1, 2, 2, 3, 3 };
+        cv::Mat src[] = { logoReproj, mask };
+        cv::mixChannels(src, 2, &logoCpu, 1, fromTo, 4);
+    }
+    else
+        logoCpu = logoReproj;
+
+    logo.upload(logoCpu);
+
+    width = width_;
+    height = height_;
+    initSuccess = true;
+    return true;
+}
+
+bool DOclLogoFilter::addLogo(docl::GpuMat& image) const
+{
+    if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type != CV_8UC4)
+    {
+        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+            "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
+            __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type, height, width, CV_8UC4);
+        return false;
+    }
+
+    alphaBlend8UC4(image, logo);
+    return true;
+}
+
+void DOclLogoFilter::clear()
+{
+    initSuccess = false;
+    width = 0;
+    height = 0;
+    logo.release();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void ptLogDefaultCallback(const char* format, va_list vl)
 {
     vprintf(format, vl);

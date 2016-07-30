@@ -231,24 +231,58 @@ struct HostMem
         cols = 0;
         step = 0;
         type = 0;
-        mapped = 0;
-        mappedPtr = 0;
+        data = 0;
+        //mapped = 0;
+        //mappedPtr = 0;
+        locked = 0;
     }
 
     HostMem(int rows, int cols, int type)
     {
+        init();
         create(rows, cols, type);
     }
 
     HostMem(const cv::Size& size, int type)
     {
+        init();
         create(size, type);
+    }
+
+    // Notice, if we use locked as a member of HostMem and there is no destructor,
+    // the program will crash when finishes in release mode, perhaps because undefined 
+    // sequence of members' destructors calling.
+    // We must make sure that mdata is destructed before smem is destructed.
+    ~HostMem()
+    {
+        clear();
+    }
+
+    // IMPORTANT!!!  It would be better to make locked member a shared one.
+    // std::shared_ptr<int> locked;
+
+    void init()
+    {
+        ctx = 0;
+        mem = 0;
+        rows = 0;
+        cols = 0;
+        step = 0;
+        type = 0;
+        data = 0;
+        //mapped = 0;
+        //mappedPtr = 0;
+        locked = 0;
     }
 
     void clear()
     {
-        CV_Assert(mapped == 0);
-        mappedPtr = 0;
+        //CV_Assert(mapped == 0);
+        //mappedPtr = 0;
+        CV_Assert(locked == 0);
+
+        data = 0;
+        mdata.reset();
 
         ctx = 0;
         mem = 0;
@@ -276,10 +310,12 @@ struct HostMem
             return;
         }
 
-        CV_Assert(mapped == 0);
-        mappedPtr = 0;
+        //CV_Assert(mapped == 0);
+        //mappedPtr = 0;
+        CV_Assert(locked == 0);
         if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK))
         {
+            mdata.reset();
             smem.reset();
             rows = rows_;
             cols = cols_;
@@ -294,6 +330,11 @@ struct HostMem
             if (err) clear();
             SAMPLE_CHECK_ERRORS(err);
             smem.reset(mem, clReleaseMemObject);
+
+            data = (unsigned char*)clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            if (err) clear();
+            SAMPLE_CHECK_ERRORS(err);
+            mdata.reset(new MappedData(data, mem));
         }
     }
 
@@ -317,7 +358,34 @@ struct HostMem
         return other;
     }
 
-    cv::Mat mapToHost()
+    void lock()
+    {
+        if (data)
+        {
+            CV_Assert(locked == 0);
+            int err = 0;
+            err = clEnqueueUnmapMemObject(ocl->queue, mem, data, 0, 0, 0);
+            SAMPLE_CHECK_ERRORS(err);
+            err = clFinish(ocl->queue);
+            SAMPLE_CHECK_ERRORS(err);
+            locked = 1;
+        }
+    }
+
+    void unlock()
+    {
+        if (data)
+        {
+            CV_Assert(locked == 1);
+            int err;
+            void * ret = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            SAMPLE_CHECK_ERRORS(err);
+            CV_Assert(ret == data);
+            locked = 0;
+        }
+    }
+
+    /*cv::Mat mapToHost()
     {
         CV_Assert(mapped == 0);
         int err = 0;
@@ -363,7 +431,7 @@ struct HostMem
         SAMPLE_CHECK_ERRORS(err);
         mapped = 0;
         mappedPtr = 0;
-    }
+    }*/
 
     cv::Size size() const
     {
@@ -392,8 +460,24 @@ struct HostMem
         return CV_MAT_CN(type);
     }
 
-    int mapped;
-    void* mappedPtr;
+    //int mapped;
+    //void* mappedPtr;
+    int locked;
+
+    unsigned char* data;
+    struct MappedData
+    {
+        MappedData(void* data_, cl_mem mem_)
+            : data(data_), mem(mem_) {}
+        ~MappedData()
+        {
+            clEnqueueUnmapMemObject(ocl->queue, mem, data, 0, 0, 0);
+        }
+
+        void* data;
+        cl_mem mem;
+    };
+    std::shared_ptr<MappedData> mdata;
 
     int rows, cols;
     int step;
@@ -403,6 +487,19 @@ struct HostMem
     cl_mem mem;
     std::shared_ptr<_cl_mem> smem;
 };
+
+//struct HostMemLockGuard
+//{
+//    HostMemLockGuard(HostMem& hostMem_) : hostMem(hostMem_)
+//    {
+//        hostMem.lock();
+//    }
+//    ~HostMemLockGuard()
+//    {
+//        hostMem.unlock();
+//    }
+//    HostMem& hostMem;
+//};
 
 struct GpuMat
 {
@@ -420,22 +517,38 @@ struct GpuMat
 
     GpuMat(int rows, int cols, int type)
     {
+        init();
         create(rows, cols, type);
     }
 
     GpuMat(const cv::Size& size, int type)
     {
+        init();
         create(size, type);
     }
 
     GpuMat(int rows, int cols, int type, cl_mem data, int step)
     {
+        init();
         create(rows, cols, type, data, step);
     }
 
     GpuMat(const cv::Size& size, int type, cl_mem data, int step)
     {
+        init();
         create(size.height, size.width, type, data, step);
+    }
+
+    void init()
+    {
+        mem = 0;
+        data = 0;
+        rows = 0;
+        cols = 0;
+        step = 0;
+        type = 0;
+
+        ctx = 0;
     }
 
     void clear()
@@ -530,6 +643,7 @@ struct GpuMat
         CV_Assert(mat.mem);
 
         create(mat.rows, mat.cols, mat.type);
+
         int err = 0;
         err = clEnqueueCopyBuffer(ocl->queue, mat.mem, mem, 0, 0, step * rows, 0, 0, 0);
         SAMPLE_CHECK_ERRORS(err);
