@@ -1623,6 +1623,7 @@ int IOclPanoramaRender::getNumImages() const
 
 #endif
 
+#if COMPILE_INTEGRATED_OPENCL
 #include "RunTimeObjects.h"
 bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
@@ -1781,7 +1782,10 @@ int IOclPanoramaRender::getNumImages() const
     return success ? numImages : 0;
 }
 
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if COMPILE_DISCRETE_OPENCL
 
 bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
@@ -1962,6 +1966,8 @@ int DOclPanoramaRender::getNumImages() const
 {
     return success ? numImages : 0;
 }
+
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

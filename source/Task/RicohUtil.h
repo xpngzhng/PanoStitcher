@@ -272,6 +272,7 @@ private:
 };
 #endif
 
+#if COMPILE_INTEGRATED_OPENCL
 #include "IntelOpenCLInterface.h"
 class IOclPanoramaRender
 {
@@ -293,7 +294,9 @@ private:
     int numImages;
     int success;
 };
+#endif
 
+#if COMPILE_DISCRETE_OPENCL
 #include "DiscreteOpenCLInterface.h"
 class DOclPanoramaRender
 {
@@ -319,6 +322,7 @@ private:
     std::vector<std::unique_ptr<OpenCLProgramOneKernel> > reprojKernels;
     std::vector<std::unique_ptr<OpenCLQueue> > queues;
 };
+#endif
 
 class ImageVisualCorrect
 {
