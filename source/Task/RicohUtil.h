@@ -301,12 +301,13 @@ public:
     DOclPanoramaRender() : success(0) {};
     ~DOclPanoramaRender() { clear(); };
     bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<docl::GpuMat>& src, docl::GpuMat& dst);
+    bool render(const std::vector<docl::HostMem>& src, docl::GpuMat& dst);
     void clear();
     int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
     std::vector<docl::GpuMat> xmaps, ymaps;
+    std::vector<docl::GpuMat> images;
     std::vector<docl::GpuMat> reprojImages;
     int highQualityBlend;
     DOclTilingMultibandBlendFast mbBlender;

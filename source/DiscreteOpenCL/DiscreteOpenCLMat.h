@@ -358,7 +358,7 @@ struct HostMem
         return other;
     }
 
-    void lock()
+    void lock() const
     {
         if (data)
         {
@@ -372,7 +372,7 @@ struct HostMem
         }
     }
 
-    void unlock()
+    void unlock() const
     {
         if (data)
         {
@@ -462,7 +462,7 @@ struct HostMem
 
     //int mapped;
     //void* mappedPtr;
-    int locked;
+    mutable int locked;
 
     unsigned char* data;
     struct MappedData
@@ -490,7 +490,7 @@ struct HostMem
 
 struct HostMemLockGuard
 {
-    HostMemLockGuard(HostMem& hostMem_) : hostMem(hostMem_)
+    HostMemLockGuard(const HostMem& hostMem_) : hostMem(hostMem_)
     {
         hostMem.lock();
     }
@@ -498,7 +498,7 @@ struct HostMemLockGuard
     {
         hostMem.unlock();
     }
-    HostMem& hostMem;
+    const HostMem& hostMem;
 };
 
 struct GpuMat
@@ -638,7 +638,7 @@ struct GpuMat
         return other;
     }
 
-    void upload(HostMem& mat)
+    void upload(const HostMem& mat)
     {
         CV_Assert(mat.mem);
         create(mat.rows, mat.cols, mat.type);

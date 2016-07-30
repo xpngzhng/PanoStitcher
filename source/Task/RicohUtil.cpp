@@ -1857,7 +1857,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 }
 
 #include "..\..\source\DiscreteOpenCL\MatOp.h"
-bool DOclPanoramaRender::render(const std::vector<docl::GpuMat>& src, docl::GpuMat& dst)
+bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::GpuMat& dst)
 {
     if (!success)
     {
@@ -1891,11 +1891,14 @@ bool DOclPanoramaRender::render(const std::vector<docl::GpuMat>& src, docl::GpuM
 
     try
     {
+        images.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            images[i].upload(src[i]);
         if (!highQualityBlend)
         {
             setZero(accum);
             for (int i = 0; i < numImages; i++)
-                doclReprojectWeightedAccumulateTo32F(src[i], accum, xmaps[i], ymaps[i], weights[i]);
+                doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i]);
             //accum.convertTo(dst, CV_8U);
             convert32FC4To8UC4(accum, dst);
         }
@@ -1903,7 +1906,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::GpuMat>& src, docl::GpuM
         {
             reprojImages.resize(numImages);
             for (int i = 0; i < numImages; i++)
-                doclReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
+                doclReprojectTo16S(images[i], reprojImages[i], xmaps[i], ymaps[i]);
             mbBlender.blend(reprojImages, dst);
         }
     }
@@ -1920,6 +1923,7 @@ void DOclPanoramaRender::clear()
 {
     xmaps.clear();
     ymaps.clear();
+    images.clear();
     reprojImages.clear();
     weights.clear();
     accum.release();

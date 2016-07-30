@@ -2539,7 +2539,6 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
 
     procCount = 0;
     StampedPinnedMemoryVectorForDOcl srcFrames;
-    std::vector<docl::GpuMat> images(numVideos);
     docl::GpuMat bgr32;
     DOclMixedAudioVideoFrame videoFrame;
     docl::GpuMat y, u, v, uv;
@@ -2552,10 +2551,7 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         if (isCanceled)
             break;
 
-        for (int i = 0; i < numVideos; i++)
-            images[i].upload(srcFrames.frames[i]);
-
-        bool ok = render.render(images, bgr32);
+        bool ok = render.render(srcFrames.frames, bgr32);
         if (!ok)
         {
             ptlprintf("Error in %s, render failed\n", __FUNCTION__);
