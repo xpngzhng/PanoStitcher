@@ -245,7 +245,7 @@ public:
     IOclPanoramaRender() : success(0) {};
     ~IOclPanoramaRender() { clear(); };
     bool prepare(const std::string& path, int highQualityBlend, int completeQueue,
-        const cv::Size& srcSize, const cv::Size& dstSize, OpenCLBasic* ocl);
+        const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<cv::Mat>& src, const std::vector<long long int>& timeStamps);
     bool getResult(cv::Mat& dst, long long int& timeStamp);
     void stop();
@@ -254,9 +254,6 @@ public:
     void clear();
     int getNumImages() const;
 private:
-    OpenCLBasic* ocl;
-    std::unique_ptr<OpenCLProgramOneKernel> setZeroKern;
-    std::unique_ptr<OpenCLProgramOneKernel> rprjKern;
     cv::Size srcSize, dstSize;
     std::vector<IOclMat> xmaps, ymaps;
     IntelMemoryPool pool;

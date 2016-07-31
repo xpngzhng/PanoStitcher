@@ -1416,9 +1416,11 @@ int CPUPanoramaRender::getNumImages() const
 
 #if COMPILE_INTEL_OPENCL
 #include "IntelOpenCLInterface.h"
+#include "RunTimeObjects.h"
+#include "MatOp.h"
 
 bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int completeQueue_,
-    const cv::Size& srcSize_, const cv::Size& dstSize_, OpenCLBasic* ocl_)
+    const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
 
@@ -1443,7 +1445,13 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     completeQueue = completeQueue_;
     srcSize = srcSize_;
     dstSize = dstSize_;
-    ocl = ocl_;
+
+    ok = ioclInit();
+    if (!ok)
+    {
+        ptlprintf("Error in %s, opencl init failed\n", __FUNCTION__);
+        return false;
+    }
 
     try
     {
@@ -1455,8 +1463,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         cv::Mat map32F;
         for (int i = 0; i < numImages; i++)
         {
-            xmaps[i].create(dstSize, CV_32FC1, ocl->context);
-            ymaps[i].create(dstSize, CV_32FC1, ocl->context);
+            xmaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+            ymaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
             cv::Mat headx = xmaps[i].toOpenCVMat();
             cv::Mat heady = ymaps[i].toOpenCVMat();
             xmaps32F[i].copyTo(headx);
@@ -1472,16 +1480,13 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
             {
-                weights[i].create(dstSize, CV_32FC1, ocl->context);
+                weights[i].create(dstSize, CV_32FC1, iocl::ocl->context);
                 cv::Mat header = weights[i].toOpenCVMat();
                 ws[i].copyTo(header);
             }
         }
 
-        pool.init(dstSize.height, dstSize.width, CV_32FC4, ocl->context);
-
-        setZeroKern.reset(new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "setZeroKernel"));
-        rprjKern.reset(new OpenCLProgramOneKernel(*ocl, L"Reproject.txt", "", "reprojectWeighedAccumulateTo32FKernel"));
+        pool.init(dstSize.height, dstSize.width, CV_32FC4, iocl::ocl->context);
 
         if (completeQueue)
             cpQueue.setMaxSize(4);
@@ -1538,11 +1543,11 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
         //if (!highQualityBlend)
         {
             tt.start();
-            ioclSetZero(blendImage, *ocl, *setZeroKern);
+            setZero(blendImage);
             for (int i = 0; i < numImages; i++)
             {
-                IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, ocl->context);
-                ioclReprojectAccumulateWeightedTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i], *ocl, *rprjKern);
+                IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, iocl::ocl->context);
+                ioclReprojectWeightedAccumulateTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i]);
             }
             tt.end();
         }

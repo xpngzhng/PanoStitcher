@@ -165,17 +165,9 @@ struct PanoramaLiveStreamTask::Impl
     AudioVideoFramePool procFramePool;
     ForShowFrameQueue procFrameBufferForShow;
     ForceWaitFrameQueue procFrameBufferForSend, procFrameBufferForSave;
-
-#if COMPILE_CUDA
-#else
-    OpenCLBasic ocl;
-#endif
 };
 
 PanoramaLiveStreamTask::Impl::Impl()
-#if !COMPILE_CUDA
-    : ocl("Intel", "GPU")
-#endif
 {
     initAll();
     //initCallback();
@@ -494,7 +486,7 @@ bool PanoramaLiveStreamTask::Impl::beginVideoStitch(const std::string& configFil
         videoFrameSize, renderFrameSize);
 #else
     renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, false,
-        videoFrameSize, renderFrameSize, &ocl);
+        videoFrameSize, renderFrameSize);
 #endif
     if (!renderPrepareSuccess)
     {
@@ -1125,7 +1117,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
     std::vector<cv::cuda::HostMem> mems;
     std::vector<long long int> timeStamps;
 #else
-    std::vector<avp::SharedAudioVideoFrame> frames;
+    std::vector<avp::AudioVideoFrame2> frames;
     std::vector<long long int> timeStamps;
 #endif
     std::vector<cv::Mat> src;
@@ -1193,7 +1185,7 @@ void PanoramaLiveStreamTask::Impl::procVideo()
             timeStamps.resize(numVideos);
             for (int i = 0; i < numVideos; i++)
             {
-                src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data, frames[i].step);
+                src[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data[0], frames[i].steps[0]);
                 timeStamps[i] = frames[i].timeStamp;
             }
             procTimer.start();
