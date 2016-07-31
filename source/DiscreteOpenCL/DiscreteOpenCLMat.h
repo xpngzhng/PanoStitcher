@@ -66,9 +66,9 @@ struct HostMem
         step = 0;
         type = 0;
         data = 0;
-        //mapped = 0;
-        //mappedPtr = 0;
-        locked = 0;
+
+        slocked.reset(new int);
+        *slocked = 0;
 
         bufferFlag = -1;
         mapFlag = -1;
@@ -95,9 +95,6 @@ struct HostMem
         clear();
     }
 
-    // IMPORTANT!!!  It would be better to make locked member a shared one.
-    // std::shared_ptr<int> locked;
-
     void init()
     {
         ctx = 0;
@@ -107,9 +104,9 @@ struct HostMem
         step = 0;
         type = 0;
         data = 0;
-        //mapped = 0;
-        //mappedPtr = 0;
-        locked = 0;
+
+        slocked.reset(new int);
+        *slocked = 0;
 
         bufferFlag = -1;
         mapFlag = -1;
@@ -117,9 +114,7 @@ struct HostMem
 
     void clear()
     {
-        //CV_Assert(mapped == 0);
-        //mappedPtr = 0;
-        CV_Assert(locked == 0);
+        CV_Assert(slocked && *slocked == 0);
 
         data = 0;
         mdata.reset();
@@ -154,9 +149,7 @@ struct HostMem
             return;
         }
 
-        //CV_Assert(mapped == 0);
-        //mappedPtr = 0;
-        CV_Assert(locked == 0);
+        CV_Assert(slocked && *slocked == 0);
         if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK) ||
             bufferFlag != bufferFlag_ || mapFlag != mapFlag_)
         {
@@ -211,13 +204,13 @@ struct HostMem
     {
         if (data)
         {
-            CV_Assert(locked == 0);
+            CV_Assert(slocked && *slocked == 0);
             int err = 0;
             err = clEnqueueUnmapMemObject(ocl->queue, mem, data, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
             err = clFinish(ocl->queue);
             SAMPLE_CHECK_ERRORS(err);
-            locked = 1;
+            *slocked = 1;
         }
     }
 
@@ -225,12 +218,12 @@ struct HostMem
     {
         if (data)
         {
-            CV_Assert(locked == 1);
+            CV_Assert(slocked && *slocked == 1);
             int err;
             void * ret = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
-            locked = 0;
+            *slocked = 0;
         }
     }
 
@@ -238,11 +231,11 @@ struct HostMem
     {
         if (data)
         {
-            CV_Assert(locked == 0);
+            CV_Assert(slocked && *slocked == 0);
             int err = 0;
             err = clEnqueueUnmapMemObject(q.queue, mem, data, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
-            locked = 1;
+            *slocked = 1;
         }
     }
 
@@ -250,62 +243,14 @@ struct HostMem
     {
         if (data)
         {
-            CV_Assert(locked == 1);
+            CV_Assert(slocked && *slocked == 1);
             int err;
             void * ret = clEnqueueMapBuffer(q.queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
-            locked = 0;
+            *slocked = 0;
         }
     }
-
-    /*cv::Mat mapToHost()
-    {
-        CV_Assert(mapped == 0);
-        int err = 0;
-        mappedPtr = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
-        mapped = 1;
-        return cv::Mat(rows, cols, type, mappedPtr, step);
-    }
-
-    void unmapFromHost(const cv::Mat& mat)
-    {
-        CV_Assert(mapped == 1 && mat.data == mappedPtr);
-        int err = 0;
-        err = clEnqueueUnmapMemObject(ocl->queue, mem, mappedPtr, 0, 0, 0);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
-        mapped = 0;
-        mappedPtr = 0;
-    }
-
-    void* map()
-    {
-        CV_Assert(mapped == 0);
-        int err = 0;
-        mappedPtr = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
-        mapped = 1;
-        return mappedPtr;
-    }
-
-    void unmap(void* ptr)
-    {
-        CV_Assert(mapped == 1 && ptr == mappedPtr);
-        int err = 0;
-        err = clEnqueueUnmapMemObject(ocl->queue, mem, mappedPtr, 0, 0, 0);
-        SAMPLE_CHECK_ERRORS(err);
-        err = clFinish(ocl->queue);
-        SAMPLE_CHECK_ERRORS(err);
-        mapped = 0;
-        mappedPtr = 0;
-    }*/
 
     cv::Size size() const
     {
@@ -334,9 +279,7 @@ struct HostMem
         return CV_MAT_CN(type);
     }
 
-    //int mapped;
-    //void* mappedPtr;
-    mutable int locked;
+    mutable std::shared_ptr<int> slocked;
 
     unsigned char* data;
     struct MappedData
