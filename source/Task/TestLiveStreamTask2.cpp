@@ -365,8 +365,8 @@ int main(int argc, char* argv[])
     //printf("pass render prepare\n");
 
     streamURL = parser.get<std::string>("pano_stream_url");
-    streamURL = "rtsp://127.0.0.1/test.sdp";
-    //streamURL = "null";
+    //streamURL = "rtsp://127.0.0.1/test.sdp";
+    streamURL = "null";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
@@ -417,6 +417,7 @@ int main(int argc, char* argv[])
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");
         fileFrameSize.height = parser.get<int>("pano_file_frame_height");
         fileFrameSize = sz;
+        fileFrameSize = cv::Size(1024, 512);
         if (fileFrameSize.width <= 0 || fileFrameSize.height <= 0 ||
             (fileFrameSize.width & 1) || (fileFrameSize.height & 1) ||
             (fileFrameSize.width != fileFrameSize.height * 2))
@@ -440,12 +441,12 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        //task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height, 
-        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height, 
+            fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
         //task.beginSaveToDisk(".", PanoTypeCube3x2, 1536, 1024,
         //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
-        task.beginSaveToDisk(".", PanoTypeCube180, 1280, 768,
-            fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        //task.beginSaveToDisk(".", PanoTypeCube180, 1280, 768,
+        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);

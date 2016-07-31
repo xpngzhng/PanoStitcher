@@ -14,7 +14,6 @@
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
-#include "opencv2/cudawarping.hpp"
 
 typedef std::pair<int, std::string> AsyncErrorMessage;
 typedef CompleteQueue<AsyncErrorMessage> AsyncErrorMessageQueue;
@@ -914,7 +913,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     if (streamFrameSize == renderFrameSize)
                         bgr1 = bgr32;
                     else
-                        cv::cuda::resize(bgr32, bgr1, streamFrameSize, 0, 0, cv::INTER_LINEAR);
+                        resize8UC4(bgr32, bgr1, streamFrameSize);
                 }
                 else
                     cudaReproject(bgr32, bgr1, streamXMap, streamYMap);
@@ -963,7 +962,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     if (fileFrameSize == renderFrameSize)
                         bgr2 = bgr32;
                     else
-                        cv::cuda::resize(bgr32, bgr2, fileFrameSize, 0, 0, cv::INTER_LINEAR);
+                        resize8UC4(bgr32, bgr2, fileFrameSize);
                 }
                 else
                     cudaReproject(bgr32, bgr2, fileXMap, fileYMap);

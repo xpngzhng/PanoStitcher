@@ -257,3 +257,65 @@ void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::c
     cvtNV12ToBGR32<<<grid, block>>>(y.data, y.step, uv.data, uv.step, bgr32.data, bgr32.step, y.rows, y.cols);
     cudaSafeCall(cudaDeviceSynchronize());
 }
+
+__global__ void resize(const unsigned char* srcData, int srcStep, int srcRows, int srcCols,
+    unsigned char* dstData, int dstStep, int dstRows, int dstCols, float xScale, float yScale)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x <= dstCols && y <= dstRows)
+    {
+        float xSrc = x * xScale;
+        float ySrc = y * yScale;
+        int x0 = xSrc, y0 = ySrc;
+        int x1 = x0 + 1, y1 = y0 + 1;
+        if (x1 >= srcCols) x1 = srcCols - 1;
+        if (y1 >= srcRows) y1 = srcRows - 1;
+        float wx0 = xSrc - x0, wy0 = ySrc - y0;
+        float wx1 = 1 - wx0, wy1 = 1 - wy0;
+
+        const unsigned char* ptr;
+        int r = 0, g = 0, b = 0;
+        float w = 0;
+
+        ptr = (srcData + y0 * srcStep) + x0 * 4;
+        w = wx1 * wy1;
+        b += ptr[0] * w;
+        g += ptr[1] * w;
+        r += ptr[2] * w;
+
+        ptr += 4;
+        w = wx0 * wy1;
+        b += ptr[0] * w;
+        g += ptr[1] * w;
+        r += ptr[2] * w;
+
+        ptr = (srcData + y1 * srcStep) + x0 * 4;
+        w = wx1 * wy0;
+        b += ptr[0] * w;
+        g += ptr[1] * w;
+        r += ptr[2] * w;
+
+        ptr += 4;
+        w = wx0 * wy0;
+        b += ptr[0] * w;
+        g += ptr[1] * w;
+        r += ptr[2] * w;
+
+        unsigned char* ptrDst = dstData + y * dstStep + x * 4;
+        ptrDst[0] = b;
+        ptrDst[1] = g;
+        ptrDst[2] = r;
+    }
+}
+
+void resize8UC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize)
+{
+    CV_Assert(src.data && src.type() == CV_8UC4 && dstSize.width > 0 && dstSize.height > 0);
+    dst.create(dstSize, CV_8UC4);
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(dstSize.width, block.x), cv::cuda::device::divUp(dstSize.height, block.y));
+    resize<<<grid, block>>>(src.data, src.step, src.rows, src.cols, dst.data, dst.step, dst.rows, dst.cols,
+        float(src.cols) / dst.cols, float(src.rows) / dst.rows);
+    cudaSafeCall(cudaDeviceSynchronize());
+}

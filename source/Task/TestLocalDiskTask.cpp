@@ -104,6 +104,8 @@ int main(int argc, char* argv[])
         task.reset(new DOclPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
+
+    avp::setDumpInput(false);
     
     panoVideoName = "libx264.mp4";
     std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*//*"F:\\image\\Earth_global.png"*/;

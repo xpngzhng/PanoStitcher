@@ -47,6 +47,8 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
                 audioIndex = tryAudioIndex;
             else
             {
+                ptlprintf("Warning in %s, failed to open file %s with audio, index %s, open video only instead\n",
+                    __FUNCTION__, srcVideoFiles[i].c_str(), i);
                 ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
                 audioIndex = -1;
             }
@@ -54,7 +56,17 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
         else
             ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
         if (!ok)
+        {
+            ptlprintf("Error in %s, could not open file %s, index %d\n", __FUNCTION__, srcVideoFiles[i].c_str(), i);
             break;
+        }
+        ptlprintf("Info in %s, file %s opened, index %d, video width = %d, video height = %d, video frame rate = %f",
+            __FUNCTION__, srcVideoFiles[i].c_str(), i, readers[i].getVideoWidth(), readers[i].getVideoHeight(),
+            readers[i].getVideoFrameRate());
+        if (tryAudioIndex == i)
+            ptlprintf(", audio sample rate = %d\n", readers[i].getAudioSampleRate());
+        else
+            ptlprintf("\n");
 
         if (srcSize == cv::Size())
         {

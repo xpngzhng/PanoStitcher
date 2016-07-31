@@ -2510,15 +2510,25 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         if (isLibX264)
         {
             cvtBGR32ToYUV420P(bgr32, y, u, v);
-            y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
-            u.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
-            v.download(videoFrame.planes[2], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
+            y.download(videoFrame.planes[0], 
+                docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, 
+                docl::HostMem::MapFlagRead);
+            u.download(videoFrame.planes[1], 
+                docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, 
+                docl::HostMem::MapFlagRead);
+            v.download(videoFrame.planes[2], 
+                docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, 
+                docl::HostMem::MapFlagRead);
         }
         else
         {
             cvtBGR32ToNV12(bgr32, y, uv);
-            y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
-            uv.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
+            y.download(videoFrame.planes[0], 
+                docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, 
+                docl::HostMem::MapFlagRead);
+            uv.download(videoFrame.planes[1], 
+                docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, 
+                docl::HostMem::MapFlagRead);
         }
 
         procFrameBuffer.push(videoFrame);
