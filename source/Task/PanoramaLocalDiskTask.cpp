@@ -2505,23 +2505,11 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
             }
         }
 
-        // IMPORTANT NOTICE!!!
-        // I use cv::cuda::GpuMat::download to copy gpu memory to cpu memory.
-        // If cpu memory is not page-locked, download will take quite a long time.
-        // But in the following, cpu memory is page-locked, which costs just a little time.
-        // NVIDIA's documentation does not mention that calling cudaMemcpy2D to copy
-        // gpu memory to page-locked cpu memory costs less time than pageable memory.
-        // Another implementation is to make the cpu memory as zero-copy,
-        // then gpu color conversion writes result directly to cpu zero-copy memory.
-        // If image size is too large, such writing costs a large amount of time.
         dstFramesMemoryPool.get(videoFrame);
         videoFrame.frame.timeStamp = srcFrames.timeStamps[index];
         if (isLibX264)
         {
             cvtBGR32ToYUV420P(bgr32, y, u, v);
-            //cv::Mat yy = videoFrame.planes[0].createMatHeader();
-            //cv::Mat uu = videoFrame.planes[1].createMatHeader();
-            //cv::Mat vv = videoFrame.planes[2].createMatHeader();
             y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
             u.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
             v.download(videoFrame.planes[2], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
@@ -2529,8 +2517,6 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         else
         {
             cvtBGR32ToNV12(bgr32, y, uv);
-            //cv::Mat yy = videoFrame.planes[0].createMatHeader();
-            //cv::Mat uvuv = videoFrame.planes[1].createMatHeader();
             y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
             uv.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
         }
