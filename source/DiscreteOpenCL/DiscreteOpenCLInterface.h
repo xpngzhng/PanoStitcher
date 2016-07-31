@@ -19,6 +19,13 @@ void doclReprojectWeightedAccumulateTo32F(const docl::GpuMat& src, docl::GpuMat&
     const docl::GpuMat& xmap, const docl::GpuMat& ymap, const docl::GpuMat& weight,
     OpenCLProgramOneKernel& kern, OpenCLQueue& queue);
 
+void doclReprojectTo16S(const docl::HostMem& src, docl::GpuMat& dst, const docl::GpuMat& xmap, const docl::GpuMat& ymap,
+    OpenCLProgramOneKernel& kern, OpenCLQueue& queue);
+
+void doclReprojectWeightedAccumulateTo32F(const docl::HostMem& src, docl::GpuMat& dst,
+    const docl::GpuMat& xmap, const docl::GpuMat& ymap, const docl::GpuMat& weight,
+    OpenCLProgramOneKernel& kern, OpenCLQueue& queue);
+
 class DOclTilingMultibandBlendFast
 {
 public:

@@ -1925,6 +1925,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
             {
                 images[i].upload(src[i], *queues[i]);
                 doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i], *reprojKernels[i], *queues[i]);
+                //doclReprojectWeightedAccumulateTo32F(src[i], accum, xmaps[i], ymaps[i], weights[i], *reprojKernels[i], *queues[i]);
             }
             for (int i = 0; i < numImages; i++)
                 queues[i]->waitForCompletion();
@@ -1945,6 +1946,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
             {
                 images[i].upload(src[i], *queues[i]);
                 doclReprojectTo16S(images[i], reprojImages[i], xmaps[i], ymaps[i], *reprojKernels[i], *queues[i]);
+                //doclReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i], *reprojKernels[i], *queues[i]);
             }
             for (int i = 0; i < numImages; i++)
                 queues[i]->waitForCompletion();
