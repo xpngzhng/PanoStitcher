@@ -2133,7 +2133,8 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     if (dstVideoMaxFrameCount > 0 && validFrameCount > dstVideoMaxFrameCount)
         validFrameCount = dstVideoMaxFrameCount;
 
-    ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
+    ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4,
+        docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagReadOnly, docl::HostMem::MapFlagWrite);
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
@@ -2171,7 +2172,8 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     isLibX264 = dstVideoEncoder == "h264" ? 1 : 0;
 
-    ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
+    ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height,
+        docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
     if (!ok)
     {
         ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
@@ -2520,17 +2522,17 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
             //cv::Mat yy = videoFrame.planes[0].createMatHeader();
             //cv::Mat uu = videoFrame.planes[1].createMatHeader();
             //cv::Mat vv = videoFrame.planes[2].createMatHeader();
-            y.download(videoFrame.planes[0]);
-            u.download(videoFrame.planes[1]);
-            v.download(videoFrame.planes[2]);
+            y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
+            u.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
+            v.download(videoFrame.planes[2], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
         }
         else
         {
             cvtBGR32ToNV12(bgr32, y, uv);
             //cv::Mat yy = videoFrame.planes[0].createMatHeader();
             //cv::Mat uvuv = videoFrame.planes[1].createMatHeader();
-            y.download(videoFrame.planes[0]);
-            uv.download(videoFrame.planes[1]);
+            y.download(videoFrame.planes[0], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
+            uv.download(videoFrame.planes[1], docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
         }
 
         procFrameBuffer.push(videoFrame);

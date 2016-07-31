@@ -41,6 +41,22 @@ namespace docl
 
 struct HostMem
 {
+    enum BufferFlag
+    {
+        BufferFlagReadWrite = 1,
+        BufferFlagWriteOnly = 2,
+        BufferFlagReadOnly = 4,
+        BufferFlagUseHostPtr = 8,
+        BufferFlagAllocHostPtr = 16,
+        BufferFlagCopyHostPtr = 32
+    };
+
+    enum MapFlag
+    {
+        MapFlagRead = 1,
+        MapFlagWrite = 2
+    };
+
     HostMem()
     {
         ctx = 0;
@@ -53,18 +69,21 @@ struct HostMem
         //mapped = 0;
         //mappedPtr = 0;
         locked = 0;
+
+        bufferFlag = -1;
+        mapFlag = -1;
     }
 
-    HostMem(int rows, int cols, int type)
+    HostMem(int rows, int cols, int type, int bufferFlag, int mapFlag)
     {
         init();
-        create(rows, cols, type);
+        create(rows, cols, type, bufferFlag, mapFlag);
     }
 
-    HostMem(const cv::Size& size, int type)
+    HostMem(const cv::Size& size, int type, int bufferFlag, int mapFlag)
     {
         init();
-        create(size, type);
+        create(size, type, bufferFlag, mapFlag);
     }
 
     // Notice, if we use locked as a member of HostMem and there is no destructor,
@@ -91,6 +110,9 @@ struct HostMem
         //mapped = 0;
         //mappedPtr = 0;
         locked = 0;
+
+        bufferFlag = -1;
+        mapFlag = -1;
     }
 
     void clear()
@@ -110,6 +132,9 @@ struct HostMem
         cols = 0;
         step = 0;
         type = 0;
+
+        bufferFlag = -1;
+        mapFlag = -1;
     }
 
     void release()
@@ -117,9 +142,10 @@ struct HostMem
         clear();
     }
 
-    void create(int rows_, int cols_, int type_)
+    void create(int rows_, int cols_, int type_, int bufferFlag_, int mapFlag_)
     {
-        if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK))
+        if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK) &&
+            bufferFlag == bufferFlag_ && mapFlag == mapFlag_)
             return;
 
         if (rows_ <= 0 || cols_ <= 0)
@@ -131,7 +157,8 @@ struct HostMem
         //CV_Assert(mapped == 0);
         //mappedPtr = 0;
         CV_Assert(locked == 0);
-        if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK))
+        if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK) ||
+            bufferFlag != bufferFlag_ || mapFlag != mapFlag_)
         {
             mdata.reset();
             smem.reset();
@@ -143,27 +170,31 @@ struct HostMem
             int channels = CV_MAT_CN(type);
             int elemSize1 = 1 << (CV_MAT_DEPTH(type) / 2);
             step = elemSize1 * channels * cols;
+
             int err = 0;
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, rows * step, 0, &err);
+
+            bufferFlag = bufferFlag_;
+            mem = clCreateBuffer(ctx, bufferFlag, rows * step, 0, &err);
             if (err) clear();
             SAMPLE_CHECK_ERRORS(err);
             smem.reset(mem, clReleaseMemObject);
 
-            data = (unsigned char*)clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            mapFlag = mapFlag_;
+            data = (unsigned char*)clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             if (err) clear();
             SAMPLE_CHECK_ERRORS(err);
             mdata.reset(new MappedData(data, mem));
         }
     }
 
-    void create(const cv::Size& size_, int type_)
+    void create(const cv::Size& size_, int type_, int bufferFlag_, int mapFlag_)
     {
-        create(size_.height, size_.width, type_);
+        create(size_.height, size_.width, type_, bufferFlag_, mapFlag_);
     }
 
     void copyTo(HostMem& other) const
     {
-        other.create(size(), type);
+        other.create(size(), type, bufferFlag, mapFlag);
         clEnqueueCopyBuffer(ocl->queue, mem, other.mem, 0, 0, step * rows, 0, 0, 0);
         int err = clFinish(ocl->queue);
         SAMPLE_CHECK_ERRORS(err);
@@ -196,7 +227,7 @@ struct HostMem
         {
             CV_Assert(locked == 1);
             int err;
-            void * ret = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            void * ret = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
             locked = 0;
@@ -221,7 +252,7 @@ struct HostMem
         {
             CV_Assert(locked == 1);
             int err;
-            void * ret = clEnqueueMapBuffer(q.queue, mem, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, 0, step * rows, 0, 0, 0, &err);
+            void * ret = clEnqueueMapBuffer(q.queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
             locked = 0;
@@ -329,6 +360,9 @@ struct HostMem
     cl_context ctx;
     cl_mem mem;
     std::shared_ptr<_cl_mem> smem;
+
+    int bufferFlag;
+    int mapFlag;
 };
 
 struct HostMemLockGuard
@@ -509,10 +543,10 @@ struct GpuMat
         }
     }
 
-    void download(HostMem& mat) const
+    void download(HostMem& mat, int bufferFlag, int mapFlag) const
     {
         CV_Assert(mem);
-        mat.create(rows, cols, type);
+        mat.create(rows, cols, type, bufferFlag, mapFlag);
         {
             HostMemLockGuard lg(mat);
             int err = 0;
@@ -535,10 +569,10 @@ struct GpuMat
         }
     }
 
-    void download(HostMem& mat, OpenCLQueue& q) const
+    void download(HostMem& mat, int bufferFlag, int mapFlag, OpenCLQueue& q) const
     {
         CV_Assert(mem);
-        mat.create(rows, cols, type);
+        mat.create(rows, cols, type, bufferFlag, mapFlag);
         {
             HostMemQueuedLockGuard lg(mat, q);
             int err = 0;

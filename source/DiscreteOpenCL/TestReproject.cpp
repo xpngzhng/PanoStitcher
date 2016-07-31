@@ -648,17 +648,18 @@ int main()
     gpuMat.release();
 
     docl::HostMem hostMem;
-    hostMem.create(mat.size(), mat.type());
-    cv::Mat header;
-    for (int k = 0; k < 10; k++)
-    {
-        header = cv::Mat(hostMem.size(), hostMem.type, hostMem.data, hostMem.step)/*hostMem.mapToHost()*/;
-        printf("ptr = %p\n", header.data);
-        mat.copyTo(header);
-        //hostMem.unmapFromHost(header);
-    }
-    header.release();
+    //hostMem.create(mat.size(), mat.type());
+    //cv::Mat header;
+    //for (int k = 0; k < 10; k++)
+    //{
+    //    header = cv::Mat(hostMem.size(), hostMem.type, hostMem.data, hostMem.step);
+    //    printf("ptr = %p\n", header.data);
+    //    mat.copyTo(header);
+    //    //hostMem.unmapFromHost(header);
+    //}
+    //header.release();
 
+    hostMem.create(mat.size(), mat.type(), docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagReadOnly, docl::HostMem::MapFlagWrite);
     t.start();
     for (int i = 0; i < numIters; i++)
         gpuMat.upload(hostMem);
@@ -667,7 +668,7 @@ int main()
 
     t.start();
     for (int i = 0; i < numIters; i++)
-        gpuMat.download(hostMem);
+        gpuMat.download(hostMem, docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
     t.end();
     printf("%f\n", t.elapse());
 

@@ -180,11 +180,12 @@ class DOclPinnedMemoryPool
 {
 public:
     DOclPinnedMemoryPool() :
-        rows(0), cols(0), type(0), hasInit(0)
+        rows(0), cols(0), type(0), hasInit(0),
+        bufferFlag(0), mapFlag(0)
     {
     }
 
-    bool init(int rows_, int cols_, int type_)
+    bool init(int rows_, int cols_, int type_, int bufferFlag_, int mapFlag_)
     {
         clear();
 
@@ -193,7 +194,7 @@ public:
         docl::HostMem test;
         try
         {
-            test.create(rows_, cols_, type_);
+            test.create(rows_, cols_, type_, bufferFlag_, mapFlag_);
         }
         catch (...)
         {
@@ -205,6 +206,8 @@ public:
         rows = rows_;
         cols = cols_;
         type = type_;
+        bufferFlag = bufferFlag_;
+        mapFlag = mapFlag_;
 
         hasInit = 1;
         return true;
@@ -241,7 +244,7 @@ public:
             return true;
         }
 
-        docl::HostMem newMem(rows, cols, type);
+        docl::HostMem newMem(rows, cols, type, bufferFlag, mapFlag);
         if (!newMem.data)
         {
             mem = docl::HostMem();
@@ -254,6 +257,7 @@ public:
     }
 private:
     int rows, cols, type;
+    int bufferFlag, mapFlag;
     std::vector<docl::HostMem> pool;
     std::mutex mtx;
     int hasInit;
