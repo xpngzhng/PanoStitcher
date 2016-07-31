@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     panoVideoName = "libx264.mp4";
     std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*//*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
-    bool ok = task->init(srcVideoNames, offset, 5, projFileName, projFileName, logoFileName, fov, 1, 
+    bool ok = task->init(srcVideoNames, offset, 5, projFileName, projFileName, logoFileName, fov, 0, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {

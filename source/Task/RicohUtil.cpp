@@ -1856,6 +1856,14 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             for (int i = 0; i < numImages; i++)
                 weights[i].upload(weightsCpu[i]);
             accum.create(dstSize, CV_32FC4);
+
+            reprojKernels.resize(numImages);
+            queues.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+            {
+                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, L"ReprojectWeightedAccumulate.txt", "", "reprojectWeightedAccumulateTo32FKernel"));
+                queues[i].reset(new OpenCLQueue(*docl::ocl));
+            }
         }
     }
     catch (std::exception& e)
@@ -1906,12 +1914,20 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
         if (!highQualityBlend)
         {
             images.resize(numImages);
-            for (int i = 0; i < numImages; i++)
-                images[i].upload(src[i]);
+            //for (int i = 0; i < numImages; i++)
+            //    images[i].upload(src[i]);
+            //setZero(accum);
+            //for (int i = 0; i < numImages; i++)
+            //    doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i]);
+            images.resize(numImages);
             setZero(accum);
             for (int i = 0; i < numImages; i++)
-                doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i]);
-            //accum.convertTo(dst, CV_8U);
+            {
+                images[i].upload(src[i], *queues[i]);
+                doclReprojectWeightedAccumulateTo32F(images[i], accum, xmaps[i], ymaps[i], weights[i], *reprojKernels[i], *queues[i]);
+            }
+            for (int i = 0; i < numImages; i++)
+                queues[i]->waitForCompletion();
             convert32FC4To8UC4(accum, dst);
         }
         else
