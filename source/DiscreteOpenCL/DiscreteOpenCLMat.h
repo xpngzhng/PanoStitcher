@@ -562,6 +562,44 @@ struct GpuMat
         SAMPLE_CHECK_ERRORS(err);
     }
 
+    void upload(const cv::Mat& mat, OpenCLQueue& q)
+    {
+        CV_Assert(mat.data);
+
+        create(mat.rows, mat.cols, mat.type());
+        int err = 0;
+        if (mat.isContinuous())
+            err = clEnqueueWriteBuffer(q.queue, mem, CL_FALSE, 0, step * rows, mat.data, 0, 0, 0);
+        else
+        {
+            size_t deviceOrigin[3] = { 0, 0, 0 };
+            size_t hostOrigin[3] = { 0, 0, 0 };
+            size_t region[3] = { step, rows, 1 };
+            err = clEnqueueWriteBufferRect(q.queue, mem, CL_FALSE, deviceOrigin, hostOrigin, region,
+                step, 1, mat.step, 1, mat.data, 0, 0, 0);
+        }
+        SAMPLE_CHECK_ERRORS(err);
+    }
+
+    void download(cv::Mat& mat, OpenCLQueue& q) const
+    {
+        CV_Assert(mem);
+
+        mat.create(rows, cols, type);
+        int err = 0;
+        if (mat.isContinuous())
+            err = clEnqueueReadBuffer(q.queue, mem, CL_FALSE, 0, step * rows, mat.data, 0, 0, 0);
+        else
+        {
+            size_t deviceOrigin[3] = { 0, 0, 0 };
+            size_t hostOrigin[3] = { 0, 0, 0 };
+            size_t region[3] = { step, rows, 1 };
+            err = clEnqueueReadBufferRect(q.queue, mem, CL_FALSE, deviceOrigin, hostOrigin, region,
+                step, 1, mat.step, 1, mat.data, 0, 0, 0);
+        }
+        SAMPLE_CHECK_ERRORS(err);
+    }
+
     cv::Size size() const
     {
         return cv::Size(cols, rows);
