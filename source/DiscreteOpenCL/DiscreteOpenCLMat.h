@@ -67,9 +67,6 @@ struct HostMem
         type = 0;
         data = 0;
 
-        //slocked.reset(new int);
-        //*slocked = 0;
-
         bufferFlag = -1;
         mapFlag = -1;
     }
@@ -138,40 +135,32 @@ struct HostMem
             bufferFlag == bufferFlag_ && mapFlag == mapFlag_)
             return;
 
+        clear();
         if (rows_ <= 0 || cols_ <= 0)
-        {
-            clear();
             return;
-        }
 
-        if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK) ||
-            bufferFlag != bufferFlag_ || mapFlag != mapFlag_)
-        {
-            mdata.reset();
-            smem.reset();
-            rows = rows_;
-            cols = cols_;
-            type = type_ & CV_MAT_TYPE_MASK;
-            CV_Assert(ocl && ocl->context);
-            ctx = ocl->context;
-            int channels = CV_MAT_CN(type);
-            int elemSize1 = 1 << (CV_MAT_DEPTH(type) / 2);
-            step = elemSize1 * channels * cols;
+        rows = rows_;
+        cols = cols_;
+        type = type_ & CV_MAT_TYPE_MASK;
+        CV_Assert(ocl && ocl->context);
+        ctx = ocl->context;
+        int channels = CV_MAT_CN(type);
+        int elemSize1 = 1 << (CV_MAT_DEPTH(type) / 2);
+        step = elemSize1 * channels * cols;
 
-            int err = 0;
+        int err = 0;
 
-            bufferFlag = bufferFlag_;
-            mem = clCreateBuffer(ctx, bufferFlag, rows * step, 0, &err);
-            if (err) clear();
-            SAMPLE_CHECK_ERRORS(err);
-            smem.reset(mem, clReleaseMemObject);
+        bufferFlag = bufferFlag_;
+        mem = clCreateBuffer(ctx, bufferFlag, rows * step, 0, &err);
+        if (err) clear();
+        SAMPLE_CHECK_ERRORS(err);
+        smem.reset(mem, clReleaseMemObject);
 
-            mapFlag = mapFlag_;
-            data = (unsigned char*)clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
-            if (err) clear();
-            SAMPLE_CHECK_ERRORS(err);
-            mdata.reset(new MappedData(data, mem));
-        }
+        mapFlag = mapFlag_;
+        data = (unsigned char*)clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
+        if (err) clear();
+        SAMPLE_CHECK_ERRORS(err);
+        mdata.reset(new MappedData(data, mem));
     }
 
     void create(const cv::Size& size_, int type_, int bufferFlag_, int mapFlag_)
@@ -392,30 +381,25 @@ struct GpuMat
         if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK))
             return;
 
+        clear();
         if (rows_ <= 0 || cols_ <= 0)
-        {
-            clear();
             return;
-        }
 
-        if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK))
-        {
-            smem.reset();
-            rows = rows_;
-            cols = cols_;
-            type = type_ & CV_MAT_TYPE_MASK;
-            CV_Assert(ocl && ocl->context);
-            ctx = ocl->context;
-            int channels = CV_MAT_CN(type);
-            int elemSize1 = 1 << (CV_MAT_DEPTH(type) / 2);
-            step = elemSize1 * channels * cols;
-            int err = 0;
-            mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, rows * step, 0, &err);
-            if (err) clear();
-            SAMPLE_CHECK_ERRORS(err);
-            data = mem;
-            smem.reset(mem, clReleaseMemObject);
-        }
+        smem.reset();
+        rows = rows_;
+        cols = cols_;
+        type = type_ & CV_MAT_TYPE_MASK;
+        CV_Assert(ocl && ocl->context);
+        ctx = ocl->context;
+        int channels = CV_MAT_CN(type);
+        int elemSize1 = 1 << (CV_MAT_DEPTH(type) / 2);
+        step = elemSize1 * channels * cols;
+        int err = 0;
+        mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE, rows * step, 0, &err);
+        if (err) clear();
+        SAMPLE_CHECK_ERRORS(err);
+        data = mem;
+        smem.reset(mem, clReleaseMemObject);
     }
 
     void create(int rows_, int cols_, int type_, cl_mem data_, int step_)
