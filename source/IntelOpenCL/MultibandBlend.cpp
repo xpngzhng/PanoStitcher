@@ -151,8 +151,6 @@ static void restoreImageFromLaplacePyramid(std::vector<IOclMat>& pyr,
     }
 }
 
-int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
-
 bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
     success = false;

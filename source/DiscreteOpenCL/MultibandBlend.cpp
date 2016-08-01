@@ -151,8 +151,6 @@ static void restoreImageFromLaplacePyramid(std::vector<docl::GpuMat>& pyr,
     }
 }
 
-int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
-
 bool DOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
     success = false;

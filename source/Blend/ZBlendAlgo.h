@@ -256,6 +256,11 @@ void getUniqueMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& uni
 // Second, unions of unqieMasks[i] equals unions of masks[i].
 void getNonIntersectingMasks(const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& nonIntersectingMasks);
 
+// According to image width and height, given maxLevels and minLength, 
+// determine how many levels (the lowest, original resolution level not included) can be 
+// for a image pyramid.
+int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
+
 // Blend two images using multiband blend.
 // image1 and image2 should be the same size, and type CV_8UC3.
 // alpha1 and alpha2 act as the alpha channels for image1 and image2, respectively.

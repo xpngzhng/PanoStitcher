@@ -13,8 +13,6 @@
 #include <iostream>
 #include <stdio.h>
 
-int getTrueNumLevels(int width, int height, int maxLevels, int minLength);
-
 static void inspect(const cv::cuda::GpuMat& image)
 {
     cv::Mat cpuImage;
