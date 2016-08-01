@@ -142,21 +142,21 @@ void reprojectWeightedAccumulateTo32F(const cv::Mat& src, cv::Mat& dst,
 void reprojectWeightedAccumulateParallelTo32F(const cv::Mat& src, cv::Mat& dst,
     const cv::Mat& dstSrcMap, const cv::Mat& weight);
 
-void cudaGenerateReprojectMap(const PhotoParam& param,
-    const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap);
-
-void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params,
-    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps);
-
-void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
-    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
-    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
-    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, const cv::cuda::GpuMat& weight,
-    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//void cudaGenerateReprojectMap(const PhotoParam& param,
+//    const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap);
+//
+//void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params,
+//    const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps);
+//
+//void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+//    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+//    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
+//    const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, const cv::cuda::GpuMat& weight,
+//    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 
 
 // right left top bottom front back

@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\Blend\CudaArithm.h" />
-    <ClInclude Include="..\..\source\Blend\CudaPyramid.h" />
-    <ClInclude Include="..\..\source\Blend\CudaUtil.cuh" />
     <ClInclude Include="..\..\source\Blend\gcgraph.hpp" />
     <ClInclude Include="..\..\source\Blend\Pyramid.h" />
     <ClInclude Include="..\..\source\Blend\SeamVisualizer.h" />
@@ -32,11 +29,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\source\Blend\Compensate.cpp" />
     <ClCompile Include="..\..\source\Blend\Copy.cpp" />
-    <ClCompile Include="..\..\source\Blend\CudaFeatherBlend.cpp" />
-    <ClCompile Include="..\..\source\Blend\CudaLinearBlend.cpp" />
-    <ClCompile Include="..\..\source\Blend\CudaMultibandBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\ExposureColorCorrect.cpp" />
-    <ClCompile Include="..\..\source\Blend\ExposureCorrection.cpp" />
     <ClCompile Include="..\..\source\Blend\FeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\GainAdjust.cpp" />
     <ClCompile Include="..\..\source\Blend\Histogram.cpp" />
@@ -49,13 +42,6 @@
     <ClCompile Include="..\..\source\Blend\Seam.cpp" />
     <ClCompile Include="..\..\source\Blend\TintAdjust.cpp" />
     <ClCompile Include="..\..\source\Blend\ZBlend.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="..\..\source\Blend\CudaArithm.cu" />
-    <CudaCompile Include="..\..\source\Blend\CudaFeatherBlend.cu" />
-    <CudaCompile Include="..\..\source\Blend\CudaPyramid2.cu" />
-    <CudaCompile Include="..\..\source\Blend\CudaGainAdjust.cu" />
-    <CudaCompile Include="..\..\source\Blend\CudaPyramid6.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{59B9EFB5-3165-416D-8F9F-CEA106DB6633}</ProjectGuid>

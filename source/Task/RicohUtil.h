@@ -2,6 +2,7 @@
 
 #include "ZBlend.h"
 #include "ZReproject.h"
+#include "CudaInterface.h"
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
 #include "CustomMask.h"

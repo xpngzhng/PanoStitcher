@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioVideoProcessor.h"
+#include "CudaInterface.h"
 #include "opencv2/core/cuda.hpp"
 #include <mutex>
 
@@ -28,21 +29,21 @@ struct CudaLogoFilter
     bool initSuccess;
 };
 
-void alphaBlend8UC4(cv::cuda::GpuMat& target, const cv::cuda::GpuMat& blender);
-
-void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& u, cv::cuda::GpuMat& v,
-    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& uv,
-    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, const cv::cuda::GpuMat& v, cv::cuda::GpuMat& bgr32,
-    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32,
-    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
-
-void resize8UC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize);
+//void alphaBlend8UC4(cv::cuda::GpuMat& target, const cv::cuda::GpuMat& blender);
+//
+//void cvtBGR32ToYUV420P(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& u, cv::cuda::GpuMat& v,
+//    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void cvtBGR32ToNV12(const cv::cuda::GpuMat& bgr32, cv::cuda::GpuMat& y, cv::cuda::GpuMat& uv,
+//    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void cvtYUV420PToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& u, const cv::cuda::GpuMat& v, cv::cuda::GpuMat& bgr32,
+//    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void cvtNV12ToBGR32(const cv::cuda::GpuMat& y, const cv::cuda::GpuMat& uv, cv::cuda::GpuMat& bgr32,
+//    cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+//
+//void resize8UC4(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::Size dstSize);
 
 struct CudaMixedAudioVideoFrame
 {

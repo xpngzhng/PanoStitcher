@@ -46,9 +46,6 @@
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
     <ClCompile Include="..\..\source\Task\Text.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="..\..\source\Task\CudaPanoramaTaskUtil.cu" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FAA3C71C-BC5C-4619-8DF1-65F318A2D598}</ProjectGuid>
     <RootNamespace>PanoVideoEngine</RootNamespace>
@@ -128,7 +125,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\CudaAccel;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -175,7 +172,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source\Blend;..\..\source\Warp;..\..\source\CudaAccel;..\..\source\IntelOpenCL;..\..\source\DiscreteOpenCL;..\TiCPP\src;E:\Projects\ffmpeg windows\ffmpeg\source;D:\OpenCV3.0.0\build\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
-        task.reset(new DOclPanoramaLocalDiskTask);
+        task.reset(new CudaPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
 

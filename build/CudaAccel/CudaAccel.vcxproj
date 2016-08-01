@@ -19,28 +19,29 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\source\Warp\AdjustPose.h" />
-    <ClInclude Include="..\..\source\Warp\ConvertCoordinate.h" />
-    <ClInclude Include="..\..\source\Warp\MathConstant.h" />
-    <ClInclude Include="..\..\source\Warp\Mtx33.h" />
-    <ClInclude Include="..\..\source\Warp\RotateImage.h" />
-    <ClInclude Include="..\..\source\Warp\Rotation.h" />
-    <ClInclude Include="..\..\source\Warp\Stabilize.h" />
-    <ClInclude Include="..\..\source\Warp\Timer.h" />
-    <ClInclude Include="..\..\source\Warp\ZReproject.h" />
+    <ClInclude Include="..\..\source\CudaAccel\CudaArithm.h" />
+    <ClInclude Include="..\..\source\CudaAccel\CudaInterface.h" />
+    <ClInclude Include="..\..\source\CudaAccel\CudaPyramid.h" />
+    <ClInclude Include="..\..\source\CudaAccel\CudaUtil.cuh" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\Warp\AdjustPose.cpp" />
-    <ClCompile Include="..\..\source\Warp\ConvertEquirectToCube.cpp" />
-    <ClCompile Include="..\..\source\Warp\PhotoParam.cpp" />
-    <ClCompile Include="..\..\source\Warp\Remap.cpp" />
-    <ClCompile Include="..\..\source\Warp\RotateImage.cpp" />
-    <ClCompile Include="..\..\source\Warp\Stabilize.cpp" />
-    <ClCompile Include="..\..\source\Warp\ZReproject.cpp" />
+    <ClCompile Include="..\..\source\CudaAccel\CudaFeatherBlend.cpp" />
+    <ClCompile Include="..\..\source\CudaAccel\CudaLinearBlend.cpp" />
+    <ClCompile Include="..\..\source\CudaAccel\CudaMultibandBlend.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="..\..\source\CudaAccel\CudaArithm.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaFeatherBlend.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaGainAdjust.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaGenerateMap.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\ImageProc.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaPyramid2.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaPyramid6.cu" />
+    <CudaCompile Include="..\..\source\CudaAccel\CudaReproject.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{2082B669-CFE3-4FA6-9385-38BE77B69516}</ProjectGuid>
-    <RootNamespace>Warp</RootNamespace>
+    <ProjectGuid>{8B2823BA-20FF-4268-B602-148E4D0615EE}</ProjectGuid>
+    <RootNamespace>CudaAccel</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -117,25 +118,20 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\TiCPP\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_PATH)\include;..\..\source\Blend;..\..\source\Warp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>TiCPP-Debug.lib;opencv_core300d.lib;opencv_imgproc300d.lib;opencv_highgui300d.lib;opencv_imgcodecs300d.lib;opencv_cudaarithm300d.lib;cudart.lib;nppc.lib;nppi.lib;npps.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;comctl32.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\OpenCV3.0.0\build\x64\vc12\lib;..\TiCPP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
-copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
-copy "$(SolutionDir)..\source\Warp\AdjustPose.h" ..\include
-copy "$(SolutionDir)..\source\Warp\RotateImage.h" ..\include
-copy "$(SolutionDir)..\source\Warp\ZReproject.h" ..\include</Command>
+copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib</Command>
     </PostBuildEvent>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50;%(CodeGeneration)</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -165,27 +161,22 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\TiCPP\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_PATH)\include;..\..\source\Blend;..\..\source\Warp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>TiCPP-Release.lib;opencv_core300.lib;opencv_imgproc300.lib;opencv_highgui300.lib;opencv_imgcodecs300.lib;opencv_cudaarithm300.lib;cudart.lib;nppc.lib;nppi.lib;npps.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;comctl32.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\OpenCV3.0.0\build\x64\vc12\lib;..\TiCPP\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>cudart.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
-copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib
-copy "$(SolutionDir)..\source\Warp\AdjustPose.h" ..\include
-copy "$(SolutionDir)..\source\Warp\RotateImage.h" ..\include
-copy "$(SolutionDir)..\source\Warp\ZReproject.h" ..\include</Command>
+copy "$(OutDir)$(ProjectName)-$(Configuration).lib" ..\lib</Command>
     </PostBuildEvent>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_50,sm_50;%(CodeGeneration)</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
