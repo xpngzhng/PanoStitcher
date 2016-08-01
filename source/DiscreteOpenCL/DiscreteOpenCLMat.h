@@ -105,25 +105,12 @@ struct HostMem
         type = 0;
         data = 0;
 
-        //slocked.reset(new int);
-        //*slocked = 0;
-
         bufferFlag = -1;
         mapFlag = -1;
     }
 
     void clear()
     {
-        //CV_Assert(!slocked || (slocked && *slocked == 0));
-        //if (!(!slocked || (slocked && *slocked == 0)))
-        //{
-        //    if (slocked) printf("*slocked = %d data = %p\n", *slocked, data);
-        //    else printf("slocked null\n");
-        //    CV_Assert(!slocked || (slocked && *slocked == 0));
-        //}
-
-        //slocked.reset();
-
         data = 0;
         mdata.reset();
 
@@ -157,7 +144,6 @@ struct HostMem
             return;
         }
 
-        //CV_Assert(slocked && *slocked == 0);
         if (rows != rows_ || cols != cols_ || type != (type_& CV_MAT_TYPE_MASK) ||
             bufferFlag != bufferFlag_ || mapFlag != mapFlag_)
         {
@@ -185,9 +171,6 @@ struct HostMem
             if (err) clear();
             SAMPLE_CHECK_ERRORS(err);
             mdata.reset(new MappedData(data, mem));
-
-            //slocked.reset(new int);
-            //*slocked = 0;
         }
     }
 
@@ -215,14 +198,11 @@ struct HostMem
     {
         if (data)
         {
-            //printf("%s %p\n", __FUNCTION__, data);
-            //CV_Assert(slocked && *slocked == 0);
             int err = 0;
             err = clEnqueueUnmapMemObject(ocl->queue, mem, data, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
             err = clFinish(ocl->queue);
             SAMPLE_CHECK_ERRORS(err);
-            //*slocked = 1;
         }
     }
 
@@ -230,13 +210,10 @@ struct HostMem
     {
         if (data)
         {
-            //printf("%s %p\n", __FUNCTION__, data);
-            //CV_Assert(slocked && *slocked == 1);
             int err;
             void * ret = clEnqueueMapBuffer(ocl->queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
-            //*slocked = 0;
         }
     }
 
@@ -244,12 +221,9 @@ struct HostMem
     {
         if (data)
         {
-            //printf("%s %p q\n", __FUNCTION__, data);
-            //CV_Assert(slocked && *slocked == 0);
             int err = 0;
             err = clEnqueueUnmapMemObject(q.queue, mem, data, 0, 0, 0);
             SAMPLE_CHECK_ERRORS(err);
-            //*slocked = 1;
         }
     }
 
@@ -257,13 +231,10 @@ struct HostMem
     {
         if (data)
         {
-            //printf("%s %p q\n", __FUNCTION__, data);
-            //CV_Assert(slocked && *slocked == 1);
             int err;
             void * ret = clEnqueueMapBuffer(q.queue, mem, CL_TRUE, mapFlag, 0, step * rows, 0, 0, 0, &err);
             SAMPLE_CHECK_ERRORS(err);
             CV_Assert(ret == data);
-           // *slocked = 0;
         }
     }
 
@@ -293,8 +264,6 @@ struct HostMem
             return 0;
         return CV_MAT_CN(type);
     }
-
-    //mutable std::shared_ptr<int> slocked;
 
     unsigned char* data;
     struct MappedData

@@ -38,9 +38,7 @@ static void cancelTask(PanoramaLocalDiskTask* task)
 int main(int argc, char* argv[])
 {
     const char* keys =
-        "{camera_param_file      |             | camera param file path}"
-        "{video_path_offset_file |             | video path and offset file path}"
-        "{num_frames_skip        | 100         | number of frames to skip}"
+        "{project_file           |             | project file path}"
         "{pano_width             | 2048        | pano picture width}"
         "{pano_height            | 1024        | pano picture height}"
         "{pano_video_name        | panogpu.mp4 | xml param file path}"
@@ -59,44 +57,19 @@ int main(int argc, char* argv[])
     cv::Size srcSize, dstSize;
     std::vector<std::string> srcVideoNames;
     std::vector<int> offset;
-    int numSkip = 1500;
-    std::string cameraParamFile, videoPathAndOffsetFile;
     std::string panoVideoName;
-
-    cameraParamFile = "F:\\panovideo\\test\\test6\\changtai.xml"/*parser.get<std::string>("camera_param_file")*/;
-    if (cameraParamFile.empty())
-    {
-        printf("Could not find camera_param_file\n");
-        return 0;
-    }
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
     //dstSize = cv::Size(4096, 2048);
 
-    videoPathAndOffsetFile = "F:\\panovideo\\test\\test6\\synchro_param_copy.txt"/*parser.get<std::string>("video_path_offset_file")*/;
-    if (videoPathAndOffsetFile.empty())
-    {
-        printf("Could not find video_path_offset_file\n");
-        return 0;
-    }
-    parseVideoPathsAndOffsets(videoPathAndOffsetFile, srcVideoNames, offset);
-    if (srcVideoNames.empty() || offset.empty())
-    {
-        printf("Could not parse video path and offset\n");
-        return 0;
-    }
-
-    numSkip = parser.get<int>("num_frames_skip");
-    if (numSkip < 0)
-        numSkip = 0;
-    for (int i = 0; i < offset.size(); i++)
-        offset[i] += numSkip;
-
     panoVideoName = parser.get<std::string>("pano_video_name");
 
-    std::string projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
-    //std::string projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+    std::string projFileName;
+    projFileName = parser.get<std::string>("project_file");
+    projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    //projFileName = "F:\\panovideo\\test\\outdoor\\outdoor.pvs";
+    //projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
@@ -110,8 +83,8 @@ int main(int argc, char* argv[])
     panoVideoName = "libx264.mp4";
     std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*//*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
-    bool ok = task->init(srcVideoNames, offset, 5, projFileName, projFileName, logoFileName, fov, 1, 
-        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+    bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, logoFileName, fov, 1, 
+        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 60 * 48);
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");
