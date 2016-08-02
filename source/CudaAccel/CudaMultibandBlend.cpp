@@ -392,17 +392,6 @@ static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int col
         sizes[i] = cv::Size((sizes[i - 1].width + 1) / 2, (sizes[i - 1].height + 1) / 2);
 }
 
-static void getStepsOfImage32SPyr(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
-{
-    int numLevels = sizes.size() - 1;
-    steps.resize(numLevels + 1);
-    for (int i = 0; i <= numLevels; i++)
-    {
-        cv::cuda::GpuMat tmp(2, sizes[i].width, CV_32SC4);
-        steps[i] = tmp.step;
-    }
-}
-
 static void getStepsOfImageUpPyr(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
 {
     int numLevels = sizes.size() - 1;
@@ -425,38 +414,30 @@ static void getStepsOfResultUpPyr(const std::vector<cv::Size>& sizes, std::vecto
     }
 }
 
-static void allocMemoryForImage32SPyrAndImageUpPyr(const std::vector<cv::Size>& sizes, 
-    const std::vector<int>& stepsImage32SPyr, const std::vector<int>& stepsImageUpPyr,
-    std::vector<cv::cuda::GpuMat>& image32SPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr)
+static void allocMemoryForUpPyrs(const std::vector<cv::Size>& sizes, 
+    const std::vector<int>& stepsImageUpPyr, const std::vector<int>& stepsResultUpPyr, 
+    std::vector<cv::cuda::GpuMat>& imageUpPyr, std::vector<cv::cuda::GpuMat>& resultUpPyr)
 {
     int numLevels = sizes.size() - 1;
-    cv::cuda::GpuMat mem(sizes[0], CV_16SC4);
+    cv::cuda::GpuMat mem(sizes[0], CV_32SC4);
 
     imageUpPyr.resize(numLevels + 1);
     imageUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
         imageUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
-    image32SPyr.resize(numLevels + 1);
-    for (int i = 1; i <= numLevels; i++)
-        image32SPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32SC4, mem.data, stepsImage32SPyr[i]);
-}
-
-static void allocMemoryForResultPyrAndResultUpPyr(const std::vector<cv::Size>& sizes,
-    const std::vector<int>& stepsResultUpPyr, std::vector<cv::cuda::GpuMat>& resultPyr,
-    std::vector<cv::cuda::GpuMat>& resultUpPyr)
-{
-    int numLevels = sizes.size() - 1;
-
-    resultPyr.resize(numLevels + 1);
-    for (int i = 0; i <= numLevels; i++)
-        resultPyr[i].create(sizes[i], CV_32SC4);
-
-    cv::cuda::GpuMat mem(sizes[0], CV_32SC4);
     resultUpPyr.resize(numLevels + 1);
     resultUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
         resultUpPyr[i] = cv::cuda::GpuMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
+}
+
+static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vector<cv::cuda::GpuMat>& resultPyr)
+{
+    int numLevels = sizes.size() - 1;
+    resultPyr.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].create(sizes[i], CV_32SC4);
 }
 
 static void accumulateWeight(const std::vector<cv::cuda::GpuMat>& src, std::vector<cv::cuda::GpuMat>& dst)
@@ -525,34 +506,15 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
         }
     }
 
-    // IMPORTANT NOTE!!!!
-    // The following lines of code is not necessary but can help reduce memory consumption.
-    // image32SPyr and imageUpPyr are temporary image pyramids for building the final imagePyrs, 
-    // and the use of image32SPyr[j] is independent of the use of image32SPyr[k], 
-    // which means that for a certain image, the processing of different levels of 32SPyr do not interfere each other,
-    // they can actually SHARE THE SAME MEMORY.
-    // The SAME HAPPENS to imageUpPyrs.
-    // Moreover, the use of image32SPyr and imageUpPyr happens in different stage of the whole process,
-    // which means that the two pyramids can also SHARE THE SAME MEMORY.
-    // If we build a (numLevels + 1) levels pyramid, with each level indexed by 0, 1, 2, ..., numLevels,
-    // image32SPyr only use the levels indexed by 1, 2, 3, ..., numLevels,
-    // and imageUpPyr only use the levels indexed by 0, 1, 2, ..., numLevels - 1.
-    // By some computation we can determine that the largest amount of memory lies in imageUpPyr[0], 
-    // so we just allocate the amount of memory for that level,
-    // and imageUpPyr[i], i = 1, 2, ..., numLevels - 1 and image32SPyr[i], i = 1, 2, 3, ..., numLevels - 1
-    // can reused that alloced piece of memory.
     std::vector<cv::Size> sizes;
     getPyramidLevelSizes(sizes, rows, cols, numLevels);
 
-    std::vector<int> stepsImage32SPyr, stepsImageUpPyr;
-    getStepsOfImage32SPyr(sizes, stepsImage32SPyr);
+    std::vector<int> stepsImageUpPyr, stepsResultUpPyr;
     getStepsOfImageUpPyr(sizes, stepsImageUpPyr);
-    allocMemoryForImage32SPyrAndImageUpPyr(sizes, stepsImage32SPyr, stepsImageUpPyr, image32SPyr, imageUpPyr);
-
-    // The above-mentioned fact also applies to resultUpPyr.
-    std::vector<int> stepsResultUpPyr;
     getStepsOfResultUpPyr(sizes, stepsResultUpPyr);
-    allocMemoryForResultPyrAndResultUpPyr(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
+    allocMemoryForUpPyrs(sizes, stepsImageUpPyr, stepsResultUpPyr, imageUpPyr, resultUpPyr);
+
+    allocMemoryForResultPyr(sizes, resultPyr);
 
     cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
     for (int i = 0; i < numImages; i++)
@@ -592,7 +554,6 @@ void CudaTilingMultibandBlendFast::blend(const std::vector<cv::cuda::GpuMat>& im
         resultPyr[i].setTo(0);
 
     imagePyr.resize(numLevels + 1);
-    image32SPyr.resize(numLevels + 1);
     imageUpPyr.resize(numLevels + 1);
     for (int i = 0; i < numImages; i++)
     {
@@ -951,115 +912,4 @@ void CudaTilingMultibandBlendFast32F::blend(const std::vector<cv::cuda::GpuMat>&
     resultPyr[0].convertTo(blendImage, CV_8U);
     if (!fullMask)
         blendImage.setTo(0, maskNot);
-}
-
-static void calcAlphasAndWeights(const std::vector<cv::cuda::GpuMat>& masks, const std::vector<cv::cuda::GpuMat>& uniqueMasks, int numLevels,
-    std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs)
-{
-    int numImages = masks.size();
-    int rows = masks[0].rows, cols = masks[0].cols;
-
-    cv::cuda::GpuMat aux16S(rows, cols, CV_16SC1);
-
-    std::vector<cv::cuda::GpuMat> tempAlphaPyr(numLevels + 1);
-    alphaPyrs.resize(numImages);
-    weightPyrs.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        alphaPyrs[i].resize(numLevels + 1);
-        weightPyrs[i].resize(numLevels + 1);
-        aux16S.setTo(0);
-        aux16S.setTo(256, masks[i]);
-        tempAlphaPyr[0] = aux16S.clone();
-        aux16S.setTo(0);
-        aux16S.setTo(256, uniqueMasks[i]);
-        weightPyrs[i][0] = aux16S.clone();
-        for (int j = 0; j < numLevels; j++)
-        {
-            pyramidDown16SC1To32SC1(tempAlphaPyr[j], alphaPyrs[i][j + 1], cv::Size(), true);
-            tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_16SC1);
-            scaledSet16SC1Mask32SC1(tempAlphaPyr[j + 1], 256, alphaPyrs[i][j + 1]);
-            pyramidDown16SC1To16SC1(weightPyrs[i][j], weightPyrs[i][j + 1], cv::Size(), true);
-        }
-    }
-}
-
-void prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength,
-    std::vector<std::vector<cv::cuda::GpuMat> >& alphaPyrs, std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs,
-    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<std::vector<cv::cuda::GpuMat> >& image32SPyrs,
-    std::vector<std::vector<cv::cuda::GpuMat> >& imageUpPyrs, std::vector<cv::cuda::GpuMat>& resultUpPyr)
-{
-    int numImages = masks.size();
-    int rows = masks[0].rows, cols = masks[0].cols;
-    std::vector<cv::Mat> uniqueMasks;
-    getNonIntersectingMasks(masks, uniqueMasks);
-    std::vector<cv::cuda::GpuMat> masksGpu(numImages), uniqueMasksGpu(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        masksGpu[i].upload(masks[i]);
-        uniqueMasksGpu[i].upload(uniqueMasks[i]);
-    }
-    uniqueMasks.clear();
-
-    int numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
-
-    calcAlphasAndWeights(masksGpu, uniqueMasksGpu, numLevels, alphaPyrs, weightPyrs);
-
-    std::vector<cv::Size> sizes;
-    getPyramidLevelSizes(sizes, rows, cols, numLevels);
-
-    std::vector<int> stepsImage32SPyr, stepsImageUpPyr;
-    getStepsOfImage32SPyr(sizes, stepsImage32SPyr);
-    getStepsOfImageUpPyr(sizes, stepsImageUpPyr);
-
-    image32SPyrs.resize(numImages);
-    imageUpPyrs.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-        allocMemoryForImage32SPyrAndImageUpPyr(sizes, stepsImage32SPyr, stepsImageUpPyr, image32SPyrs[i], imageUpPyrs[i]);
-
-    std::vector<int> stepsResultUpPyr;
-    getStepsOfResultUpPyr(sizes, stepsResultUpPyr);
-    allocMemoryForResultPyrAndResultUpPyr(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
-}
-
-void calcImagePyramid(const cv::cuda::GpuMat& image, const std::vector<cv::cuda::GpuMat>& alphaPyr,
-    std::vector<cv::cuda::GpuMat>& imagePyr, cv::cuda::Stream& stream,
-    std::vector<cv::cuda::GpuMat>& image32SPyr, std::vector<cv::cuda::GpuMat>& imageUpPyr)
-{
-    CV_Assert(image.type() == CV_16SC4 || image.type() == CV_8UC4);
-    int numLevels = alphaPyr.size() - 1;
-    imagePyr.resize(numLevels + 1);
-    image32SPyr.resize(numLevels + 1);
-    imageUpPyr.resize(numLevels + 1);
-    if (image.type() == CV_8UC4)
-        image.convertTo(imagePyr[0], CV_16S, stream);
-    else
-        image.copyTo(imagePyr[0]);
-    for (int j = 0; j < numLevels; j++)
-    {
-        pyramidDown16SC4To32SC4(imagePyr[j], image32SPyr[j + 1], cv::Size(), true, stream);
-        divide32SC4To16SC4(image32SPyr[j + 1], alphaPyr[j + 1], imagePyr[j + 1], stream);
-    }
-    for (int j = 0; j < numLevels; j++)
-    {
-        pyramidUp16SC4To16SC4(imagePyr[j + 1], imageUpPyr[j], imagePyr[j].size(), true, stream);
-        subtract16SC4(imagePyr[j], imageUpPyr[j], imagePyr[j], stream);
-    }
-}
-
-void calcResult(const std::vector<std::vector<cv::cuda::GpuMat> >& imagePyrs, 
-    const std::vector<std::vector<cv::cuda::GpuMat> >& weightPyrs, cv::cuda::GpuMat& result,
-    std::vector<cv::cuda::GpuMat>& resultPyr, std::vector<cv::cuda::GpuMat>& resultUpPyr)
-{
-    int size = resultPyr.size();
-    for (int i = 0; i < size; i++)
-        resultPyr[i].setTo(0);
-
-    int numImages = imagePyrs.size();
-    for (int i = 0; i < numImages; i++)
-        accumulate(imagePyrs[i], weightPyrs[i], resultPyr);
-
-    normalize(resultPyr);
-    restoreImageFromLaplacePyramid(resultPyr, true, resultUpPyr);
-    resultPyr[0].convertTo(result, CV_8U);
 }

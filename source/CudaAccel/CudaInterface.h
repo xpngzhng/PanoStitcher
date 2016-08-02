@@ -40,7 +40,7 @@ public:
 private:
     std::vector<cv::cuda::GpuMat> uniqueMasks;
     std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
-    std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr, imageUpPyr;
+    std::vector<cv::cuda::GpuMat> imagePyr, imageUpPyr;
     std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;
     cv::cuda::GpuMat maskNot;
     int numImages;
