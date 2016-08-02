@@ -32,7 +32,7 @@ public:
 private:
     std::vector<IOclMat> uniqueMasks;
     std::vector<IOclMat> resultPyr, resultUpPyr, resultWeightPyr;
-    std::vector<IOclMat> imagePyr, image32SPyr, imageUpPyr;
+    std::vector<IOclMat> imagePyr, imageUpPyr;
     std::vector<std::vector<IOclMat> > alphaPyrs, weightPyrs;
     IOclMat maskNot;
     int numImages;
