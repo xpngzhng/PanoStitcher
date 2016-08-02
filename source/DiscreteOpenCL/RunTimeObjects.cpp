@@ -54,10 +54,41 @@ bool init()
     if (hasInit)
         return true;
 
+    int found = 1;
+    printf("First try to find NVIDIA GPU\n");
     try
     {
         ocl = new OpenCLBasic("NVIDIA", "GPU");
+    }
+    catch (std::exception& e)
+    {
+        printf("Error, exception caught, %s\n", e.what());
+        found = 0;
+    }
 
+    if (!found)
+    {
+        found = 1;
+        printf("Then try to find AMD GPU\n");
+        try
+        {
+            ocl = new OpenCLBasic("AMD", "GPU");
+        }
+        catch (std::exception& e)
+        {
+            printf("Error, exception caught, %s\n", e.what());
+            found = 0;
+        }
+    }
+
+    if (!found)
+    {
+        printf("Error, could not find discrete GPU from NVIDIA and AMD\n");
+        return false;
+    }
+
+    try
+    {
         convert32SC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "convert32SC4To8UC4");
         convert32FC4To8UC4 = new OpenCLProgramOneKernel(*ocl, L"MatOp.txt", "", "convert32FC4To8UC4");
 

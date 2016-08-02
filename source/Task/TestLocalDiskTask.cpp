@@ -67,14 +67,14 @@ int main(int argc, char* argv[])
 
     std::string projFileName;
     projFileName = parser.get<std::string>("project_file");
-    projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    //projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
     //projFileName = "F:\\panovideo\\test\\outdoor\\outdoor.pvs";
     //projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
     loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
-        task.reset(new CudaPanoramaLocalDiskTask);
+        task.reset(new DOclPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
 
