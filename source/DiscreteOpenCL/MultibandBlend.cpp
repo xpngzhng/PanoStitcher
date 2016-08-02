@@ -38,18 +38,6 @@ static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int col
         sizes[i] = cv::Size((sizes[i - 1].width + 1) / 2, (sizes[i - 1].height + 1) / 2);
 }
 
-static void getStepsOfImage32SPyr(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
-{
-    int numLevels = sizes.size() - 1;
-    steps.resize(numLevels + 1);
-    for (int i = 0; i <= numLevels; i++)
-    {
-        docl::GpuMat tmp(2, sizes[i].width, CV_32SC4);
-        steps[i] = tmp.step;
-
-    }
-}
-
 static void getStepsOfImageUpPyr(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
 {
     int numLevels = sizes.size() - 1;
@@ -72,38 +60,30 @@ static void getStepsOfResultUpPyr(const std::vector<cv::Size>& sizes, std::vecto
     }
 }
 
-static void allocMemoryForImage32SPyrAndImageUpPyr(const std::vector<cv::Size>& sizes,
-    const std::vector<int>& stepsImage32SPyr, const std::vector<int>& stepsImageUpPyr,
-    std::vector<docl::GpuMat>& image32SPyr, std::vector<docl::GpuMat>& imageUpPyr)
+static void allocMemoryForUpPyrs(const std::vector<cv::Size>& sizes,
+    const std::vector<int>& stepsImageUpPyr, const std::vector<int>& stepsResultUpPyr,
+    std::vector<docl::GpuMat>& imageUpPyr, std::vector<docl::GpuMat>& resultUpPyr)
 {
     int numLevels = sizes.size() - 1;
-    docl::GpuMat mem(sizes[0], CV_16SC4);
+    docl::GpuMat mem(sizes[0], CV_32SC4);
 
     imageUpPyr.resize(numLevels + 1);
     imageUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
         imageUpPyr[i] = docl::GpuMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
-    image32SPyr.resize(numLevels + 1);
-    for (int i = 1; i <= numLevels; i++)
-        image32SPyr[i] = docl::GpuMat(sizes[i], CV_32SC4, mem.data, stepsImage32SPyr[i]);
-}
-
-static void allocMemoryForResultPyrAndResultUpPyr(const std::vector<cv::Size>& sizes,
-    const std::vector<int>& stepsResultUpPyr, std::vector<docl::GpuMat>& resultPyr,
-    std::vector<docl::GpuMat>& resultUpPyr)
-{
-    int numLevels = sizes.size() - 1;
-
-    resultPyr.resize(numLevels + 1);
-    for (int i = 0; i <= numLevels; i++)
-        resultPyr[i].create(sizes[i], CV_32SC4);
-
-    docl::GpuMat mem(sizes[0], CV_32SC4);
     resultUpPyr.resize(numLevels + 1);
     resultUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
         resultUpPyr[i] = docl::GpuMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
+}
+
+static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vector<docl::GpuMat>& resultPyr)
+{
+    int numLevels = sizes.size() - 1;
+    resultPyr.resize(numLevels + 1);
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].create(sizes[i], CV_32SC4);
 }
 
 static void accumulateWeight(const std::vector<docl::GpuMat>& src, std::vector<docl::GpuMat>& dst)
@@ -212,15 +192,12 @@ bool DOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     std::vector<cv::Size> sizes;
     getPyramidLevelSizes(sizes, rows, cols, numLevels);
 
-    std::vector<int> stepsImage32SPyr, stepsImageUpPyr;
-    getStepsOfImage32SPyr(sizes, stepsImage32SPyr);
+    std::vector<int> stepsImageUpPyr, stepsResultUpPyr;
     getStepsOfImageUpPyr(sizes, stepsImageUpPyr);
-    allocMemoryForImage32SPyrAndImageUpPyr(sizes, stepsImage32SPyr, stepsImageUpPyr, image32SPyr, imageUpPyr);
-
-    // The above-mentioned fact also applies to resultUpPyr.
-    std::vector<int> stepsResultUpPyr;
     getStepsOfResultUpPyr(sizes, stepsResultUpPyr);
-    allocMemoryForResultPyrAndResultUpPyr(sizes, stepsResultUpPyr, resultPyr, resultUpPyr);
+    allocMemoryForUpPyrs(sizes, stepsImageUpPyr, stepsResultUpPyr, imageUpPyr, resultUpPyr);
+
+    allocMemoryForResultPyr(sizes, resultPyr);
 
     cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
     for (int i = 0; i < numImages; i++)
@@ -260,7 +237,6 @@ void DOclTilingMultibandBlendFast::blend(const std::vector<docl::GpuMat>& images
         setZero(resultPyr[i]);
 
     imagePyr.resize(numLevels + 1);
-    image32SPyr.resize(numLevels + 1);
     imageUpPyr.resize(numLevels + 1);
     for (int i = 0; i < numImages; i++)
     {

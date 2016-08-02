@@ -37,7 +37,7 @@ public:
 private:
     std::vector<docl::GpuMat> uniqueMasks;
     std::vector<docl::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
-    std::vector<docl::GpuMat> imagePyr, image32SPyr, imageUpPyr;
+    std::vector<docl::GpuMat> imagePyr, imageUpPyr;
     std::vector<std::vector<docl::GpuMat> > alphaPyrs, weightPyrs;
     docl::GpuMat maskNot;
     int numImages;
