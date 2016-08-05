@@ -67,23 +67,29 @@ int main(int argc, char* argv[])
 
     std::string projFileName;
     projFileName = parser.get<std::string>("project_file");
-    projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+    //projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
     //projFileName = "F:\\panovideo\\test\\outdoor\\outdoor.pvs";
     //projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
-    loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+    //loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+
+    projFileName = "F:\\panovideo\\ricoh\\paramricoh.xml";
+    srcVideoNames.clear();
+    srcVideoNames.push_back("F:\\panovideo\\ricoh\\R0010113.MP4");
+    offset.clear();
+    offset.push_back(0);
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
-        task.reset(new DOclPanoramaLocalDiskTask);
+        task.reset(new CudaPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
 
     avp::setDumpInput(false);
     
-    panoVideoName = "libx264.mp4";
-    std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*//*"F:\\image\\Earth_global.png"*/;
+    panoVideoName = "libx264_gpu_lin.mp4";
+    std::string logoFileName = /*""*/"F:\\image\\Earth_global.png";
     int fov = 45;
-    bool ok = task->init(srcVideoNames, offset, 0, projFileName, projFileName, logoFileName, fov, 1, 
+    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, logoFileName, fov, 0, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
     if (!ok)
     {

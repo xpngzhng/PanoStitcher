@@ -1271,6 +1271,50 @@ int CudaPanoramaRender2::getNumImages() const
     return success ? numImages : 0;
 }
 
+bool CudaRicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    bool ok = CudaPanoramaRender2::prepare(path, highQualityBlend, srcSize, dstSize);
+    if (!ok)
+        return false;
+    if (numImages != 2)
+    {
+        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        CudaPanoramaRender2::clear();
+        return false;
+    }
+    return true;
+}
+
+bool CudaRicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
+    const std::vector<std::vector<unsigned char> >& luts)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (src.size() != 1)
+    {
+        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
+        return false;
+    }
+
+    std::vector<cv::Mat> newSrc(2);
+    newSrc[0] = newSrc[1] = src[0];
+    return CudaPanoramaRender2::render(newSrc, dst, luts);
+}
+
+void CudaRicohPanoramaRender::clear()
+{
+    CudaPanoramaRender2::clear();
+}
+
+int CudaRicohPanoramaRender::getNumImages() const
+{
+    return success ? 1 : 0;
+}
+
 static int cpuMultibandBlendMT = 0;
 
 void setCPUMultibandBlendMultiThread(bool multiThread)
@@ -1410,6 +1454,49 @@ void CPUPanoramaRender::clear()
 int CPUPanoramaRender::getNumImages() const
 {
     return success ? numImages : 0;
+}
+
+bool CPURicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    bool ok = CPUPanoramaRender::prepare(path, highQualityBlend, srcSize, dstSize);
+    if (!ok)
+        return false;
+    if (numImages != 2)
+    {
+        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        CPUPanoramaRender::clear();
+        return false;
+    }
+    return true;
+}
+
+bool CPURicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (src.size() != 1)
+    {
+        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
+        return false;
+    }
+
+    std::vector<cv::Mat> newSrc(2);
+    newSrc[0] = newSrc[1] = src[0];
+    return CPUPanoramaRender::render(newSrc, dst);
+}
+
+void CPURicohPanoramaRender::clear()
+{
+    CPUPanoramaRender::clear();
+}
+
+int CPURicohPanoramaRender::getNumImages() const
+{
+    return success ? 1 : 0;
 }
 
 #include "CompileControl.h"

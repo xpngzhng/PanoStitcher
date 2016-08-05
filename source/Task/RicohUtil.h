@@ -192,14 +192,14 @@ private:
 class CudaPanoramaRender2
 {
 public:
-    CudaPanoramaRender2() : success(0) {};
-    ~CudaPanoramaRender2() { };
-    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
+    CudaPanoramaRender2() : success(0), highQualityBlend(0), numImages(0) {};
+    virtual ~CudaPanoramaRender2() { };
+    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
         const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
-    void clear();
-    int getNumImages() const;
-private:
+    virtual void clear();
+    virtual int getNumImages() const;
+protected:
     cv::Size srcSize, dstSize;
     std::vector<PhotoParam> params;
     std::vector<cv::cuda::GpuMat> dstUniqueMasksGPU, currMasksGPU;
@@ -215,17 +215,29 @@ private:
     int success;
 };
 
+class CudaRicohPanoramaRender : public CudaPanoramaRender2
+{
+public:
+    CudaRicohPanoramaRender() {};
+    virtual ~CudaRicohPanoramaRender() { };
+    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
+        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
+    virtual void clear();
+    virtual int getNumImages() const;
+};
+
 // cpu version of CudaPanoramaRender
 class CPUPanoramaRender
 {
 public:
-    CPUPanoramaRender() : success(0) {};
-    ~CPUPanoramaRender() { clear(); };
-    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
-    void clear();
-    int getNumImages() const;
-private:
+    CPUPanoramaRender() : success(0), highQualityBlend(0), numImages(0) {};
+    virtual ~CPUPanoramaRender() { };
+    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+    virtual void clear();
+    virtual int getNumImages() const;
+protected:
     cv::Size srcSize, dstSize;
     std::vector<cv::Mat> maps;
     std::vector<cv::Mat> reprojImages;
@@ -235,6 +247,17 @@ private:
     cv::Mat accum;
     int numImages;
     int success;
+};
+
+class CPURicohPanoramaRender : public CPUPanoramaRender
+{
+public:
+    CPURicohPanoramaRender() {};
+    virtual ~CPURicohPanoramaRender() { };
+    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+    virtual void clear();
+    virtual int getNumImages() const;
 };
 
 #include "CompileControl.h"

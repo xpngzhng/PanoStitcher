@@ -21,12 +21,19 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
     validFrameCount = 0;
 
     if (srcVideoFiles.empty())
+    {
+        ptlprintf("Error in %s, srcVideoFiles empty\n", __FUNCTION__);
         return false;
+    }
 
     int numVideos = srcVideoFiles.size();
     bool hasOffsets = !offsets.empty();
     if (hasOffsets && offsets.size() != numVideos)
+    {
+        ptlprintf("Error in %s, offsets size = %d, num videos = %d, not match\n", 
+            __FUNCTION__, offsets.size(), numVideos);
         return false;
+    }
 
     readers.resize(numVideos);
 
