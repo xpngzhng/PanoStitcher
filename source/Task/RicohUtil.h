@@ -349,15 +349,26 @@ class ImageVisualCorrect
 {
 public:
     ImageVisualCorrect() : numImages(0), srcWidth(0), srcHeight(0), equiRectWidth(0), equiRectHeight(0), success(0) {};
-    bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
-    void clear();
+    virtual ~ImageVisualCorrect() {}
+    virtual bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+    virtual void clear();
 
-private:
+protected:
     ExposureColorCorrect corrector;
     std::vector<cv::Mat> maps;
     int numImages;
     int srcWidth, srcHeight;
     int equiRectWidth, equiRectHeight;
     int success;
+};
+
+class RicohImageVisualCorrect : public ImageVisualCorrect
+{
+public:
+    RicohImageVisualCorrect() {};
+    virtual ~RicohImageVisualCorrect() {}
+    virtual bool prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
+    virtual void clear();
 };

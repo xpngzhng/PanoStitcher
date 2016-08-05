@@ -365,8 +365,10 @@ int main(int argc, char* argv[])
     cameraParamPath = parser.get<std::string>("camera_param_path");
 #if TEST_RICOH
     cameraParamPath = "F:\\panovideo\\ricoh\\paramricoh.xml";
-#endif
     ok = task.beginVideoStitch(PanoStitchTypeRicoh, cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
+#else
+    ok = task.beginVideoStitch(PanoStitchTypeMISO, cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
+#endif
     if (!ok)
     {
         printf("Could not prepare for panorama render\n");

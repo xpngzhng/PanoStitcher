@@ -6,6 +6,8 @@
 #include <fstream>
 #include <thread>
 
+#define TEST_RICOH 1
+
 static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vector<std::string>& videoPath, std::vector<int>& offset)
 {
     videoPath.clear();
@@ -67,16 +69,20 @@ int main(int argc, char* argv[])
 
     std::string projFileName;
     projFileName = parser.get<std::string>("project_file");
-    //projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
+#if !TEST_RICOH
+    projFileName = "F:\\panovideo\\test\\test1\\haiyangguansimple.xml";
     //projFileName = "F:\\panovideo\\test\\outdoor\\outdoor.pvs";
     //projFileName = "F:\\panovideo\\test\\test6\\zhanxiang.xml";
-    //loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+    loadVideoFileNamesAndOffset(projFileName, srcVideoNames, offset);
+#endif
 
+#if TEST_RICOH
     projFileName = "F:\\panovideo\\ricoh\\paramricoh.xml";
     srcVideoNames.clear();
     srcVideoNames.push_back("F:\\panovideo\\ricoh\\R0010113.MP4");
     offset.clear();
     offset.push_back(0);
+#endif
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
@@ -89,8 +95,13 @@ int main(int argc, char* argv[])
     panoVideoName = "libx264_gpu_lin.mp4";
     std::string logoFileName = /*""*/"F:\\image\\Earth_global.png";
     int fov = 45;
+#if TEST_RICOH
     bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, logoFileName, fov, 0, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+#else
+    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 0, 
+        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+#endif
     if (!ok)
     {
         printf("Could not init panorama local disk task\n");

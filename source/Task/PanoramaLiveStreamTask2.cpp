@@ -110,7 +110,7 @@ struct PanoramaLiveStreamTask2::Impl
     int fileThreadJoined;
     void fileSave();
 
-    ImageVisualCorrect correct;
+    std::unique_ptr<ImageVisualCorrect> correct;
     std::vector<double> exposures;
     std::mutex mtxLuts;
     std::vector<std::vector<unsigned char> > luts;
@@ -292,7 +292,11 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         return false;
     }
 
-    renderPrepareSuccess = correct.prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
+    if (panoStitchType == PanoStitchTypeMISO)
+        correct.reset(new ImageVisualCorrect);
+    else if (panoStitchType == PanoStitchTypeRicoh)
+        correct.reset(new RicohImageVisualCorrect);
+    renderPrepareSuccess = correct->prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
     if (!renderPrepareSuccess)
     {
         ptlprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
@@ -332,7 +336,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderThread->join();
         renderThread.reset(0);
         render.reset();
-        correct.clear();
+        correct.reset();
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
         procFramePool.clear();
@@ -645,7 +649,7 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
     for (int i = 0; i < numVideos; i++)
         images[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data[0], frames[i].steps[0]);
 
-    bool ok = correct.correct(images, exposures);
+    bool ok = correct->correct(images, exposures);
     if (!ok)
     {
         syncErrorMessage = getText(TI_CORRECT_FAIL);

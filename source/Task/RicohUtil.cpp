@@ -2159,3 +2159,43 @@ void ImageVisualCorrect::clear()
     equiRectHeight = 0;
     success = 0;
 }
+
+bool RicohImageVisualCorrect::prepare(const std::string& path, const cv::Size& srcSize, const cv::Size& dstSize)
+{
+    bool ok = ImageVisualCorrect::prepare(path, srcSize, dstSize);
+    if (!ok)
+        return false;
+
+    if (numImages != 2)
+    {
+        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        clear();
+        return false;
+    }
+
+    return true;
+}
+
+bool RicohImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures)
+{
+    if (!success)
+    {
+        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != 1)
+    {
+        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, images.size());
+        return false;
+    }
+
+    std::vector<cv::Mat> newSrc(2);
+    newSrc[0] = newSrc[1] = images[0];
+    return ImageVisualCorrect::correct(newSrc, exposures);
+}
+
+void RicohImageVisualCorrect::clear()
+{
+    ImageVisualCorrect::clear();
+}
