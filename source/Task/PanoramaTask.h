@@ -127,7 +127,7 @@ class PanoramaLocalDiskTask
 public:
     virtual ~PanoramaLocalDiskTask() {};
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount) = 0;
     virtual bool start() = 0;
@@ -145,7 +145,7 @@ public:
     CPUPanoramaLocalDiskTask();
     ~CPUPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
@@ -166,7 +166,7 @@ public:
     IOclPanoramaLocalDiskTask();
     ~IOclPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
@@ -187,7 +187,7 @@ public:
     CudaPanoramaLocalDiskTask();
     ~CudaPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
@@ -208,7 +208,7 @@ public:
     DOclPanoramaLocalDiskTask();
     ~DOclPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
@@ -301,7 +301,8 @@ public:
         bool openAudio = false, const std::string& url = std::string());
     void closeAudioVideoSources();
 
-    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
+    bool beginVideoStitch(int stitchType, const std::string& configFileName, 
+        int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
     bool openLiveStream(const std::string& name, int panoType, int width, int height, int videoBPS,

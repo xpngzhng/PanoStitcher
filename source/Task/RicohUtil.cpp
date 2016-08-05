@@ -1,3 +1,4 @@
+#include "ZBlendAlgo.h"
 #include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "opencv2/core.hpp"
@@ -830,8 +831,6 @@ bool CudaMultiCameraPanoramaRender3::render(const std::vector<cv::Mat>& src, cv:
     return true;
 }
 
-void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
-
 bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& customMaskPath_, int highQualityBlend_, int completeQueue_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -872,7 +871,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
         else
         {
             std::vector<cv::Mat> weights;
-            getWeightsLinearBlend32F(masks, 50, weights);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
@@ -1118,7 +1117,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         else
         {
             std::vector<cv::Mat> weights;
-            getWeightsLinearBlend32F(masks, 75, weights);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
@@ -1367,7 +1366,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
         }
         else
         {
-            getWeightsLinearBlend32F(masks, 50, weights);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, weights);
             accum.create(dstSize, CV_32FC3);
         }
     }
@@ -1563,7 +1562,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         //else
         {
             std::vector<cv::Mat> ws;
-            getWeightsLinearBlend32F(masks, 50, ws);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, ws);
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
             {
@@ -1783,7 +1782,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             std::vector<cv::Mat> headers(numImages);
             for (int i = 0; i < numImages; i++)
                 headers[i] = weights[i].toOpenCVMat();
-            getWeightsLinearBlend32F(masks, 50, headers);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, headers);
             accum.create(dstSize, CV_32FC4, iocl::ocl->context);
         }
     }
@@ -1943,7 +1942,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         else
         {
             std::vector<cv::Mat> weightsCpu(numImages);
-            getWeightsLinearBlend32F(masks, 50, weightsCpu);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, weightsCpu);
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weights[i].upload(weightsCpu[i]);

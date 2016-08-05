@@ -28,7 +28,8 @@ struct PanoramaLiveStreamTask2::Impl
     bool openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url);
     void closeAudioVideoSources();
 
-    bool beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend);
+    bool beginVideoStitch(int panoStitchType, const std::string& configFileName, 
+        int width, int height, bool highQualityBlend);
     void stopVideoStitch();
 
     bool openLiveStream(const std::string& name, int panoType, int width, int height, int videoBPS,
@@ -67,7 +68,7 @@ struct PanoramaLiveStreamTask2::Impl
     int audioSampleRate;
     int audioOpenSuccess;
 
-    CudaPanoramaRender2 render;
+    std::unique_ptr<CudaPanoramaRender2> render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
@@ -224,7 +225,7 @@ void PanoramaLiveStreamTask2::Impl::closeAudioVideoSources()
     } 
 }
 
-bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
+bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
@@ -244,7 +245,17 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
     renderFrameSize.width = width;
     renderFrameSize.height = height;
 
-    renderPrepareSuccess = render.prepare(renderConfigName, highQualityBlend, 
+    if (panoStitchType == PanoStitchTypeMISO)
+        render.reset(new CudaPanoramaRender2);
+    else if (panoStitchType == PanoStitchTypeRicoh)
+        render.reset(new CudaRicohPanoramaRender);
+    else
+    {
+        ptlprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
+            __FUNCTION__, panoStitchType, PanoStitchTypeMISO, PanoStitchTypeRicoh);
+    }
+
+    renderPrepareSuccess = render->prepare(renderConfigName, highQualityBlend, 
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
@@ -254,7 +265,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(const std::string& configFi
         return false;
     }
 
-    if (render.getNumImages() != numVideos)
+    if (render->getNumImages() != numVideos)
     {
         ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
@@ -320,7 +331,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         syncedFramesBufferForProc.stop();
         renderThread->join();
         renderThread.reset(0);
-        render.clear();
+        render.reset();
         correct.clear();
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
@@ -841,11 +852,11 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             {
                 getLuts(localLookUpTables);
                 //procTimer.start();
-                ok = render.render(src, bgr32, localLookUpTables);
+                ok = render->render(src, bgr32, localLookUpTables);
                 //procTimer.end();
             }
             else
-                ok = render.render(src, bgr32);
+                ok = render->render(src, bgr32);
             if (!ok)
             {
                 ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
@@ -1209,9 +1220,10 @@ void PanoramaLiveStreamTask2::closeAudioVideoSources()
     ptrImpl->closeAudioVideoSources();
 }
 
-bool PanoramaLiveStreamTask2::beginVideoStitch(const std::string& configFileName, int width, int height, bool highQualityBlend)
+bool PanoramaLiveStreamTask2::beginVideoStitch(int panoStitchType, const std::string& configFileName, 
+    int width, int height, bool highQualityBlend)
 {
-    return ptrImpl->beginVideoStitch(configFileName, width, height, highQualityBlend);
+    return ptrImpl->beginVideoStitch(panoStitchType, configFileName, width, height, highQualityBlend);
 }
 
 void PanoramaLiveStreamTask2::stopVideoStitch()

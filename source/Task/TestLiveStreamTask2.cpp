@@ -5,6 +5,8 @@
 #include <iostream>
 #include <thread>
 
+#define TEST_RICOH 1
+
 struct ShowTiledImages
 {
     ShowTiledImages() : hasInit(false) {};
@@ -292,6 +294,10 @@ int main(int argc, char* argv[])
     }
     //printf("pass list video devices\n");
 
+#if TEST_RICOH
+    numCameras = 1;
+#endif
+
     bool interactive = parser.get<bool>("enable_interactive_select_devices");
     std::vector<int> videoIndexes(numCameras);
     selectVideoDevices(interactive, numCameras, videoIndexes);
@@ -344,6 +350,7 @@ int main(int argc, char* argv[])
     opts.push_back(std::make_pair("video_size", videoSizeStr));
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
+    highQualityBlend = 0;
     std::vector<avp::Device> newVideoDevices(numCameras);
     for (int i = 0; i < numCameras; i++)
         newVideoDevices[i] = videoDevices[videoIndexes[i]];
@@ -356,7 +363,10 @@ int main(int argc, char* argv[])
     }
 
     cameraParamPath = parser.get<std::string>("camera_param_path");
-    ok = task.beginVideoStitch(cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
+#if TEST_RICOH
+    cameraParamPath = "F:\\panovideo\\ricoh\\paramricoh.xml";
+#endif
+    ok = task.beginVideoStitch(PanoStitchTypeRicoh, cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
     if (!ok)
     {
         printf("Could not prepare for panorama render\n");
