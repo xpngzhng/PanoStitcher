@@ -1,0 +1,72 @@
+__constant int BILINEAR_INTER_SHIFT = 10;
+__constant int BILINEAR_INTER_BACK_SHIFT = 10 * 2;
+__constant int BILINEAR_UNIT = 1 << 10;
+
+void reprojectLinearLocal(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
+    float srcx, float srcy, unsigned char* result)
+{
+    int x0 = srcx, y0 = srcy;
+    int x1 = x0 + (x0 < srcWidth - 1), y1 = y0 + (y0 < srcHeight - 1);
+    int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
+    int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
+    int b = 0, g = 0, r = 0, w = 0;
+    uchar4 val;
+        
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x0);
+    w = deltax1 * deltay1;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+        
+    val = *((__global const uchar4*)(srcData + srcStep * y0) + x1);
+    w = deltax0 * deltay1;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x0);
+    w = deltax1 * deltay0;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = *((__global const uchar4*)(srcData + srcStep * y1) + x1);
+    w = deltax0 * deltay0;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    result[0] = b >> BILINEAR_INTER_BACK_SHIFT;
+    result[1] = g >> BILINEAR_INTER_BACK_SHIFT;
+    result[2] = r >> BILINEAR_INTER_BACK_SHIFT;
+    result[3] = 0;
+}
+
+__kernel void reprojectWeightedAccumulateTo32FKernel(__global const unsigned char* srcData, int srcWidth, int srcHeight, int srcStep,
+    __global unsigned char* dstData, int dstWidth, int dstHeight, int dstStep,
+    __global const unsigned char* xmapData, int xmapStep, __global const unsigned char* ymapData, int ymapStep,
+    __global const unsigned char* weightData, int weightStep)
+{
+    int dstx = get_global_id(0);
+    int dsty = get_global_id(1);
+    if (dstx >= dstWidth || dsty >= dstHeight)
+        return;
+
+    float srcx = *((__global const float*)(xmapData + dsty * xmapStep) + dstx);
+    float srcy = *((__global const float*)(ymapData + dsty * ymapStep) + dstx);
+    
+    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
+        ;
+    else
+    {        
+        unsigned char temp[4];
+        reprojectLinearLocal(srcData, srcWidth, srcHeight, srcStep, srcx, srcy, temp);
+        float w = *((__global const float*)(weightData + dsty * weightStep) + dstx);
+        __global float* ptrDst = (__global float*)(dstData + dsty * dstStep) + dstx * 4;
+        ptrDst[0] += temp[0] * w;
+        ptrDst[1] += temp[1] * w;
+        ptrDst[2] += temp[2] * w;
+        ptrDst[3] = 0;
+    }        
+}
+

@@ -19,6 +19,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DiscreteOpenCL", "DiscreteO
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaAccel", "CudaAccel\CudaAccel.vcxproj", "{8B2823BA-20FF-4268-B602-148E4D0615EE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLAccel", "OpenCLAccel\OpenCLAccel.vcxproj", "{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -125,6 +127,18 @@ Global
 		{8B2823BA-20FF-4268-B602-148E4D0615EE}.Release|Win32.Build.0 = Release|Win32
 		{8B2823BA-20FF-4268-B602-148E4D0615EE}.Release|x64.ActiveCfg = Release|x64
 		{8B2823BA-20FF-4268-B602-148E4D0615EE}.Release|x64.Build.0 = Release|x64
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|Win32.Build.0 = Debug|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|x64.ActiveCfg = Debug|x64
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Debug|x64.Build.0 = Debug|x64
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|Win32.ActiveCfg = Release|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|Win32.Build.0 = Release|Win32
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|x64.ActiveCfg = Release|x64
+		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
