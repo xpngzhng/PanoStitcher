@@ -1,3 +1,8 @@
+#ifndef DEV
+#include "CompileControl.h"
+const char* sourcePyramidDownTemplate = OPENCL_KERNEL_STRING(
+#endif
+
 int borderInterpolateWrap(int p, int len)
 {
     if( (unsigned)p < (unsigned)len )
@@ -189,3 +194,7 @@ __kernel void pyrDownKernel(__global const unsigned char* srcData, int srcRows, 
         }
     }
 }
+
+#ifndef DEV
+);
+#endif

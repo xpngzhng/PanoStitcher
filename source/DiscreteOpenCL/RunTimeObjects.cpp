@@ -1,6 +1,15 @@
 #include "RunTimeObjects.h"
 #include "oclobject.hpp"
 
+#include "MatOp.txt"
+#include "ReprojectLinearTemplate.txt"
+#include "PyramidDownTemplate.txt"
+#include "PyramidDownTemplateFP.txt"
+#include "PyramidDownPureFP.txt"
+#include "PyramidUpTemplate.txt"
+#include "PyramidUpTemplateFP.txt"
+#include "ImageProc.txt"
+
 #define MULTIBAND_PYR_FLOAT 1
 
 namespace docl

@@ -1,3 +1,8 @@
+#ifndef DEV
+#include "CompileControl.h"
+const char* sourcePyramidDownPureFP = OPENCL_KERNEL_STRING(
+#endif
+
 int borderInterpolateWrap(int p, int len)
 {
     if( (unsigned)p < (unsigned)len )
@@ -167,3 +172,7 @@ __kernel void pyrDownKernel(__global const unsigned char* srcData, int srcRows, 
             getDestRowPtr(dstData, dstStep, y)[dstx] = sum;
     }
 }
+
+#ifndef DEV
+);
+#endif
