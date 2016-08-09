@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RunTimeObjects.h"
 #include "opencv2/core.hpp"
 #include "CL/cl.h"
 #include <memory>
@@ -21,24 +22,40 @@ struct IOclMat
         mem = 0;
     }
 
-    IOclMat(int rows, int cols, int type, cl_context ctx)
+    IOclMat(int rows, int cols, int type)
     {
-        create(rows, cols, type, ctx);
+        init();
+        create(rows, cols, type);
     }
 
-    IOclMat(const cv::Size& size, int type, cl_context ctx)
+    IOclMat(const cv::Size& size, int type)
     {
-        create(size, type, ctx);
+        init();
+        create(size, type);
     }
 
-    IOclMat(int rows, int cols, int type, unsigned char* data, int step, cl_context ctx)
+    IOclMat(int rows, int cols, int type, unsigned char* data, int step)
     {
-        create(rows, cols, type, data, step, ctx);
+        init();
+        create(rows, cols, type, data, step);
     }
 
-    IOclMat(const cv::Size& size, int type, unsigned char* data, int step, cl_context ctx)
+    IOclMat(const cv::Size& size, int type, unsigned char* data, int step)
     {
-        create(size, type, data, step, ctx);
+        init();
+        create(size, type, data, step);
+    }
+
+    void init()
+    {
+        data = 0;
+        rows = 0;
+        cols = 0;
+        step = 0;
+        type = 0;
+
+        ctx = 0;
+        mem = 0;
     }
 
     void clear()
@@ -60,12 +77,15 @@ struct IOclMat
         clear();
     }
 
-    void create(int rows_, int cols_, int type_, cl_context ctx_)
+    void create(int rows_, int cols_, int type_)
     {
-        if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK) && ctx == ctx_)
+        CV_Assert(iocl::ocl && iocl::ocl->context);
+        ctx = iocl::ocl->context;
+
+        if (rows == rows_ && cols == cols_ && type == (type_& CV_MAT_TYPE_MASK))
             return;
 
-        if (rows_ <= 0 || cols_ <= 0 || !ctx_)
+        if (rows_ <= 0 || cols_ <= 0)
         {
             clear();
             return;
@@ -86,10 +106,9 @@ struct IOclMat
             sdata.reset(data, _aligned_free);
         }
 
-        if (dataChanged || ctx != ctx_)
+        if (dataChanged)
         {
             smem.reset();
-            ctx = ctx_;
             int err = 0;
             mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, rows * step, data, &err);
             smem.reset(mem, clReleaseMemObject);
@@ -100,24 +119,26 @@ struct IOclMat
         }
     }
 
-    void create(const cv::Size& size_, int type_, cl_context ctx_)
+    void create(const cv::Size& size_, int type_)
     {
-        create(size_.height, size_.width, type_, ctx_);
+        create(size_.height, size_.width, type_);
     }
 
-    void create(int rows_, int cols_, int type_, unsigned char* data_, int step_, cl_context ctx_)
+    void create(int rows_, int cols_, int type_, unsigned char* data_, int step_)
     {
         clear();
 
-        if (rows_ <= 0 || cols_ <= 0 || !ctx_)
+        if (rows_ <= 0 || cols_ <= 0)
             return;
 
+        CV_Assert(iocl::ocl && iocl::ocl->context);
+        CV_Assert((((long long int)data_) & (~(ptrAlignSize - 1))) == 0);
         rows = rows_;
         cols = cols_;
         step = step_;
         type = type_ & CV_MAT_TYPE_MASK;
         data = data_;
-        ctx = ctx_;
+        ctx = iocl::ocl->context;
         int err = 0;
         mem = clCreateBuffer(ctx, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, rows * step, data, &err);
         smem.reset(mem, clReleaseMemObject);
@@ -125,14 +146,14 @@ struct IOclMat
             clear();
     }
 
-    void create(const cv::Size& size_, int type_, unsigned char* data_, int step_, cl_context ctx_)
+    void create(const cv::Size& size_, int type_, unsigned char* data_, int step_)
     {
-        create(size_.height, size_.width, type_, data_, step_, ctx_);
+        create(size_.height, size_.width, type_, data_, step_);
     }
 
     void copyTo(IOclMat& other) const
     {
-        other.create(size(), type, ctx);
+        other.create(size(), type);
         cv::Mat src = toOpenCVMat();
         cv::Mat dst = other.toOpenCVMat();
         src.copyTo(dst);
@@ -153,10 +174,10 @@ struct IOclMat
             return cv::Mat();
     }
 
-    void upload(const cv::Mat& mat, cl_context ctx_)
+    void upload(const cv::Mat& mat)
     {
         CV_Assert(mat.data);
-        create(mat.size(), mat.type(), ctx_);
+        create(mat.size(), mat.type());
         cv::Mat header = toOpenCVMat();
         mat.copyTo(header);
     }

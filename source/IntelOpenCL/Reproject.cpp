@@ -8,7 +8,7 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
         xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&
         ocl.context && ocl.queue && executable.kernel);
 
-    dst.create(xmap.rows, ymap.cols, CV_8UC4, ocl.context);
+    dst.create(xmap.rows, ymap.cols, CV_8UC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -104,7 +104,7 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
         iocl::ocl && iocl::ocl->context && iocl::ocl->queue && 
         iocl::reproject && iocl::reproject->kernel);
 
-    dst.create(xmap.rows, ymap.cols, CV_8UC4, iocl::ocl->context);
+    dst.create(xmap.rows, ymap.cols, CV_8UC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -153,7 +153,7 @@ void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, c
         iocl::ocl && iocl::ocl->context && iocl::ocl->queue &&
         iocl::reproject && iocl::reproject->kernel);
 
-    dst.create(xmap.rows, ymap.cols, CV_16SC4, iocl::ocl->context);
+    dst.create(xmap.rows, ymap.cols, CV_16SC4);
 
     cl_int err = CL_SUCCESS;
 

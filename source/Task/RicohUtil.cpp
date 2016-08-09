@@ -1756,8 +1756,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         ymaps.resize(numImages);
         for (int i = 0; i < numImages; i++)
         {
-            xmaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
-            ymaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+            xmaps[i].create(dstSize, CV_32FC1);
+            ymaps[i].create(dstSize, CV_32FC1);
         }
         std::vector<cv::Mat> xheaders(numImages), yheaders(numImages);
         for (int i = 0; i < numImages; i++)
@@ -1778,12 +1778,12 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         {
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
-                weights[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+                weights[i].create(dstSize, CV_32FC1);
             std::vector<cv::Mat> headers(numImages);
             for (int i = 0; i < numImages; i++)
                 headers[i] = weights[i].toOpenCVMat();
             getWeightsLinearBlendBoundedRadius32F(masks, 75, headers);
-            accum.create(dstSize, CV_32FC4, iocl::ocl->context);
+            accum.create(dstSize, CV_32FC4);
         }
     }
     catch (std::exception& e)

@@ -44,7 +44,7 @@ static void getStepsOfImage32SPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_32SC4, iocl::ocl->context);
+        IOclMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
 
     }
@@ -56,7 +56,7 @@ static void getStepsOfImageUpPyr(const std::vector<cv::Size>& sizes, std::vector
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_16SC4, iocl::ocl->context);
+        IOclMat tmp(2, sizes[i].width, CV_16SC4);
         steps[i] = tmp.step;
     }
 }
@@ -67,7 +67,7 @@ static void getStepsOfResultUpPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_32SC4, iocl::ocl->context);
+        IOclMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
     }
 }
@@ -77,17 +77,17 @@ static void allocMemoryForUpPyrs(const std::vector<cv::Size>& sizes,
     std::vector<IOclMat>& imageUpPyr, std::vector<IOclMat>& resultUpPyr)
 {
     int numLevels = sizes.size() - 1;
-    IOclMat mem(sizes[0], CV_32SC4, iocl::ocl->context);
+    IOclMat mem(sizes[0], CV_32SC4);
 
     imageUpPyr.resize(numLevels + 1);
     imageUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        imageUpPyr[i] = IOclMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i], iocl::ocl->context);
+        imageUpPyr[i] = IOclMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
     resultUpPyr.resize(numLevels + 1);
     resultUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        resultUpPyr[i] = IOclMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i], iocl::ocl->context);
+        resultUpPyr[i] = IOclMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
 }
 
 static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vector<IOclMat>& resultPyr)
@@ -95,7 +95,7 @@ static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vec
     int numLevels = sizes.size() - 1;
     resultPyr.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
-        resultPyr[i].create(sizes[i], CV_32SC4, iocl::ocl->context);
+        resultPyr[i].create(sizes[i], CV_32SC4);
 }
 
 static void accumulateWeight(const std::vector<IOclMat>& src, std::vector<IOclMat>& dst)
@@ -169,15 +169,15 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
 
     uniqueMasks.resize(numImages);
     for (int i = 0; i < numImages; i++)
-        uniqueMasks[i].upload(uniqueMasksCpu[i], iocl::ocl->context);
+        uniqueMasks[i].upload(uniqueMasksCpu[i]);
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
 
     std::vector<IOclMat> masksGpu(numImages);
     for (int i = 0; i < numImages; i++)
-        masksGpu[i].upload(masks[i], iocl::ocl->context);
+        masksGpu[i].upload(masks[i]);
 
-    IOclMat aux16S(rows, cols, CV_16SC1, iocl::ocl->context);
+    IOclMat aux16S(rows, cols, CV_16SC1);
 
     std::vector<IOclMat> tempAlphaPyr(numLevels + 1);
     alphaPyrs.resize(numImages);
@@ -195,7 +195,7 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
         for (int j = 0; j < numLevels; j++)
         {
             pyramidDown16SC1To32SC1(tempAlphaPyr[j], alphaPyrs[i][j + 1], cv::Size());
-            tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_16SC1, iocl::ocl->context);
+            tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_16SC1);
             scaledSet16SC1Mask32SC1(tempAlphaPyr[j + 1], 256, alphaPyrs[i][j + 1]);
             pyramidDown16SC1To16SC1(weightPyrs[i][j], weightPyrs[i][j + 1], cv::Size());
         }
@@ -225,13 +225,13 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
         resultWeightPyr.resize(numLevels + 1);
         for (int i = 0; i < numLevels + 1; i++)
         {
-            resultWeightPyr[i].create(sizes[i], CV_32SC1, iocl::ocl->context);
+            resultWeightPyr[i].create(sizes[i], CV_32SC1);
             setZero(resultWeightPyr[i]);
         }
         for (int i = 0; i < numImages; i++)
             accumulateWeight(weightPyrs[i], resultWeightPyr);
         mask = ~mask;
-        maskNot.upload(mask, iocl::ocl->context);
+        maskNot.upload(mask);
     }
 
     success = true;

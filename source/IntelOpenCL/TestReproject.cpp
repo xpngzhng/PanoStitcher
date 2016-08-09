@@ -100,10 +100,10 @@ int main1(int argc, char** argv)
     std::vector<IOclMat> xmapMats(numImages), ymapMats(numImages), weightMats(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        srcMats[i].create(src[i].rows, src[i].cols, CV_8UC4, oclobjects.context);
-        xmapMats[i].create(dstSize.height, dstSize.width, CV_32FC1, oclobjects.context);
-        ymapMats[i].create(dstSize.height, dstSize.width, CV_32FC1, oclobjects.context);
-        weightMats[i].create(dstSize.height, dstSize.width, CV_32FC1, oclobjects.context);
+        srcMats[i].create(src[i].rows, src[i].cols, CV_8UC4);
+        xmapMats[i].create(dstSize.height, dstSize.width, CV_32FC1);
+        ymapMats[i].create(dstSize.height, dstSize.width, CV_32FC1);
+        weightMats[i].create(dstSize.height, dstSize.width, CV_32FC1);
 
         cv::Mat srcMatWrapper(srcMats[i].rows, srcMats[i].cols, srcMats[i].type, srcMats[i].data, srcMats[i].step);
         cv::Mat xmapMatWrapper(xmapMats[i].rows, xmapMats[i].cols, xmapMats[i].type, xmapMats[i].data, xmapMats[i].step);
@@ -117,13 +117,13 @@ int main1(int argc, char** argv)
     }
 
     IOclMat dstMat32F;
-    dstMat32F.create(dstSize.height, dstSize.width, CV_32FC4, oclobjects.context);
+    dstMat32F.create(dstSize.height, dstSize.width, CV_32FC4);
 
     IOclMat dstMat;
-    dstMat.create(dstSize.height, dstSize.width, CV_8UC4, oclobjects.context);
+    dstMat.create(dstSize.height, dstSize.width, CV_8UC4);
 
     IOclMat dstMat16S;
-    dstMat16S.create(dstSize.height, dstSize.width, CV_16SC4, oclobjects.context);
+    dstMat16S.create(dstSize.height, dstSize.width, CV_16SC4);
     cv::Mat dst;
     try
     {
@@ -294,8 +294,8 @@ int main2()
     // test floating point version
     /*
     {
-        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4, iocl::ocl->context);
-        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1, iocl::ocl->context);
+        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4);
+        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1);
         IOclMat iColorDst32F, iGrayDst32F;
 
         header = iColorSrc32F.toOpenCVMat();
@@ -328,7 +328,7 @@ int main2()
     // test short version
     /*
     {
-        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1, iocl::ocl->context);
+        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1);
         header = iGraySrc16S.toOpenCVMat();
         graySrc.convertTo(header, CV_16S);
         IOclMat iGrayDst16S;
@@ -351,8 +351,8 @@ int main2()
     // test uchar version
     /*
     {
-        IOclMat iColorSrc(colorSrc.size(), CV_8UC4, iocl::ocl->context);
-        IOclMat iGraySrc(graySrc.size(), CV_8UC1, iocl::ocl->context);
+        IOclMat iColorSrc(colorSrc.size(), CV_8UC4);
+        IOclMat iGraySrc(graySrc.size(), CV_8UC1);
         IOclMat iColorDst, iColorDst32S, iGrayDst;
 
         header = iColorSrc.toOpenCVMat();
@@ -402,11 +402,11 @@ int main2()
         cv::imshow("dist", dist);
         cv::waitKey(0);
 
-        IOclMat scale32S(dist.size(), CV_32SC1, iocl::ocl->context);
+        IOclMat scale32S(dist.size(), CV_32SC1);
         header = scale32S.toOpenCVMat();
         dist.convertTo(header, CV_32S, 256 * 256);
 
-        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4, iocl::ocl->context), iColorDst16S;
+        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4), iColorDst16S;
         header = iColorSrc16S.toOpenCVMat();
         colorSrc.convertTo(header, CV_16S);
 
@@ -427,9 +427,9 @@ int main2()
         cv::Mat oldColorDst = colorDst;
         cv::resize(oldColorDst, colorDst, cv::Size(128, 64));
         cv::Size sz = colorDst.size();
-        IOclMat colorSrc8U(sz, CV_8UC4, iocl::ocl->context);
-        IOclMat colorSrc16S(sz, CV_16SC4, iocl::ocl->context);
-        IOclMat colorSrc32S(sz, CV_32SC4, iocl::ocl->context);
+        IOclMat colorSrc8U(sz, CV_8UC4);
+        IOclMat colorSrc16S(sz, CV_16SC4);
+        IOclMat colorSrc32S(sz, CV_32SC4);
         IOclMat colorDst8U, colorDst16S, colorDst32S;
 
         //colorDst.setTo(cv::Scalar::all(255));
@@ -516,7 +516,7 @@ int main()
     {
         cv::cvtColor(images[i], temp8U, CV_BGR2BGRA);
         temp8U.convertTo(temp16S, CV_16S);
-        srcImages[i].upload(temp16S, iocl::ocl->context);
+        srcImages[i].upload(temp16S);
     }
 
     ztool::Timer t;

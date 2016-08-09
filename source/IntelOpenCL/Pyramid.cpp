@@ -38,7 +38,7 @@ void pyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_8UC1, iocl::ocl->context);
+    dst.create(dstSize, CV_8UC1);
 
     cl_int err = CL_SUCCESS;
 
@@ -58,7 +58,7 @@ void pyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_8UC4, iocl::ocl->context);
+    dst.create(dstSize, CV_8UC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -78,7 +78,7 @@ void pyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_32SC4, iocl::ocl->context);
+    dst.create(dstSize, CV_32SC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -98,7 +98,7 @@ void pyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_32FC1, iocl::ocl->context);
+    dst.create(dstSize, CV_32FC1);
 
     cl_int err = CL_SUCCESS;
 
@@ -118,7 +118,7 @@ void pyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_32FC4, iocl::ocl->context);
+    dst.create(dstSize, CV_32FC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -138,7 +138,7 @@ void pyramidDown16SC1To16SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_16SC1, iocl::ocl->context);
+    dst.create(dstSize, CV_16SC1);
 
     cl_int err = CL_SUCCESS;
 
@@ -158,7 +158,7 @@ void pyramidDown16SC1To32SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = (src.rows + 1) / 2;
     }
 
-    dst.create(dstSize, CV_32SC1, iocl::ocl->context);
+    dst.create(dstSize, CV_32SC1);
 
     cl_int err = CL_SUCCESS;
 
@@ -173,7 +173,7 @@ void pyramidDown16SC4To16SC4(const IOclMat& src, const IOclMat& scale, IOclMat& 
     CV_Assert(src.data && src.type == CV_16SC4 && scale.data && scale.type == CV_32SC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown16SC4ScaleTo16SC4->kernel);
 
-    dst.create(scale.size(), CV_16SC4, iocl::ocl->context);
+    dst.create(scale.size(), CV_16SC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -220,7 +220,7 @@ void pyramidUp8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = src.rows * 2;
     }
 
-    dst.create(dstSize, CV_8UC4, iocl::ocl->context);
+    dst.create(dstSize, CV_8UC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -264,7 +264,7 @@ void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = src.rows * 2;
     }
 
-    dst.create(dstSize, CV_16SC4, iocl::ocl->context);
+    dst.create(dstSize, CV_16SC4);
 
     cl_int err = CL_SUCCESS;
 
@@ -308,7 +308,7 @@ void pyramidUp32SC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
         dstSize.height = src.rows * 2;
     }
 
-    dst.create(dstSize, CV_32SC4, iocl::ocl->context);
+    dst.create(dstSize, CV_32SC4);
 
     cl_int err = CL_SUCCESS;
 

@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\source\IntelOpenCL\TestReproject.cpp" />
     <ClCompile Include="..\..\source\Task\TestLiveStreamSourceLiveStreamTask2.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

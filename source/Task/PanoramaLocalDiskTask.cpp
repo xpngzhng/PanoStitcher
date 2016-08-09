@@ -1017,12 +1017,12 @@ void IOclPanoramaLocalDiskTask::Impl::proc()
             break;
 
         for (int i = 0; i < numVideos; i++)
-            images[i] = IOclMat(frames[i].height, frames[i].width, CV_8UC4, frames[i].data[0], frames[i].steps[0], iocl::ocl->context);
+            images[i] = IOclMat(frames[i].height, frames[i].width, CV_8UC4, frames[i].data[0], frames[i].steps[0]);
         //reprojectParallelTo16S(images, reprojImages, dstSrcMaps);
 
         avp::AudioVideoFrame2 videoFrame;
         dstVideoFramesMemoryPool.get(videoFrame);
-        IOclMat blendImageHeader(videoFrame.height, videoFrame.width, CV_8UC4, videoFrame.data[0], videoFrame.steps[0], iocl::ocl->context);
+        IOclMat blendImageHeader(videoFrame.height, videoFrame.width, CV_8UC4, videoFrame.data[0], videoFrame.steps[0]);
         cv::Mat blendImage(videoFrame.height, videoFrame.width, CV_8UC4, videoFrame.data[0], videoFrame.steps[0]);
         render.render(images, blendImageHeader);
 
