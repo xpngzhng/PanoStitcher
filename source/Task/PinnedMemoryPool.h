@@ -358,16 +358,16 @@ public:
     {
     }
 
-    bool init(int rows_, int cols_, int type_, cl_context ctx_)
+    bool init(int rows_, int cols_, int type_)
     {
         clear();
 
         std::lock_guard<std::mutex> lock(mtx);
 
-        IOclMat test;
+        iocl::UMat test;
         try
         {
-            test.create(rows_, cols_, type_, ctx_);
+            test.create(rows_, cols_, type_);
         }
         catch (...)
         {
@@ -379,7 +379,6 @@ public:
         rows = rows_;
         cols = cols_;
         type = type_;
-        ctx = ctx_;
 
         hasInit = 1;
         return true;
@@ -391,12 +390,12 @@ public:
         pool.clear();
     }
 
-    bool get(IOclMat& mem)
+    bool get(iocl::UMat& mem)
     {
         std::lock_guard<std::mutex> lock(mtx);
         if (!hasInit)
         {
-            mem = IOclMat();
+            mem = iocl::UMat();
             return false;
         }
 
@@ -416,10 +415,10 @@ public:
             return true;
         }
 
-        IOclMat newMem(rows, cols, type, ctx);
+        iocl::UMat newMem(rows, cols, type);
         if (!newMem.data)
         {
-            mem = IOclMat();
+            mem = iocl::UMat();
             return false;
         }
 
@@ -429,9 +428,8 @@ public:
     }
 private:
     int rows, cols, type;
-    std::vector<IOclMat> pool;
+    std::vector<iocl::UMat> pool;
     std::mutex mtx;
-    cl_context ctx;
     int hasInit;
 };
 #endif

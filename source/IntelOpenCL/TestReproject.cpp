@@ -96,8 +96,8 @@ int main1(int argc, char** argv)
 
     OpenCLBasic& oclobjects = *iocl::ocl;
 
-    std::vector<IOclMat> srcMats(numImages);
-    std::vector<IOclMat> xmapMats(numImages), ymapMats(numImages), weightMats(numImages);
+    std::vector<iocl::UMat> srcMats(numImages);
+    std::vector<iocl::UMat> xmapMats(numImages), ymapMats(numImages), weightMats(numImages);
     for (int i = 0; i < numImages; i++)
     {
         srcMats[i].create(src[i].rows, src[i].cols, CV_8UC4);
@@ -116,13 +116,13 @@ int main1(int argc, char** argv)
         weights[i].copyTo(weightWrapper);
     }
 
-    IOclMat dstMat32F;
+    iocl::UMat dstMat32F;
     dstMat32F.create(dstSize.height, dstSize.width, CV_32FC4);
 
-    IOclMat dstMat;
+    iocl::UMat dstMat;
     dstMat.create(dstSize.height, dstSize.width, CV_8UC4);
 
-    IOclMat dstMat16S;
+    iocl::UMat dstMat16S;
     dstMat16S.create(dstSize.height, dstSize.width, CV_16SC4);
     cv::Mat dst;
     try
@@ -294,9 +294,9 @@ int main2()
     // test floating point version
     /*
     {
-        IOclMat iColorSrc32F(colorSrc.size(), CV_32FC4);
-        IOclMat iGraySrc32F(graySrc.size(), CV_32FC1);
-        IOclMat iColorDst32F, iGrayDst32F;
+        iocl::UMat iColorSrc32F(colorSrc.size(), CV_32FC4);
+        iocl::UMat iGraySrc32F(graySrc.size(), CV_32FC1);
+        iocl::UMat iColorDst32F, iGrayDst32F;
 
         header = iColorSrc32F.toOpenCVMat();
         colorSrc.convertTo(header, CV_32F);
@@ -328,10 +328,10 @@ int main2()
     // test short version
     /*
     {
-        IOclMat iGraySrc16S(graySrc.size(), CV_16SC1);
+        iocl::UMat iGraySrc16S(graySrc.size(), CV_16SC1);
         header = iGraySrc16S.toOpenCVMat();
         graySrc.convertTo(header, CV_16S);
-        IOclMat iGrayDst16S;
+        iocl::UMat iGrayDst16S;
         pyramidDown16SC1To16SC1(iGraySrc16S, iGrayDst16S);
         header = iGrayDst16S.toOpenCVMat();
         header.convertTo(cvtBack, CV_8U);
@@ -339,7 +339,7 @@ int main2()
         cv::imshow("diff gray 16S", diff);
         cv::waitKey(0);
 
-        IOclMat iGrayDst32S;
+        iocl::UMat iGrayDst32S;
         pyramidDown16SC1To32SC1(iGraySrc16S, iGrayDst32S);
         header = iGrayDst32S.toOpenCVMat();
         cv::Mat diffFor32S;
@@ -351,9 +351,9 @@ int main2()
     // test uchar version
     /*
     {
-        IOclMat iColorSrc(colorSrc.size(), CV_8UC4);
-        IOclMat iGraySrc(graySrc.size(), CV_8UC1);
-        IOclMat iColorDst, iColorDst32S, iGrayDst;
+        iocl::UMat iColorSrc(colorSrc.size(), CV_8UC4);
+        iocl::UMat iGraySrc(graySrc.size(), CV_8UC1);
+        iocl::UMat iColorDst, iColorDst32S, iGrayDst;
 
         header = iColorSrc.toOpenCVMat();
         colorSrc.copyTo(header);
@@ -402,11 +402,11 @@ int main2()
         cv::imshow("dist", dist);
         cv::waitKey(0);
 
-        IOclMat scale32S(dist.size(), CV_32SC1);
+        iocl::UMat scale32S(dist.size(), CV_32SC1);
         header = scale32S.toOpenCVMat();
         dist.convertTo(header, CV_32S, 256 * 256);
 
-        IOclMat iColorSrc16S(colorSrc.size(), CV_16SC4), iColorDst16S;
+        iocl::UMat iColorSrc16S(colorSrc.size(), CV_16SC4), iColorDst16S;
         header = iColorSrc16S.toOpenCVMat();
         colorSrc.convertTo(header, CV_16S);
 
@@ -427,10 +427,10 @@ int main2()
         cv::Mat oldColorDst = colorDst;
         cv::resize(oldColorDst, colorDst, cv::Size(128, 64));
         cv::Size sz = colorDst.size();
-        IOclMat colorSrc8U(sz, CV_8UC4);
-        IOclMat colorSrc16S(sz, CV_16SC4);
-        IOclMat colorSrc32S(sz, CV_32SC4);
-        IOclMat colorDst8U, colorDst16S, colorDst32S;
+        iocl::UMat colorSrc8U(sz, CV_8UC4);
+        iocl::UMat colorSrc16S(sz, CV_16SC4);
+        iocl::UMat colorSrc32S(sz, CV_32SC4);
+        iocl::UMat colorDst8U, colorDst16S, colorDst32S;
 
         //colorDst.setTo(cv::Scalar::all(255));
 
@@ -511,7 +511,7 @@ int main()
     getImagesAndMasks(contentPaths, maskPaths, imageSize, images, masks);
 
     cv::Mat temp8U, temp16S;
-    std::vector<IOclMat> srcImages(numImages);
+    std::vector<iocl::UMat> srcImages(numImages);
     for (int i = 0; i < numImages; i++)
     {
         cv::cvtColor(images[i], temp8U, CV_BGR2BGRA);
@@ -523,7 +523,7 @@ int main()
 
     IOclTilingMultibandBlendFast blender;
     blender.prepare(masks, 10, 4);
-    IOclMat blendImage;
+    iocl::UMat blendImage;
 
     t.start();
     for (int i = 0; i < 1; i++)

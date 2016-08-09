@@ -279,15 +279,15 @@ public:
     int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
-    std::vector<IOclMat> xmaps, ymaps;
+    std::vector<iocl::UMat> xmaps, ymaps;
     IntelMemoryPool pool;
-    typedef ForceWaitRealTimeQueue<std::pair<IOclMat, long long int> > RealTimeQueue;
-    typedef BoundedCompleteQueue<std::pair<IOclMat, long long int> > CompleteQueue;
+    typedef ForceWaitRealTimeQueue<std::pair<iocl::UMat, long long int> > RealTimeQueue;
+    typedef BoundedCompleteQueue<std::pair<iocl::UMat, long long int> > CompleteQueue;
     RealTimeQueue rtQueue;
     CompleteQueue cpQueue;
     int highQualityBlend;
     int completeQueue;
-    std::vector<IOclMat> weights;
+    std::vector<iocl::UMat> weights;
     int numImages;
     int success;
 };
@@ -301,17 +301,17 @@ public:
     IOclPanoramaRender() : success(0) {};
     ~IOclPanoramaRender() { clear(); };
     bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    bool render(const std::vector<IOclMat>& src, IOclMat& dst);
+    bool render(const std::vector<iocl::UMat>& src, iocl::UMat& dst);
     void clear();
     int getNumImages() const;
 private:
     cv::Size srcSize, dstSize;
-    std::vector<IOclMat> xmaps, ymaps;
-    std::vector<IOclMat> reprojImages;
+    std::vector<iocl::UMat> xmaps, ymaps;
+    std::vector<iocl::UMat> reprojImages;
     int highQualityBlend;
     IOclTilingMultibandBlendFast mbBlender;
-    std::vector<IOclMat> weights;
-    IOclMat accum;
+    std::vector<iocl::UMat> weights;
+    iocl::UMat accum;
     int numImages;
     int success;
 };

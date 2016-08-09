@@ -1,7 +1,7 @@
 #include "RunTimeObjects.h"
 #include "IntelOpenCLInterface.h"
 
-void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap,
+void ioclReproject(const iocl::UMat& src, iocl::UMat& dst, const iocl::UMat& xmap, const iocl::UMat& ymap,
     OpenCLBasic& ocl, OpenCLProgramOneKernel& executable)
 {
     CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
@@ -47,8 +47,8 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void ioclReprojectAccumulateWeightedTo32F(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap,
-    const IOclMat& weight, OpenCLBasic& ocl, OpenCLProgramOneKernel& executable)
+void ioclReprojectAccumulateWeightedTo32F(const iocl::UMat& src, iocl::UMat& dst, const iocl::UMat& xmap, const iocl::UMat& ymap,
+    const iocl::UMat& weight, OpenCLBasic& ocl, OpenCLProgramOneKernel& executable)
 {
     CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
         xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&
@@ -97,7 +97,7 @@ void ioclReprojectAccumulateWeightedTo32F(const IOclMat& src, IOclMat& dst, cons
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap)
+void ioclReproject(const iocl::UMat& src, iocl::UMat& dst, const iocl::UMat& xmap, const iocl::UMat& ymap)
 {
     CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
         xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&
@@ -146,7 +146,7 @@ void ioclReproject(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const 
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, const IOclMat& ymap)
+void ioclReprojectTo16S(const iocl::UMat& src, iocl::UMat& dst, const iocl::UMat& xmap, const iocl::UMat& ymap)
 {
     CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
         xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&
@@ -195,8 +195,8 @@ void ioclReprojectTo16S(const IOclMat& src, IOclMat& dst, const IOclMat& xmap, c
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void ioclReprojectWeightedAccumulateTo32F(const IOclMat& src, IOclMat& dst,
-    const IOclMat& xmap, const IOclMat& ymap, const IOclMat& weight)
+void ioclReprojectWeightedAccumulateTo32F(const iocl::UMat& src, iocl::UMat& dst,
+    const iocl::UMat& xmap, const iocl::UMat& ymap, const iocl::UMat& weight)
 {
     CV_Assert(src.data && src.type == CV_8UC4 && xmap.size() == ymap.size() &&
         xmap.data && xmap.type == CV_32FC1 && ymap.data && ymap.type == CV_32FC1 &&

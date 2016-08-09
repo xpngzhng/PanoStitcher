@@ -28,7 +28,7 @@ SAMPLE_CHECK_ERRORS(err);\
 err = clFinish(queue);\
 SAMPLE_CHECK_ERRORS(err)
 
-void pyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC1To8UC1(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC1To8UC1->kernel);
@@ -48,7 +48,7 @@ void pyramidDown8UC1To8UC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC4To8UC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC4To8UC4->kernel);
@@ -68,7 +68,7 @@ void pyramidDown8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown8UC4To32SC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown8UC4To32SC4->kernel);
@@ -88,7 +88,7 @@ void pyramidDown8UC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown32FC1(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_32FC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown32FC1->kernel);
@@ -108,7 +108,7 @@ void pyramidDown32FC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown32FC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_32FC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown32FC4->kernel);
@@ -128,7 +128,7 @@ void pyramidDown32FC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown16SC1To16SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown16SC1To16SC1(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_16SC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown16SC1To16SC1->kernel);
@@ -148,7 +148,7 @@ void pyramidDown16SC1To16SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown16SC1To32SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidDown16SC1To32SC1(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_16SC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown16SC1To32SC1->kernel);
@@ -168,7 +168,7 @@ void pyramidDown16SC1To32SC1(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     PYR_DOWN_MAIN_BODY;
 }
 
-void pyramidDown16SC4To16SC4(const IOclMat& src, const IOclMat& scale, IOclMat& dst)
+void pyramidDown16SC4To16SC4(const iocl::UMat& src, const iocl::UMat& scale, iocl::UMat& dst)
 {
     CV_Assert(src.data && src.type == CV_16SC4 && scale.data && scale.type == CV_32SC1);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrDown16SC4ScaleTo16SC4->kernel);
@@ -210,7 +210,7 @@ void pyramidDown16SC4To16SC4(const IOclMat& src, const IOclMat& scale, IOclMat& 
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void pyramidUp8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidUp8UC4To8UC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_8UC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrUp8UC4To8UC4->kernel);
@@ -254,7 +254,7 @@ void pyramidUp8UC4To8UC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidUp16SC4To16SC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_16SC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrUp16SC4To16SC4->kernel);
@@ -298,7 +298,7 @@ void pyramidUp16SC4To16SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void pyramidUp32SC4To32SC4(const IOclMat& src, IOclMat& dst, cv::Size dstSize)
+void pyramidUp32SC4To32SC4(const iocl::UMat& src, iocl::UMat& dst, cv::Size dstSize)
 {
     CV_Assert(src.data && src.type == CV_32SC4);
     CV_Assert(iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::pyrUp32SC4To32SC4->kernel);

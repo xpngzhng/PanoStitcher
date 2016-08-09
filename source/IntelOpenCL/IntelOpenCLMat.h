@@ -5,12 +5,15 @@
 #include "CL/cl.h"
 #include <memory>
 
-struct IOclMat
+namespace iocl
+{
+
+struct UMat
 {
     enum { ptrAlignSize = 128 };
     enum { stepAlignSize = 128 };
 
-    IOclMat()
+    UMat()
     {
         data = 0;
         rows = 0;
@@ -22,25 +25,25 @@ struct IOclMat
         mem = 0;
     }
 
-    IOclMat(int rows, int cols, int type)
+    UMat(int rows, int cols, int type)
     {
         init();
         create(rows, cols, type);
     }
 
-    IOclMat(const cv::Size& size, int type)
+    UMat(const cv::Size& size, int type)
     {
         init();
         create(size, type);
     }
 
-    IOclMat(int rows, int cols, int type, unsigned char* data, int step)
+    UMat(int rows, int cols, int type, unsigned char* data, int step)
     {
         init();
         create(rows, cols, type, data, step);
     }
 
-    IOclMat(const cv::Size& size, int type, unsigned char* data, int step)
+    UMat(const cv::Size& size, int type, unsigned char* data, int step)
     {
         init();
         create(size, type, data, step);
@@ -151,7 +154,7 @@ struct IOclMat
         create(size_.height, size_.width, type_, data_, step_);
     }
 
-    void copyTo(IOclMat& other) const
+    void copyTo(UMat& other) const
     {
         other.create(size(), type);
         cv::Mat src = toOpenCVMat();
@@ -159,9 +162,9 @@ struct IOclMat
         src.copyTo(dst);
     }
 
-    IOclMat clone() const
+    UMat clone() const
     {
-        IOclMat other;
+        UMat other;
         copyTo(other);
         return other;
     }
@@ -237,3 +240,5 @@ struct IOclMat
     cl_mem mem;
     std::shared_ptr<_cl_mem> smem;
 };
+
+}

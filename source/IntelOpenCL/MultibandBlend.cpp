@@ -44,7 +44,7 @@ static void getStepsOfImage32SPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_32SC4);
+        iocl::UMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
 
     }
@@ -56,7 +56,7 @@ static void getStepsOfImageUpPyr(const std::vector<cv::Size>& sizes, std::vector
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_16SC4);
+        iocl::UMat tmp(2, sizes[i].width, CV_16SC4);
         steps[i] = tmp.step;
     }
 }
@@ -67,30 +67,30 @@ static void getStepsOfResultUpPyr(const std::vector<cv::Size>& sizes, std::vecto
     steps.resize(numLevels + 1);
     for (int i = 0; i <= numLevels; i++)
     {
-        IOclMat tmp(2, sizes[i].width, CV_32SC4);
+        iocl::UMat tmp(2, sizes[i].width, CV_32SC4);
         steps[i] = tmp.step;
     }
 }
 
 static void allocMemoryForUpPyrs(const std::vector<cv::Size>& sizes,
     const std::vector<int>& stepsImageUpPyr, const std::vector<int>& stepsResultUpPyr,
-    std::vector<IOclMat>& imageUpPyr, std::vector<IOclMat>& resultUpPyr)
+    std::vector<iocl::UMat>& imageUpPyr, std::vector<iocl::UMat>& resultUpPyr)
 {
     int numLevels = sizes.size() - 1;
-    IOclMat mem(sizes[0], CV_32SC4);
+    iocl::UMat mem(sizes[0], CV_32SC4);
 
     imageUpPyr.resize(numLevels + 1);
     imageUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        imageUpPyr[i] = IOclMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
+        imageUpPyr[i] = iocl::UMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
     resultUpPyr.resize(numLevels + 1);
     resultUpPyr[0] = mem;
     for (int i = 1; i < numLevels; i++)
-        resultUpPyr[i] = IOclMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
+        resultUpPyr[i] = iocl::UMat(sizes[i], CV_32SC4, mem.data, stepsResultUpPyr[i]);
 }
 
-static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vector<IOclMat>& resultPyr)
+static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vector<iocl::UMat>& resultPyr)
 {
     int numLevels = sizes.size() - 1;
     resultPyr.resize(numLevels + 1);
@@ -98,7 +98,7 @@ static void allocMemoryForResultPyr(const std::vector<cv::Size>& sizes, std::vec
         resultPyr[i].create(sizes[i], CV_32SC4);
 }
 
-static void accumulateWeight(const std::vector<IOclMat>& src, std::vector<IOclMat>& dst)
+static void accumulateWeight(const std::vector<iocl::UMat>& src, std::vector<iocl::UMat>& dst)
 {
     CV_Assert(src.size() == dst.size());
     int size = src.size();
@@ -106,8 +106,8 @@ static void accumulateWeight(const std::vector<IOclMat>& src, std::vector<IOclMa
         accumulate16SC1To32SC1(src[i], dst[i]);
 }
 
-static void accumulate(const std::vector<IOclMat>& imagePyr, const std::vector<IOclMat>& weightPyr,
-    std::vector<IOclMat>& resultPyr)
+static void accumulate(const std::vector<iocl::UMat>& imagePyr, const std::vector<iocl::UMat>& weightPyr,
+    std::vector<iocl::UMat>& resultPyr)
 {
     CV_Assert(imagePyr.size() == weightPyr.size() &&
         imagePyr.size() == resultPyr.size());
@@ -116,22 +116,22 @@ static void accumulate(const std::vector<IOclMat>& imagePyr, const std::vector<I
         accumulate16SC4To32SC4(imagePyr[i], weightPyr[i], resultPyr[i]);
 }
 
-static void normalize(std::vector<IOclMat>& pyr)
+static void normalize(std::vector<iocl::UMat>& pyr)
 {
     int size = pyr.size();
     for (int i = 0; i < size; i++)
         normalize32SC4(pyr[i]);
 }
 
-static void normalize(std::vector<IOclMat>& pyr, const std::vector<IOclMat>& weightPyr)
+static void normalize(std::vector<iocl::UMat>& pyr, const std::vector<iocl::UMat>& weightPyr)
 {
     int size = pyr.size();
     for (int i = 0; i < size; i++)
         normalize32SC4(pyr[i], weightPyr[i]);
 }
 
-static void restoreImageFromLaplacePyramid(std::vector<IOclMat>& pyr,
-    std::vector<IOclMat>& upPyr)
+static void restoreImageFromLaplacePyramid(std::vector<iocl::UMat>& pyr,
+    std::vector<iocl::UMat>& upPyr)
 {
     if (pyr.empty())
         return;
@@ -173,13 +173,13 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
 
     numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
 
-    std::vector<IOclMat> masksGpu(numImages);
+    std::vector<iocl::UMat> masksGpu(numImages);
     for (int i = 0; i < numImages; i++)
         masksGpu[i].upload(masks[i]);
 
-    IOclMat aux16S(rows, cols, CV_16SC1);
+    iocl::UMat aux16S(rows, cols, CV_16SC1);
 
-    std::vector<IOclMat> tempAlphaPyr(numLevels + 1);
+    std::vector<iocl::UMat> tempAlphaPyr(numLevels + 1);
     alphaPyrs.resize(numImages);
     weightPyrs.resize(numImages);
     for (int i = 0; i < numImages; i++)
@@ -238,7 +238,7 @@ bool IOclTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     return true;
 }
 
-void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOclMat& blendImage)
+void IOclTilingMultibandBlendFast::blend(const std::vector<iocl::UMat>& images, iocl::UMat& blendImage)
 {
     if (!success)
         return;
@@ -276,7 +276,7 @@ void IOclTilingMultibandBlendFast::blend(const std::vector<IOclMat>& images, IOc
         setZero8UC4Mask8UC1(blendImage, maskNot);
 }
 
-void IOclTilingMultibandBlendFast::getUniqueMasks(std::vector<IOclMat>& masks) const
+void IOclTilingMultibandBlendFast::getUniqueMasks(std::vector<iocl::UMat>& masks) const
 {
     if (success)
         masks = uniqueMasks;

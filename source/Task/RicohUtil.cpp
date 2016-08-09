@@ -1549,8 +1549,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         cv::Mat map32F;
         for (int i = 0; i < numImages; i++)
         {
-            xmaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
-            ymaps[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+            xmaps[i].create(dstSize, CV_32FC1);
+            ymaps[i].create(dstSize, CV_32FC1);
             cv::Mat headx = xmaps[i].toOpenCVMat();
             cv::Mat heady = ymaps[i].toOpenCVMat();
             xmaps32F[i].copyTo(headx);
@@ -1566,13 +1566,13 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
             {
-                weights[i].create(dstSize, CV_32FC1, iocl::ocl->context);
+                weights[i].create(dstSize, CV_32FC1);
                 cv::Mat header = weights[i].toOpenCVMat();
                 ws[i].copyTo(header);
             }
         }
 
-        pool.init(dstSize.height, dstSize.width, CV_32FC4, iocl::ocl->context);
+        pool.init(dstSize.height, dstSize.width, CV_32FC4);
 
         if (completeQueue)
             cpQueue.setMaxSize(4);
@@ -1622,7 +1622,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
 
     try
     {
-        IOclMat blendImage;
+        iocl::UMat blendImage;
         if (!pool.get(blendImage))
             return false;
 
@@ -1632,7 +1632,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
             setZero(blendImage);
             for (int i = 0; i < numImages; i++)
             {
-                IOclMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step, iocl::ocl->context);
+                iocl::UMat temp(src[i].size(), CV_8UC4, src[i].data, src[i].step);
                 ioclReprojectWeightedAccumulateTo32F(temp, blendImage, xmaps[i], ymaps[i], weights[i]);
             }
             tt.end();
@@ -1658,7 +1658,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
 
 bool IOclPanoramaRender::getResult(cv::Mat& dst, long long int& timeStamp)
 {
-    std::pair<IOclMat, long long int> item;
+    std::pair<iocl::UMat, long long int> item;
     bool ret = completeQueue ? cpQueue.pull(item) : rtQueue.pull(item);
     if (ret)
     {
@@ -1797,7 +1797,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 }
 
 #include "MatOp.h"
-bool IOclPanoramaRender::render(const std::vector<IOclMat>& src, IOclMat& dst)
+bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& dst)
 {
     if (!success)
     {

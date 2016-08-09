@@ -1,7 +1,7 @@
 #include "RunTimeObjects.h"
 #include "IntelOpenCLInterface.h"
 
-void ioclSetZero(IOclMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& setZeroKern)
+void ioclSetZero(iocl::UMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& setZeroKern)
 {
     CV_Assert(mat.data && ocl.queue && setZeroKern.kernel);
     
@@ -30,7 +30,7 @@ void ioclSetZero(IOclMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& setZero
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void setZero(IOclMat& mat)
+void setZero(iocl::UMat& mat)
 {
     CV_Assert(mat.data && iocl::ocl && iocl::ocl->context && iocl::ocl->queue && iocl::setZero && iocl::setZero->kernel);
 
@@ -61,7 +61,7 @@ void setZero(IOclMat& mat)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void convert32SC4To8UC4(const IOclMat& src, IOclMat& dst)
+void convert32SC4To8UC4(const iocl::UMat& src, iocl::UMat& dst)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(src.data && src.type == CV_32SC4);
@@ -89,7 +89,7 @@ void convert32SC4To8UC4(const IOclMat& src, IOclMat& dst)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void convert32FC4To8UC4(const IOclMat& src, IOclMat& dst)
+void convert32FC4To8UC4(const iocl::UMat& src, iocl::UMat& dst)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(src.data && src.type == CV_32FC4);
@@ -117,7 +117,7 @@ void convert32FC4To8UC4(const IOclMat& src, IOclMat& dst)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void setZero8UC4Mask8UC1(IOclMat& mat, const IOclMat& mask)
+void setZero8UC4Mask8UC1(iocl::UMat& mat, const iocl::UMat& mask)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(mat.data && mat.type == CV_8UC4 && mask.data && mask.type == CV_8UC1 &&
@@ -144,7 +144,7 @@ void setZero8UC4Mask8UC1(IOclMat& mat, const IOclMat& mask)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void setVal16SC1(IOclMat& mat, short val)
+void setVal16SC1(iocl::UMat& mat, short val)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(mat.data && mat.type == CV_16SC1);
@@ -169,7 +169,7 @@ void setVal16SC1(IOclMat& mat, short val)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void setVal16SC1Mask8UC1(IOclMat& mat, short val, const IOclMat& mask)
+void setVal16SC1Mask8UC1(iocl::UMat& mat, short val, const iocl::UMat& mask)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(mat.data && mat.type == CV_16SC1 && mask.data && mask.type == CV_8UC1 &&
@@ -197,7 +197,7 @@ void setVal16SC1Mask8UC1(IOclMat& mat, short val, const IOclMat& mask)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void scaledSet16SC1Mask32SC1(IOclMat& image, short val, const IOclMat& mask)
+void scaledSet16SC1Mask32SC1(iocl::UMat& image, short val, const iocl::UMat& mask)
 {
     CV_Assert(image.data && image.type == CV_16SC1 && mask.data && mask.type == CV_32SC1 && image.size() == mask.size());
 
@@ -223,7 +223,7 @@ void scaledSet16SC1Mask32SC1(IOclMat& image, short val, const IOclMat& mask)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void subtract16SC4(const IOclMat& a, const IOclMat& b, IOclMat& c)
+void subtract16SC4(const iocl::UMat& a, const iocl::UMat& b, iocl::UMat& c)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(a.data && a.type == CV_16SC4 && b.data && b.type == CV_16SC4 && a.size() == b.size());
@@ -253,7 +253,7 @@ void subtract16SC4(const IOclMat& a, const IOclMat& b, IOclMat& c)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void add32SC4(const IOclMat& a, const IOclMat& b, IOclMat& c)
+void add32SC4(const iocl::UMat& a, const iocl::UMat& b, iocl::UMat& c)
 {
     CV_Assert(iocl::ocl && iocl::ocl->context);
     CV_Assert(a.data && a.type == CV_32SC4 && b.data && b.type == CV_32SC4 && a.size() == b.size());
@@ -283,7 +283,7 @@ void add32SC4(const IOclMat& a, const IOclMat& b, IOclMat& c)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void accumulate16SC1To32SC1(const IOclMat& src, IOclMat& dst)
+void accumulate16SC1To32SC1(const iocl::UMat& src, iocl::UMat& dst)
 {
     CV_Assert(src.data && src.type == CV_16SC1 && dst.data && dst.type == CV_32SC1 && src.size() == dst.size());
 
@@ -308,7 +308,7 @@ void accumulate16SC1To32SC1(const IOclMat& src, IOclMat& dst)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void accumulate16SC4To32SC4(const IOclMat& src, const IOclMat& weight, IOclMat& dst)
+void accumulate16SC4To32SC4(const iocl::UMat& src, const iocl::UMat& weight, iocl::UMat& dst)
 {
     CV_Assert(src.data && src.type == CV_16SC4 && weight.data && weight.type == CV_16SC1 &&
         dst.data && dst.type == CV_32SC4 && src.size() == weight.size() && src.size() == dst.size());
@@ -336,7 +336,7 @@ void accumulate16SC4To32SC4(const IOclMat& src, const IOclMat& weight, IOclMat& 
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void normalize32SC4(IOclMat& mat)
+void normalize32SC4(iocl::UMat& mat)
 {
     CV_Assert(mat.data && mat.type == CV_32SC4);
 
@@ -359,7 +359,7 @@ void normalize32SC4(IOclMat& mat)
     SAMPLE_CHECK_ERRORS(err);
 }
 
-void normalize32SC4(IOclMat& mat, const IOclMat& weight)
+void normalize32SC4(iocl::UMat& mat, const iocl::UMat& weight)
 {
     CV_Assert(mat.data && mat.type == CV_32SC4 && weight.data && weight.type == CV_32SC1 &&
         mat.size() == weight.size());
