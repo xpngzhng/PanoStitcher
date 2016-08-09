@@ -1128,7 +1128,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
     RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
     ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
     AudioVideoFramePool& pool = (*ptrVideoFramePools)[index];
-    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", pixelType);
+    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264_qsv", pixelType);
     DataPacket pkt;
     avp::AudioVideoFrame2 frame, copyFrame;
     bool ok;

@@ -265,16 +265,17 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    cv::Size sz(2048, 1024);
+    //cv::Size sz(2048, 1024);
     //cv::Size sz(3072, 1536);
+    cv::Size sz(4096, 2048);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
-    highQualityBlend = true;
+    highQualityBlend = false;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
     if (cameraParamPath.size() && cameraParamPath != "null")
     {
-        ok = task.beginVideoStitch(cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
+        ok = task.beginVideoStitch(PanoStitchTypeMISO, cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);
         if (!ok)
         {
             printf("Could not prepare for panorama render\n");
@@ -349,8 +350,8 @@ int main(int argc, char* argv[])
     }
 
     saveFile = parser.get<bool>("pano_save_file");
-    saveFile = false;
-    //saveFile = true;
+    //saveFile = false;
+    saveFile = true;
     if (saveFile)
     {
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");
@@ -376,15 +377,19 @@ int main(int argc, char* argv[])
             fileEncodePreset != "slower" || fileEncodePreset != "veryslow")
             fileEncodePreset = "veryfast";
 
-        //task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height,
-        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
-        fileFrameSize.width = 3072;
-        fileFrameSize.height = 2048;
-        fileBitRate = 20000000;
-        fileDuration = 6000;
         fileEncoder = "h264_qsv";
-        task.beginSaveToDisk(".", PanoTypeCube3x2, fileFrameSize.width, fileFrameSize.height,
+        fileFrameSize.width = 4096;
+        fileFrameSize.height = 2048;
+        fileBitRate = 8000000;
+        task.beginSaveToDisk(".", PanoTypeEquiRect, fileFrameSize.width, fileFrameSize.height,
             fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
+        //fileFrameSize.width = 3072;
+        //fileFrameSize.height = 2048;
+        //fileBitRate = 20000000;
+        //fileDuration = 6000;
+        //fileEncoder = "h264_qsv";
+        //task.beginSaveToDisk(".", PanoTypeCube3x2, fileFrameSize.width, fileFrameSize.height,
+        //    fileBitRate, fileEncoder, fileEncodePreset, 96000, fileDuration);
     }
 
     frameRate = task.getVideoFrameRate();
