@@ -150,6 +150,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\OpenCLAccel\basic.hpp" />
+    <ClInclude Include="..\..\source\OpenCLAccel\CompileControl.h" />
     <ClInclude Include="..\..\source\OpenCLAccel\oclobject.hpp" />
   </ItemGroup>
   <ItemGroup>
