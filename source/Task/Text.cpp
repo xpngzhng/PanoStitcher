@@ -29,6 +29,7 @@ static IndexTextsPair indexTextsPairs[] =
     TI_STITCH_FAIL_TASK_TERMINATE, { "视频拼接发生错误，任务终止", "Could not stitch panorama frame, task terminated" },
 
     TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "音视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Audio video sources task is running, termiate current task before lanching a new one" },
+    TI_AUDIO_VIDEO_SOURCE_OPEN_FAIL, { "音视频源打开失败", "Could not open audio video sources" },
 
     TI_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW, { "视频源任务正在运行中，先关闭当前运行的任务，再启动新的任务", "Video sources task is running, terminate current task before launching a new one" },
     TI_VIDEO_SOURCE_EMPTY, { "视频源地址为空，请重新设定", "Video sources URLs are empty, please reset" },
