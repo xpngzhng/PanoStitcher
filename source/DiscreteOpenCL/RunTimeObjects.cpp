@@ -3,8 +3,6 @@
 #include "OpenCLAccel/CompileControl.h"
 #include "OpenCLAccel/ProgramSourceStrings.h"
 
-#define MULTIBAND_PYR_FLOAT 1
-
 namespace docl
 {
 

@@ -135,7 +135,7 @@ struct UMat
             return;
 
         CV_Assert(iocl::ocl && iocl::ocl->context);
-        CV_Assert((((long long int)data_) & (~(ptrAlignSize - 1))) == 0);
+        CV_Assert((((long long int)data_) & (ptrAlignSize - 1)) == 0);
         rows = rows_;
         cols = cols_;
         step = step_;

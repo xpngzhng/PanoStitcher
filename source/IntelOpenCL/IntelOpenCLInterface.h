@@ -1,8 +1,7 @@
 #pragma once
 
+#include "OpenCLAccel/oclobject.hpp"
 #include "IntelOpenCLMat.h"
-#include "oclobject.hpp"
-#include "CL/cl.h"
 
 void ioclSetZero(iocl::UMat& mat, OpenCLBasic& ocl, OpenCLProgramOneKernel& kern);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "oclobject.hpp"
+#include "OpenCLAccel/oclobject.hpp"
 
 namespace iocl
 {
