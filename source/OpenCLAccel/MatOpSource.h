@@ -1,3 +1,5 @@
+const char* sourceMatOp = R"(
+
 __kernel void convert32SC4To8UC4(__global const unsigned char* srcData, int srcStep, __global unsigned char* dstData, int dstStep,
     int rows, int cols)
 {
@@ -151,3 +153,5 @@ __kernel void normalizeByDivide32SC4(__global unsigned char* imageData, int imag
 		((__global int4*)(imageData + imageStep * y))[x] = ((__global int4*)(imageData + imageStep * y))[x] / w;
     }
 }
+
+)";

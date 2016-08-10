@@ -1,3 +1,5 @@
+const char* sourcePyramidUpTemplateFP = R"(
+
 int borderInterpolateWrap(int p, int len)
 {
     if( (unsigned)p < (unsigned)len )
@@ -94,11 +96,11 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
 
     if (eveny)
     {
-        sum =       (evenFlag    ) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx - 2) >> 1)];
-        sum = sum + ( oddFlag * 4) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx - 1) >> 1)];
-        sum = sum + (evenFlag * 6) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx    ) >> 1)];
-        sum = sum + ( oddFlag * 4) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx + 1) >> 1)];
-        sum = sum + (evenFlag    ) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx + 2) >> 1)];
+        sum =       (evenFlag       ) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx - 2) >> 1)];
+        sum = sum + ( oddFlag * 4.0F) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx - 1) >> 1)];
+        sum = sum + (evenFlag * 6.0F) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx    ) >> 1)];
+        sum = sum + ( oddFlag * 4.0F) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx + 1) >> 1)];
+        sum = sum + (evenFlag       ) * s_srcPatch[1 + (localy >> 1)][1 + ((tidx + 2) >> 1)];
     }
 
     s_dstPatch[2 + localy][localx] = sum;
@@ -107,11 +109,11 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
     {
         if (eveny)
         {
-            sum =       (evenFlag    ) * s_srcPatch[0][1 + ((tidx - 2) >> 1)];
-            sum = sum + ( oddFlag * 4) * s_srcPatch[0][1 + ((tidx - 1) >> 1)];
-            sum = sum + (evenFlag * 6) * s_srcPatch[0][1 + ((tidx    ) >> 1)];
-            sum = sum + ( oddFlag * 4) * s_srcPatch[0][1 + ((tidx + 1) >> 1)];
-            sum = sum + (evenFlag    ) * s_srcPatch[0][1 + ((tidx + 2) >> 1)];
+            sum =       (evenFlag       ) * s_srcPatch[0][1 + ((tidx - 2) >> 1)];
+            sum = sum + ( oddFlag * 4.0F) * s_srcPatch[0][1 + ((tidx - 1) >> 1)];
+            sum = sum + (evenFlag * 6.0F) * s_srcPatch[0][1 + ((tidx    ) >> 1)];
+            sum = sum + ( oddFlag * 4.0F) * s_srcPatch[0][1 + ((tidx + 1) >> 1)];
+            sum = sum + (evenFlag       ) * s_srcPatch[0][1 + ((tidx + 2) >> 1)];
         }
 
         s_dstPatch[localy][localx] = sum;
@@ -121,11 +123,11 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
     {
         if (eveny)
         {
-            sum =       (evenFlag    ) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 2) >> 1)];
-            sum = sum + ( oddFlag * 4) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 1) >> 1)];
-            sum = sum + (evenFlag * 6) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx    ) >> 1)];
-            sum = sum + ( oddFlag * 4) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 1) >> 1)];
-            sum = sum + (evenFlag    ) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 2) >> 1)];
+            sum =       (evenFlag       ) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 2) >> 1)];
+            sum = sum + ( oddFlag * 4.0F) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx - 1) >> 1)];
+            sum = sum + (evenFlag * 6.0F) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx    ) >> 1)];
+            sum = sum + ( oddFlag * 4.0F) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 1) >> 1)];
+            sum = sum + (evenFlag       ) * s_srcPatch[PYR_UP_BLOCK_HEIGHT / 2 + 1][1 + ((tidx + 2) >> 1)];
         }
 
         s_dstPatch[4 + localy][localx] = sum;
@@ -135,12 +137,14 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
 
     const int tidy = localy;
 
-    sum =           s_dstPatch[2 + tidy - 2][localx];
-    sum = sum + 4 * s_dstPatch[2 + tidy - 1][localx];
-    sum = sum + 6 * s_dstPatch[2 + tidy    ][localx];
-    sum = sum + 4 * s_dstPatch[2 + tidy + 1][localx];
-    sum = sum +     s_dstPatch[2 + tidy + 2][localx];
+    sum =              s_dstPatch[2 + tidy - 2][localx];
+    sum = sum + 4.0F * s_dstPatch[2 + tidy - 1][localx];
+    sum = sum + 6.0F * s_dstPatch[2 + tidy    ][localx];
+    sum = sum + 4.0F * s_dstPatch[2 + tidy + 1][localx];
+    sum = sum +        s_dstPatch[2 + tidy + 2][localx];
 
     if (x < dstCols && y < dstRows)
-        getDestRowPtr(dstData, dstStep, y)[x] = CONVERT_DST_TYPE((sum + 32) >> 6);
+        getDestRowPtr(dstData, dstStep, y)[x] = CONVERT_DST_TYPE((sum + 32.0F) / 64.0F);
 }
+
+)";

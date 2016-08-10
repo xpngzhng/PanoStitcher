@@ -1,3 +1,5 @@
+const char* sourcePyramidDownTemplateFP = R"(
+
 int borderInterpolateWrap(int p, int len)
 {
     if( (unsigned)p < (unsigned)len )
@@ -189,3 +191,5 @@ __kernel void pyrDownKernel(__global const unsigned char* srcData, int srcRows, 
         }
     }
 }
+
+)";

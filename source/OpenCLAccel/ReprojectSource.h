@@ -1,3 +1,5 @@
+const char* sourceReproject = R"(
+
 __constant int BILINEAR_INTER_SHIFT = 10;
 __constant int BILINEAR_INTER_BACK_SHIFT = 10 * 2;
 __constant int BILINEAR_UNIT = 1 << 10;
@@ -350,3 +352,4 @@ __kernel void reprojectWeightedAccumulateTo32FKernel(__global const unsigned cha
     }        
 }
 
+)";

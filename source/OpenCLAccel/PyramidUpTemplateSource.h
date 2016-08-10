@@ -1,3 +1,5 @@
+const char* sourcePyramidUpTemplate = R"(
+
 int borderInterpolateWrap(int p, int len)
 {
     if( (unsigned)p < (unsigned)len )
@@ -144,3 +146,5 @@ __kernel void pyrUpKernel(__global const unsigned char* srcData, int srcRows, in
     if (x < dstCols && y < dstRows)
         getDestRowPtr(dstData, dstStep, y)[x] = CONVERT_DST_TYPE((sum + 32) >> 6);
 }
+
+)";

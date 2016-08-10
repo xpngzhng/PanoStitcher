@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DiscreteOpenCLMat.h"
-#include "oclobject.hpp"
+#include "OpenCLAccel/oclobject.hpp"
 
 bool doclInit();
 

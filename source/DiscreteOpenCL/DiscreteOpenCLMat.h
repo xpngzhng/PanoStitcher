@@ -1,7 +1,7 @@
 #pragma once
 
+#include "OpenCLAccel/basic.hpp"
 #include "opencv2/core.hpp"
-#include "CL/cl.h"
 #include <memory>
 
 #include "RunTimeObjects.h"

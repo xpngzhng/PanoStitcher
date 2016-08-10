@@ -1,3 +1,5 @@
+const char* sourceImageProc = R"(
+
 #define UTIL_BLOCK_WIDTH 16
 #define UTIL_BLOCK_HEIGHT 16
 
@@ -104,3 +106,5 @@ __kernel void cvtBGR32ToNV12(__global const unsigned char* bgrData, int bgrStep,
             uvData + y * uvStep + xx, uvData + y * uvStep + xx + 1);
     }
 }
+
+)";

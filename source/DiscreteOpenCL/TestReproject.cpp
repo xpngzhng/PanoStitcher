@@ -5,6 +5,8 @@
 #include "MatOp.h"
 #include "../../source/Blend/Timer.h"
 #include "../../source/Blend/ZBlend.h"
+#include "../../source/CudaAccel/CudaInterface.h"
+#include "../../source/OpenCLAccel/basic.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"

@@ -1,3 +1,5 @@
+const char* sourceReprojectLinearTemplate = R"(
+
 __constant int BILINEAR_INTER_SHIFT = 10;
 __constant int BILINEAR_INTER_BACK_SHIFT = 10 * 2;
 __constant int BILINEAR_UNIT = 1 << 10;
@@ -57,3 +59,4 @@ __kernel void reprojectLinearKernel(__global const unsigned char* srcData, int s
     }
 }
 
+)";
