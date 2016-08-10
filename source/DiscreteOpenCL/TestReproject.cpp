@@ -1,12 +1,13 @@
-#include "ZReproject.h"
+
 #include "DiscreteOpenCLInterface.h"
 #include "RunTimeObjects.h"
 #include "Pyramid.h"
 #include "MatOp.h"
-#include "../../source/Blend/Timer.h"
-#include "../../source/Blend/ZBlend.h"
-#include "../../source/CudaAccel/CudaInterface.h"
-#include "../../source/OpenCLAccel/basic.hpp"
+#include "Tool/Timer.h"
+#include "Blend/ZBlend.h"
+#include "CudaAccel/CudaInterface.h"
+#include "OpenCLAccel/basic.hpp"
+#include "Warp/ZReproject.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -518,7 +519,7 @@ int main1(int argc, char** argv)
 //    return 0;
 //}
 //
-#include "ZBlendAlgo.h"
+#include "Blend/ZBlendAlgo.h"
 int main3()
 {
     bool ok = doclInit();

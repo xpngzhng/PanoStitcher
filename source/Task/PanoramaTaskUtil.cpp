@@ -3,6 +3,7 @@
 #include "Image.h"
 #include "Text.h"
 #include "Warp/ZReproject.h"
+#include "Tool/Print.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <stdarg.h>
@@ -22,7 +23,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
 
     if (srcVideoFiles.empty())
     {
-        ptlprintf("Error in %s, srcVideoFiles empty\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, srcVideoFiles empty\n", __FUNCTION__);
         return false;
     }
 
@@ -30,7 +31,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
     bool hasOffsets = !offsets.empty();
     if (hasOffsets && offsets.size() != numVideos)
     {
-        ptlprintf("Error in %s, offsets size = %d, num videos = %d, not match\n", 
+        ztool::lprintf("Error in %s, offsets size = %d, num videos = %d, not match\n", 
             __FUNCTION__, offsets.size(), numVideos);
         return false;
     }
@@ -39,7 +40,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
 
     if (tryAudioIndex < 0 || tryAudioIndex >= numVideos)
     {
-        ptlprintf("Info in %s, no audio will be opened\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, no audio will be opened\n", __FUNCTION__);
         audioIndex = -1;
     }
 
@@ -54,7 +55,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
                 audioIndex = tryAudioIndex;
             else
             {
-                ptlprintf("Warning in %s, failed to open file %s with audio, index %s, open video only instead\n",
+                ztool::lprintf("Warning in %s, failed to open file %s with audio, index %s, open video only instead\n",
                     __FUNCTION__, srcVideoFiles[i].c_str(), i);
                 ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
                 audioIndex = -1;
@@ -64,16 +65,16 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
             ok = readers[i].open(srcVideoFiles[i], false, avp::SampleTypeUnknown, true, pixelType);
         if (!ok)
         {
-            ptlprintf("Error in %s, could not open file %s, index %d\n", __FUNCTION__, srcVideoFiles[i].c_str(), i);
+            ztool::lprintf("Error in %s, could not open file %s, index %d\n", __FUNCTION__, srcVideoFiles[i].c_str(), i);
             break;
         }
-        ptlprintf("Info in %s, file %s opened, index %d, video width = %d, video height = %d, video frame rate = %f",
+        ztool::lprintf("Info in %s, file %s opened, index %d, video width = %d, video height = %d, video frame rate = %f",
             __FUNCTION__, srcVideoFiles[i].c_str(), i, readers[i].getVideoWidth(), readers[i].getVideoHeight(),
             readers[i].getVideoFrameRate());
         if (tryAudioIndex == i)
-            ptlprintf(", audio sample rate = %d\n", readers[i].getAudioSampleRate());
+            ztool::lprintf(", audio sample rate = %d\n", readers[i].getAudioSampleRate());
         else
-            ptlprintf("\n");
+            ztool::lprintf("\n");
 
         if (srcSize == cv::Size())
         {
@@ -84,7 +85,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
             srcSize.height != readers[i].getVideoHeight())
         {
             ok = false;
-            ptlprintf("Error in %s, video size unmatch\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, video size unmatch\n", __FUNCTION__);
             break;
         }
 
@@ -92,7 +93,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
             fps = readers[i].getVideoFrameRate();
         if (abs(fps - readers[i].getVideoFrameRate()) > 0.1)
         {
-            ptlprintf("Error in %s, video fps not consistent\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, video fps not consistent\n", __FUNCTION__);
             ok = false;
             break;
         }
@@ -106,7 +107,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
             currValidFrameCount -= count;
             if (currValidFrameCount <= 0)
             {
-                ptlprintf("Error in %s, video at index %d has only %d frames, "
+                ztool::lprintf("Error in %s, video at index %d has only %d frames, "
                     "should be saught to frame indexed %d, video not long enough\n", 
                     __FUNCTION__, i, readers[i].getVideoNumFrames(), offsets[i]);
                 ok = false;
@@ -123,7 +124,7 @@ bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelT
         {
             if (!readers[i].seekByIndex(count, avp::VIDEO))
             {
-                ptlprintf("Error in %s, video at index %d cannot be saught to frame indexed %d\n", 
+                ztool::lprintf("Error in %s, video at index %d cannot be saught to frame indexed %d\n", 
                     __FUNCTION__, i, count);
                 ok = false;
                 break;
@@ -180,7 +181,7 @@ bool WatermarkFilter::init(int width_, int height_, int type_)
 
     if (width_ < 0 || height_ < 0 || (type_ != CV_8UC3 && type_ != CV_8UC4))
     {
-        ptlprintf("Error in %s, width(%d) height(%d) type(%d) not satisfied\n",
+        ztool::lprintf("Error in %s, width(%d) height(%d) type(%d) not satisfied\n",
             __FUNCTION__, width_, height_, type_);
         return false;
     }
@@ -225,7 +226,7 @@ bool WatermarkFilter::addWatermark(cv::Mat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != type)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
             "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, type);
         return false;
@@ -259,25 +260,25 @@ bool LogoFilter::init(const std::string& logoFileName, int hFov, int width_, int
 
     if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
     if (hFov <= 0 || hFov > 180)
     {
-        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        ztool::lprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
         return false;
     }
 
     cv::Mat origLogo = cv::imread(logoFileName, -1);
     if (!origLogo.data)
     {
-        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        ztool::lprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
         return false;
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+        ztool::lprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
             "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4, 
             origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
@@ -316,24 +317,24 @@ bool LogoFilter::init(const cv::Mat& origLogo, int hFov, int width_, int height_
 
     if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
     if (hFov <= 0 || hFov > 180)
     {
-        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        ztool::lprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
         return false;
     }
 
     if (!origLogo.data)
     {
-        ptlprintf("Error in %s, orig logo image empty\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, orig logo image empty\n", __FUNCTION__);
         return false;
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+        ztool::lprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
             "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
             origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
@@ -371,7 +372,7 @@ bool LogoFilter::addLogo(cv::Mat& image) const
     if (!initSuccess || !image.data || image.rows != height || image.cols != width ||
         (image.type() != CV_8UC3 && image.type() != CV_8UC4))
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
             "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d or %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC3, CV_8UC4);
         return false;
@@ -396,7 +397,7 @@ bool CudaWatermarkFilter::init(int width_, int height_)
 
     if (width_ < 0 || height_ < 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
@@ -440,7 +441,7 @@ bool CudaWatermarkFilter::addWatermark(cv::cuda::GpuMat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
             "requre initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC4);
         return false;
@@ -464,25 +465,25 @@ bool CudaLogoFilter::init(const std::string& logoFileName, int hFov, int width_,
 
     if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
     if (hFov <= 0 || hFov > 180)
     {
-        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        ztool::lprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
         return false;
     }
 
     cv::Mat origLogo = cv::imread(logoFileName, -1);
     if (!origLogo.data)
     {
-        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        ztool::lprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
         return false;
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+        ztool::lprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
             "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
             origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
@@ -522,7 +523,7 @@ bool CudaLogoFilter::addLogo(cv::cuda::GpuMat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
             "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type(), height, width, CV_8UC4);
         return false;
@@ -555,7 +556,7 @@ bool DOclWatermarkFilter::init(int width_, int height_)
 
     if (width_ < 0 || height_ < 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
@@ -599,7 +600,7 @@ bool DOclWatermarkFilter::addWatermark(docl::GpuMat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type != CV_8UC4)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) not satisfied, "
             "requre initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type, height, width, CV_8UC4);
         return false;
@@ -623,25 +624,25 @@ bool DOclLogoFilter::init(const std::string& logoFileName, int hFov, int width_,
 
     if (width_ <= 0 || height_ <= 0 || width_ != height_ * 2)
     {
-        ptlprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
+        ztool::lprintf("Error in %s, width(%d) or height(%d) not satisfied\n", __FUNCTION__, width_, height_);
         return false;
     }
 
     if (hFov <= 0 || hFov > 180)
     {
-        ptlprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
+        ztool::lprintf("Error in %s, hFov(%d) not satisfied, shoul be in (0, 180]", __FUNCTION__, hFov);
         return false;
     }
 
     cv::Mat origLogo = cv::imread(logoFileName, -1);
     if (!origLogo.data)
     {
-        ptlprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
+        ztool::lprintf("Error in %s, could not open file %s\n", __FUNCTION__, logoFileName.c_str());
         return false;
     }
     if (origLogo.type() != CV_8UC3 && origLogo.type() != CV_8UC4)
     {
-        ptlprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
+        ztool::lprintf("Error in %s, logo image should be of type CV_8UC3(%d) or CV_8UC4(%d), "
             "but now type %d, depth %d, channels %d\n", __FUNCTION__, CV_8UC3, CV_8UC4,
             origLogo.type(), origLogo.depth(), origLogo.channels());
         return false;
@@ -681,7 +682,7 @@ bool DOclLogoFilter::addLogo(docl::GpuMat& image) const
 {
     if (!initSuccess || !image.data || image.rows != height || image.cols != width || image.type != CV_8UC4)
     {
-        ptlprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
+        ztool::lprintf("Error in %s, initSuccess(%d), image.data(%p), image.rows(%d), image.cols(%d), image.type()(%d) unsatisfied, "
             "require initSuccess = 1, image.data not NULL, image.rows = %d, image.cols = %d, image.type() = %d\n",
             __FUNCTION__, initSuccess, image.data, image.rows, image.cols, image.type, height, width, CV_8UC4);
         return false;
@@ -703,29 +704,11 @@ void DOclLogoFilter::clear()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ptLogDefaultCallback(const char* format, va_list vl)
-{
-    vprintf(format, vl);
-}
-
-PanoTaskLogCallbackFunc ptLogCallback = ptLogDefaultCallback;
-
-void ptlprintf(const char* format, ...)
-{
-    if (ptLogCallback)
-    {
-        va_list vl;
-        va_start(vl, format);
-        ptLogCallback(format, vl);
-        va_end(vl);
-    }    
-}
+#include "Tool/Print.h"
 
 PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
 {
-    PanoTaskLogCallbackFunc oldFunc = ptLogCallback;
-    ptLogCallback = func;
-    return oldFunc;
+    return ztool::setPrintfCallback(func);
 }
 
 /*

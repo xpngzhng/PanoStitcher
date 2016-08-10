@@ -1,7 +1,8 @@
 #include "RicohUtil.h"
-#include "ZReproject.h"
-#include "RunTimeObjects.h"
-#include "Timer.h"
+#include "Warp/ZReproject.h"
+#include "IntelOpenCL/IntelOpenCLInterface.h"
+#include "IntelOpenCL/RunTimeObjects.h"
+#include "Tool/Timer.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <fstream>
@@ -50,16 +51,16 @@ int main()
         return 0;
     }
 
-    std::vector<IOclMat> ioclSrc(numImages);
+    std::vector<iocl::UMat> ioclSrc(numImages);
     cv::Mat temp8U;
     for (int i = 0; i < numImages; i++)
     {
         cv::cvtColor(src[i], temp8U, CV_BGR2BGRA);
-        ioclSrc[i].upload(temp8U, iocl::ocl->context);
+        ioclSrc[i].upload(temp8U);
     }
     IOclPanoramaRender gpuRender;
     gpuRender.prepare(camPath, true, src[0].size(), dstSize);
-    IOclMat gpuBlendImage;
+    iocl::UMat gpuBlendImage;
 
     t.start();
     for (int i = 0; i < 100; i++)

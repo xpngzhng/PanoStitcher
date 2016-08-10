@@ -34,9 +34,6 @@ struct LogoFilter
     bool initSuccess;
 };
 
-// PanoTask Log Printf
-void ptlprintf(const char* format, ...);
-
 struct IntervaledContour
 {
     int videoIndex;

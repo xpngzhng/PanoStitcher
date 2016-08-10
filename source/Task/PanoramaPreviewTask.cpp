@@ -3,6 +3,7 @@
 #include "RicohUtil.h"
 #include "Warp/ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "Tool/Print.h"
 #include "opencv2/highgui.hpp"
 
 struct CPUPanoramaPreviewTask::Impl
@@ -71,41 +72,41 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
 
     if (srcVideoFiles.empty())
     {
-        ptlprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
         return false;
     }
 
     numVideos = srcVideoFiles.size();
 
-    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
     int audioIndex;
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR24, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
-    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, open videos done\n", __FUNCTION__);
     
-    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
     {
-        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, failed to load params\n", __FUNCTION__);
         return false;
     }
     if (params.size() < numVideos)
     {
-        ptlprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
         return false;
     }
     else if (params.size() > numVideos)
     {
-        ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
+        ztool::lprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
@@ -118,10 +119,10 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
     blender.getUniqueMasks(dstUniqueMasks);
     if (!ok)
     {
-        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
         return false;
     }
-    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
     frameIntervalInMicroSec = 1000000.0 / readers[0].getVideoFrameRate();
 
@@ -133,24 +134,24 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not reset\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not reset\n", __FUNCTION__);
         return false;
     }
 
     std::vector<PhotoParam> params;
     if (!loadPhotoParams(cameraParamFile, params))
     {
-        ptlprintf("Error in %s, failed to load params\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, failed to load params\n", __FUNCTION__);
         return false;
     }
     if (params.size() < numVideos)
     {
-        ptlprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, params.size() < numVideos\n", __FUNCTION__);
         return false;
     }
     else if (params.size() > numVideos)
     {
-        ptlprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
+        ztool::lprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
@@ -158,7 +159,7 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     //ok = blender.prepare(dstMasks, 50);
     if (!ok)
     {
-        ptlprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
         return false;
     }
 
@@ -169,13 +170,13 @@ bool CPUPanoramaPreviewTask::Impl::seek(const std::vector<int>& indexes)
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not seek\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not seek\n", __FUNCTION__);
         return false;
     }
 
     if (indexes.size() != numVideos)
     {
-        ptlprintf("Error in %s, indexes.size() = %d, require %d, unmatched, could not seek\n", 
+        ztool::lprintf("Error in %s, indexes.size() = %d, require %d, unmatched, could not seek\n", 
             __FUNCTION__, indexes.size(), numVideos);
         return false;
     }
@@ -196,14 +197,14 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
         return false;
     }
 
     if (frameIncrement <= 0 || frameIncrement > 10)
         frameIncrement = 1;
 
-    //ptlprintf("In %s, begin read frame\n", __FUNCTION__);
+    //ztool::lprintf("In %s, begin read frame\n", __FUNCTION__);
     frames.resize(numVideos);
     images.resize(numVideos);
     indexes.resize(numVideos);
@@ -226,7 +227,7 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
     }
     if (!ok)
     {
-        ptlprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
         return false;
     }
 
@@ -255,13 +256,13 @@ bool CPUPanoramaPreviewTask::Impl::restitch(std::vector<cv::Mat>& src, std::vect
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
         return false;
     }
 
     if (images.size() != numVideos)
     {
-        ptlprintf("Error in %s, restitch can be called after stitch at least once\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, restitch can be called after stitch at least once\n", __FUNCTION__);
         return false;
     }
 
@@ -311,7 +312,7 @@ bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not get masks\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not get masks\n", __FUNCTION__);
         return false;
     }
 
@@ -323,7 +324,7 @@ bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks) c
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not get unique masks\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not get unique masks\n", __FUNCTION__);
         return false;
     }
 
@@ -335,20 +336,20 @@ bool CPUPanoramaPreviewTask::Impl::getCurrReprojectForAll(std::vector<cv::Mat>& 
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (images.empty() || frames.empty() || reprojImages.empty())
     {
-        ptlprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
+        ztool::lprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
             "This function can run correctly only after stitch has been call once\n", __FUNCTION__);
         return false;
     }
 
     if (reprojImages.size() != numVideos)
     {
-        ptlprintf("Error in %s, reprojImages.size() != numVideos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, reprojImages.size() != numVideos\n", __FUNCTION__);
         return false;
     }
 
@@ -363,13 +364,13 @@ bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, 
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (images.empty() || frames.empty() || reprojImages.empty())
     {
-        ptlprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
+        ztool::lprintf("Error in %s, at least one of images, frames and reprojImages empty, stitch function had not been called. "
             "This function can run correctly only after stitch has been call once\n", __FUNCTION__);
         return false;
     }
@@ -401,7 +402,7 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
@@ -421,7 +422,7 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
     }
     if (!ok)
     {
-        ptlprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, read frame failed, perhaps went to the end of files\n", __FUNCTION__);
         return false;
     }
 
@@ -434,13 +435,13 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int videoIndex, cv
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
     }
 
@@ -462,26 +463,26 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int videoIndex, cv
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
     }
 
     long long int timeIncUnit = 1000000 / readers[videoIndex].getVideoFrameRate() + 0.5;
     if (!readers[videoIndex].seek(frames[videoIndex].timeStamp - timeIncUnit, avp::VIDEO))
     {
-        ptlprintf("Error in %s, could not seek to the prev frame in video source indexed %d\n", __FUNCTION__, videoIndex);
+        ztool::lprintf("Error in %s, could not seek to the prev frame in video source indexed %d\n", __FUNCTION__, videoIndex);
         return false;
     }
 
     if (!readers[videoIndex].read(frames[videoIndex]))
     {
-        ptlprintf("Error in %s, could not read frame in video source indexed %d\n", __FUNCTION__, videoIndex);
+        ztool::lprintf("Error in %s, could not read frame in video source indexed %d\n", __FUNCTION__, videoIndex);
         return false;
     }
 
@@ -497,13 +498,13 @@ bool CPUPanoramaPreviewTask::Impl::setCustomMaskForOne(int videoIndex, int begFr
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
     }
 
@@ -514,13 +515,13 @@ void CPUPanoramaPreviewTask::Impl::eraseCustomMaskForOne(int videoIndex, int beg
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return;
     }
 
@@ -531,13 +532,13 @@ void CPUPanoramaPreviewTask::Impl::eraseAllMasksForOne(int index)
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return;
     }
 
     if (index < 0 || index >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return;
     }
 
@@ -548,13 +549,13 @@ bool CPUPanoramaPreviewTask::Impl::getCustomMaskIfHasOrUniqueMaskForOne(int vide
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
     }
 
@@ -567,13 +568,13 @@ bool CPUPanoramaPreviewTask::Impl::getCustomMasksIfHaveOrUniqueMasksForAll(const
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (indexes.size() != numVideos)
     {
-        ptlprintf("Error in %s, indexes.size() = %d, required = %d, unmatch\n", __FUNCTION__, indexes.size(), numVideos);
+        ztool::lprintf("Error in %s, indexes.size() = %d, required = %d, unmatch\n", __FUNCTION__, indexes.size(), numVideos);
         return false;
     }
 
@@ -595,13 +596,13 @@ bool CPUPanoramaPreviewTask::Impl::getAllCustomMasksForOne(int videoIndex, std::
 
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
         return false;
     }
 
     if (videoIndex < 0 || videoIndex >= numVideos)
     {
-        ptlprintf("Error in %s, index out of bound\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, index out of bound\n", __FUNCTION__);
         return false;
     }
 
@@ -911,34 +912,34 @@ bool CudaPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVide
 
     if (srcVideoFiles.empty())
     {
-        ptlprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles empty\n", __FUNCTION__);
         return false;
     }
     numVideos = srcVideoFiles.size();
 
-    ptlprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, open videos and set to the correct frames\n", __FUNCTION__);
     bool ok = false;
     int validFrameCount;
     int audioIndex;
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, std::vector<int>(), -1, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         return false;
     }
-    ptlprintf("Info in %s, open videos done\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, open videos done\n", __FUNCTION__);
 
-    ptlprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, prepare for reproject and blend\n", __FUNCTION__);
     dstSize.width = dstWidth;
     dstSize.height = dstHeight;
     ptrRender.reset(new CudaMultiCameraPanoramaRender);
     ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, prepare failed\n", __FUNCTION__);
         return false;
     }
-    ptlprintf("Info in %s, prepare finish\n", __FUNCTION__);
+    ztool::lprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
     initSuccess = true;
     return true;
@@ -952,7 +953,7 @@ bool CudaPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     bool ok = ptrRender->prepare(cameraParamFile, PanoramaRender::BlendTypeMultiband, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, prepare failed\n", __FUNCTION__);
         return false;
     }
 

@@ -11,6 +11,7 @@
 #include "Blend/ZBlend.h"
 #include "Warp/ZReproject.h"
 #include "Tool/Timer.h"
+#include "Tool/Print.h"
 #include "opencv2/highgui.hpp"
 #include <deque>
 
@@ -108,7 +109,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
@@ -122,7 +123,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR24, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
@@ -133,7 +134,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     ok = srcVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, readers[0].getVideoWidth(), readers[0].getVideoHeight());
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -145,7 +146,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
@@ -154,7 +155,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR24, dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -165,21 +166,21 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         render.reset(new CPURicohPanoramaRender);
     else
     {
-        ptlprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
+        ztool::lprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
             __FUNCTION__, panoType, PanoStitchTypeMISO, PanoStitchTypeRicoh);
     }
 
     ok = render->prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
     if (render->getNumImages() != readers.size())
     {
-        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -191,7 +192,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     //    ok = loadIntervaledContours(customMaskFile, contours);
     //    if (!ok)
     //    {
-    //        ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
+    //        ztool::lprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
     //        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
     //        return false;
     //    }
@@ -202,13 +203,13 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     //    // so the following if condition should be deleted
     //    //if (contours.size() != numVideos)
     //    //{
-    //    //    ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+    //    //    ztool::lprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
     //    //    syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
     //    //    return false;
     //    //}
     //    if (!cvtContoursToMasks(contours, dstMasks, customMasks))
     //    {
-    //        ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
+    //        ztool::lprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
     //        syncErrorMessage = getText(TI_STITCH_INIT_FAIL)/*"初始化拼接失败。"*/;
     //        return false;
     //    }
@@ -219,7 +220,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     ok = watermarkFilter.init(dstSize.width, dstSize.height, CV_8UC3);
     if (!ok)
     {
-        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -230,7 +231,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
         if (!ok)
         {
-            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
@@ -255,7 +256,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     }
     if (!ok)
     {
-        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
@@ -276,7 +277,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
 void CPUPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
     int mediaType;
@@ -333,7 +334,7 @@ void CPUPanoramaLocalDiskTask::Impl::decode()
 
         decodeFramesBuffer.push(videoFrames);
         decodeCount++;
-        //ptlprintf("decode count = %d\n", decodeCount);
+        //ztool::lprintf("decode count = %d\n", decodeCount);
 
         if (decodeCount >= validFrameCount)
             break;
@@ -349,14 +350,14 @@ void CPUPanoramaLocalDiskTask::Impl::decode()
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
 
-    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CPUPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
     FrameVectorForCpu frames;
@@ -409,7 +410,7 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
             ok = logoFilter->addLogo(blendImage);
             if (!ok)
             {
-                ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add logo fail\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -420,7 +421,7 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
             ok = watermarkFilter.addWatermark(blendImage);
             if (!ok)
             {
-                ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add watermark fail\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -429,7 +430,7 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
         videoFrame.timeStamp = frames[index].timeStamp;
         procFrameBuffer.push(videoFrame);
         procCount++;
-        //ptlprintf("proc count = %d\n", procCount);
+        //ztool::lprintf("proc count = %d\n", procCount);
     }
 
     if (!isCanceled)
@@ -439,14 +440,14 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
     }
     procFrameBuffer.stop();
 
-    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CPUPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     encodeCount = 0;
     int step = 1;
@@ -454,7 +455,7 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::lprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
     avp::AudioVideoFrame2 frame;
@@ -499,7 +500,7 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
         //timerEncode.end();
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -508,7 +509,7 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
         // Only when the frame is of type video can we increase encodeCount
         if (frame.mediaType == avp::VIDEO)
             encodeCount++;
-        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+        //ztool::lprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
         if (encodeCount % step == 0)
             finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
@@ -518,15 +519,15 @@ void CPUPanoramaLocalDiskTask::Impl::encode()
 
     finishPercent.store(100);
 
-    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 bool CPUPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
     }
 
@@ -562,7 +563,7 @@ void CPUPanoramaLocalDiskTask::Impl::waitForCompletion()
     logoFilter.reset();
 
     if (!finish)
-        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -794,7 +795,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
@@ -808,7 +809,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
@@ -819,7 +820,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = srcVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, readers[0].getVideoWidth(), readers[0].getVideoHeight());
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -831,7 +832,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
@@ -840,7 +841,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = dstVideoFramesMemoryPool.initAsVideoFramePool(avp::PixelTypeBGR32, dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -848,14 +849,14 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
     if (render.getNumImages() != readers.size())
     {
-        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -863,7 +864,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = watermarkFilter.init(dstSize.width, dstSize.height, CV_8UC4);
     if (!ok)
     {
-        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -874,7 +875,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
         if (!ok)
         {
-            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
@@ -899,7 +900,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     }
     if (!ok)
     {
-        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
@@ -920,7 +921,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 void IOclPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
     int mediaType;
@@ -977,7 +978,7 @@ void IOclPanoramaLocalDiskTask::Impl::decode()
 
         decodeFramesBuffer.push(videoFrames);
         decodeCount++;
-        //ptlprintf("decode count = %d\n", decodeCount);
+        //ztool::lprintf("decode count = %d\n", decodeCount);
 
         if (decodeCount >= validFrameCount)
             break;
@@ -993,15 +994,15 @@ void IOclPanoramaLocalDiskTask::Impl::decode()
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
 
-    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 #include "RunTimeObjects.h"
 void IOclPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
     FrameVectorForCpu frames;
@@ -1031,7 +1032,7 @@ void IOclPanoramaLocalDiskTask::Impl::proc()
             ok = logoFilter->addLogo(blendImage);
             if (!ok)
             {
-                ptlprintf("Error in %s, add logo fail\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add logo fail\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -1042,7 +1043,7 @@ void IOclPanoramaLocalDiskTask::Impl::proc()
             ok = watermarkFilter.addWatermark(blendImage);
             if (!ok)
             {
-                ptlprintf("Error in %s, add watermark fail\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add watermark fail\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -1051,7 +1052,7 @@ void IOclPanoramaLocalDiskTask::Impl::proc()
         videoFrame.timeStamp = frames[index].timeStamp;
         procFrameBuffer.push(videoFrame);
         procCount++;
-        //ptlprintf("proc count = %d\n", procCount);
+        //ztool::lprintf("proc count = %d\n", procCount);
     }
 
     if (!isCanceled)
@@ -1061,14 +1062,14 @@ void IOclPanoramaLocalDiskTask::Impl::proc()
     }
     procFrameBuffer.stop();
 
-    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void IOclPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     encodeCount = 0;
     int step = 1;
@@ -1076,7 +1077,7 @@ void IOclPanoramaLocalDiskTask::Impl::encode()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::lprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
     avp::AudioVideoFrame2 frame;
@@ -1121,7 +1122,7 @@ void IOclPanoramaLocalDiskTask::Impl::encode()
         //timerEncode.end();
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -1130,7 +1131,7 @@ void IOclPanoramaLocalDiskTask::Impl::encode()
         // Only when the frame is of type video can we increase encodeCount
         if (frame.mediaType == avp::VIDEO)
             encodeCount++;
-        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+        //ztool::lprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
         if (encodeCount % step == 0)
             finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
@@ -1140,15 +1141,15 @@ void IOclPanoramaLocalDiskTask::Impl::encode()
 
     finishPercent.store(100);
 
-    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 bool IOclPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
     }
 
@@ -1184,7 +1185,7 @@ void IOclPanoramaLocalDiskTask::Impl::waitForCompletion()
     logoFilter.reset();
 
     if (!finish)
-        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -1426,7 +1427,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
@@ -1440,7 +1441,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
@@ -1451,7 +1452,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = srcFramesMemoryPool.init(readers[0].getVideoHeight(), readers[0].getVideoWidth(), CV_8UC4);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -1463,7 +1464,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
@@ -1475,21 +1476,21 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         render.reset(new CudaRicohPanoramaRender);
     else
     {
-        ptlprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
+        ztool::lprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
             __FUNCTION__, panoType, PanoStitchTypeMISO, PanoStitchTypeRicoh);
     }
 
     ok = render->prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
     if (render->getNumImages() != numVideos)
     {
-        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -1499,7 +1500,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = dstFramesMemoryPool.init(isLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12, dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -1507,7 +1508,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = watermarkFilter.init(dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -1518,7 +1519,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
         if (!ok)
         {
-            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
@@ -1544,7 +1545,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     }
     if (!ok)
     {
-        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
@@ -1566,7 +1567,7 @@ bool CudaPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
     }
 
@@ -1603,7 +1604,7 @@ void CudaPanoramaLocalDiskTask::Impl::waitForCompletion()
     logoFilter.reset();
 
     if (!finish)
-        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -1688,7 +1689,7 @@ void CudaPanoramaLocalDiskTask::Impl::cancel()
 void CudaPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
     int mediaType;
@@ -1757,7 +1758,7 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
 
         decodeFramesBuffer.push(videoFrames);
         decodeCount++;
-        //ptlprintf("decode count = %d\n", decodeCount);
+        //ztool::lprintf("decode count = %d\n", decodeCount);
 
         if (decodeCount >= validFrameCount)
             break;
@@ -1773,14 +1774,14 @@ void CudaPanoramaLocalDiskTask::Impl::decode()
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
 
-    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
     StampedPinnedMemoryVector srcFrames;
@@ -1802,7 +1803,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         bool ok = render->render(images, bgr32);
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -1813,7 +1814,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             ok = logoFilter->addLogo(bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s, add logo failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add logo failed\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -1824,7 +1825,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
             ok = watermarkFilter.addWatermark(bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s, add watermark failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add watermark failed\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
                 isCanceled = true;
                 break;
@@ -1863,7 +1864,7 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
 
         procFrameBuffer.push(videoFrame);
         procCount++;
-        //ptlprintf("proc count = %d\n", procCount);
+        //ztool::lprintf("proc count = %d\n", procCount);
     }
     
     if (!isCanceled)
@@ -1873,14 +1874,14 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
     }
     procFrameBuffer.stop();
 
-    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     encodeCount = 0;
     int step = 1;
@@ -1888,7 +1889,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::lprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
     CudaMixedAudioVideoFrame frame;
@@ -1933,7 +1934,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         //timerEncode.end();
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -1942,7 +1943,7 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
         // Only when the frame is of type video can we increase encodeCount
         if (frame.frame.mediaType == avp::VIDEO)
             encodeCount++;
-        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+        //ztool::lprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
         if (encodeCount % step == 0)
             finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
@@ -1952,8 +1953,8 @@ void CudaPanoramaLocalDiskTask::Impl::encode()
 
     finishPercent.store(100);
 
-    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void CudaPanoramaLocalDiskTask::Impl::setAsyncErrorMessage(const std::string& message)
@@ -2122,7 +2123,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
     {
-        ptlprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size of srcVideoFiles and size of offsets empty or unmatch.\n", __FUNCTION__);
         syncErrorMessage = getText(TI_PARAM_CHECK_FAIL);
         return false;
     }
@@ -2137,7 +2138,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = docl::init();
     if (!ok)
     {
-        ptlprintf("Error in %s, opencl init failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, opencl init failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -2145,7 +2146,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = prepareSrcVideos(srcVideoFiles, avp::PixelTypeBGR32, offsets, tryAudioIndex, readers, audioIndex, srcSize, validFrameCount);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not open video file(s)\n", __FUNCTION__);
         syncErrorMessage = getText(TI_OPEN_VIDEO_FAIL);
         return false;
     }
@@ -2157,7 +2158,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagReadOnly, docl::HostMem::MapFlagWrite);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for source video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -2169,7 +2170,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             readers[audioIndex].getAudioNumSamples());
         if (!ok)
         {
-            ptlprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, could not init memory pool for audio frames\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
@@ -2178,14 +2179,14 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
     if (!ok)
     {
-        ptlprintf("Error in %s, render prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
     if (render.getNumImages() != numVideos)
     {
-        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -2196,7 +2197,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         docl::HostMem::BufferFlagAllocHostPtr | docl::HostMem::BufferFlagWriteOnly, docl::HostMem::MapFlagRead);
     if (!ok)
     {
-        ptlprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -2204,7 +2205,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     ok = watermarkFilter.init(dstSize.width, dstSize.height);
     if (!ok)
     {
-        ptlprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init watermark filter failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
@@ -2215,7 +2216,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         ok = logoFilter->init(logoFile, logoHFov, dstSize.width, dstSize.height);
         if (!ok)
         {
-            ptlprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, init logo filter failed\n", __FUNCTION__);
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             logoFilter.reset();
             return false;
@@ -2241,7 +2242,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     }
     if (!ok)
     {
-        ptlprintf("Error in %s, video writer open failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, video writer open failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CREATE_STITCH_VIDEO_FAIL);
         return false;
     }
@@ -2263,7 +2264,7 @@ bool DOclPanoramaLocalDiskTask::Impl::start()
 {
     if (!initSuccess)
     {
-        ptlprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, init not success, could not start\n", __FUNCTION__);
         return false;
     }
 
@@ -2300,7 +2301,7 @@ void DOclPanoramaLocalDiskTask::Impl::waitForCompletion()
     logoFilter.reset();
 
     if (!finish)
-        ptlprintf("Info in %s, write video finish\n", __FUNCTION__);
+        ztool::lprintf("Info in %s, write video finish\n", __FUNCTION__);
 
     finish = true;
 }
@@ -2385,7 +2386,7 @@ void DOclPanoramaLocalDiskTask::Impl::cancel()
 void DOclPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     decodeCount = 0;
     int mediaType;
@@ -2454,7 +2455,7 @@ void DOclPanoramaLocalDiskTask::Impl::decode()
 
         decodeFramesBuffer.push(videoFrames);
         decodeCount++;
-        //ptlprintf("decode count = %d\n", decodeCount);
+        //ztool::lprintf("decode count = %d\n", decodeCount);
 
         if (decodeCount >= validFrameCount)
             break;
@@ -2470,14 +2471,14 @@ void DOclPanoramaLocalDiskTask::Impl::decode()
     for (int i = 0; i < numVideos; i++)
         readers[i].close();
 
-    ptlprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total decode %d\n", __FUNCTION__, decodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void DOclPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     procCount = 0;
     StampedPinnedMemoryVectorForDOcl srcFrames;
@@ -2496,7 +2497,7 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
         bool ok = render.render(srcFrames.frames, bgr32);
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -2507,7 +2508,7 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
             ok = logoFilter->addLogo(bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s, add logo failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add logo failed\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_WRITE_TO_VIDEO_FAIL_TASK_TERMINATE));
                 break;
             }
@@ -2518,7 +2519,7 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
             ok = watermarkFilter.addWatermark(bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s, add watermark failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, add watermark failed\n", __FUNCTION__);
                 setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
                 isCanceled = true;
                 break;
@@ -2553,7 +2554,7 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
 
         procFrameBuffer.push(videoFrame);
         procCount++;
-        //ptlprintf("proc count = %d\n", procCount);
+        //ztool::lprintf("proc count = %d\n", procCount);
     }
 
     if (!isCanceled)
@@ -2563,14 +2564,14 @@ void DOclPanoramaLocalDiskTask::Impl::proc()
     }
     procFrameBuffer.stop();
 
-    ptlprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total proc %d\n", __FUNCTION__, procCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void DOclPanoramaLocalDiskTask::Impl::encode()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     encodeCount = 0;
     int step = 1;
@@ -2578,7 +2579,7 @@ void DOclPanoramaLocalDiskTask::Impl::encode()
         step = validFrameCount / 100.0 + 0.5;
     if (step < 1)
         step = 1;
-    ptlprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
+    ztool::lprintf("In %s, validFrameCount = %d, step = %d\n", __FUNCTION__, validFrameCount, step);
     ztool::Timer timerEncode;
     encodeCount = 0;
     DOclMixedAudioVideoFrame frame;
@@ -2623,7 +2624,7 @@ void DOclPanoramaLocalDiskTask::Impl::encode()
         //timerEncode.end();
         if (!ok)
         {
-            ptlprintf("Error in %s, render failed\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
             setAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE));
             isCanceled = true;
             break;
@@ -2632,7 +2633,7 @@ void DOclPanoramaLocalDiskTask::Impl::encode()
         // Only when the frame is of type video can we increase encodeCount
         if (frame.frame.mediaType == avp::VIDEO)
             encodeCount++;
-        //ptlprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
+        //ztool::lprintf("frame %d finish, encode time = %f\n", encodeCount, timerEncode.elapse());
 
         if (encodeCount % step == 0)
             finishPercent.store(double(encodeCount) / (validFrameCount > 0 ? validFrameCount : 100) * 100);
@@ -2642,8 +2643,8 @@ void DOclPanoramaLocalDiskTask::Impl::encode()
 
     finishPercent.store(100);
 
-    ptlprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("In %s, total encode %d\n", __FUNCTION__, encodeCount);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void DOclPanoramaLocalDiskTask::Impl::setAsyncErrorMessage(const std::string& message)

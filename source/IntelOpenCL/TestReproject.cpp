@@ -1,10 +1,10 @@
-#include "ZReproject.h"
 #include "IntelOpenCLInterface.h"
 #include "RunTimeObjects.h"
 #include "Pyramid.h"
 #include "MatOp.h"
-#include "../../source/Blend/Timer.h"
-#include "../../source/Blend/ZBlend.h"
+#include "Tool/Timer.h"
+#include "Blend/ZBlend.h"
+#include "Warp/ZReproject.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -462,7 +462,7 @@ int main2()
     return 0;
 }
 
-#include "ZBlendAlgo.h"
+#include "Blend/ZBlendAlgo.h"
 int main()
 {
     bool ok = ioclInit();

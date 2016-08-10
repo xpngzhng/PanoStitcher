@@ -7,9 +7,10 @@
 #include "PanoramaTaskUtil.h"
 #include "CudaPanoramaTaskUtil.h"
 #include "LiveStreamTaskUtil.h"
-#include "Timer.h"
 #include "Image.h"
 #include "Text.h"
+#include "Tool/Timer.h"
+#include "Tool/Print.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
@@ -159,7 +160,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
 {
     if (audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
         syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -183,7 +184,7 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
 {
     if (audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
         syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -229,14 +230,14 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_STITCH);
         return false;
     }
 
     if (!renderThreadJoined)
     {
-        ptlprintf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, stitching running, stop before launching new stitching\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -251,7 +252,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         render.reset(new CudaRicohPanoramaRender);
     else
     {
-        ptlprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
+        ztool::lprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
             __FUNCTION__, panoStitchType, PanoStitchTypeMISO, PanoStitchTypeRicoh);
     }
 
@@ -259,7 +260,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -267,7 +268,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
 
     if (render->getNumImages() != numVideos)
     {
-        ptlprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, num images in render not equal to num videos\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -276,7 +277,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     renderPrepareSuccess = procFramePool.init(pixelType, width, height);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Error in %s, could not init proc frame pool\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init proc frame pool\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -286,7 +287,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         renderPrepareSuccess = watermarkFilter.init(width, height);
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not init logo filter\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -299,13 +300,13 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     renderPrepareSuccess = correct->prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
     if (!renderPrepareSuccess)
     {
-        ptlprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
     }
 
-    ptlprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
+    ztool::lprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
         __FUNCTION__, width, height, highQualityBlend);
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
@@ -376,21 +377,21 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_LIVE);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
-        ptlprintf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render not running, cannot launch live streaming\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_LIVE);
         return false;
     }
 
     if (!streamThreadJoined)
     {
-        ptlprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, live streaming running, stop before launching new live streaming\n", __FUNCTION__);
         syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -401,7 +402,7 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         (panoType == PanoTypeCube3x2 && width * 2 != 3 * height) ||
         (panoType == PanoTypeCube180 && width * 3 != 5 * height))
     {
-        ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
+        ztool::lprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
             __FUNCTION__, panoType, width, height);
         syncErrorMessage = getText(TI_LIVE_PARAM_ERROR_CANNOT_LAUNCH_LIVE);
         return false;
@@ -448,14 +449,14 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         videoFrameRate, streamVideoBitRate, writerOpts);
     if (!streamOpenSuccess)
     {
-        ptlprintf("Error in %s, Could not open streaming url with frame rate = %f and bit rate = %d\n", 
+        ztool::lprintf("Error in %s, Could not open streaming url with frame rate = %f and bit rate = %d\n", 
             __FUNCTION__, videoFrameRate, streamVideoBitRate);
         appendLog(getText(TI_SERVER_CONNECT_FAIL) + "\n");
         syncErrorMessage = getText(TI_SERVER_CONNECT_FAIL);
         return false;
     }
 
-    ptlprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
+    ztool::lprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
         __FUNCTION__, streamURL.c_str(), streamPanoType, streamFrameSize.width, streamFrameSize.height);
     appendLog(getText(TI_SERVER_CONNECT_SUCCESS) + "\n");
 
@@ -491,21 +492,21 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
 {
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_LAUNCH_WRITE);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
-        ptlprintf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render not running, cannot launch saving to disk\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_LAUNCH_WRITE);
         return false;
     }
 
     if (!fileThreadJoined)
     {
-        ptlprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, saving to disk running, stop before launching new saving to disk\n", __FUNCTION__);
         syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
         return false;
     }
@@ -516,7 +517,7 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         (panoType == PanoTypeCube3x2 && width * 2 != 3 * height) ||
         (panoType == PanoTypeCube180 && width * 3 != 5 * height))
     {
-        ptlprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
+        ztool::lprintf("Error in %s, panoType(%d), width(%d), height(%d) not satisfy requirements\n",
             __FUNCTION__, panoType, width, height);
         syncErrorMessage = getText(TI_WRITE_PARAM_ERROR_CANNOT_LAUNCH_WRITE);
         return false;
@@ -559,7 +560,7 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
 
-    ptlprintf("Info in %s, save to disk params: dir %s, pano type %d, width %d, height %d\n",
+    ztool::lprintf("Info in %s, save to disk params: dir %s, pano type %d, width %d, height %d\n",
         __FUNCTION__, fileDir.c_str(), filePanoType, fileFrameSize.width, fileFrameSize.height);
 
     procFrameBufferForSave.resume();
@@ -594,28 +595,28 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
 
     if (!videoOpenSuccess || !audioVideoSource)
     {
-        ptlprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
         syncErrorMessage = getText(TI_SOURCE_NOT_OPENED_CANNOT_CORRECT);
         return false;
     }
 
     if (!renderPrepareSuccess || renderThreadJoined)
     {
-        ptlprintf("Error in %s, render not running, cannot apply exposure correct\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, render not running, cannot apply exposure correct\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_NOT_RUNNING_CANNOT_CORRECT);
         return false;
     }
 
     if (!streamThreadJoined)
     {
-        ptlprintf("Error in %s, live streaming running, stop before applying exposure correct\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, live streaming running, stop before applying exposure correct\n", __FUNCTION__);
         syncErrorMessage = getText(TI_LIVE_RUNNING_CLOSE_BEFORE_CORRECT);
         return false;
     }
 
     if (!fileThreadJoined)
     {
-        ptlprintf("Error in %s, saving to disk running, stop before applying exposure correct\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, saving to disk running, stop before applying exposure correct\n", __FUNCTION__);
         syncErrorMessage = getText(TI_WRITE_RUNNING_CLOSE_BEFORE_CORRECT);
         return false;
     }
@@ -639,7 +640,7 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
     allowGetSyncedFramesBufferForShow = 1;
     if (!success)
     {
-        ptlprintf("Error in %s, could not get frames from synced frames buffer for show, "
+        ztool::lprintf("Error in %s, could not get frames from synced frames buffer for show, "
             "so exposure correct failed\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CORRECT_FAIL);
         return false;
@@ -654,7 +655,7 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
     {
         syncErrorMessage = getText(TI_CORRECT_FAIL);
         resetExposures();
-        ptlprintf("Error in %s, exposure correct failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, exposure correct failed\n", __FUNCTION__);
         return false;
     }
 
@@ -667,7 +668,7 @@ bool PanoramaLiveStreamTask2::Impl::setExposures(const std::vector<double>& expo
 {
     if (expos.size() != numVideos)
     {
-        ptlprintf("Error in %s, input exposures vector length invalid\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, input exposures vector length invalid\n", __FUNCTION__);
         return false;
     }
 
@@ -779,7 +780,7 @@ void PanoramaLiveStreamTask2::Impl::closeAll()
 
     finish = 1;
 
-    //ptlprintf("Live stream task's all threads closed\n");
+    //ztool::lprintf("Live stream task's all threads closed\n");
 
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
@@ -788,7 +789,7 @@ void PanoramaLiveStreamTask2::Impl::closeAll()
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
 
-    //ptlprintf("Live stream task's all buffer cleared\n");
+    //ztool::lprintf("Live stream task's all buffer cleared\n");
 }
 
 bool PanoramaLiveStreamTask2::Impl::hasFinished() const
@@ -799,7 +800,7 @@ bool PanoramaLiveStreamTask2::Impl::hasFinished() const
 void PanoramaLiveStreamTask2::Impl::procVideo()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     std::vector<cv::cuda::HostMem> mems;
     std::vector<long long int> timeStamps;
@@ -818,14 +819,14 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
         ztool::Timer localTimer, procTimer;
         if (finish || renderEndFlag)
             break;
-        //ptlprintf("show\n");
+        //ztool::lprintf("show\n");
         if (!syncedFramesBufferForProc.pull(mems, timeStamps))
         {
             //std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
-        //ptlprintf("ts %lld\n", timeStamp);
-        //ptlprintf("before check size\n");
+        //ztool::lprintf("ts %lld\n", timeStamp);
+        //ztool::lprintf("before check size\n");
         // NOTICE: it would be better to check frames's pixelType and other properties.
         if (mems.size() == numVideos)
         {
@@ -863,7 +864,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 ok = render->render(src, bgr32);
             if (!ok)
             {
-                ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
+                ztool::lprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                 addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
@@ -874,7 +875,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 ok = watermarkFilter.addWatermark(bgr32);
                 if (!ok)
                 {
-                    ptlprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
+                    ztool::lprintf("Error in %s [%8x], render failed\n", __FUNCTION__, id);
                     addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                     finish = 1;
                     break;
@@ -884,7 +885,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             ok = procFramePool.get(renderFrame);
             if (!ok)
             {
-                ptlprintf("Error in %s [%8x], could not get cpu memory to copy from gpu\n", __FUNCTION__, id);
+                ztool::lprintf("Error in %s [%8x], could not get cpu memory to copy from gpu\n", __FUNCTION__, id);
                 addAsyncErrorMessage(getText(TI_STITCH_FAIL_TASK_TERMINATE), ErrorFromStitch);
                 finish = 1;
                 break;
@@ -893,7 +894,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                 renderFrame.frame.height != renderFrameSize.height ||
                 renderFrame.frame.pixelType != avp::PixelTypeBGR32)
             {
-                ptlprintf("Error in %s [%8x], render frame obtained from proc frame pool not satisfied, "
+                ztool::lprintf("Error in %s [%8x], render frame obtained from proc frame pool not satisfied, "
                     "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
                     __FUNCTION__, id, renderFrame.frame.width, renderFrame.frame.height, renderFrame.frame.pixelType,
                     renderFrameSize.width, renderFrameSize.height, avp::PixelTypeBGR32);
@@ -913,7 +914,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     (streamIsLibX264 ? (sendFrame.frame.pixelType != avp::PixelTypeYUV420P) :
                                        (sendFrame.frame.pixelType != avp::PixelTypeNV12)))
                 {
-                    ptlprintf("Error in %s [%8x], send frame obtained from send frame pool not satisfied, "
+                    ztool::lprintf("Error in %s [%8x], send frame obtained from send frame pool not satisfied, "
                         "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
                         __FUNCTION__, id, sendFrame.frame.width, sendFrame.frame.height, sendFrame.frame.pixelType,
                         streamFrameSize.width, streamFrameSize.height, streamIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12);
@@ -962,7 +963,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
                     (fileIsLibX264 ? (saveFrame.frame.pixelType != avp::PixelTypeYUV420P) :
                                      (saveFrame.frame.pixelType != avp::PixelTypeNV12)))
                 {
-                    ptlprintf("Error in %s [%8x], save frame obtained from save frame pool not satisfied, "
+                    ztool::lprintf("Error in %s [%8x], save frame obtained from save frame pool not satisfied, "
                         "width = %d, height = %d, pixel type = %d, requires width = %d, height = %d, pixel type = %d\n",
                         __FUNCTION__, id, saveFrame.frame.width, saveFrame.frame.height, saveFrame.frame.pixelType,
                         fileFrameSize.width, fileFrameSize.height, fileIsLibX264 ? avp::PixelTypeYUV420P : avp::PixelTypeNV12);
@@ -1005,20 +1006,20 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             }
 
             localTimer.end();
-            //ptlprintf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
+            //ztool::lprintf("%f, %f\n", procTimer.elapse(), localTimer.elapse());
         }
     }
 
     procFrameBufferForSend.stop();
     procFrameBufferForSave.stop();
 
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::streamSend()
 {
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     cv::Mat dstMat;
     CudaMixedAudioVideoFrame frame;
@@ -1041,7 +1042,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
             bool ok = streamWriter.write(frame.frame);
             if (!ok)
             {
-                ptlprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
+                ztool::lprintf("Error in %s [%8x], cannot write frame\n", __FUNCTION__, id);
                 addAsyncErrorMessage(getText(TI_LIVE_FAIL_TASK_TERMINATE), ErrorFromLiveStream);
                 finish = 1;
                 break;
@@ -1050,7 +1051,7 @@ void PanoramaLiveStreamTask2::Impl::streamSend()
     }
     streamWriter.close();
 
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::fileSave()
@@ -1059,7 +1060,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         return;
 
     size_t id = std::this_thread::get_id().hash();
-    ptlprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
     time_t rawTime;    
     tm* ptrTm;
@@ -1082,7 +1083,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
         fileFrameSize.width, fileFrameSize.height, videoFrameRate, fileVideoBitRate, writerOpts);
     if (!ok)
     {
-        ptlprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
+        ztool::lprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
         appendLog(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE) + "\n");
         addAsyncErrorMessage(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
         return;
@@ -1126,7 +1127,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
                     fileFrameSize.width, fileFrameSize.height, videoFrameRate, fileVideoBitRate, writerOpts);
                 if (!ok)
                 {
-                    ptlprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
+                    ztool::lprintf("Error in %s [%8x], could not save current audio video\n", __FUNCTION__, id);
                     appendLog(std::string(buf) + " " + getText(TI_FILE_OPEN_FAIL_TASK_TERMINATE) + "\n");
                     break;
                 }
@@ -1138,21 +1139,21 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
             ok = writer.write(frame.frame);
             if (!ok)
             {
-                ptlprintf("Error in %s [%8x], could not write current frame\n", __FUNCTION__, id);
+                ztool::lprintf("Error in %s [%8x], could not write current frame\n", __FUNCTION__, id);
                 addAsyncErrorMessage(std::string(buf) + " " + getText(TI_WRITE_FAIL_TASK_TERMINATE), ErrorFromSaveToDisk);
                 break;
             }
         }
         else
         {
-            //ptlprintf("Frame error\n");
+            //ztool::lprintf("Frame error\n");
         }
     }
     if (ok)
         appendLog(std::string(buf) + " " + getText(TI_END_WRITE) + "\n");
     writer.close();
 
-    ptlprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
 void PanoramaLiveStreamTask2::Impl::setLUTs(const std::vector<double>& exposures)

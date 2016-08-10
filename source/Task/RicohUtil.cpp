@@ -2,6 +2,7 @@
 #include "Blend/ZBlend.h"
 #include "Blend/ZBlendAlgo.h"
 #include "Tool/Timer.h"
+#include "Tool/Print.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
@@ -126,7 +127,7 @@ void prepareSmart(const cv::Mat& mask1, const cv::Mat& mask2, int initRadius,
         int numInside2 = cv::countNonZero(binaryBlurMask2 & region2);
         if (numInside1 == 0 && numInside2 == 0)
         {
-            ptlprintf("final radius = %d\n", radius);
+            ztool::lprintf("final radius = %d\n", radius);
             break;
         }
     }
@@ -844,7 +845,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -852,7 +853,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -891,7 +892,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -904,24 +905,24 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
             ok = loadIntervaledContours(customMaskPath_, contours);
             if (!ok)
             {
-                ptlprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, load custom masks failed\n", __FUNCTION__);
                 return false;
             }
             if (contours.size() != numImages)
             {
-                ptlprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, loaded contours.size() != numVideos\n", __FUNCTION__);
                 return false;
             }
             if (!cvtContoursToCudaMasks(contours, masks, customMasks))
             {
-                ptlprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, convert contours to customMasks failed\n", __FUNCTION__);
                 return false;
             }
             mbBlender.getUniqueMasks(dstUniqueMasksGPU);
             useCustomMasks = 1;
         }
         else
-            ptlprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
+            ztool::lprintf("Warning in %s, non high quality blend, i.e. linear blend, does not support custom masks\n", __FUNCTION__);
     }
 
     success = 1;
@@ -932,13 +933,13 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages || timeStamps.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -946,7 +947,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height, 
                 srcSize.width, srcSize.height);
             return false;
@@ -954,7 +955,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
             
         if (src[i].type() != CV_8UC4)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
             
@@ -1008,7 +1009,7 @@ bool CudaPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1092,14 +1093,14 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1139,7 +1140,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1152,13 +1153,13 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1166,7 +1167,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height,
                 srcSize.width, srcSize.height);
             return false;
@@ -1174,7 +1175,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
 
         if (src[i].type() != CV_8UC4)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
     }
@@ -1194,7 +1195,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
         }
     }
     if (!correct && luts.size())
-        ptlprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
+        ztool::lprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
 
     try
     {
@@ -1245,7 +1246,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1280,7 +1281,7 @@ bool CudaRicohPanoramaRender::prepare(const std::string& path, int highQualityBl
         return false;
     if (numImages != 2)
     {
-        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        ztool::lprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
         CudaPanoramaRender2::clear();
         return false;
     }
@@ -1292,13 +1293,13 @@ bool CudaRicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::cuda::
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != 1)
     {
-        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
+        ztool::lprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
         return false;
     }
 
@@ -1334,7 +1335,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1342,7 +1343,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1363,7 +1364,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
                 mbBlender.reset(new TilingMultibandBlendFast);
             if (!mbBlender->prepare(masks, 20, 2))
             {
-                ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
             }
         }
@@ -1375,7 +1376,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1387,13 +1388,13 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1401,7 +1402,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height,
                 srcSize.width, srcSize.height);
             return false;
@@ -1409,7 +1410,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
 
         if (src[i].type() != CV_8UC3)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
             return false;
         }
 
@@ -1434,7 +1435,7 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1465,7 +1466,7 @@ bool CPURicohPanoramaRender::prepare(const std::string& path, int highQualityBle
         return false;
     if (numImages != 2)
     {
-        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        ztool::lprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
         CPUPanoramaRender::clear();
         return false;
     }
@@ -1476,13 +1477,13 @@ bool CPURicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& ds
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != 1)
     {
-        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
+        ztool::lprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, src.size());
         return false;
     }
 
@@ -1518,7 +1519,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1526,7 +1527,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1538,7 +1539,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     ok = ioclInit();
     if (!ok)
     {
-        ptlprintf("Error in %s, opencl init failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, opencl init failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1582,7 +1583,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1595,13 +1596,13 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
     ztool::Timer t, tt;;
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1609,7 +1610,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height, 
                 srcSize.width, srcSize.height);
             return false;
@@ -1617,7 +1618,7 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
 
         if (src[i].type() != CV_8UC4)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC4);
             return false;
         }
 
@@ -1649,11 +1650,11 @@ bool IOclPanoramaRender::render(const std::vector<cv::Mat>& src, const std::vect
             rtQueue.push(std::make_pair(blendImage, timeStamps[0]));
 
         t.end();
-        //ptlprintf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
+        //ztool::lprintf("t = %f, tt = %f\n", t.elapse(), tt.elapse());
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
     return true;
@@ -1726,7 +1727,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     if (!iocl::init())
     {
-        ptlprintf("Error in %s, intel opencl initialize failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, intel opencl initialize failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1735,7 +1736,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1743,7 +1744,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1773,7 +1774,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         {
             if (!mbBlender.prepare(masks, 20, 2))
             {
-                ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
             }
         }
@@ -1791,7 +1792,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1804,13 +1805,13 @@ bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& 
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1818,7 +1819,7 @@ bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& 
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height,
                 srcSize.width, srcSize.height);
             return false;
@@ -1826,7 +1827,7 @@ bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& 
 
         if (src[i].type != CV_8UC4)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type, CV_8UC4);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type, CV_8UC4);
             return false;
         }
 
@@ -1852,7 +1853,7 @@ bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& 
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1890,7 +1891,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
 
     if (!docl::init())
     {
-        ptlprintf("Error in %s, intel opencl initialize failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, intel opencl initialize failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1899,7 +1900,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     if (!((dstSize_.width & 1) == 0 && (dstSize_.height & 1) == 0 &&
         dstSize_.height * 2 == dstSize_.width))
     {
-        ptlprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
         return false;
     }
 
@@ -1907,7 +1908,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     bool ok = loadPhotoParams(path_, params);
     if (!ok || params.empty())
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -1932,7 +1933,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         {
             if (!mbBlender.prepare(masks, 20, 2))
             {
-                ptlprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
+                ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
             }
 
@@ -1968,7 +1969,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -1981,13 +1982,13 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (src.size() != numImages)
     {
-        ptlprintf("Error in %s, size not equal\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, size not equal\n", __FUNCTION__);
         return false;
     }
 
@@ -1995,7 +1996,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
     {
         if (src[i].size() != srcSize)
         {
-            ptlprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
+            ztool::lprintf("Error in %s, src[%d] size (%d, %d), not equal to (%d, %d)\n",
                 __FUNCTION__, i, src[i].size().width, src[i].size().height,
                 srcSize.width, srcSize.height);
             return false;
@@ -2003,7 +2004,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
 
         if (src[i].type != CV_8UC4)
         {
-            ptlprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type, CV_8UC4);
+            ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type, CV_8UC4);
             return false;
         }
 
@@ -2057,7 +2058,7 @@ bool DOclPanoramaRender::render(const std::vector<docl::HostMem>& src, docl::Gpu
     }
     catch (std::exception& e)
     {
-        ptlprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
+        ztool::lprintf("Error in %s, exception caught: %s\n", __FUNCTION__, e.what());
         return false;
     }
 
@@ -2100,7 +2101,7 @@ bool ImageVisualCorrect::prepare(const std::string& path, const cv::Size& srcSiz
     ok = loadPhotoParams(path, params);
     if (!ok)
     {
-        ptlprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
         return false;
     }
 
@@ -2110,7 +2111,7 @@ bool ImageVisualCorrect::prepare(const std::string& path, const cv::Size& srcSiz
     ok = corrector.prepare(masks);
     if (!ok)
     {
-        ptlprintf("Error in %s, exposure color correct prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, exposure color correct prepare failed\n", __FUNCTION__);
         maps.clear();
         return false;
     }
@@ -2131,13 +2132,13 @@ bool ImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::vector
 
     if (!success)
     {
-        ptlprintf("Error in %s, prepared not success\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, prepared not success\n", __FUNCTION__);
         return false;
     }
 
     if (images.size() != numImages)
     {
-        ptlprintf("Error in %s, input images num not match, input %d, required %d\n",
+        ztool::lprintf("Error in %s, input images num not match, input %d, required %d\n",
             __FUNCTION__, images.size(), numImages);
         return false;
     }
@@ -2146,7 +2147,7 @@ bool ImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::vector
     {
         if (images[i].cols != srcWidth || images[i].rows != srcHeight)
         {
-            ptlprintf("Error in %s, input image size invalid\n", __FUNCTION__);
+            ztool::lprintf("Error in %s, input image size invalid\n", __FUNCTION__);
             return false;
         }
     }
@@ -2177,7 +2178,7 @@ bool RicohImageVisualCorrect::prepare(const std::string& path, const cv::Size& s
 
     if (numImages != 2)
     {
-        ptlprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        ztool::lprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
         clear();
         return false;
     }
@@ -2189,13 +2190,13 @@ bool RicohImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::v
 {
     if (!success)
     {
-        ptlprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
         return false;
     }
 
     if (images.size() != 1)
     {
-        ptlprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, images.size());
+        ztool::lprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, images.size());
         return false;
     }
 
