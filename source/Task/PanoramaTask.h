@@ -119,7 +119,8 @@ private:
 enum PanoStitchType
 {
     PanoStitchTypeMISO, // multiple input single output
-    PanoStitchTypeRicoh
+    PanoStitchTypeRicoh,
+    PanoStitchTypeCount
 };
 
 class PanoramaLocalDiskTask

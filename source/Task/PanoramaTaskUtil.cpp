@@ -14,6 +14,41 @@ void setLanguage(bool isChinese)
     setWatermarkLanguage(isChinese);
 }
 
+PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
+{
+    return ztool::setPrintfCallback(func);
+}
+
+const char* getPanoStitchTypeString(int type)
+{
+    switch (type)
+    {
+    case PanoStitchTypeMISO:
+        return "PanoStitchTypeMISO";
+    case PanoStitchTypeRicoh:
+        return "PanoStitchTypeRicoh";
+    default:
+        return "UnkownPanoStitchType";
+    }
+}
+
+const char* getPanoProjectTypeString(int type)
+{
+    switch (type)
+    {
+    case PanoTypeEquiRect:
+        return "PanoTypeEquiRect";
+    case PanoTypeCube6x1:
+        return "PanoTypeCube6x1";
+    case PanoTypeCube3x2:
+        return "PanoTypeCube3x2";
+    case PanoTypeCube180:
+        return "PanoTypeCube180";
+    default:
+        return "UnkownPanoType";
+    }
+}
+
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader3>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount)
 {
@@ -703,13 +738,6 @@ void DOclLogoFilter::clear()
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "Tool/Print.h"
-
-PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func)
-{
-    return ztool::setPrintfCallback(func);
-}
 
 /*
 bool setIntervaledContoursToPreviewTask(const std::vector<std::vector<IntervaledContour> >& contours,

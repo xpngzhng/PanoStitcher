@@ -5,6 +5,10 @@
 #include "opencv2/core.hpp"
 #include <vector>
 
+const char* getPanoStitchTypeString(int type);
+
+const char* getPanoProjectTypeString(int type);
+
 bool prepareSrcVideos(const std::vector<std::string>& srcVideoFiles, avp::PixelType pixelType, const std::vector<int>& offsets,
     int tryAudioIndex, std::vector<avp::AudioVideoReader3>& readers, int& audioIndex, cv::Size& srcSize, int& validFrameCount);
 
