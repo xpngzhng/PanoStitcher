@@ -1943,7 +1943,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             {
                 reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, 
                     PROG_FILE_NAME(L"ReprojectLinearTemplate.txt"), PROG_STRING(sourceReprojectLinearTemplate), 
-                    "reprojectLinearKernel", "-D DST_TYPE=short"APPEND_BUILD_OPTION));
+                    "reprojectLinearKernel", "-D DST_TYPE=short"));
                 queues[i].reset(new OpenCLQueue(*docl::ocl));
             }
         }
@@ -1962,7 +1962,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             {
                 reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, 
                     PROG_FILE_NAME(L"ReprojectWeightedAccumulate.txt"), PROG_STRING(sourceReprojectWeightedAccumulate), 
-                    "reprojectWeightedAccumulateTo32FKernel", APPEND_BUILD_OPTION));
+                    "reprojectWeightedAccumulateTo32FKernel"));
                 queues[i].reset(new OpenCLQueue(*docl::ocl));
             }
         }

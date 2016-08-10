@@ -158,17 +158,20 @@ PanoramaLiveStreamTask2::Impl::~Impl()
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
     bool openAudio, const avp::Device& device, int sampleRate)
 {
-    ztool::lprintf("Info in %s, trying to open audio video sources...\n", __FUNCTION__);
-    ztool::lprintf("Video devices, num = %d\n", devices.size());
+    ztool::lprintf("Info in %s, params: ", __FUNCTION__);
+    ztool::lprintf("video devices, num = %d, ", devices.size());
     for (int i = 0; i < devices.size(); i++)
-        ztool::lprintf("[%d] %s %s\n", i, devices[i].shortName.c_str(), devices[i].longName.c_str());
-    ztool::lprintf("Requested video param: width = %d, height = %d, frame rate = %d",
+        ztool::lprintf("[%d] %s %s, ", i, devices[i].shortName.c_str(), devices[i].longName.c_str());
+    ztool::lprintf("requested video param: width = %d, height = %d, frame rate = %d, ",
         width, height, frameRate);
     if (openAudio)
     {
-        ztool::lprintf("Audio device: %s %s\n", device.shortName.c_str(), device.longName.c_str());
-        ztool::lprintf("Requested audio param: sample rate = %d\n", sampleRate);
+        ztool::lprintf("audio device: %s %s, ", device.shortName.c_str(), device.longName.c_str());
+        ztool::lprintf("requested audio param: sample rate = %d, ", sampleRate);
     }
+    else
+        ztool::lprintf("no audio device, ");
+    ztool::lprintf("params end\n");
 
     if (audioVideoSource)
     {
@@ -201,12 +204,15 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<avp:
 
 bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url)
 {
-    ztool::lprintf("Info in %s, trying to open audio video sources...\n", __FUNCTION__);
-    ztool::lprintf("Video urls, num = %d\n", urls.size());
+    ztool::lprintf("Info in %s, params: ", __FUNCTION__);
+    ztool::lprintf("video urls, num = %d, ", urls.size());
     for (int i = 0; i < urls.size(); i++)
-        ztool::lprintf("[%d] %s\n", i, urls[i].c_str());
+        ztool::lprintf("[%d] %s, ", i, urls[i].c_str());
     if (openAudio)
-        ztool::lprintf("Audio url: %s\n", url.c_str());
+        ztool::lprintf("audio url: %s, ", url.c_str());
+    else
+        ztool::lprintf("no audio, ");
+    ztool::lprintf("params end\n");
 
     if (audioVideoSource)
     {
@@ -262,6 +268,11 @@ void PanoramaLiveStreamTask2::Impl::closeAudioVideoSources()
 
 bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const std::string& configFileName, int width, int height, bool highQualityBlend)
 {
+    ztool::lprintf("Info in %s, input params are: pano stitch type = %d(%s), "
+        "config file name = %s, width = %d, height = %d, high quality blend = %d\n",
+        __FUNCTION__, panoStitchType, getPanoStitchTypeString(panoStitchType),
+        configFileName.c_str(), width, height, highQualityBlend);
+
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
@@ -340,8 +351,8 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         return false;
     }
 
-    ztool::lprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
-        __FUNCTION__, width, height, highQualityBlend);
+    //ztool::lprintf("Info in %s, stitching param: width %d, height %d, high quality blend %d\n",
+    //    __FUNCTION__, width, height, highQualityBlend);
     appendLog(getText(TI_STITCH_INIT_SUCCESS) + "\n");
     
     syncedFramesBufferForProc.clear();
@@ -409,6 +420,11 @@ void PanoramaLiveStreamTask2::Impl::cancelGetStitchedVideoFrame()
 bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int panoType,
     int width, int height, int videoBPS, const std::string& videoEncoder, const std::string& videoPreset, int audioBPS)
 {
+    ztool::lprintf("Info in %s, live stream params: url = %s, pano type = %d(%s), "
+        "width = %d, height = %d, video bps = %d, video encoder = %s, video preset = %s, audio bps = %d\n",
+        __FUNCTION__, name.c_str(), panoType, getPanoProjectTypeString(panoType),
+        width, height, videoBPS, videoEncoder.c_str(), videoPreset.c_str(), audioBPS);
+
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
@@ -490,8 +506,8 @@ bool PanoramaLiveStreamTask2::Impl::openLiveStream(const std::string& name, int 
         return false;
     }
 
-    ztool::lprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
-        __FUNCTION__, streamURL.c_str(), streamPanoType, streamFrameSize.width, streamFrameSize.height);
+    //ztool::lprintf("Info in %s, live stream params: url %s, pano type %d, width %d, height %d\n",
+    //    __FUNCTION__, streamURL.c_str(), streamPanoType, streamFrameSize.width, streamFrameSize.height);
     appendLog(getText(TI_SERVER_CONNECT_SUCCESS) + "\n");
 
     procFrameBufferForSend.resume();
@@ -524,6 +540,12 @@ void PanoramaLiveStreamTask2::Impl::closeLiveStream()
 bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int panoType, int width, int height, int videoBPS,
     const std::string& videoEncoder, const std::string& videoPreset, int audioBPS, int fileDurationInSeconds)
 {
+    ztool::lprintf("Info in %s, saving to disk params: dir = %s, pano type = %d(%s), "
+        "width = %d, height = %d, video bps = %d, video encoder = %s, video preset = %s, "
+        "audio bps = %d, file duration in sec = %d\n", __FUNCTION__, dir.c_str(),
+        panoType, getPanoProjectTypeString(panoType), width, height, videoBPS,
+        videoEncoder.c_str(), videoPreset.c_str(), audioBPS, fileDurationInSeconds);
+
     if (!videoOpenSuccess || !audioVideoSource)
     {
         ztool::lprintf("Error in %s, audio video sources not opened\n", __FUNCTION__);
@@ -594,8 +616,8 @@ bool PanoramaLiveStreamTask2::Impl::beginSaveToDisk(const std::string& dir, int 
         fileVideoEncodePreset = "veryfast";
     fileConfigSet = 1;
 
-    ztool::lprintf("Info in %s, save to disk params: dir %s, pano type %d, width %d, height %d\n",
-        __FUNCTION__, fileDir.c_str(), filePanoType, fileFrameSize.width, fileFrameSize.height);
+    //ztool::lprintf("Info in %s, save to disk params: dir %s, pano type %d, width %d, height %d\n",
+    //    __FUNCTION__, fileDir.c_str(), filePanoType, fileFrameSize.width, fileFrameSize.height);
 
     procFrameBufferForSave.resume();
     fileEndFlag = 0;

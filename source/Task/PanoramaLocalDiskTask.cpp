@@ -105,6 +105,21 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     int dstWidth, int dstHeight,  int dstVideoBitRate, const std::string& dstVideoEncoder, 
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
+    ztool::lprintf("Info in %s, params: src video files num = %d, ", __FUNCTION__, srcVideoFiles.size());
+    for (int i = 0; i < srcVideoFiles.size(); i++)
+        ztool::lprintf("[%d] %s, ", i, srcVideoFiles[i].c_str());
+    ztool::lprintf("offsets num = %d, ", offsets.size());
+    for (int i = 0; i < offsets.size(); i++)
+        ztool::lprintf("[%d] %d, ", i, offsets[i]);
+    ztool::lprintf("try audio index = %d, ", tryAudioIndex);
+    ztool::lprintf("pano type = %d(%s), ", panoType, getPanoStitchTypeString(panoType));
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
+        dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
+    ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
+        dstVideoEncoder.c_str(), dstVideoPreset.c_str(), dstVideoMaxFrameCount);
+
     clear();
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
@@ -791,6 +806,20 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder,
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
+    ztool::lprintf("Info in %s, params: src video files num = %d, ", __FUNCTION__, srcVideoFiles.size());
+    for (int i = 0; i < srcVideoFiles.size(); i++)
+        ztool::lprintf("[%d] %s, ", i, srcVideoFiles[i].c_str());
+    ztool::lprintf("offsets num = %d, ", offsets.size());
+    for (int i = 0; i < offsets.size(); i++)
+        ztool::lprintf("[%d] %d, ", i, offsets[i]);
+    ztool::lprintf("try audio index = %d, ", tryAudioIndex);
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
+        dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
+    ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
+        dstVideoEncoder.c_str(), dstVideoPreset.c_str(), dstVideoMaxFrameCount);
+
     clear();
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
@@ -1423,6 +1452,21 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder, 
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
+    ztool::lprintf("Info in %s, params: src video files num = %d, ", __FUNCTION__, srcVideoFiles.size());
+    for (int i = 0; i < srcVideoFiles.size(); i++)
+        ztool::lprintf("[%d] %s, ", i, srcVideoFiles[i].c_str());
+    ztool::lprintf("offsets num = %d, ", offsets.size());
+    for (int i = 0; i < offsets.size(); i++)
+        ztool::lprintf("[%d] %d, ", i, offsets[i]);
+    ztool::lprintf("try audio index = %d, ", tryAudioIndex);
+    ztool::lprintf("pano type = %d(%s), ", panoType, getPanoStitchTypeString(panoType));
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
+        dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
+    ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
+        dstVideoEncoder.c_str(), dstVideoPreset.c_str(), dstVideoMaxFrameCount);
+
     clear();
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
@@ -2119,6 +2163,20 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder,
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
+    ztool::lprintf("Info in %s, params: src video files num = %d, ", __FUNCTION__, srcVideoFiles.size());
+    for (int i = 0; i < srcVideoFiles.size(); i++)
+        ztool::lprintf("[%d] %s, ", i, srcVideoFiles[i].c_str());
+    ztool::lprintf("offsets num = %d, ", offsets.size());
+    for (int i = 0; i < offsets.size(); i++)
+        ztool::lprintf("[%d] %d, ", i, offsets[i]);
+    ztool::lprintf("try audio index = %d, ", tryAudioIndex);
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
+        dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
+    ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
+        dstVideoEncoder.c_str(), dstVideoPreset.c_str(), dstVideoMaxFrameCount);
+
     clear();
 
     if (srcVideoFiles.empty() || (srcVideoFiles.size() != offsets.size()))
