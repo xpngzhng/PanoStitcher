@@ -1877,6 +1877,8 @@ int IOclPanoramaRender::getNumImages() const
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if COMPILE_DISCRETE_OPENCL
+#include "OpenCLAccel/CompileControl.h"
+#include "OpenCLAccel/ProgramSourceStrings.h"
 
 bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
@@ -1935,7 +1937,9 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             queues.resize(numImages);
             for (int i = 0; i < numImages; i++)
             {
-                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, L"ReprojectLinearTemplate.txt", "", "reprojectLinearKernel", "-D DST_TYPE=short"));
+                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, 
+                    PROG_FILE_NAME(L"ReprojectLinearTemplate.txt"), PROG_STRING(sourceReprojectLinearTemplate), 
+                    "reprojectLinearKernel", "-D DST_TYPE=short"APPEND_BUILD_OPTION));
                 queues[i].reset(new OpenCLQueue(*docl::ocl));
             }
         }
@@ -1952,7 +1956,9 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             queues.resize(numImages);
             for (int i = 0; i < numImages; i++)
             {
-                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, L"ReprojectWeightedAccumulate.txt", "", "reprojectWeightedAccumulateTo32FKernel"));
+                reprojKernels[i].reset(new OpenCLProgramOneKernel(*docl::ocl, 
+                    PROG_FILE_NAME(L"ReprojectWeightedAccumulate.txt"), PROG_STRING(sourceReprojectWeightedAccumulate), 
+                    "reprojectWeightedAccumulateTo32FKernel", APPEND_BUILD_OPTION));
                 queues[i].reset(new OpenCLQueue(*docl::ocl));
             }
         }

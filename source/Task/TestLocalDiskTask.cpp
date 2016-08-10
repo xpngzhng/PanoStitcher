@@ -6,7 +6,7 @@
 #include <fstream>
 #include <thread>
 
-#define TEST_RICOH 1
+#define TEST_RICOH 0
 
 static void parseVideoPathsAndOffsets(const std::string& infoFileName, std::vector<std::string>& videoPath, std::vector<int>& offset)
 {
@@ -86,20 +86,20 @@ int main(int argc, char* argv[])
 
     std::unique_ptr<PanoramaLocalDiskTask> task;
     if (parser.get<bool>("use_cuda"))
-        task.reset(new CudaPanoramaLocalDiskTask);
+        task.reset(new DOclPanoramaLocalDiskTask);
     else
         task.reset(new CPUPanoramaLocalDiskTask);
 
     avp::setDumpInput(false);
     
-    panoVideoName = "libx264_gpu_lin.mp4";
+    panoVideoName = "libx264_docl.mp4";
     std::string logoFileName = /*""*/"F:\\image\\Earth_global.png";
     int fov = 45;
 #if TEST_RICOH
     bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, logoFileName, fov, 0, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
 #else
-    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 0, 
+    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 1, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
 #endif
     if (!ok)

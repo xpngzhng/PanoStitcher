@@ -152,10 +152,21 @@
     <ClInclude Include="..\..\source\OpenCLAccel\basic.hpp" />
     <ClInclude Include="..\..\source\OpenCLAccel\CompileControl.h" />
     <ClInclude Include="..\..\source\OpenCLAccel\oclobject.hpp" />
+    <ClInclude Include="..\..\source\OpenCLAccel\ProgramSourceStrings.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\OpenCLAccel\basic.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\ImageProcSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\MatOpSource.cpp" />
     <ClCompile Include="..\..\source\OpenCLAccel\oclobject.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\PyramidDownPureFPSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\PyramidDownTemplateFPSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\PyramidDownTemplateSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\PyramidUpTemplateFPSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\PyramidUpTemplateSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\ReprojectLinearTemplateSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\ReprojectSource.cpp" />
+    <ClCompile Include="..\..\source\OpenCLAccel\ReprojectWeightedAccumulateSource.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

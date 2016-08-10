@@ -318,7 +318,8 @@ private:
 #endif
 
 #if COMPILE_DISCRETE_OPENCL
-#include "DiscreteOpenCLInterface.h"
+#include "OpenCLAccel/basic.hpp"
+#include "DiscreteOpenCL/DiscreteOpenCLInterface.h"
 class DOclPanoramaRender
 {
 public:

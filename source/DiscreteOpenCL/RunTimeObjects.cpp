@@ -1,15 +1,7 @@
 #include "RunTimeObjects.h"
 #include "OpenCLAccel/oclobject.hpp"
 #include "OpenCLAccel/CompileControl.h"
-#include "OpenCLAccel/MatOpSource.h"
-#include "OpenCLAccel/ReprojectLinearTemplateSource.h"
-#include "OpenCLAccel/ReprojectWeightedAccumulateSource.h"
-#include "OpenCLAccel/PyramidDownTemplateSource.h"
-#include "OpenCLAccel/PyramidDownTemplateFPSource.h"
-#include "OpenCLAccel/PyramidDownPureFPSource.h"
-#include "OpenCLAccel/PyramidUpTemplateSource.h"
-#include "OpenCLAccel/PyramidUpTemplateFPSource.h"
-#include "OpenCLAccel/ImageProcSource.h"
+#include "OpenCLAccel/ProgramSourceStrings.h"
 
 #define MULTIBAND_PYR_FLOAT 1
 
