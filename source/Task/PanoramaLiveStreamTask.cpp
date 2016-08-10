@@ -8,7 +8,6 @@
 #include "Image.h"
 #include "Tool/Timer.h"
 #include "Tool/Print.h"
-#include "OpenCLAccel/oclobject.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
