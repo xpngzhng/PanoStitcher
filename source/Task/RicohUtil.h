@@ -1,11 +1,11 @@
 #pragma once
 
-#include "ZBlend.h"
-#include "ZReproject.h"
-#include "CudaInterface.h"
 #include "PinnedMemoryPool.h"
 #include "ConcurrentQueue.h"
 #include "CustomMask.h"
+#include "Blend/ZBlend.h"
+#include "Warp/ZReproject.h"
+#include "CudaAccel/CudaInterface.h"
 #include "opencv2/core.hpp"
 #include <memory>
 #include <string>

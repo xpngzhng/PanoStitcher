@@ -175,7 +175,7 @@ private:
 
 #include "CompileControl.h"
 #ifdef COMPILE_DISCRETE_OPENCL
-#include "DiscreteOpenCLMat.h"
+#include "DiscreteOpenCL/DiscreteOpenCLMat.h"
 class DOclPinnedMemoryPool
 {
 public:

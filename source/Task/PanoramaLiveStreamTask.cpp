@@ -7,7 +7,7 @@
 #include "PanoramaTaskUtil.h"
 #include "Timer.h"
 #include "Image.h"
-#include "oclobject.hpp"
+#include "OpenCLAccel/oclobject.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"

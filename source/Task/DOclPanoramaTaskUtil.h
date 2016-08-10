@@ -3,7 +3,7 @@
 #include "CompileControl.h"
 #if COMPILE_DISCRETE_OPENCL
 
-#include "DiscreteOpenCLInterface.h"
+#include "DiscreteOpenCL/DiscreteOpenCLInterface.h"
 #include "AudioVideoProcessor.h"
 #include <mutex>
 

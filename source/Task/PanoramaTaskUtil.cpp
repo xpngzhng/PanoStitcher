@@ -2,7 +2,7 @@
 #include "CudaPanoramaTaskUtil.h"
 #include "Image.h"
 #include "Text.h"
-#include "ZReproject.h"
+#include "Warp/ZReproject.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <stdarg.h>
@@ -545,7 +545,7 @@ void CudaLogoFilter::clear()
 #include "CompileControl.h"
 #if COMPILE_DISCRETE_OPENCL
 
-#include "DiscreteOpenCLInterface.h"
+#include "DiscreteOpenCL/DiscreteOpenCLInterface.h"
 #include "DOclPanoramaTaskUtil.h"
 
 bool DOclWatermarkFilter::init(int width_, int height_)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AudioVideoProcessor.h"
-#include "CudaInterface.h"
+#include "CudaAccel/CudaInterface.h"
 #include "opencv2/core/cuda.hpp"
 #include <mutex>
 

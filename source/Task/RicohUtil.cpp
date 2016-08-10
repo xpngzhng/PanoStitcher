@@ -1,10 +1,12 @@
-#include "ZBlendAlgo.h"
 #include "PanoramaTaskUtil.h"
-#include "Timer.h"
+#include "Blend/ZBlend.h"
+#include "Blend/ZBlendAlgo.h"
+#include "Tool/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include <thread>
 #include <exception>
 
 static const int UNIT_SHIFT = 10;
@@ -408,7 +410,8 @@ void reprojectAndBlendParallel(const cv::Mat& src1, const cv::Mat& src2,
 }
 
 #include "RicohUtil.h"
-#include "ZReproject.h"
+#include "Warp/ZReproject.h"
+#include "CudaAccel/CudaInterface.h"
 
 bool RicohPanoramaRender::prepare(const std::string& path_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)

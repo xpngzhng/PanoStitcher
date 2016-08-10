@@ -1,8 +1,8 @@
 #include "PanoramaTask.h"
 #include "PanoramaTaskUtil.h"
-#include "ZReproject.h"
-#include "ZBlend.h"
 #include "RicohUtil.h"
+#include "Warp/ZReproject.h"
+#include "Blend/ZBlend.h"
 #include "opencv2/highgui.hpp"
 
 struct CPUPanoramaPreviewTask::Impl
