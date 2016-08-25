@@ -1,7 +1,7 @@
 #include "RicohUtil.h"
-#include "AudioVideoProcessor.h"
-#include "Timer.h"
 #include "StampedFrameQueue.h"
+#include "Tool/Timer.h"
+#include "AudioVideoProcessor.h"
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/cuda.hpp"
@@ -162,17 +162,17 @@ int main(int argc, char* argv[])
     }
 
     std::string url = parser.get<std::string>("pano_url");
-    url = "rtsp://127.0.0.1/test.sdp";
+    //url = "rtsp://127.0.0.1/test.sdp";
     printf("pano url is %s\n", url.c_str());
     int frameRate = parser.get<int>("frames_per_second");
     int bitRate = parser.get<int>("pano_bits_per_second");
     opts.clear();
     opts.push_back(std::make_pair("bf", "0"));
     opts.push_back(std::make_pair("profile", "main"));
-    ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
-        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
-    //ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
-    //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
+    //ok = writer.open(url, url.substr(0, 4) == "rtmp" ? "flv" : "rtsp", true, false, "", 0, 0, 0, 0,
+    //    true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 2000000, opts);
+    ok = writer.open("recordvlc.mp4", "", true, false, "", 0, 0, 0, 0,
+        true, "h264", avp::PixelTypeBGR24, srcSize.width, srcSize.height, frameRate, 8000000, opts);
     if (!ok)
     {
         printf("could not open url %s\n", url.c_str());

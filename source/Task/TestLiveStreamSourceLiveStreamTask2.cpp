@@ -267,7 +267,7 @@ int main(int argc, char* argv[])
 
     //cv::Size sz(2048, 1024);
     //cv::Size sz(3072, 1536);
-    cv::Size sz(4096, 2048);
+    cv::Size sz(2048, 1024);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
     highQualityBlend = false;
@@ -308,6 +308,7 @@ int main(int argc, char* argv[])
     //streamURL = "rtmp://110.172.214.59:80/live/myStream";
     streamURL = "null";
     //streamURL = "rtsp://127.0.0.1/test.sdp";
+    //streamURL = "rtsp://192.168.1.163/test.sdp";
     if (streamURL.size() && streamURL != "null")
     {
         streamFrameSize.width = parser.get<int>("pano_stream_frame_width");
@@ -325,7 +326,7 @@ int main(int argc, char* argv[])
         streamEncoder = parser.get<std::string>("pano_stream_encoder");
         if (streamEncoder != "h264_qsv" && streamEncoder != "nvenc_h264")
             streamEncoder = "h264";
-        //streamEncoder = "h264_qsv";
+        streamEncoder = "h264_qsv";
         streamEncodePreset = parser.get<std::string>("pano_stream_encode_preset");
         if (streamEncodePreset != "ultrafast" || streamEncodePreset != "superfast" ||
             streamEncodePreset != "veryfast" || streamEncodePreset != "faster" ||
@@ -350,8 +351,8 @@ int main(int argc, char* argv[])
     }
 
     saveFile = parser.get<bool>("pano_save_file");
-    //saveFile = false;
-    saveFile = true;
+    saveFile = false;
+    //saveFile = true;
     if (saveFile)
     {
         fileFrameSize.width = parser.get<int>("pano_file_frame_width");

@@ -1,8 +1,8 @@
 #include "RicohUtil.h"
-#include "ZBlend.h"
-#include "ZReproject.h"
+#include "Blend/ZBlend.h"
+#include "Warp/ZReproject.h"
+#include "Tool/Timer.h"
 #include "AudioVideoProcessor.h"
-#include "Timer.h"
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"

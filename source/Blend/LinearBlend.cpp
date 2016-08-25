@@ -216,7 +216,7 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
         findExternContours(uniqueMasks[i], contours[i]);
     }
     int u;
-    for (u = distBound; u > 1; u -= 3)
+    for (u = distBound; u > 1; u -= 2)
     {
         bool success = true;
         for (int i = 0; i < numImages; i++)
@@ -232,8 +232,8 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
                     if (abs(p.x) + abs(p.y) > u && dists[i].at<float>(p) < u)
                     {
                         success = false;
-                        //printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f\n",
-                        //    i, j, k, p.x, p.y, dists[i].at<float>(p)); 
+                        printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f\n",
+                            i, j, k, p.x, p.y, dists[i].at<float>(p)); 
                         break;
                     }
                 }
@@ -249,7 +249,7 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
     return u;
 }
 
-void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights)
+void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, int minRadius, std::vector<cv::Mat>& weights)
 {
     int numImages = masks.size();
     std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
@@ -263,6 +263,8 @@ void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int m
     else
         radius -= 1;
     //printf("radius = %d\n", radius);
+    if (radius < minRadius)
+        radius = minRadius;
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
     for (int i = 0; i < numImages; i++)
@@ -276,7 +278,7 @@ void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int m
     calcWeights(dists, weights);
 }
 
-void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights)
+void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, int minRadius, std::vector<cv::Mat>& weights)
 {
     int numImages = masks.size();
     std::vector<cv::Mat> uniqueMasks(numImages), dists(numImages);
@@ -290,6 +292,8 @@ void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, in
     else
         radius -= 1;
     //printf("radius = %d\n", radius);
+    if (radius < minRadius)
+        radius = minRadius;
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
     for (int i = 0; i < numImages; i++)

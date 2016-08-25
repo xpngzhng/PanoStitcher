@@ -319,11 +319,13 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
 void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks);
 
 // This is an overloaded getWeightsLinearBlend without assigning radius.
-// This function internally computes the maximum valid radius and then compute weights.
-void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights);
+// This function internally computes the maximum valid radius and then compute weights,
+// starting searching from maxRadius and then decreasing.
+// If the maximum valid radius is too small, the radius is set to minRadius.
+void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, int minRadius, std::vector<cv::Mat>& weights);
 
 // This is a variant of getWeightsLinearBlend except that the weight have floating point type CV_32FC1
-void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, std::vector<cv::Mat>& weights);
+void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, int maxRadius, int minRadius, std::vector<cv::Mat>& weights);
 
 // Blend two images using linear blend.
 // image1 and image2 should be the same size, and type CV_8UC3.
