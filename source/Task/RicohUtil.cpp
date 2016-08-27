@@ -875,7 +875,8 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
         else
         {
             std::vector<cv::Mat> weights;
-            getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
@@ -1121,7 +1122,8 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         else
         {
             std::vector<cv::Mat> weights;
-            getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
@@ -1370,7 +1372,8 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
         }
         else
         {
-            getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
+            getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
             accum.create(dstSize, CV_32FC3);
         }
     }
