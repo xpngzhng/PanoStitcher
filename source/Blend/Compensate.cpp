@@ -138,7 +138,8 @@ void getTransformsGrayPairWiseMutualError(const std::vector<cv::Mat>& images, co
                     if (ptrm[v])
                     {
                         double vali = ptri[v], valj = ptrj[v];
-                        if (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali))
+                        if (vali > 10 && vali < 245 && valj > 10 && valj < 245 &&
+                            (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali)))
                         {
                             A(i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
                             A(j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);
@@ -283,7 +284,8 @@ void getTransformsBGRPairWiseMutualError(const std::vector<cv::Mat>& images, con
                             //A[w](j, j) += valj * valj * invSigmaNSqr;
                             //A[w](i, j) -= 2 * vali * valj * invSigmaNSqr;
                             //B[w](i) += invSigmaGSqr;
-                            if (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali))
+                            if (vali > 10 && vali < 245 && valj > 10 && valj < 245 &&
+                                (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali)))
                             {
                                 A[w](i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
                                 A[w](j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);

@@ -314,6 +314,11 @@ void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std
 int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
     const std::vector<cv::Mat>& dists, int distBound);
 
+// This is a variant of the getMaxRadius, the difference is that
+// this version only consider the center rows from masks[0].rows * 0.25 to masks[0].rows * 0.75
+int getMaxRadiusCenterRows(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
+    const std::vector<cv::Mat>& dists, int distBound);
+
 // Given masks, we compute the non intersecting version of masks and expand them by a certain number of 
 // pixels which is determined by calling getMaxRadius with distBound set to radius.
 void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& extendedMasks);

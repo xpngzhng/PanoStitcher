@@ -201,14 +201,6 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
     if (uniqueMasks.size() != numImages || dists.size() != numImages)
         return -1;
 
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    cv::imshow("mask", masks[i]);
-    //    cv::imshow("umask", uniqueMasks[i]);
-    //    cv::imshow("diff", masks[i] - uniqueMasks[i]);
-    //    cv::waitKey(0);
-    //}
-
     float maxRadius = std::max(masks[0].rows, masks[0].cols);
     std::vector<std::vector<std::vector<cv::Point> > > contours(numImages);
     for (int i = 0; i < numImages; i++)
@@ -249,6 +241,61 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
     return u;
 }
 
+int getMaxRadiusCenterRows(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& uniqueMasks,
+    const std::vector<cv::Mat>& dists, int distBound)
+{
+    if (!checkSize(masks) || !checkSize(uniqueMasks) || !checkSize(dists) ||
+        !checkType(masks, CV_8UC1) || !checkType(uniqueMasks, CV_8UC1) || !checkType(dists, CV_32FC1))
+        return -1;
+
+    int numImages = masks.size();
+    if (uniqueMasks.size() != numImages || dists.size() != numImages)
+        return -1;
+
+    float maxRadius = std::max(masks[0].rows, masks[0].cols);
+    std::vector<std::vector<std::vector<cv::Point> > > contours(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        findExternContours(uniqueMasks[i], contours[i]);
+    }
+    int upBound = masks[0].rows * 0.25, dnBound = masks[0].rows * 0.75;
+    int ret = 0;
+    for (int u = 1; u < distBound; u++)
+    {
+        bool success = true;
+        for (int i = 0; i < numImages; i++)
+        {
+            float currMaxRadius = 0;
+            int numContours = contours[i].size();
+            for (int j = 0; j < numContours; j++)
+            {
+                int numPts = contours[i][j].size();
+                for (int k = 0; k < numPts; k++)
+                {
+                    cv::Point p = contours[i][j][k];
+                    if (p.y > upBound && p.y < dnBound && 
+                        abs(p.x) + abs(p.y) > u && dists[i].at<float>(p) < u)
+                    {
+                        success = false;
+                        //printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f, u = %d\n",
+                        //    i, j, k, p.x, p.y, dists[i].at<float>(p), u); 
+                        break;
+                    }
+                }
+                if (!success)
+                    break;
+            }
+            if (!success)
+                break;
+        }
+        if (success)
+            ret = u;
+        else
+            break;
+    }
+    return ret;
+}
+
 void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int maxRadius, int minRadius, std::vector<cv::Mat>& weights)
 {
     int numImages = masks.size();
@@ -257,7 +304,7 @@ void getWeightsLinearBlendBoundedRadius(const std::vector<cv::Mat>& masks, int m
     for (int i = 0; i < numImages; i++)
         cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
 
-    int radius = getMaxRadius(masks, uniqueMasks, dists, maxRadius);
+    int radius = getMaxRadiusCenterRows(masks, uniqueMasks, dists, maxRadius);
     if (radius <= 1)
         radius = 1;
     else
@@ -286,7 +333,7 @@ void getWeightsLinearBlendBoundedRadius32F(const std::vector<cv::Mat>& masks, in
     for (int i = 0; i < numImages; i++)
         cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
 
-    int radius = getMaxRadius(masks, uniqueMasks, dists, maxRadius);
+    int radius = getMaxRadiusCenterRows(masks, uniqueMasks, dists, maxRadius);
     if (radius <= 1)
         radius = 1;
     else

@@ -1569,16 +1569,27 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
 
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\919-4-1\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4-1\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4-1\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4-1\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\919-4-1\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4-1\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4-1\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4-1\\mask3.bmp");
+
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4-1\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4-1\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4-1\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4-1\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-2\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-2\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-2\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-2\\image3.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-2\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-2\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-2\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-2\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
