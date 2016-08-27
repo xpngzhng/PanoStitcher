@@ -240,7 +240,7 @@ private:
     int numImages;
     int rows, cols;
     int prepareSuccess;
-    std::vector<cv::Mat> origMasks, splitExtendMasks, transImages;
+    std::vector<cv::Mat> origMasks, transImages;
 };
 
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut, const cv::Mat& mask = cv::Mat());

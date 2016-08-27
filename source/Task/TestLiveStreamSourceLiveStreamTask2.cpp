@@ -175,7 +175,7 @@ void showVideoResult()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-int main(int argc, char* argv[])
+int mainx(int argc, char* argv[])
 {
     const char* keys =
         "{@url0                       |               |}"
@@ -279,6 +279,7 @@ int main(int argc, char* argv[])
         if (!ok)
         {
             printf("Could not prepare for panorama render\n");
+            task.closeAll();
             return 0;
         }
     }
@@ -319,6 +320,7 @@ int main(int argc, char* argv[])
         {
             printf("pano_stream_frame_width and pano_stream_frame_height should be positive even numbers, "
                 "and pano_stream_frame_width should be two times of pano_stream_frame_height\n");
+            task.closeAll();
             return 0;
         }
 
@@ -342,6 +344,7 @@ int main(int argc, char* argv[])
         if (!ok)
         {
             printf("Could not open streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
+            task.closeAll();
             return 0;
         }
     }
@@ -363,6 +366,7 @@ int main(int argc, char* argv[])
         {
             printf("pano_file_frame_width and pano_file_frame_height should be positive even numbers, "
                 "and pano_file_frame_width should be two times of pano_file_frame_height\n");
+            task.closeAll();
             return 0;
         }
 
@@ -395,6 +399,23 @@ int main(int argc, char* argv[])
 
     frameRate = task.getVideoFrameRate();
     waitTime = std::max(5.0, 1000.0 / frameRate - 5);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::vector<double> expos;
+    ok = task.calcExposures(expos);
+    {
+        if (!ok)
+        {
+            printf("Failed to calc exposures\n");
+            task.closeAll();
+            return 0;
+        }
+    }
+    printf("exposure: ");
+    for (int i = 0; i < expos.size(); i++)
+        printf("%f, ", expos[i]);
+    printf("\n");
+    task.setExposures(expos);
 
     numCameras = task.getNumVideos();
     showTiledImages.init(task.getVideoWidth(), task.getVideoHeight(), task.getNumVideos());

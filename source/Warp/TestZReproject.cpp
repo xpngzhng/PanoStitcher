@@ -50,10 +50,14 @@ int main1()
     int main()
     {
         std::vector<std::string> paths;
-        paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+        paths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
+        paths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
+        paths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
+        paths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -62,7 +66,8 @@ int main1()
 
         std::vector<PhotoParam> params;
         //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+        //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+        loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);

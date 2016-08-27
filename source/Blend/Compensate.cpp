@@ -138,11 +138,14 @@ void getTransformsGrayPairWiseMutualError(const std::vector<cv::Mat>& images, co
                     if (ptrm[v])
                     {
                         double vali = ptri[v], valj = ptrj[v];
-                        A(i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
-                        A(j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);
-                        A(i, j) -= 2 * vali * valj * invSigmaNSqr;
-                        b(i) += invSigmaGSqr + vali * valj * invSigmaDSqr;
-                        b(j) += vali * valj * invSigmaDSqr;
+                        if (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali))
+                        {
+                            A(i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
+                            A(j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);
+                            A(i, j) -= 2 * vali * valj * invSigmaNSqr;
+                            b(i) += invSigmaGSqr + vali * valj * invSigmaDSqr;
+                            b(j) += vali * valj * invSigmaDSqr;
+                        }
                     }
                 }
             }
@@ -280,11 +283,14 @@ void getTransformsBGRPairWiseMutualError(const std::vector<cv::Mat>& images, con
                             //A[w](j, j) += valj * valj * invSigmaNSqr;
                             //A[w](i, j) -= 2 * vali * valj * invSigmaNSqr;
                             //B[w](i) += invSigmaGSqr;
-                            A[w](i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
-                            A[w](j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);
-                            A[w](i, j) -= 2 * vali * valj * invSigmaNSqr;
-                            B[w](i) += invSigmaGSqr + vali * valj * invSigmaDSqr;
-                            B[w](j) += vali * valj * invSigmaDSqr;
+                            if (abs(vali - valj) < 64 || (vali * 3 > valj && valj * 3 > vali))
+                            {
+                                A[w](i, i) += vali * vali * (invSigmaNSqr + invSigmaDSqr) + invSigmaGSqr;
+                                A[w](j, j) += valj * valj * (invSigmaNSqr + invSigmaDSqr);
+                                A[w](i, j) -= 2 * vali * valj * invSigmaNSqr;
+                                B[w](i) += invSigmaGSqr + vali * valj * invSigmaDSqr;
+                                B[w](j) += vali * valj * invSigmaDSqr;
+                            }
                         }
                     }
                 }
@@ -406,6 +412,28 @@ void adjust(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsi
     }
 }
 
+void isDiffSmall(const cv::Mat& a, const cv::Mat& b, const cv::Mat& mask, cv::Mat& out)
+{
+    int rows = a.rows, cols = a.cols;
+    out.create(rows, cols, CV_8UC1);
+    out.setTo(0);
+    for (int i = 0; i < rows; i++)
+    {
+        const unsigned char* ptrA = a.ptr<unsigned char>(i);
+        const unsigned char* ptrB = b.ptr<unsigned char>(i);
+        const unsigned char* ptrM = mask.ptr<unsigned char>(i);
+        unsigned char* ptrO = out.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (ptrM[j])
+            {
+                if (abs(int(ptrA[j]) - int(ptrB[j])) < 64)
+                    ptrO[j] = 255;
+            }
+        }
+    }
+}
+
 void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results)
 {
     int numImages = images.size();
@@ -413,9 +441,6 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     std::vector<cv::Mat> grayImages(numImages);
     for (int i = 0; i < numImages; i++)
         cv::cvtColor(images[i], grayImages[i], CV_BGR2GRAY);
-
-    std::vector<cv::Mat> outMasks;
-    getIntsctMasksAroundDistTransSeams(masks, outMasks);
 
     //cv::Mat gradSmallMask, blur, grad;
     //for (int i = 0; i < numImages; i++)
@@ -425,7 +450,7 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     //}
 
     std::vector<double> gains;
-    getTransformsGrayPairWiseMutualError(grayImages, outMasks, gains);
+    getTransformsGrayPairWiseMutualError(grayImages, masks, gains);
 
     results.resize(numImages);
     std::vector<unsigned char> lut;
@@ -440,11 +465,8 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
 {
     int numImages = images.size();
 
-    std::vector<cv::Mat> outMasks;
-    getIntsctMasksAroundDistTransSeams(masks, outMasks);
-
     std::vector<std::vector<double> > kts;
-    getTransformsBGRPairWiseMutualError(images, outMasks, kts);
+    getTransformsBGRPairWiseMutualError(images, masks, kts);
 
     std::vector<std::vector<std::vector<unsigned char> > > luts(numImages);
     for (int i = 0; i < numImages; i++)

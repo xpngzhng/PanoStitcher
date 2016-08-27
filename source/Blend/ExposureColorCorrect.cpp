@@ -22,8 +22,6 @@ bool ExposureColorCorrect::prepare(const std::vector<cv::Mat>& masks)
     for (int i = 0; i < numImages; i++)
         origMasks[i] = masks[i].clone();
 
-    getIntsctMasksAroundDistTransSeams(origMasks, splitExtendMasks);
-
     prepareSuccess = 1;
     return true;
 }
@@ -64,7 +62,7 @@ bool ExposureColorCorrect::correctExposure(const std::vector<cv::Mat>& images, s
         return true;
     }
 
-    getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
+    getTransformsGrayPairWiseMutualError(grayImages, origMasks, exposures);
     return true;
 }
 
@@ -111,7 +109,7 @@ bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::
         return true;
     }
 
-    getTransformsGrayPairWiseMutualError(grayImages, splitExtendMasks, exposures);
+    getTransformsGrayPairWiseMutualError(grayImages, origMasks, exposures);
 
     transImages.resize(numImages);
     std::vector<unsigned char> lut;
@@ -188,7 +186,7 @@ bool ExposureColorCorrect::correctColorExposure(const std::vector<cv::Mat>& imag
         return true;
     }
 
-    getTransformsBGRPairWiseMutualError(images, splitExtendMasks, exposures);
+    getTransformsBGRPairWiseMutualError(images, origMasks, exposures);
     return true;
 }
 
@@ -199,7 +197,6 @@ void ExposureColorCorrect::clear()
     rows = 0;
     cols = 0;
     origMasks.clear();
-    splitExtendMasks.clear();
     transImages.clear();
 }
 

@@ -342,7 +342,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         correct.reset(new ImageVisualCorrect);
     else if (panoStitchType == PanoStitchTypeRicoh)
         correct.reset(new RicohImageVisualCorrect);
-    renderPrepareSuccess = correct->prepare(renderConfigName, videoFrameSize, cv::Size(960, 480));
+    renderPrepareSuccess = correct->prepare(renderConfigName, videoFrameSize, cv::Size(1920, 960));
     if (!renderPrepareSuccess)
     {
         ztool::lprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
@@ -702,9 +702,12 @@ bool PanoramaLiveStreamTask2::Impl::calcExposures(std::vector<double>& expos)
         return false;
     }
 
-    std::vector<cv::Mat> images(numVideos);
+    std::vector<cv::Mat> imagesC4(numVideos), images(numVideos);
     for (int i = 0; i < numVideos; i++)
-        images[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data[0], frames[i].steps[0]);
+    {
+        imagesC4[i] = cv::Mat(frames[i].height, frames[i].width, elemType, frames[i].data[0], frames[i].steps[0]);
+        cv::cvtColor(imagesC4[i], images[i], CV_BGRA2BGR);
+    }        
 
     bool ok = correct->correct(images, exposures);
     if (!ok)

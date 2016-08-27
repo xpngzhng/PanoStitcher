@@ -1121,7 +1121,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         else
         {
             std::vector<cv::Mat> weights;
-            getWeightsLinearBlendBoundedRadius32F(masks, 75, 25, weights);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, 50, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);

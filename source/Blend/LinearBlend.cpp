@@ -232,8 +232,8 @@ int getMaxRadius(const std::vector<cv::Mat>& masks, const std::vector<cv::Mat>& 
                     if (abs(p.x) + abs(p.y) > u && dists[i].at<float>(p) < u)
                     {
                         success = false;
-                        printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f\n",
-                            i, j, k, p.x, p.y, dists[i].at<float>(p)); 
+                        //printf("fail at [%d][%d][%d] x = %d, y = %d, dist = %f, u = %d\n",
+                        //    i, j, k, p.x, p.y, dists[i].at<float>(p), u); 
                         break;
                     }
                 }

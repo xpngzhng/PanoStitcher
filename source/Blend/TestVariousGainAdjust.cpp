@@ -1,6 +1,6 @@
 #include "ZBlend.h"
 #include "ZBlendAlgo.h"
-#include "ZReproject.h"
+#include "Warp/ZReproject.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include <iostream>
@@ -1558,16 +1558,27 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
     //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
 
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\image3.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\919-4-1\\mask3.bmp");
 
     //std::vector<std::string> imagePaths;
     //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
@@ -1669,7 +1680,7 @@ int main()
     }
 
     TilingLinearBlend blend;
-    blend.prepare(masks, 100);
+    blend.prepare(masks, 70);
     TilingMultibandBlendFast mBlend;
     mBlend.prepare(masks, 10, 4);
     cv::Mat result;
@@ -1693,13 +1704,18 @@ void calcCompDistToCenterImage(const cv::Size& size, cv::Mat& image)
     int rows = size.height, cols = size.width;
     double cx = cols * 0.5, cy = rows * 0.5;
     double r = sqrt(cx * cx + cy * cy);
+    double sigmax = size.width / 8.0;
+    double sigmay = size.height / 8.0;
+    double ratiox = -0.5 / sigmax / sigmax;
+    double ratioy = -0.5 / sigmay / sigmay;
     for (int i = 0; i < rows; i++)
     {
         float* ptr = image.ptr<float>(i);
         for (int j = 0; j < cols; j++)
         {
             double diffx = j - cx, diffy = i - cy;
-            ptr[j] = r - sqrt(diffx * diffx + diffy * diffy);
+            //ptr[j] = r - sqrt(diffx * diffx + diffy * diffy);
+            ptr[j] = exp(ratiox * diffx * diffx + ratioy * diffy * diffy);
         }
     }
 }
@@ -1736,7 +1752,7 @@ void reproject32FC1(const cv::Mat& src, cv::Mat& dst, const cv::Mat& map)
                     wx0 * wy0 * src.at<float>(y1, x1);
             }
             else
-                ptrDst[j] = maxVal;
+                ptrDst[j] = 0;
         }
     }
 }
@@ -1778,6 +1794,14 @@ void calcWeights32F(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& wei
                     nonZeroIndex = k;
                 }
             }
+            //if ((i == 457) && (j == 1499))
+            //{
+            //    for (int k = 0; k < numImages; k++)
+            //    {
+            //        printf("%f, ", ptrDist[k][j]);
+            //    }
+            //    printf("\n");
+            //}
             if (nonZeroCount > 1)
             {
                 sum = fabs(sum) <= FLT_MIN ? 0 : 1.0F / sum;
@@ -1801,14 +1825,19 @@ void calcWeights32F(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& wei
     }
 }
 
-// main6
+// main6 kolor style linear blend
 int main6()
 {
     std::vector<std::string> paths;
-    paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-    paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-    paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-    paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    //paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+
+    paths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
+    paths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
+    paths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
+    paths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
 
     int numImages = paths.size();
     std::vector<cv::Mat> src(numImages);
@@ -1817,7 +1846,8 @@ int main6()
 
     std::vector<PhotoParam> params;
     //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
 
     cv::Size dstSize(2048, 1024);
     std::vector<cv::Mat> maps, masks;
@@ -1828,9 +1858,14 @@ int main6()
     std::vector<cv::Mat> dists(numImages);
     for (int i = 0; i < numImages; i++)
     {
+        //dists[i].create(maps[i].size(), CV_32FC1);
+        //dists[i].setTo(0);
         reproject32FC1(dist, dists[i], maps[i]);
-        compMask = ~masks[i];
-        dists[i].setTo(0, compMask);
+        //compMask = ~masks[i];
+        //dists[i].setTo(0, compMask);
+
+        cv::imshow("dist", dists[i]);
+        cv::waitKey(0);
     }
 
     std::vector<cv::Mat> dst;
@@ -1838,12 +1873,34 @@ int main6()
 
     std::vector<cv::Mat> weights;
     calcWeights32F(dists, weights);
+    for (int i = 0; i < numImages; i++)
+    {
+        //char buf[128];
+        //sprintf(buf, "weight%d.bmp", i);
+        //cv::Mat temp;
+        //weights[i].convertTo(temp, CV_8U, 255);
+        //cv::imwrite(buf, temp);
+        cv::imshow("weight", weights[i]);
+        cv::waitKey(0);
+    }
 
     std::vector<cv::Mat> compResults;
-    MultibandBlendGainAdjust gainAdjust;
-    gainAdjust.prepare(masks, 50);
+    //MultibandBlendGainAdjust gainAdjust;
+    //gainAdjust.prepare(masks, 50);
+    //std::vector<std::vector<unsigned char> > luts;
+    //gainAdjust.calcGain(dst, luts);
+    //compResults.resize(numImages);
+    //for (int i = 0; i < numImages; i++)
+    //    transform(src[i], compResults[i], luts[i]);
+    ExposureColorCorrect corrector;
+    std::vector<double> gains;
+    corrector.prepare(masks);
+    corrector.correctExposure(dst, gains);
+    for (int i = 0; i < numImages; i++)
+        printf("%f, ", gains[i]);
+    printf("\n");
     std::vector<std::vector<unsigned char> > luts;
-    gainAdjust.calcGain(dst, luts);
+    corrector.getExposureLUTs(gains, luts);
     compResults.resize(numImages);
     for (int i = 0; i < numImages; i++)
         transform(src[i], compResults[i], luts[i]);
@@ -1892,210 +1949,210 @@ static void normalizeHist(const std::vector<int>& src, std::vector<double>& dst)
         dst[i] = src[i] * scale;
 }
 
-void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
-    std::vector<unsigned char>& lut);
-
-// main7
-int main7()
-{
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
-
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
-
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
-
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
-
-    int numImages = imagePaths.size();
-    std::vector<cv::Mat> images(numImages), masks(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        images[i] = cv::imread(imagePaths[i]);
-        masks[i] = cv::imread(maskPaths[i], -1);
-    }
-
-    BlendConfig blendConfig;
-    blendConfig.setSeamDistanceTransform();
-    blendConfig.setBlendMultiBand();
-    cv::Mat blend, mask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
-    std::vector<cv::Mat> imageGroup(3), maskGroup(3);
-    for (int i = 0; i < 3; i++)
-    {
-        imageGroup[i] = images[i];
-        maskGroup[i] = masks[i];
-        mask |= masks[i];
-    }
-    parallelBlend(blendConfig, imageGroup, maskGroup, blend);
-    cv::imshow("blend", blend);
-    cv::waitKey(0);
-
-    std::vector<unsigned char> lut;
-    calcTransform(images[3], masks[3], blend, mask, lut);
-    cv::Mat result;
-    transform(images[3], result, lut, masks[3]);
-    cv::imshow("result", result);
-    cv::waitKey(0);
-
-    images[3] = result;
-    TilingLinearBlend blender;
-    blender.prepare(masks, 100);
-    cv::Mat blendResult;
-    blender.blend(images, blendResult);
-    cv::imshow("blend result", blendResult);
-    cv::waitKey(0);
-
-    return 0;
-}
-
-void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
-
-void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
-    std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);
-
-// main8
-int main8()
-{
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
-
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
-
-    std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
-    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
-
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
-    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
-
-    int numImages = imagePaths.size();
-    std::vector<cv::Mat> images(numImages), masks(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        images[i] = cv::imread(imagePaths[i]);
-        masks[i] = cv::imread(maskPaths[i], -1);
-    }
-
-    std::vector<cv::Mat> adjustImages(numImages);
-    std::vector<std::vector<unsigned char> > luts;
-    std::vector<int> corrected;
-
-    exposureCorrect(images, masks, luts, corrected);
-    for (int i = 0; i < numImages; i++)
-    {
-        if (corrected[i])
-            transform(images[i], adjustImages[i], luts[i], masks[i]);
-        else
-            adjustImages[i] = images[i];
-    }
-
-    cv::Mat result;
-    TilingLinearBlend blender;
-    blender.prepare(masks, 100);    
-    blender.blend(adjustImages, result);
-    cv::imshow("linear blend", result);
-
-    BlendConfig blendConfig;
-    blendConfig.setSeamDistanceTransform();
-    blendConfig.setBlendMultiBand();
-    parallelBlend(blendConfig, adjustImages, masks, result);
-    cv::imshow("multiband blend", result);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> tintAdjustImages;
-    tintAdjust(adjustImages, masks, tintAdjustImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::imshow("tint", tintAdjustImages[i]);
-        cv::waitKey(0);
-    }
-
-    blender.blend(tintAdjustImages, result);
-    cv::imshow("tint linear blend", result);
-    cv::waitKey(0);
-
-    return 0;
-}
+//void calcTransform(const cv::Mat& image, const cv::Mat& imageMask, const cv::Mat& base, const cv::Mat& baseMask,
+//    std::vector<unsigned char>& lut);
+//
+//// main7
+//int main7()
+//{
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+//
+//    std::vector<std::string> imagePaths;
+//    imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+//    imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+//    imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+//    imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+//    std::vector<std::string> maskPaths;
+//    maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+//    maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+//    maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+//    maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+//
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+//
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+//
+//    int numImages = imagePaths.size();
+//    std::vector<cv::Mat> images(numImages), masks(numImages);
+//    for (int i = 0; i < numImages; i++)
+//    {
+//        images[i] = cv::imread(imagePaths[i]);
+//        masks[i] = cv::imread(maskPaths[i], -1);
+//    }
+//
+//    BlendConfig blendConfig;
+//    blendConfig.setSeamDistanceTransform();
+//    blendConfig.setBlendMultiBand();
+//    cv::Mat blend, mask = cv::Mat::zeros(masks[0].size(), CV_8UC1);
+//    std::vector<cv::Mat> imageGroup(3), maskGroup(3);
+//    for (int i = 0; i < 3; i++)
+//    {
+//        imageGroup[i] = images[i];
+//        maskGroup[i] = masks[i];
+//        mask |= masks[i];
+//    }
+//    parallelBlend(blendConfig, imageGroup, maskGroup, blend);
+//    cv::imshow("blend", blend);
+//    cv::waitKey(0);
+//
+//    std::vector<unsigned char> lut;
+//    calcTransform(images[3], masks[3], blend, mask, lut);
+//    cv::Mat result;
+//    transform(images[3], result, lut, masks[3]);
+//    cv::imshow("result", result);
+//    cv::waitKey(0);
+//
+//    images[3] = result;
+//    TilingLinearBlend blender;
+//    blender.prepare(masks, 100);
+//    cv::Mat blendResult;
+//    blender.blend(images, blendResult);
+//    cv::imshow("blend result", blendResult);
+//    cv::waitKey(0);
+//
+//    return 0;
+//}
+//
+//void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks, std::vector<cv::Mat>& results);
+//
+//void exposureCorrect(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& masks,
+//    std::vector<std::vector<unsigned char> >& luts, std::vector<int>& corrected);
+//
+//// main8
+//int main8()
+//{
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\detuoffice\\image3.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask0.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask1.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask2.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\detuoffice\\mask3.bmp");
+//
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\919-4\\image0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\919-4\\image1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\919-4\\image2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\919-4\\image3.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\919-4\\mask0.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\919-4\\mask1.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\919-4\\mask2.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\919-4\\mask3.bmp");
+//
+//    std::vector<std::string> imagePaths;
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.bmp");
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.bmp");
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.bmp");
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.bmp");
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.bmp");
+//    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.bmp");
+//    std::vector<std::string> maskPaths;
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\0mask.bmp");
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\1mask.bmp");
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\2mask.bmp");
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\3mask.bmp");
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\4mask.bmp");
+//    maskPaths.push_back("F:\\panoimage\\zhanxiang\\5mask.bmp");
+//
+//    //std::vector<std::string> imagePaths;
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage0.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage1.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage2.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage3.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage4.bmp");
+//    //imagePaths.push_back("F:\\panoimage\\changtai\\reprojimage5.bmp");
+//    //std::vector<std::string> maskPaths;
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask0.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask1.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask2.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask3.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
+//    //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
+//
+//    int numImages = imagePaths.size();
+//    std::vector<cv::Mat> images(numImages), masks(numImages);
+//    for (int i = 0; i < numImages; i++)
+//    {
+//        images[i] = cv::imread(imagePaths[i]);
+//        masks[i] = cv::imread(maskPaths[i], -1);
+//    }
+//
+//    std::vector<cv::Mat> adjustImages(numImages);
+//    std::vector<std::vector<unsigned char> > luts;
+//    std::vector<int> corrected;
+//
+//    exposureCorrect(images, masks, luts, corrected);
+//    for (int i = 0; i < numImages; i++)
+//    {
+//        if (corrected[i])
+//            transform(images[i], adjustImages[i], luts[i], masks[i]);
+//        else
+//            adjustImages[i] = images[i];
+//    }
+//
+//    cv::Mat result;
+//    TilingLinearBlend blender;
+//    blender.prepare(masks, 100);    
+//    blender.blend(adjustImages, result);
+//    cv::imshow("linear blend", result);
+//
+//    BlendConfig blendConfig;
+//    blendConfig.setSeamDistanceTransform();
+//    blendConfig.setBlendMultiBand();
+//    parallelBlend(blendConfig, adjustImages, masks, result);
+//    cv::imshow("multiband blend", result);
+//    cv::waitKey(0);
+//
+//    std::vector<cv::Mat> tintAdjustImages;
+//    tintAdjust(adjustImages, masks, tintAdjustImages);
+//    for (int i = 0; i < numImages; i++)
+//    {
+//        cv::imshow("tint", tintAdjustImages[i]);
+//        cv::waitKey(0);
+//    }
+//
+//    blender.blend(tintAdjustImages, result);
+//    cv::imshow("tint linear blend", result);
+//    cv::waitKey(0);
+//
+//    return 0;
+//}

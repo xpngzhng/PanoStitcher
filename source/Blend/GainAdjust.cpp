@@ -15,12 +15,10 @@ void getExtendedMasks(const std::vector<cv::Mat>& masks, int radius, std::vector
         cv::distanceTransform(masks[i], dists[i], CV_DIST_L2, 3);
 
     radius = getMaxRadius(masks, uniqueMasks, dists, radius);
-    if (radius <= 1)
-        radius = 1;
+    if (radius <= 2)
+        radius = 2;
     else
         radius -= 1;
-    //if (radius < 20)
-    //    radius = 20;
     //printf("radius = %d\n", radius);
     cv::Size blurSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
