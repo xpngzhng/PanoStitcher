@@ -254,6 +254,26 @@ inline cv::Point2d findTransEquiRectangularSrc(const cv::Point& dst, double half
     return cv::Point2d(halfWidth + phi * halfWidth - 0.5, halfHeight * (2 - theta) - 0.5);
 }
 
+// Rotate pitch for the following two structs
+// In the following two structs, we use traditional image coordinate system,
+// in which x axis directs to left and y axis directs to bottom.
+// In addition, in the following two structs, alphaX increases from -pi to pi
+// and alphaY increases from -pi / 2 to pi / 2.
+// To map equirectangular image to sphere, we here build a 3-D system following the 
+// image coordinate system. In the 3-D system, x axis directs to left, y axis directs to bottom,
+// and z axis directs front. To rotate a point on unit sphere around x axis,
+// we call this function.
+inline void rotatePitch(double srcAngleX, double srcAngleY, double& dstAngleX, double& dstAngleY, double angle)
+{
+    double x = cos(srcAngleY) * sin(srcAngleX);
+    double y = sin(srcAngleY);
+    double z = cos(srcAngleY) * cos(srcAngleX);
+    double yy = cos(angle) * y - sin(angle) * z;
+    double zz = sin(angle) * y + cos(angle) * z;
+    dstAngleX = atan2(zz, x);
+    dstAngleY = asin(yy);
+}
+
 // src equirect, dst fisheye
 struct FishEyeBackToEquiRect
 {
@@ -287,11 +307,12 @@ struct FishEyeBackToEquiRect
         double horiR = sqrt(dstRSqr - dstyySqr);
         double alphaX = asin(dstxx / horiR);
         double alphaY = asin(dstyy / dstR);
+        rotatePitch(alphaX, alphaY, alphaX, alphaY, srcDeltaAY);
         double srcx = (alphaX) / PI * halfSrcWidth + halfSrcWidth;
         double srcy = (alphaY) / PI * fullSrcHeight + halfSrcHeight;
-        cv::Point2d dd = findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
-        srcx = dd.x;
-        srcy = dd.y;
+        //cv::Point2d dd = findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
+        //srcx = dd.x;
+        //srcy = dd.y;
         srcx += srcDeltaAX / PI * halfSrcWidth;
         if (srcy < 0)
         {
@@ -346,11 +367,12 @@ struct RectLinearBackToEquiRect
         double d = sqrt(dstxx * dstxx + dstyy * dstyy + dstRSqr);
         double alphaX = atan2(dstxx, dstR);
         double alphaY = asin(dstyy / d);
+        rotatePitch(alphaX, alphaY, alphaX, alphaY, srcDeltaAY);
         double srcx = (alphaX) / PI * halfSrcWidth + halfSrcWidth;
         double srcy = (alphaY) / PI * fullSrcHeight + halfSrcHeight;
-        cv::Point2d dd = findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
-        srcx = dd.x;
-        srcy = dd.y;
+        //cv::Point2d dd = findRotateEquiRectangularSrc(cv::Point2d(srcx, srcy), halfSrcWidth, halfSrcHeight, invRot);
+        //srcx = dd.x;
+        //srcy = dd.y;
         srcx += srcDeltaAX / PI * halfSrcWidth;
         if (srcy < 0)
         {

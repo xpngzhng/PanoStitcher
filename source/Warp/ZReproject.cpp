@@ -186,7 +186,8 @@ void getReprojectMapAndMask(const PhotoParam& param,
             {
                 double sx, sy;
                 remap.remapImage(sx, sy, w, h);
-                if (sx >= 0 && sy >= 0 && sx < srcWidth && sy < srcHeight &&
+                if (sx >= param.cropX && sy >= param.cropY && 
+                    sx < param.cropX + param.cropWidth && sy < param.cropY + param.cropHeight &&
                     (sx - centx) * (sx - centx) + (sy - centy) * (sy - centy) < sqrDist)
                 {
                     ptrMap[w].x = sx;
@@ -375,7 +376,8 @@ void reproject(const cv::Mat& src, cv::Mat& dst, cv::Mat& mask,
             {
                 double sx, sy;
                 remap.remapImage(sx, sy, w, h);
-                if (sx >= 0 && sy >= 0 && sx < srcWidth && sy < srcHeight &&
+                if (sx >= param.cropX && sy >= param.cropY &&
+                    sx < param.cropX + param.cropWidth && sy < param.cropY + param.cropHeight &&
                     (sx - centx) * (sx - centx) + (sy - centy) * (sy - centy) < sqrDist)
                 {
                     uchar dest[3];

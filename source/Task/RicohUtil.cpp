@@ -25,7 +25,7 @@ void prepare(const cv::Mat& mask1, const cv::Mat& mask2,
     newMask1 &= mask1;
     newMask2 &= mask2;
 
-    int radius = 60;
+    int radius = 20;
     cv::Size kernSize(radius * 2 + 1, radius * 2 + 1);
     double sigma = radius / 3.0;
     cv::Mat blurMask1, blurMask2;

@@ -47,7 +47,7 @@ int main1()
 
     cv::Size dstSize = cv::Size(2048, 1024);
 
-    int main()
+    int main2()
     {
         std::vector<std::string> paths;
         //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
@@ -76,6 +76,52 @@ int main1()
         reprojectParallel(src, images, maps);
         //reproject(src, images, masks, params, dstSize);
         for (int i = 0; i < numImages; i++)
+        {
+            char buf[64];
+            sprintf(buf, "image%d.bmp", i);
+            cv::imwrite(buf, images[i]);
+            sprintf(buf, "mask%d.bmp", i);
+            cv::imwrite(buf, masks[i]);
+            cv::imshow("image", images[i]);
+            cv::waitKey(0);
+        }
+
+        return 0;
+    }
+
+    int main()
+    {
+        std::vector<std::string> paths;
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+        //paths.push_back("F:\\panoimage\\919-4-2\\snapshot0.bmp");
+        //paths.push_back("F:\\panoimage\\919-4-2\\snapshot1.bmp");
+        //paths.push_back("F:\\panoimage\\919-4-2\\snapshot2.bmp");
+        //paths.push_back("F:\\panoimage\\919-4-2\\snapshot3.bmp");
+
+        paths.push_back("F:\\panovideo\\ricoh m15\\image2.bmp");
+
+        int numImages = paths.size();
+        std::vector<cv::Mat> src(numImages);
+        for (int i = 0; i < numImages; i++)
+            src[i] = cv::imread(paths[i]);
+
+        std::vector<PhotoParam> params;
+        //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
+        //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
+        //loadPhotoParamFromXML("F:\\panoimage\\919-4-2\\vrdl(4).xml", params);
+        loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\param.xml", params);
+
+        std::vector<cv::Mat> maps, masks;
+        getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+        std::vector<cv::Mat> images;
+        src.push_back(src[0]);
+        reprojectParallel(src, images, maps);
+        //reproject(src, images, masks, params, dstSize);
+        for (int i = 0; i < 2; i++)
         {
             char buf[64];
             sprintf(buf, "image%d.bmp", i);

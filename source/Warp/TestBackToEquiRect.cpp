@@ -141,7 +141,7 @@ int main()
 
     accumX = 0;
     accumY = 0;
-    mapNearestNeighborParallel(image, show, dstSize, hfov, accumX * scale, accumY * scale, true);
+    mapNearestNeighborParallel(image, show, dstSize, hfov, accumX * scale, accumY * scale, false);
     cv::imshow("image", show);
     cv::waitKey(0);
     return 0;
