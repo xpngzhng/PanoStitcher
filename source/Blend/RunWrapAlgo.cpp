@@ -1,6 +1,6 @@
 ﻿#include "ZBlendAlgo.h"
 #include "ZBlend.h"
-#include "Timer.h"
+#include "Tool/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -151,20 +151,20 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\sky\\mask1.bmp");
     //maskPaths.push_back("F:\\panoimage\\sky\\mask2.bmp");
 
-    std::vector<std::string> contentPaths;
-    contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
-    contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
-    contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
-    contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
-    contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
-    contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
-    std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
-    maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
-    maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
-    maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
-    maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
-    maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
+    //std::vector<std::string> contentPaths;
+    //contentPaths.push_back("F:\\panoimage\\color\\1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\3.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\4.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\5.bmp");
+    //contentPaths.push_back("F:\\panoimage\\color\\6.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_1.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_2.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_3.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_4.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_5.bmp");
+    //maskPaths.push_back("F:\\panoimage\\color\\mask_6.bmp");
 
     //std::vector<std::string> contentPaths;
     //contentPaths.push_back("F:\\panoimage\\blackwhite\\image0.bmp");
@@ -234,7 +234,7 @@ int main()
     cv::imwrite("blendimage1.bmp", blendImage);
     //cv::imshow("blend mask", blendMask);
     //cv::imshow("belonging", indexImage);
-    cv::imwrite("img.bmp", blendImage);
+    //cv::imwrite("img.bmp", blendImage);
     //return 0;
     cv::waitKey(0);
     //cv::imwrite("resultsky.bmp", blendImage);

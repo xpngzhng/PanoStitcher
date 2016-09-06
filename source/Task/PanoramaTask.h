@@ -15,6 +15,8 @@ typedef void(*PanoTaskLogCallbackFunc)(const char*, va_list);
 
 PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func);
 
+void listNetworkDevices(std::vector<std::string>& urls);
+
 class PanoramaPreviewTask
 {
 public:
