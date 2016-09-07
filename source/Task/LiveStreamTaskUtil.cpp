@@ -1133,8 +1133,17 @@ void JuJingAudioVideoSource::videoDecode(int index)
     DataPacket pkt;
     avp::AudioVideoFrame2 frame, copyFrame;
     bool ok;
+    ztool::Timer timer;
+    int count = 0;
     while (!videoEndFlag && !finish)
     {
+        if (count == 20)
+        {
+            count = 0;
+            timer.end();
+            printf("fps = %f\n", 20 / timer.elapse());
+            timer.start();
+        }
         dataPacketQueue.pull(pkt);
         if (pkt.data.get())
         {
@@ -1147,6 +1156,7 @@ void JuJingAudioVideoSource::videoDecode(int index)
                 frameQueue.push(copyFrame);
             }
         }
+        count++;
     }
     delete decoder;
 

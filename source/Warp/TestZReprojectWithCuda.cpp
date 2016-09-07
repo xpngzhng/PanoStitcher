@@ -1,4 +1,5 @@
 #include "ZReproject.h"
+#include "CudaAccel/CudaInterface.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
@@ -77,15 +78,24 @@ int main()
 
     {
         std::vector<std::string> paths;
+        std::vector<PhotoParam> params;
+
         //paths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
         //paths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
         //paths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
         //paths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
+        //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice2\\4port.pts", params);
+        //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
+        //rotateCameras(params, 0, 0, 3.1415926 / 2);
 
         paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
         paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
         paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");        
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+
+        //paths.push_back("F:\\panovideo\\ricoh m15\\image0.bmp");
+        //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -94,16 +104,18 @@ int main()
         {
             temp = cv::imread(paths[i]);
             cv::cvtColor(temp, src[i], CV_BGR2BGRA);
-        }            
+        }
 
-        std::vector<PhotoParam> params;
-        //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice2\\4port.pts", params);
-        //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
-        //rotateCameras(params, 0, 0, 3.1415926 / 2);
-        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+        //numImages = 2;
+        //src.push_back(src[0]);
 
         std::vector<cv::Mat> maps, masks;
         getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::imshow("mask", masks[i]);
+            cv::waitKey(0);
+        }
 
         std::vector<cv::cuda::GpuMat> xmaps, ymaps;
         cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);

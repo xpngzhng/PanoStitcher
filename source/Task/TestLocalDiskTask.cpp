@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
-    //dstSize = cv::Size(4096, 2048);
+    //dstSize = cv::Size(3840, 1920);
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
@@ -92,15 +92,15 @@ int main(int argc, char* argv[])
 
     avp::setDumpInput(false);
     
-    panoVideoName = "libx264_docl.mp4";
-    std::string logoFileName = /*""*/"F:\\image\\Earth_global.png";
+    panoVideoName = "libx264_cuda.mp4";
+    std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
 #if TEST_RICOH
     bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, logoFileName, fov, 0, 
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
 #else
     bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 1, 
-        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "veryfast", 30 * 48);
 #endif
     if (!ok)
     {

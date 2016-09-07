@@ -134,10 +134,10 @@ int main()
     //showTiledImages.init(1920, 1080, vds.size());
 
     std::vector<std::string> urls;
-    urls.push_back("192.168.1.206");
-    urls.push_back("192.168.1.207");
-    urls.push_back("192.168.1.209");
-    urls.push_back("192.168.1.210");
+    urls.push_back("192.168.137.206");
+    urls.push_back("192.168.137.207");
+    urls.push_back("192.168.137.209");
+    urls.push_back("192.168.137.210");
     ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
     ptrSource->open(urls);

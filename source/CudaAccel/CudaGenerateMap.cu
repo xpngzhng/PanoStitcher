@@ -30,15 +30,17 @@ struct CudaRemapParam
     CalcType horizontal;
     CalcType vertical;
     CalcType PI;
-    CalcType width;
-    CalcType height;
+    CalcType cropX;
+    CalcType cropY;
+    CalcType cropWidth;
+    CalcType cropHeight;
     CalcType centx;
     CalcType centy;
     CalcType sqrDist;
     int imageType;
 };
 
-void copyParam(const Remap& src, CudaRemapParam& dst, 
+void copyParam(const Remap& src, CudaRemapParam& dst, CalcType x, CalcType y,
     CalcType width, CalcType height, CalcType centx, CalcType centy, CalcType sqrDist, int type)
 {
     dst.srcTX = src.srcTX;
@@ -64,8 +66,10 @@ void copyParam(const Remap& src, CudaRemapParam& dst,
     dst.horizontal = src.mp.horizontal;
     dst.vertical = src.mp.vertical;
     dst.PI = 3.1415926535898;
-    dst.width = width;
-    dst.height = height;
+    dst.cropX = x;
+    dst.cropY = y;
+    dst.cropWidth = width;
+    dst.cropHeight = height;
     dst.centx = centx;
     dst.centy = centy;
     dst.sqrDist = sqrDist;
@@ -218,7 +222,8 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
     {
         float diffx = tx_dest - param.centx;
         float diffy = ty_dest - param.centy;
-        if (tx_dest >= 0 && tx_dest < param.width && ty_dest >= 0 && ty_dest < param.height &&
+        if (tx_dest >= param.cropX && tx_dest < param.cropX + param.cropWidth && 
+            ty_dest >= param.cropY && ty_dest < param.cropY + param.cropHeight &&
             diffx * diffx + diffy * diffy < param.sqrDist)
         {
             *srcx = tx_dest;
@@ -385,7 +390,8 @@ __global__ void remapKernel(unsigned char* xMapData, int xMapStep,
     {
         float diffx = tx_dest - param.centx;
         float diffy = ty_dest - param.centy;
-        if (tx_dest >= 0 && tx_dest < param.width && ty_dest >= 0 && ty_dest < param.height &&
+        if (tx_dest >= param.cropX && tx_dest < param.cropX + param.cropWidth &&
+            ty_dest >= param.cropY && ty_dest < param.cropY + param.cropHeight &&
             diffx * diffx + diffy * diffy < param.sqrDist)
         {
             *((float*)(xMapData + y * xMapStep) + x) = tx_dest;
@@ -449,7 +455,9 @@ void cudaGenerateReprojectMap(const PhotoParam& photoParam_,
     Remap remap;
     remap.init(photoParam, dstWidth, dstHeight, srcWidth, srcHeight);
     CudaRemapParam cudaParam;
-    copyParam(remap, cudaParam, srcWidth, srcHeight, centx, centy, sqrDist, photoParam.imageType);
+    copyParam(remap, cudaParam, 
+        photoParam.cropX, photoParam.cropY, photoParam.cropWidth, photoParam.cropHeight,
+        centx, centy, sqrDist, photoParam.imageType);
     cudaSafeCall(cudaMemcpyToSymbol(param, &cudaParam, sizeof(CudaRemapParam)));
 
     xmap.create(dstHeight, dstWidth, CV_32FC1);
