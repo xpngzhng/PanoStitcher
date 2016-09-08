@@ -158,22 +158,27 @@ static const float NZ[] = { 0.0f, 0.0f, -1.0f };
 // Vertically, if we pass through the north pole, we start coming back 'down'
 // in the Y direction (ie, a reflection from the boundary) but we also are
 // on the opposite side of the sphere so the X value changes by 0.5.
-static inline void normalize_equirectangular(float x, float y, float *xout, float *yout) {
-    if (y >= 1.0f) {
+static inline void normalizeEquirectangular(float x, float y, float *xout, float *yout) 
+{
+    if (y >= 1.0f) 
+{
         // Example: y = 1.25 ; 2.0 - 1.25 = 0.75.
         y = 2.0f - y;
         x += 0.5f;
     }
-    else if (y < 0.0f) {
+    else if (y < 0.0f) 
+{
         y = -y;
         x += 0.5f;
     }
 
-    if (x >= 1.0f) {
+    if (x >= 1.0f) 
+{
         int ipart = (int)x;
         x -= ipart;
     }
-    else if (x < 0.0f) {
+    else if (x < 0.0f) 
+{
         // Example: x = -1.25.  ipart = 1. x += 2 so x = 0.25.
         int ipart = (int)(-x);
         x += (ipart + 1);
@@ -183,27 +188,35 @@ static inline void normalize_equirectangular(float x, float y, float *xout, floa
     *yout = y;
 }
 
-static inline void transform_pos(int cubeType, float x, float y, float *outX, float *outY) {
-
+// Explain the coordinate system used in transformPos function.
+// The dst image coordinate is normalized coordinate range (0, 1) x (0, 1),
+// which could be different style of cubic view coordinate.
+// Equirect image has coordinate system with x axis directs right and y axis directs down.
+// Sphere image has coordinate system with x axis directs right, y aixs directs up and z axis directs to yourself.
+// Dst image coordinate is transformed into six squares with coordinate range (0, 1) x (0, x).
+static inline void transformPos(int cubeType, float x, float y, float *outX, float *outY) 
+{
     float qx, qy, qz;
-    float cos_y, cos_p, sin_y, sin_p;
     float d;
     y = 1.0f - y;
 
     const float *vx, *vy, *p;
     int face = 0;
-    if (cubeType == CubeType6x1) {
+    if (cubeType == CubeType6x1) 
+    {
         face = (int)(x * 6);
         x = x * 6.0f - face;
     }
-    else if (cubeType == CubeType3x2) {
+    else if (cubeType == CubeType3x2) 
+    {
         int vface = (int)(y * 2);
         int hface = (int)(x * 3);
         x = x * 3.0f - hface;
         y = y * 2.0f - vface;
         face = hface + (1 - vface) * 3;
     }
-    else if (cubeType == CubeType180) {
+    else if (cubeType == CubeType180) 
+    {
         // LAYOUT_CUBEMAP_180: layout for spatial resolution downsampling with 180 degree viewport size
         //
         // - Given a view (yaw,pitch) we can create a customized cube mapping to make the view center at the front cube face.
@@ -233,57 +246,70 @@ static inline void transform_pos(int cubeType, float x, float y, float *outX, fl
         //   |g|h|-i-|   e   |   |      Area d = 1   Area i1(top) = 5
         //   +---+---+---+---+---+      Area e = 7   Area i2(bottom) = 8
         //
-        if (0.0f <= y && y < 1.0f / 3 && 0.0f <= x && x < 0.8f) { // Area g, h, i1, i2, e
-            if (0.0f <= x && x < 0.1f) { // g
+        if (0.0f <= y && y < 1.0f / 3 && 0.0f <= x && x < 0.8f) 
+        { // Area g, h, i1, i2, e
+            if (0.0f <= x && x < 0.1f) 
+            { // g
                 face = LEFT;
                 x = x / 0.2f;
                 y = y / (1.0f / 3);
             }
-            else if (0.1f <= x && x < 0.2f) { // h
+            else if (0.1f <= x && x < 0.2f) 
+            { // h
                 face = RIGHT;
                 x = (x - 0.1f) / 0.2f + 0.5f;
                 y = y / (1.0f / 3);
             }
-            else if (0.2f <= x && x < 0.4f) {
-                if (y >= 1.0f / 6){ //i1
+            else if (0.2f <= x && x < 0.4f) 
+            {
+                if (y >= 1.0f / 6)
+                { //i1
                     face = TOP;
                     x = (x - 0.2f) / 0.2f;
                     y = (y - 1.0f / 6) / (1.0f / 3) + 0.5f;
                 }
-                else { // i2
+                else 
+                { // i2
                     face = BOTTOM;
                     x = (x - 0.2f) / 0.2f;
                     y = y / (1.0f / 3);
                 }
             }
-            else if (0.4f <= x && x < 0.8f){ // e
+            else if (0.4f <= x && x < 0.8f)
+            { // e
                 face = BOTTOM;
                 x = (x - 0.4f) / 0.4f;
                 y = y / (2.0f / 3) + 0.5f;
             }
         }
-        else if (2.0f / 3 <= y && y < 1.0f && 0.6f <= x && x < 1.0f) { // Area c
+        else if (2.0f / 3 <= y && y < 1.0f && 0.6f <= x && x < 1.0f) 
+        { // Area c
             face = TOP;
             x = (x - 0.6f) / 0.4f;
             y = (y - 2.0f / 3) / (2.0f / 3);
         }
-        else { // Area a, b, f, d
-            if (0.0f <= x && x < 0.4f) { // a
+        else 
+        { // Area a, b, f, d
+            if (0.0f <= x && x < 0.4f) 
+            { // a
                 face = FRONT;
                 x = x / 0.4f;
                 y = (y - 1.0 / 3) / (2.0f / 3);
             }
-            else if (0.4f <= x && x < 0.6f) { // b
+            else if (0.4f <= x && x < 0.6f) 
+            { // b
                 face = LEFT;
                 x = (x - 0.4f) / 0.4f + 0.5f;
                 y = (y - 1.0f / 3) / (2.0f / 3);
             }
-            else if (0.6f <= x && x < 0.8f) { // f
+            else if (0.6f <= x && x < 0.8f) 
+            { // f
                 face = BACK;
                 x = (x - 0.6f) / 0.2f;
                 y = (y - 1.0f / 3) / (1.0f / 3);
             }
-            else if (0.8f <= x && x < 1.0f) { // d
+            else if (0.8f <= x && x < 1.0f) 
+            { // d
                 face = RIGHT;
                 x = (x - 0.8f) / 0.4f;
                 y = y / (2.0f / 3);
@@ -291,7 +317,12 @@ static inline void transform_pos(int cubeType, float x, float y, float *outX, fl
         }
     }
 
-    switch (face) {
+    // p is the anchor of each square, the top-left corner of the square.
+    // vx and vy respectively tell how the x and y coordinate of the square is placed in the 3D coordinate.
+    // RIGHT: square x increases along 3D negtive z direction, square y increases along 3D positive y direction.
+    // LEFT: 
+    switch (face) 
+    {
     case RIGHT:   p = P5; vx = NZ; vy = PY; break;
     case LEFT:    p = P0; vx = PZ; vy = PY; break;
     case TOP:     p = P6; vx = PX; vy = NZ; break;
@@ -306,7 +337,6 @@ static inline void transform_pos(int cubeType, float x, float y, float *outX, fl
     d = sqrtf(qx * qx + qy * qy + qz * qz);
     *outX = -atan2f(-qx / d, qz / d) / (PI * 2.0f) + 0.5f;
     *outY = asinf(-qy / d) / PI + 0.5f;
-
 }
 
 void getEquiRectToCubeMap(cv::Mat& dstSrcMap, int equiRectHeight, int cubeHeight, int cubeType)
@@ -338,7 +368,7 @@ void getEquiRectToCubeMap(cv::Mat& dstSrcMap, int equiRectHeight, int cubeHeight
         {
             float inx = (j + 0.5f) / dstWidth, iny = (i + 0.5f) / dstHeight;
             float outx, outy;
-            transform_pos(cubeType, inx, iny, &outx, &outy);
+            transformPos(cubeType, inx, iny, &outx, &outy);
             *(ptr++) = outx * srcWidth;
             *(ptr++) = outy * srcHeight;
         }

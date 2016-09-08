@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaAccel", "CudaAccel\Cuda
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenCLAccel", "OpenCLAccel\OpenCLAccel.vcxproj", "{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestConnect", "TestConnect\TestConnect.vcxproj", "{627338C7-752B-458E-BC6A-EB72B2214F60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -139,6 +141,18 @@ Global
 		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|Win32.Build.0 = Release|Win32
 		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|x64.ActiveCfg = Release|x64
 		{EAEE69DE-A702-48CC-AC7D-9D41E4D482A2}.Release|x64.Build.0 = Release|x64
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|Win32.ActiveCfg = Debug|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|Win32.Build.0 = Debug|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|x64.ActiveCfg = Debug|x64
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Debug|x64.Build.0 = Debug|x64
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|Win32.ActiveCfg = Release|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|Win32.Build.0 = Release|Win32
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|x64.ActiveCfg = Release|x64
+		{627338C7-752B-458E-BC6A-EB72B2214F60}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
