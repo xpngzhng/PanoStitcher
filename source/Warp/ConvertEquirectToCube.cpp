@@ -161,24 +161,24 @@ static const float NZ[] = { 0.0f, 0.0f, -1.0f };
 static inline void normalizeEquirectangular(float x, float y, float *xout, float *yout) 
 {
     if (y >= 1.0f) 
-{
+    {
         // Example: y = 1.25 ; 2.0 - 1.25 = 0.75.
         y = 2.0f - y;
         x += 0.5f;
     }
     else if (y < 0.0f) 
-{
+    {
         y = -y;
         x += 0.5f;
     }
 
     if (x >= 1.0f) 
-{
+    {
         int ipart = (int)x;
         x -= ipart;
     }
     else if (x < 0.0f) 
-{
+    {
         // Example: x = -1.25.  ipart = 1. x += 2 so x = 0.25.
         int ipart = (int)(-x);
         x += (ipart + 1);
@@ -194,7 +194,7 @@ static inline void normalizeEquirectangular(float x, float y, float *xout, float
 // Equirect image has coordinate system with x axis directs right and y axis directs down.
 // Sphere image has coordinate system with x axis directs right, y aixs directs up and z axis directs to yourself.
 // Dst image coordinate is transformed into six squares with coordinate range (0, 1) x (0, x).
-static inline void transformPos(int cubeType, float x, float y, float *outX, float *outY) 
+static inline void cvtCubeToEquiRect(int cubeType, float x, float y, float *outX, float *outY) 
 {
     float qx, qy, qz;
     float d;
@@ -317,10 +317,10 @@ static inline void transformPos(int cubeType, float x, float y, float *outX, flo
         }
     }
 
-    // p is the anchor of each square, the top-left corner of the square.
+    // p is the anchor of each square, the bottom-left corner of the square.
     // vx and vy respectively tell how the x and y coordinate of the square is placed in the 3D coordinate.
     // RIGHT: square x increases along 3D negtive z direction, square y increases along 3D positive y direction.
-    // LEFT: 
+    // LEFT: square x increases along 3D positive z direction, square y increases along 3D positive y direction.
     switch (face) 
     {
     case RIGHT:   p = P5; vx = NZ; vy = PY; break;
@@ -368,7 +368,7 @@ void getEquiRectToCubeMap(cv::Mat& dstSrcMap, int equiRectHeight, int cubeHeight
         {
             float inx = (j + 0.5f) / dstWidth, iny = (i + 0.5f) / dstHeight;
             float outx, outy;
-            transformPos(cubeType, inx, iny, &outx, &outy);
+            cvtCubeToEquiRect(cubeType, inx, iny, &outx, &outy);
             *(ptr++) = outx * srcWidth;
             *(ptr++) = outy * srcHeight;
         }

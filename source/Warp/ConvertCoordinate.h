@@ -158,6 +158,83 @@ inline void equirectToSphere(const std::vector<cv::Point2d>& src, double width, 
 }
 #endif
 
+#if STYLE == HUGIN_REMAP
+namespace cts
+{
+enum
+{
+    RIGHT,
+    LEFT,
+    TOP,
+    BOTTOM,
+    FRONT, 
+    BACK
+};
+
+const double P0[] = { 0.5, 0.5, -0.5 };
+const double P1[] = { -0.5, 0.5, -0.5 };
+const double P4[] = { 0.5, 0.5, 0.5 };
+const double P5[] = { -0.5, 0.5, 0.5 };
+const double P6[] = { 0.5, -0.5, 0.5 };
+
+const double PX[] = { 1.0, 0.0, 0.0 };
+const double PY[] = { 0.0, 1.0, 0.0 };
+const double PZ[] = { 0.0, 0.0, 1.0 };
+const double NX[] = { -1.0, 0.0, 0.0 };
+const double NY[] = { 0.0, -1.0, 0.0 };
+const double NZ[] = { 0.0, 0.0, -1.0 };
+}
+
+inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face)
+{
+    double x = (pt.x + 0.5) / cubeLength;
+    double y = 1.0 - (pt.y + 0.5) / cubeLength;
+    const double* p, * vx, * vy;
+    using namespace cts;
+    switch (face)
+    {
+    case RIGHT:   p = P5; vx = NZ; vy = NY; break;
+    case LEFT:    p = P0; vx = PZ; vy = NY; break;
+    case TOP:     p = P6; vx = NX; vy = NZ; break;
+    case BOTTOM:  p = P0; vx = NX; vy = PZ; break;
+    case FRONT:   p = P4; vx = NX; vy = NY; break;
+    case BACK:    p = P1; vx = PX; vy = NY; break;
+    }
+    double qx = p[0] + vx[0] * x + vy[0] * y;
+    double qy = p[1] + vx[1] * x + vy[1] * y;
+    double qz = p[2] + vx[2] * x + vy[2] * y;
+    double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
+    return cv::Point3d(qx * scale, qy * scale, qz * scale);
+}
+
+inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
+{
+    int size = src.size();
+    dst.resize(size);
+    for (int i = 0; i < size; i++)
+    {
+        double x = (src[i].x + 0.5) / cubeLength;
+        double y = 1.0 - (src[i].y + 0.5) / cubeLength;
+        const double* p, *vx, *vy;
+        using namespace cts;
+        switch (face)
+        {
+        case RIGHT:   p = P5; vx = NZ; vy = NY; break;
+        case LEFT:    p = P0; vx = PZ; vy = NY; break;
+        case TOP:     p = P6; vx = NX; vy = NZ; break;
+        case BOTTOM:  p = P0; vx = NX; vy = PZ; break;
+        case FRONT:   p = P4; vx = NX; vy = NY; break;
+        case BACK:    p = P1; vx = PX; vy = NY; break;
+        }
+        double qx = p[0] + vx[0] * x + vy[0] * y;
+        double qy = p[1] + vx[1] * x + vy[1] * y;
+        double qz = p[2] + vx[2] * x + vy[2] * y;
+        double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
+        dst[i] = cv::Point3d(qx * scale, qy * scale, qz * scale);
+    }
+}
+#endif
+
 #if STYLE == MY_STYLE
 inline cv::Point2d findRotateEquiRectangularSrc(const cv::Point& dst, double halfWidth, double halfHeight, const cv::Matx33d& invRot)
 {

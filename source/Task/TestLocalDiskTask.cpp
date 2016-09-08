@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
-    //dstSize = cv::Size(3840, 1920);
+    dstSize = cv::Size(4096, 2048);
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
