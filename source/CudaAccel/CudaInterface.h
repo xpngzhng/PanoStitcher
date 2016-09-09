@@ -95,6 +95,18 @@ void cudaGenerateReprojectMap(const PhotoParam& param,
 void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params,
     const cv::Size& srcSize, const cv::Size& dstSize, std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps);
 
+void cudaGenerateReprojectMapAndMask(const PhotoParam& param, const cv::Size& srcSize, const cv::Size& dstSize, 
+    cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap, cv::cuda::GpuMat& mask);
+
+void cudaGenerateReprojectMaps(const std::vector<PhotoParam>& params, const cv::Size& srcSize, const cv::Size& dstSize, 
+    std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps, std::vector<cv::cuda::GpuMat>& masks);
+
+void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Size& dstSize,
+    const PhotoParam& param, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+
+void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Size& dstSize,
+    const PhotoParam& param, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+
 void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 

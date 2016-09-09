@@ -33,7 +33,6 @@
     <CudaCompile Include="..\..\source\CudaAccel\CudaArithm.cu" />
     <CudaCompile Include="..\..\source\CudaAccel\CudaFeatherBlend.cu" />
     <CudaCompile Include="..\..\source\CudaAccel\CudaGainAdjust.cu" />
-    <CudaCompile Include="..\..\source\CudaAccel\CudaGenerateMap.cu" />
     <CudaCompile Include="..\..\source\CudaAccel\ImageProc.cu" />
     <CudaCompile Include="..\..\source\CudaAccel\CudaPyramid2.cu" />
     <CudaCompile Include="..\..\source\CudaAccel\CudaPyramid6.cu" />

@@ -1,5 +1,6 @@
 #include "ZReproject.h"
 #include "CudaAccel/CudaInterface.h"
+#include "Tool/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
@@ -77,6 +78,7 @@ int main()
     //printf("finish\n");
 
     {
+        ztool::Timer t;
         std::vector<std::string> paths;
         std::vector<PhotoParam> params;
 
@@ -116,9 +118,60 @@ int main()
             cv::imshow("mask", masks[i]);
             cv::waitKey(0);
         }
+        
+        std::vector<cv::Mat> reproj(numImages);
+        t.start();
+        for (int i = 0; i < 100; i++)
+            reprojectParallel(src, reproj, maps);
+        t.end();
+        printf("cpu reproj time = %f\n", t.elapse());
 
         std::vector<cv::cuda::GpuMat> xmaps, ymaps;
-        cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);
+        t.start();
+        for (int i = 0; i < 100; i++)
+            cudaGenerateReprojectMaps(params, src[0].size(), dstSize, xmaps, ymaps);
+        t.end();
+        printf("gen map time = %f\n", t.elapse());
+
+        std::vector<cv::cuda::GpuMat> srcGpu(numImages), reprojGpu(numImages);
+        cv::Mat matC4;
+        for (int i = 0; i < numImages; i++)
+            srcGpu[i].upload(src[i]);
+
+        for (int i = 0; i < numImages; i++)
+            reprojGpu[i].create(dstSize, CV_8UC4);
+
+        t.start();
+        for (int i = 0; i < 100; i++)
+        {
+            for (int j = 0; j < numImages; j++)
+                cudaReproject(srcGpu[j], reprojGpu[j], dstSize, params[j]);
+        }
+        t.end();
+        printf("reproj no map time %f\n", t.elapse());
+
+        for (int i = 0; i < numImages; i++)
+        {
+            reprojGpu[i].download(matC4);
+            cv::imshow("dst", matC4);
+            cv::waitKey(0);
+        }
+
+        t.start();
+        for (int i = 0; i < 100; i++)
+        {
+            for (int j = 0; j < numImages; j++)
+                cudaReproject(srcGpu[j], reprojGpu[j], xmaps[j], ymaps[j]);
+        }
+        t.end();
+        printf("reproj with map time %f\n", t.elapse());
+
+        for (int i = 0; i < numImages; i++)
+        {
+            reprojGpu[i].download(matC4);
+            cv::imshow("dst", matC4);
+            cv::waitKey(0);
+        }
 
         cv::cuda::GpuMat orig;
         cv::cuda::GpuMat rprj;
