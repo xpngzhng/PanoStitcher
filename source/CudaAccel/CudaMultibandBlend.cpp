@@ -278,6 +278,10 @@ bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int ma
         resultWeightPyr[i].setTo(0);
     }
 
+    alphas.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        alphas[i].upload(masks[i]);
+
     cv::Mat mask(rows, cols, CV_8UC1);
     mask.setTo(0);
     for (int i = 0; i < numImages; i++)
@@ -327,15 +331,13 @@ void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
 }
 */
 
-void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cuda::GpuMat& mask, int index)
+void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, int index)
 {
     if (!success)
         return;
 
     CV_Assert(image.data && (image.type() == CV_8UC4 || image.type() == CV_16SC4) && 
-        image.rows == rows && image.cols == cols &&
-        mask.data && mask.type() == CV_8UC1 && mask.rows == rows && mask.cols == cols &&
-        index >= 0 && index < numImages);
+        image.rows == rows && image.cols == cols && index >= 0 && index < numImages);
 
     if (image.type() == CV_8UC4)
         image.convertTo(image16S, CV_16S);
@@ -343,7 +345,7 @@ void CudaTilingMultibandBlend::tile(const cv::cuda::GpuMat& image, const cv::cud
         image.copyTo(image16S);
     aux16S.create(rows, cols, CV_16SC1);
     aux16S.setTo(0);
-    aux16S.setTo(256, mask);
+    aux16S.setTo(256, alphas[index]);
     createLaplacePyramidPrecise(image16S, aux16S, numLevels, true, 
         imagePyr, image32SPyr, alphaPyr, alpha32SPyr, imageUpPyr);
     aux16S.setTo(0);
@@ -371,16 +373,15 @@ void CudaTilingMultibandBlend::composite(cv::cuda::GpuMat& blendImage)
     }
 }
 
-void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images, 
-    const std::vector<cv::cuda::GpuMat>& masks, cv::cuda::GpuMat& blendImage)
+void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage)
 {
     if (!success)
         return;
 
-    CV_Assert(images.size() == numImages && masks.size() == numImages);
+    CV_Assert(images.size() == numImages);
 
     for (int i = 0; i < numImages; i++)
-        tile(images[i], masks[i], i);
+        tile(images[i], i);
     composite(blendImage);
 }
 

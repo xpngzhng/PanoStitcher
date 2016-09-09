@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
             for (int i = 0; i < numImages; i++)
             {
                 cudaReprojectTo16S(src[i], reprojImage, dstSize, params[i]);
-                blender.tile(reprojImage, masks[i], i);
+                blender.tile(reprojImage, i);
             }
             blender.composite(blendImage);
         }
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < numImages; i++)
                 cudaReprojectTo16S(src[i], reprojImages[i], dstSize, params[i]);
-            blender.blend(reprojImages, masks, blendImage);
+            blender.blend(reprojImages, blendImage);
         }
         timer.end();
         printf("serial reproj joint blend %f\n", timer.elapse());
@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < numImages; i++)
                 cudaReprojectTo16S(src[i], reprojImages[i], dstSize, params[i]);
-            blender.blend(reprojImages, masks, blendImage);
+            blender.blend(reprojImages, blendImage);
         }
         timer.end();
         printf("serial reproj fast blend %f\n", timer.elapse());
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < numImages; i++)
                 cudaReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
-            blender.blend(reprojImages, masks, blendImage);
+            blender.blend(reprojImages, blendImage);
         }
         timer.end();
         printf("map reproj joint blend %f\n", timer.elapse());
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
         {
             for (int i = 0; i < numImages; i++)
                 cudaReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
-            blender.blend(reprojImages, masks, blendImage);
+            blender.blend(reprojImages, blendImage);
         }
         timer.end();
         printf("map reproj fast blend %f\n", timer.elapse());
