@@ -55,11 +55,11 @@ int main(int argc, char* argv[])
         masks[i].download(masksCpu[i]);
     }
 
+    int numIter = 500;
     {
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         cv::cuda::GpuMat reprojImage, blendImage;
-        int numIter = 100;
         timer.start();
         for (int k = 0; k < numIter; k++)
         {
@@ -79,7 +79,6 @@ int main(int argc, char* argv[])
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
         cv::cuda::GpuMat blendImage;
-        int numIter = 100;
         timer.start();
         for (int k = 0; k < numIter; k++)
         {
@@ -96,7 +95,6 @@ int main(int argc, char* argv[])
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
         cv::cuda::GpuMat blendImage;
-        int numIter = 100;
         timer.start();
         for (int k = 0; k < numIter; k++)
         {
@@ -109,11 +107,26 @@ int main(int argc, char* argv[])
     }
 
     {
+        CudaTilingMultibandBlend blender;
+        blender.prepare(masksCpu, 20, 4);
+        std::vector<cv::cuda::GpuMat> reprojImages(numImages);
+        cv::cuda::GpuMat blendImage;
+        timer.start();
+        for (int k = 0; k < numIter; k++)
+        {
+            for (int i = 0; i < numImages; i++)
+                cudaReprojectTo16S(src[i], reprojImages[i], xmaps[i], ymaps[i]);
+            blender.blend(reprojImages, masks, blendImage);
+        }
+        timer.end();
+        printf("map reproj joint blend %f\n", timer.elapse());
+    }
+
+    {
         CudaTilingMultibandBlendFast blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
         cv::cuda::GpuMat blendImage;
-        int numIter = 100;
         timer.start();
         for (int k = 0; k < numIter; k++)
         {

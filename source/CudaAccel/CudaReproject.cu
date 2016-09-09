@@ -93,11 +93,23 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
     //rotate_erect  中心归一化
     tx_dest = x_src + param.rot[1];
 
-    while (tx_dest < -param.rot[0])
-        tx_dest += 2 * param.rot[0];
+    if (tx_dest < -param.rot[0])
+    {
+        int i = -tx_dest / param.rot[0];
+        tx_dest += (i + 1) * param.rot[0];
+    }
 
-    while (tx_dest >   param.rot[0])
-        tx_dest -= 2 * param.rot[0];
+    if (tx_dest > param.rot[0])
+    {
+        int i = tx_dest / param.rot[0];
+        tx_dest -= i * param.rot[0];
+    }
+
+    //while (tx_dest < -param.rot[0])
+    //    tx_dest += 2 * param.rot[0];
+
+    //while (tx_dest >   param.rot[0])
+    //    tx_dest -= 2 * param.rot[0];
 
     ty_dest = y_src;
 
@@ -192,19 +204,13 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
     if (param.vertical != 0.0)
     {
         //SetDesc(stack[i],   vert,                   &(param.vertical));   i++;
-        tx_dest = x_src;
-        ty_dest = y_src + param.vertical;
-        x_src = tx_dest;
-        y_src = ty_dest;
+        y_src = y_src + param.vertical;
     }
 
     if (param.horizontal != 0.0)
     {
         //SetDesc(stack[i],   horiz,                  &(param.horizontal)); i++;
-        tx_dest = x_src + param.horizontal;
-        ty_dest = y_src;
-        x_src = tx_dest;
-        y_src = ty_dest;
+        x_src = x_src + param.horizontal;
     }
 
     if (param.shear[0] != 0 || param.shear[1] != 0)
