@@ -80,8 +80,7 @@ static void allocMemoryForUpPyrs(const std::vector<cv::Size>& sizes,
     iocl::UMat mem(sizes[0], CV_32SC4);
 
     imageUpPyr.resize(numLevels + 1);
-    imageUpPyr[0] = mem;
-    for (int i = 1; i < numLevels; i++)
+    for (int i = 0; i < numLevels; i++)
         imageUpPyr[i] = iocl::UMat(sizes[i], CV_16SC4, mem.data, stepsImageUpPyr[i]);
 
     resultUpPyr.resize(numLevels + 1);

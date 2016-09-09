@@ -55,8 +55,8 @@ int main(int argc, char* argv[])
         masks[i].download(masksCpu[i]);
     }
 
-    int numIter = 500;
-    {
+    int numIter = 100;
+    /*{
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         cv::cuda::GpuMat reprojImage, blendImage;
@@ -104,9 +104,9 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("serial reproj fast blend %f\n", timer.elapse());
-    }
+    }*/
 
-    {
+    /*{
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("map reproj joint blend %f\n", timer.elapse());
-    }
+    }*/
 
     {
         CudaTilingMultibandBlendFast blender;

@@ -14,12 +14,20 @@ public:
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
 
 private:
+    // r ~= 2
+    // W * H * N * 1 * 1, W * H * N * 1 * 1
     std::vector<cv::cuda::GpuMat> alphas, uniqueMasks;
+    // W * H * r * 4 * 4
     std::vector<cv::cuda::GpuMat> resultPyr;
+    // W * H * r * 2 * 4, W * H * r * 4 * 4
     std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr;
+    // W * H * r * 2 * 1, W * H * r * 4 * 1
     std::vector<cv::cuda::GpuMat> alphaPyr, alpha32SPyr;
+    // W * H * r * 2 * 4, W * H * r * 4 * 4
     std::vector<cv::cuda::GpuMat> imageUpPyr, resultUpPyr;
+    // W * H * r * 2 * 1, W * H * r * 4 * 1
     std::vector<cv::cuda::GpuMat> weightPyr, resultWeightPyr;
+    // W * H * 2 * 1, W * H * 2 * 1, W * H * 1 * 1
     cv::cuda::GpuMat image16S, aux16S, maskNot;
     int numImages;
     int rows, cols;
@@ -38,10 +46,16 @@ public:
     void getUniqueMasks(std::vector<cv::cuda::GpuMat>& masks) const;
 
 private:
+    // r ~= 2
+    // N * W * H * 1 * 1
     std::vector<cv::cuda::GpuMat> uniqueMasks;
+    // W * H * r * 4 * 4, W * H * 4 * 4, W * H * r * 4 * 1
     std::vector<cv::cuda::GpuMat> resultPyr, resultUpPyr, resultWeightPyr;
+    // W * H * r * 2 * 4, ----------------
     std::vector<cv::cuda::GpuMat> imagePyr, imageUpPyr;
+    // N * W * H * r * 2 * 1, N * W * H * r * 2 * 1
     std::vector<std::vector<cv::cuda::GpuMat> > alphaPyrs, weightPyrs;
+    // W * H * 1 * 1
     cv::cuda::GpuMat maskNot;
     int numImages;
     int rows, cols;
