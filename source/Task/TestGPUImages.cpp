@@ -2,6 +2,7 @@
 #include "Warp/ZReproject.h"
 #include "CudaAccel/CudaInterface.h"
 #include "Tool/Timer.h"
+#include "Tool/MatMemorySize.h"
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -82,6 +83,15 @@ int main(int argc, char* argv[])
         printf("serial reproj serial blend %f\n", timer.elapse());
         printf("memory size = %lld\n", blender.calcMemory());
 
+        std::vector<MatMemorySize> memSizes;
+        calcMemorySize(src, memSizes);
+        calcMemorySize(xmaps, memSizes);
+        calcMemorySize(ymaps, memSizes);
+        calcMemorySize(masks, memSizes);
+        calcMemorySize(reprojImage, memSizes);
+        calcMemorySize(blendImage, memSizes);
+        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
+
         //cv::Mat show;
         //blendImage.download(show);
         //cv::imshow("blend image", show);
@@ -134,6 +144,15 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("map reproj joint blend %f\n", timer.elapse());
+
+        std::vector<MatMemorySize> memSizes;
+        calcMemorySize(src, memSizes);
+        calcMemorySize(xmaps, memSizes);
+        calcMemorySize(ymaps, memSizes);
+        calcMemorySize(masks, memSizes);
+        calcMemorySize(reprojImages, memSizes);
+        calcMemorySize(blendImage, memSizes);
+        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
     }
 
     {
@@ -151,6 +170,15 @@ int main(int argc, char* argv[])
         timer.end();
         printf("map reproj fast blend %f\n", timer.elapse());
         printf("memory size = %lld\n", blender.calcMemory());
+
+        std::vector<MatMemorySize> memSizes;
+        calcMemorySize(src, memSizes);
+        calcMemorySize(xmaps, memSizes);
+        calcMemorySize(ymaps, memSizes);
+        calcMemorySize(masks, memSizes);
+        calcMemorySize(reprojImages, memSizes);
+        calcMemorySize(blendImage, memSizes);
+        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
 
         //cv::Mat show;
         //blendImage.download(show);

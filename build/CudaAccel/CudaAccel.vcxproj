@@ -23,6 +23,7 @@
     <ClInclude Include="..\..\source\CudaAccel\CudaInterface.h" />
     <ClInclude Include="..\..\source\CudaAccel\CudaPyramid.h" />
     <ClInclude Include="..\..\source\CudaAccel\CudaUtil.cuh" />
+    <ClInclude Include="..\..\source\Tool\MatMemorySize.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\CudaAccel\CudaFeatherBlend.cpp" />

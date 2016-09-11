@@ -4,6 +4,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "Tool/Timer.h"
+#include "Tool/MatMemorySize.h"
 #include "Blend/ZBlendAlgo.h"
 #include "CudaInterface.h"
 #include "CudaArithm.h"
@@ -273,95 +274,95 @@ static void allocSharableMemory(const cv::Size& size, int numLevels,
     }
 }
 
-struct SharedMemory
-{
-    SharedMemory(void* data_, int refcount_, long long int size_)
-    : data(data_), refcount(refcount_), size(size_) {}
-    void* data;
-    int refcount;
-    long long int size;
-};
-
-static void addNewRefCountLargerThanOne(std::vector<SharedMemory>& arr, const cv::cuda::GpuMat& mat)
-{
-    if (mat.data && mat.refcount)
-    {
-        int arrLength = arr.size();
-        bool shoudAdd = true;
-        for (int i = 0; i < arrLength; i++)
-        {
-            if (arr[i].data == mat.datastart)
-            {
-                shoudAdd = false;
-                break;
-            }
-        }
-        if (shoudAdd)
-            arr.push_back(SharedMemory(mat.datastart, *mat.refcount, mat.dataend - mat.datastart));
-    }
-}
-
-static long long int calcMemorySize(const cv::cuda::GpuMat& mat, std::vector<SharedMemory>& mems)
-{
-    addNewRefCountLargerThanOne(mems, mat);
-    if (mat.data && mat.refcount)
-        return mat.dataend - mat.datastart;
-    else
-        return 0;
-}
-
-static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats, std::vector<SharedMemory>& mems)
-{
-    long long int size = 0;
-    int num = mats.size();
-    for (int i = 0; i < num; i++)
-        size += calcMemorySize(mats[i], mems);
-    return size;
-}
-
-static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats, std::vector<SharedMemory>& mems)
-{
-    long long int size = 0;
-    int num = mats.size();
-    for (int i = 0; i < num; i++)
-        size += calcMemorySize(mats[i], mems);
-    return size;
-}
-
-static long long int calcMemorySize(const std::vector<SharedMemory>& mems)
-{
-    long long int size = 0;
-    int numMems = mems.size();
-    for (int i = 0; i < numMems; i++)
-        size += mems[i].size;
-    return size;
-}
-
-static long long int calcMemorySize(const cv::cuda::GpuMat& mat)
-{
-    if (mat.data && mat.refcount)
-        return mat.dataend - mat.datastart;
-    else
-        return 0;
-}
-
-static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats)
-{
-    long long int size = 0;
-    int num = mats.size();
-    for (int i = 0; i < num; i++)
-        size += calcMemorySize(mats[i]);
-    return size;
-}
-
-static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats)
-{
-    long long int size = 0;
-    int num = mats.size();
-    for (int i = 0; i < num; i++)
-        size += calcMemorySize(mats[i]);
-    return size;
-}
+//struct SharedMemory
+//{
+//    SharedMemory(void* data_, int refcount_, long long int size_)
+//    : data(data_), refcount(refcount_), size(size_) {}
+//    void* data;
+//    int refcount;
+//    long long int size;
+//};
+//
+//static void addNewRefCountLargerThanOne(std::vector<SharedMemory>& arr, const cv::cuda::GpuMat& mat)
+//{
+//    if (mat.data && mat.refcount)
+//    {
+//        int arrLength = arr.size();
+//        bool shoudAdd = true;
+//        for (int i = 0; i < arrLength; i++)
+//        {
+//            if (arr[i].data == mat.datastart)
+//            {
+//                shoudAdd = false;
+//                break;
+//            }
+//        }
+//        if (shoudAdd)
+//            arr.push_back(SharedMemory(mat.datastart, *mat.refcount, mat.dataend - mat.datastart));
+//    }
+//}
+//
+//static long long int calcMemorySize(const cv::cuda::GpuMat& mat, std::vector<SharedMemory>& mems)
+//{
+//    addNewRefCountLargerThanOne(mems, mat);
+//    if (mat.data && mat.refcount)
+//        return mat.dataend - mat.datastart;
+//    else
+//        return 0;
+//}
+//
+//static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats, std::vector<SharedMemory>& mems)
+//{
+//    long long int size = 0;
+//    int num = mats.size();
+//    for (int i = 0; i < num; i++)
+//        size += calcMemorySize(mats[i], mems);
+//    return size;
+//}
+//
+//static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats, std::vector<SharedMemory>& mems)
+//{
+//    long long int size = 0;
+//    int num = mats.size();
+//    for (int i = 0; i < num; i++)
+//        size += calcMemorySize(mats[i], mems);
+//    return size;
+//}
+//
+//static long long int calcMemorySize(const std::vector<SharedMemory>& mems)
+//{
+//    long long int size = 0;
+//    int numMems = mems.size();
+//    for (int i = 0; i < numMems; i++)
+//        size += mems[i].size;
+//    return size;
+//}
+//
+//static long long int calcMemorySize(const cv::cuda::GpuMat& mat)
+//{
+//    if (mat.data && mat.refcount)
+//        return mat.dataend - mat.datastart;
+//    else
+//        return 0;
+//}
+//
+//static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats)
+//{
+//    long long int size = 0;
+//    int num = mats.size();
+//    for (int i = 0; i < num; i++)
+//        size += calcMemorySize(mats[i]);
+//    return size;
+//}
+//
+//static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats)
+//{
+//    long long int size = 0;
+//    int num = mats.size();
+//    for (int i = 0; i < num; i++)
+//        size += calcMemorySize(mats[i]);
+//    return size;
+//}
 
 bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
@@ -495,7 +496,7 @@ long long int CudaTilingMultibandBlend::calcMemory() const
         return 0;
 
     long long int size = 0;
-    std::vector<SharedMemory> mems;
+    std::vector<MatMemorySize> mems;
     size += calcMemorySize(alphas, mems);
     size += calcMemorySize(uniqueMasks, mems);
     size += calcMemorySize(resultPyr, mems);
@@ -510,8 +511,7 @@ long long int CudaTilingMultibandBlend::calcMemory() const
     size += calcMemorySize(image16S, mems);
     size += calcMemorySize(aux16S, mems);
     size += calcMemorySize(maskNot, mems);
-    printf("net mem size = %lld\n", calcMemorySize(mems));
-    return size;
+    return calcMemorySize(mems);
 }
 
 static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int cols, int numLevels)
@@ -841,7 +841,7 @@ long long int CudaTilingMultibandBlendFast::calcMemory() const
         return 0;
 
     long long int size = 0;
-    std::vector<SharedMemory> mems;
+    std::vector<MatMemorySize> mems;
     size += calcMemorySize(uniqueMasks, mems);
     size += calcMemorySize(resultPyr, mems);
     size += calcMemorySize(resultUpPyr, mems);
@@ -851,8 +851,7 @@ long long int CudaTilingMultibandBlendFast::calcMemory() const
     size += calcMemorySize(alphaPyrs, mems);
     size += calcMemorySize(weightPyrs, mems);
     size += calcMemorySize(maskNot, mems);
-    printf("net mem size = %lld\n", calcMemorySize(mems));
-    return size;
+    return calcMemorySize(mems);
 }
 
 static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)
