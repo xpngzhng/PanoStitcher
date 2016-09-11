@@ -95,14 +95,14 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
 
     if (tx_dest < -param.rot[0])
     {
-        int i = -tx_dest / param.rot[0];
-        tx_dest += (i + 1) * param.rot[0];
+        int i = -tx_dest / 2 / param.rot[0];
+        tx_dest += (i + 1) * param.rot[0] * 2;
     }
 
     if (tx_dest > param.rot[0])
     {
-        int i = tx_dest / param.rot[0];
-        tx_dest -= i * param.rot[0];
+        int i = tx_dest / 2 / param.rot[0];
+        tx_dest -= i * param.rot[0] * 2;
     }
 
     //while (tx_dest < -param.rot[0])
@@ -226,8 +226,8 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
     if (param.imageType == CudaRemapParam::ImageTypeDrumFishEye ||
         param.imageType == CudaRemapParam::ImageTypeCircularFishEye)
     {
-        float diffx = tx_dest - param.centx;
-        float diffy = ty_dest - param.centy;
+        CalcType diffx = tx_dest - param.centx;
+        CalcType diffy = ty_dest - param.centy;
         if (tx_dest >= param.cropX && tx_dest < param.cropX + param.cropWidth &&
             ty_dest >= param.cropY && ty_dest < param.cropY + param.cropHeight &&
             diffx * diffx + diffy * diffy < param.sqrDist)
@@ -243,8 +243,17 @@ __device__ void dstToSrc(float* srcx, float* srcy, int dstx, int dsty, int mapWi
     }
     else
     {
-        *srcx = tx_dest;
-        *srcy = ty_dest;
+        if (tx_dest >= param.cropX && tx_dest < param.cropX + param.cropWidth &&
+            ty_dest >= param.cropY && ty_dest < param.cropY + param.cropHeight)
+        {
+            *srcx = tx_dest;
+            *srcy = ty_dest;
+        }
+        else
+        {
+            *srcx = -1.0F;
+            *srcy = -1.0F;
+        }
     }
 }
 
@@ -287,8 +296,8 @@ static void prepareConstantRemapParam(const PhotoParam& photoParam_,
     {
         photoParam.cropX = 0;
         photoParam.cropY = 0;
-        photoParam.cropWidth = dstWidth;
-        photoParam.cropHeight = dstHeight;
+        photoParam.cropWidth = srcWidth;
+        photoParam.cropHeight = srcHeight;
     }
     CalcType centx = 0, centy = 0, sqrDist = 0;
     if (photoParam.circleR == 0)

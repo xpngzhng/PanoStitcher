@@ -21,7 +21,11 @@ void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
         for (int j = 0; j < cols; j++)
         {
             if (abs(ptr32F[j] - ptr64F[j]) > 0.001)
+            {
+                printf("y = %d, x = %d, %f, %f\n", j, i, ptr32F[j], ptr64F[j]);
                 ptrDiff[j] = 255;
+            }
+                
         }
     }
     cv::imshow("diff", diff);
@@ -90,14 +94,23 @@ int main()
         //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
         //rotateCameras(params, 0, 0, 3.1415926 / 2);
 
-        paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
-        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");        
-        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
+        //paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");        
+        //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
         //paths.push_back("F:\\panovideo\\ricoh m15\\image0.bmp");
         //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
+
+        paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
+        paths.push_back("F:\\panoimage\\beijing\\image1.bmp");
+        paths.push_back("F:\\panoimage\\beijing\\image2.bmp");
+        paths.push_back("F:\\panoimage\\beijing\\image3.bmp");
+        paths.push_back("F:\\panoimage\\beijing\\image4.bmp");
+        paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+        loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
+        rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);

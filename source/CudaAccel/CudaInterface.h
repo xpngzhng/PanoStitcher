@@ -12,18 +12,19 @@ public:
     void tile(const cv::cuda::GpuMat& image, int index);
     void composite(cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
+    long long int calcMemory() const;
 
 private:
-    // r ~= 2
+    // r ~= 4 / 3
     // W * H * N * 1 * 1, W * H * N * 1 * 1
     std::vector<cv::cuda::GpuMat> alphas, uniqueMasks;
     // W * H * r * 4 * 4
     std::vector<cv::cuda::GpuMat> resultPyr;
-    // W * H * r * 2 * 4, W * H * r * 4 * 4
+    // W * H * r * 2 * 4, -----------------
     std::vector<cv::cuda::GpuMat> imagePyr, image32SPyr;
-    // W * H * r * 2 * 1, W * H * r * 4 * 1
+    // W * H * r * 2 * 1, -----------------
     std::vector<cv::cuda::GpuMat> alphaPyr, alpha32SPyr;
-    // W * H * r * 2 * 4, W * H * r * 4 * 4
+    // -----------------, W * H * 4 * 4
     std::vector<cv::cuda::GpuMat> imageUpPyr, resultUpPyr;
     // W * H * r * 2 * 1, W * H * r * 4 * 1
     std::vector<cv::cuda::GpuMat> weightPyr, resultWeightPyr;
@@ -44,9 +45,10 @@ public:
     void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
         cv::cuda::GpuMat& blendImage);
     void getUniqueMasks(std::vector<cv::cuda::GpuMat>& masks) const;
+    long long int calcMemory() const;
 
 private:
-    // r ~= 2
+    // r ~= 4 / 3
     // N * W * H * 1 * 1
     std::vector<cv::cuda::GpuMat> uniqueMasks;
     // W * H * r * 4 * 4, W * H * 4 * 4, W * H * r * 4 * 1
@@ -116,7 +118,7 @@ void cudaGenerateReprojectMapsAndMasks(const std::vector<PhotoParam>& params, co
     std::vector<cv::cuda::GpuMat>& xmaps, std::vector<cv::cuda::GpuMat>& ymaps, std::vector<cv::cuda::GpuMat>& masks);
 
 void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Size& dstSize,
-    std::vector<const PhotoParam>& params, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+    const PhotoParam& param, cv::cuda::Stream& stream = cv::cuda::Stream::Null());
 
 void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Size& dstSize,
     const PhotoParam& param, cv::cuda::Stream& stream = cv::cuda::Stream::Null());

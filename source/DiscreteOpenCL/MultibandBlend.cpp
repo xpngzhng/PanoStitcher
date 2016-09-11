@@ -2,7 +2,7 @@
 #include "RunTimeObjects.h"
 #include "MatOp.h"
 #include "Pyramid.h"
-#include "../Blend/ZBlendAlgo.h"
+#include "Blend/ZBlendAlgo.h"
 #include "opencv2/highgui.hpp"
 //#include <iostream>
 //#include <fstream>

@@ -433,8 +433,8 @@ void cudaGenerateReprojectMap(const PhotoParam& photoParam_,
     {
         photoParam.cropX = 0;
         photoParam.cropY = 0;
-        photoParam.cropWidth = dstWidth;
-        photoParam.cropHeight = dstHeight;
+        photoParam.cropWidth = srcWidth;
+        photoParam.cropHeight = srcHeight;
     }
     CalcType centx = 0, centy = 0, sqrDist = 0;
     if (photoParam.circleR == 0)

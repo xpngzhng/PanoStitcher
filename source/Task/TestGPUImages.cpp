@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     cv::Size dstSize(2048, 1024);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param.xml", params);
+    loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
     //pi.rotateCamera(0, -35.264 / 180 * PI, -PI / 4);
     //pi.rotateCamera(0, -0.621986, -0.702595);
     //pi.rotateCamera(-0.716718, -0.628268, -0.695993);
@@ -44,6 +44,9 @@ int main(int argc, char* argv[])
 
     ztool::Timer timer;
 
+    std::vector<cv::Mat> cpuMaps, cpuMasks;
+    getReprojectMapsAndMasks(params, images[0].size(), dstSize, cpuMaps, cpuMasks);
+
     std::vector<cv::cuda::GpuMat> src(numImages), xmaps(numImages), ymaps(numImages), masks(numImages);
     cudaGenerateReprojectMapsAndMasks(params, images[0].size(), dstSize, xmaps, ymaps, masks);
     std::vector<cv::Mat> masksCpu(numImages);
@@ -53,10 +56,14 @@ int main(int argc, char* argv[])
         cv::cvtColor(images[i], temp, CV_BGR2BGRA);
         src[i].upload(temp);
         masks[i].download(masksCpu[i]);
+
+        //cv::imshow("mask", masksCpu[i]);
+        //cv::imshow("cpu mask", cpuMasks[i]);
+        //cv::waitKey(0);
     }
 
-    int numIter = 100;
-    /*{
+    int numIter = 1000;
+    {
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         cv::cuda::GpuMat reprojImage, blendImage;
@@ -72,9 +79,15 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("serial reproj serial blend %f\n", timer.elapse());
+        printf("memory size = %lld\n", blender.calcMemory());
+
+        //cv::Mat show;
+        //blendImage.download(show);
+        //cv::imshow("blend image", show);
+        //cv::waitKey(0);
     }
 
-    {
+    /*{
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
@@ -88,9 +101,9 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("serial reproj joint blend %f\n", timer.elapse());
-    }
+    }*/
 
-    {
+    /*{
         CudaTilingMultibandBlendFast blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
@@ -106,7 +119,7 @@ int main(int argc, char* argv[])
         printf("serial reproj fast blend %f\n", timer.elapse());
     }*/
 
-    /*{
+    {
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
@@ -120,7 +133,7 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("map reproj joint blend %f\n", timer.elapse());
-    }*/
+    }
 
     {
         CudaTilingMultibandBlendFast blender;
@@ -136,6 +149,12 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("map reproj fast blend %f\n", timer.elapse());
+        printf("memory size = %lld\n", blender.calcMemory());
+
+        //cv::Mat show;
+        //blendImage.download(show);
+        //cv::imshow("blend image", show);
+        //cv::waitKey(0);
     }
 
     return 0;
