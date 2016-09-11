@@ -9,8 +9,9 @@ class CudaTilingMultibandBlend
 public:
     CudaTilingMultibandBlend() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
+    void begin();
     void tile(const cv::cuda::GpuMat& image, int index);
-    void composite(cv::cuda::GpuMat& blendImage);
+    void end(cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
     long long int calcMemory() const;
 
@@ -41,6 +42,9 @@ class CudaTilingMultibandBlendFast
 public:
     CudaTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
+    void begin();
+    void tile(const cv::cuda::GpuMat& image, int index);
+    void end(cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
         cv::cuda::GpuMat& blendImage);

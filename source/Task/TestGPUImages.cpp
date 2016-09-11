@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < numImages; i++)
         images[i] = cv::imread(contentPaths[i]);
 
-    cv::Size dstSize(2048, 1024);
+    cv::Size dstSize(4096, 2048);
 
     std::vector<PhotoParam> params;
     loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
         //cv::waitKey(0);
     }
 
-    int numIter = 1000;
+    int numIter = 100;
     {
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
@@ -70,12 +70,13 @@ int main(int argc, char* argv[])
         timer.start();
         for (int k = 0; k < numIter; k++)
         {
+            blender.begin();
             for (int i = 0; i < numImages; i++)
             {
                 cudaReprojectTo16S(src[i], reprojImage, dstSize, params[i]);
                 blender.tile(reprojImage, i);
             }
-            blender.composite(blendImage);
+            blender.end(blendImage);
         }
         timer.end();
         printf("serial reproj serial blend %f\n", timer.elapse());
