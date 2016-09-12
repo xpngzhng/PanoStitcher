@@ -193,7 +193,7 @@ static inline void normalizeEquirectangular(float x, float y, float *xout, float
 // which could be different style of cubic view coordinate.
 // Equirect image has coordinate system with x axis directs right and y axis directs down.
 // Sphere image has coordinate system with x axis directs right, y aixs directs up and z axis directs to yourself.
-// Dst image coordinate is transformed into six squares with coordinate range (0, 1) x (0, x).
+// Dst image coordinate is transformed into six squares with coordinate range (0, 1) x (0, 1).
 static inline void cvtCubeToEquiRect(int cubeType, float x, float y, float *outX, float *outY) 
 {
     float qx, qy, qz;

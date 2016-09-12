@@ -203,7 +203,7 @@ inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face
     double qy = p[1] + vx[1] * x + vy[1] * y;
     double qz = p[2] + vx[2] * x + vy[2] * y;
     double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
-    return cv::Point3d(qx * scale, qy * scale, qz * scale);
+    return cv::Point3d(qx * scale, -qy * scale, -qz * scale);
 }
 
 inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
@@ -228,7 +228,7 @@ inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength,
         double qy = p[1] + vx[1] * x + vy[1] * y;
         double qz = p[2] + vx[2] * x + vy[2] * y;
         double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
-        dst[i] = cv::Point3d(qx * scale, qy * scale, qz * scale);
+        dst[i] = cv::Point3d(qx * scale, -qy * scale, -qz * scale);
     }
 }
 #endif
