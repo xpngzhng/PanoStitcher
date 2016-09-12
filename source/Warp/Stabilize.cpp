@@ -9,7 +9,7 @@
 #include <iostream>
 
 void filterMatches(const std::vector<cv::KeyPoint>& keypoints1, const std::vector<cv::KeyPoint>& keypoints2,
-    std::vector<cv::DMatch>& matches1To2)
+    std::vector<cv::DMatch>& matches1To2, double thresh)
 {
     if (matches1To2.empty())
         return;
@@ -21,7 +21,7 @@ void filterMatches(const std::vector<cv::KeyPoint>& keypoints1, const std::vecto
         cv::Point pt1 = keypoints1[matches1To2[i].queryIdx].pt;
         cv::Point pt2 = keypoints2[matches1To2[i].trainIdx].pt;
         cv::Point diff = pt1 - pt2;
-        if (sqrt(double(diff.dot(diff))) < 20)
+        if (sqrt(double(diff.dot(diff))) < thresh)
             keep[i] = 1;
     }
     int numKeep = 0;

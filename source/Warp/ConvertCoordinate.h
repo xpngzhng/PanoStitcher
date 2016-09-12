@@ -190,15 +190,14 @@ inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face
     double x = (pt.x + 0.5) / cubeLength;
     double y = 1.0 - (pt.y + 0.5) / cubeLength;
     const double* p, * vx, * vy;
-    using namespace cts;
     switch (face)
     {
-    case RIGHT:   p = P5; vx = NZ; vy = NY; break;
-    case LEFT:    p = P0; vx = PZ; vy = NY; break;
-    case TOP:     p = P6; vx = NX; vy = NZ; break;
-    case BOTTOM:  p = P0; vx = NX; vy = PZ; break;
-    case FRONT:   p = P4; vx = NX; vy = NY; break;
-    case BACK:    p = P1; vx = PX; vy = NY; break;
+    case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::NY; break;
+    case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::NY; break;
+    case cts::TOP:     p = cts::P6; vx = cts::NX; vy = cts::NZ; break;
+    case cts::BOTTOM:  p = cts::P0; vx = cts::NX; vy = cts::PZ; break;
+    case cts::FRONT:   p = cts::P4; vx = cts::NX; vy = cts::NY; break;
+    case cts::BACK:    p = cts::P1; vx = cts::PX; vy = cts::NY; break;
     }
     double qx = p[0] + vx[0] * x + vy[0] * y;
     double qy = p[1] + vx[1] * x + vy[1] * y;
@@ -216,15 +215,14 @@ inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength,
         double x = (src[i].x + 0.5) / cubeLength;
         double y = 1.0 - (src[i].y + 0.5) / cubeLength;
         const double* p, *vx, *vy;
-        using namespace cts;
         switch (face)
         {
-        case RIGHT:   p = P5; vx = NZ; vy = NY; break;
-        case LEFT:    p = P0; vx = PZ; vy = NY; break;
-        case TOP:     p = P6; vx = NX; vy = NZ; break;
-        case BOTTOM:  p = P0; vx = NX; vy = PZ; break;
-        case FRONT:   p = P4; vx = NX; vy = NY; break;
-        case BACK:    p = P1; vx = PX; vy = NY; break;
+        case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::NY; break;
+        case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::NY; break;
+        case cts::TOP:     p = cts::P6; vx = cts::NX; vy = cts::NZ; break;
+        case cts::BOTTOM:  p = cts::P0; vx = cts::NX; vy = cts::PZ; break;
+        case cts::FRONT:   p = cts::P4; vx = cts::NX; vy = cts::NY; break;
+        case cts::BACK:    p = cts::P1; vx = cts::PX; vy = cts::NY; break;
         }
         double qx = p[0] + vx[0] * x + vy[0] * y;
         double qy = p[1] + vx[1] * x + vy[1] * y;

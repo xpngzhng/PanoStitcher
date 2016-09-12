@@ -37,7 +37,7 @@ static void cancelTask(PanoramaLocalDiskTask* task)
         task->cancel();
 }
 
-int main(int argc, char* argv[])
+int main1(int argc, char* argv[])
 {
     const char* keys =
         "{project_file           |             | project file path}"

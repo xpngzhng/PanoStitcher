@@ -7,7 +7,7 @@
 #define FAST_ANGLE_CALC 1
 
 void filterMatches(const std::vector<cv::KeyPoint>& keypoints1, const std::vector<cv::KeyPoint>& keypoints2,
-    std::vector<cv::DMatch>& matches1To2);
+    std::vector<cv::DMatch>& matches1To2, double thresh = 20);
 
 void extractMatchPoints(const std::vector<cv::KeyPoint>& keypoints1, const std::vector<cv::KeyPoint>& keypoints2,
     const std::vector<cv::DMatch>& matches1To2, std::vector<cv::Point2d>& points1, std::vector<cv::Point2d>& points2);

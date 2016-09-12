@@ -184,7 +184,7 @@ int main()
         {
             ptrOrb->detectAndCompute(gray(squares[i]), cv::Mat(), pointsCurr[i], descsCurr[i]);
             matcher.match(descsPrev[i], descsCurr[i], matches[i]);
-            filterMatches(pointsPrev[i], pointsCurr[i], matches[i]);
+            filterMatches(pointsPrev[i], pointsCurr[i], matches[i], 100);
             extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
             
             cubeToSphere(points1[i], cubeLength, i, srcSpherePts[i]);
@@ -192,13 +192,13 @@ int main()
 
             //drawPoints(show, points1[i], cv::Scalar(255));
             //drawPoints(show, points2[i], cv::Scalar(0, 255));
-            //shiftPoints(points1[i], p1, offsets[i]);
-            //shiftPoints(points2[i], p2, offsets[i]);
-            //drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
+            shiftPoints(points1[i], p1, offsets[i]);
+            shiftPoints(points2[i], p2, offsets[i]);
+            drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
         }
 
-        //cv::imshow("cube frame", show);
-        //cv::waitKey(1);
+        cv::imshow("cube frame", show);
+        cv::waitKey(0);
 
         int pointCount = 0;
         for (int i = 0; i < numVideos; i++)

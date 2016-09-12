@@ -1134,7 +1134,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
             totalMemSize = origImagesMemSize + reprojImagesMemSize + mapsMemSize + blenderMemSize;
 
             long long int memSizeDiff = gpuFreeMemSize - totalMemSize;
-            if (true/*memSizeDiff < 500000000*/)
+            if (memSizeDiff < 500000000)
             {
                 ztool::lprintf("Info in %s, estimated gpu mem size for stream based high quality blend is %lld bytes, "
                     "free gpu mem size is %lld bytes, disable streams, use %lld gpu mem size only\n", 
