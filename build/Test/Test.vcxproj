@@ -20,7 +20,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\Warp\VideoStabSingleCubeRANSAC.cpp" />
-    <ClCompile Include="..\..\source\Warp\VideoStabSingleSphereRANSAC.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{469D6EC8-36A3-431D-B6C5-09DD88C0C6F9}</ProjectGuid>

@@ -79,6 +79,12 @@ inline cv::Point3d equirectToSphere(const cv::Point& pt, double halfWidth, doubl
     double phi = ((pt.x + 0.5) - halfWidth) / halfWidth * PI;
     return cv::Point3d(sin(theta) * sin(phi), cos(theta), sin(theta) * cos(phi));
 }
+inline cv::Point3d equirectToSphere(const cv::Point2d& pt, double halfWidth, double halfHeight)
+{
+    double theta = PI - pt.y / halfHeight * HALF_PI;
+    double phi = (pt.x - halfWidth) / halfWidth * PI;
+    return cv::Point3d(sin(theta) * sin(phi), cos(theta), sin(theta) * cos(phi));
+}
 #endif
 
 #if STYLE == MY_STYLE
@@ -171,17 +177,16 @@ enum
     BACK
 };
 
-const double P0[] = { 0.5, 0.5, -0.5 };
-const double P1[] = { -0.5, 0.5, -0.5 };
-const double P4[] = { 0.5, 0.5, 0.5 };
-const double P5[] = { -0.5, 0.5, 0.5 };
-const double P6[] = { 0.5, -0.5, 0.5 };
+const double P0[] = { -0.5, -0.5, -0.5 };
+const double P1[] = { 0.5, -0.5, -0.5 };
+const double P4[] = { -0.5, -0.5, 0.5 };
+const double P5[] = { 0.5, -0.5, 0.5 };
+const double P6[] = { -0.5, 0.5, 0.5 };
 
 const double PX[] = { 1.0, 0.0, 0.0 };
 const double PY[] = { 0.0, 1.0, 0.0 };
 const double PZ[] = { 0.0, 0.0, 1.0 };
 const double NX[] = { -1.0, 0.0, 0.0 };
-const double NY[] = { 0.0, -1.0, 0.0 };
 const double NZ[] = { 0.0, 0.0, -1.0 };
 }
 
@@ -192,18 +197,18 @@ inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face
     const double* p, * vx, * vy;
     switch (face)
     {
-    case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::NY; break;
-    case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::NY; break;
-    case cts::TOP:     p = cts::P6; vx = cts::NX; vy = cts::NZ; break;
-    case cts::BOTTOM:  p = cts::P0; vx = cts::NX; vy = cts::PZ; break;
-    case cts::FRONT:   p = cts::P4; vx = cts::NX; vy = cts::NY; break;
-    case cts::BACK:    p = cts::P1; vx = cts::PX; vy = cts::NY; break;
+    case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::PY; break;
+    case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::PY; break;
+    case cts::TOP:     p = cts::P6; vx = cts::PX; vy = cts::NZ; break;
+    case cts::BOTTOM:  p = cts::P0; vx = cts::PX; vy = cts::PZ; break;
+    case cts::FRONT:   p = cts::P4; vx = cts::PX; vy = cts::PY; break;
+    case cts::BACK:    p = cts::P1; vx = cts::NX; vy = cts::PY; break;
     }
     double qx = p[0] + vx[0] * x + vy[0] * y;
     double qy = p[1] + vx[1] * x + vy[1] * y;
     double qz = p[2] + vx[2] * x + vy[2] * y;
     double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
-    return cv::Point3d(qx * scale, -qy * scale, -qz * scale);
+    return cv::Point3d(qx * scale, -qy * scale, qz * scale);
 }
 
 inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
@@ -217,18 +222,18 @@ inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength,
         const double* p, *vx, *vy;
         switch (face)
         {
-        case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::NY; break;
-        case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::NY; break;
-        case cts::TOP:     p = cts::P6; vx = cts::NX; vy = cts::NZ; break;
-        case cts::BOTTOM:  p = cts::P0; vx = cts::NX; vy = cts::PZ; break;
-        case cts::FRONT:   p = cts::P4; vx = cts::NX; vy = cts::NY; break;
-        case cts::BACK:    p = cts::P1; vx = cts::PX; vy = cts::NY; break;
+        case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::PY; break;
+        case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::PY; break;
+        case cts::TOP:     p = cts::P6; vx = cts::PX; vy = cts::NZ; break;
+        case cts::BOTTOM:  p = cts::P0; vx = cts::PX; vy = cts::PZ; break;
+        case cts::FRONT:   p = cts::P4; vx = cts::PX; vy = cts::PY; break;
+        case cts::BACK:    p = cts::P1; vx = cts::NX; vy = cts::PY; break;
         }
         double qx = p[0] + vx[0] * x + vy[0] * y;
         double qy = p[1] + vx[1] * x + vy[1] * y;
         double qz = p[2] + vx[2] * x + vy[2] * y;
         double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
-        dst[i] = cv::Point3d(qx * scale, -qy * scale, -qz * scale);
+        dst[i] = cv::Point3d(qx * scale, -qy * scale, qz * scale);
     }
 }
 #endif
