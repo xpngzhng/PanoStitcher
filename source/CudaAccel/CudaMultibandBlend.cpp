@@ -274,96 +274,6 @@ static void allocSharableMemory(const cv::Size& size, int numLevels,
     }
 }
 
-//struct SharedMemory
-//{
-//    SharedMemory(void* data_, int refcount_, long long int size_)
-//    : data(data_), refcount(refcount_), size(size_) {}
-//    void* data;
-//    int refcount;
-//    long long int size;
-//};
-//
-//static void addNewRefCountLargerThanOne(std::vector<SharedMemory>& arr, const cv::cuda::GpuMat& mat)
-//{
-//    if (mat.data && mat.refcount)
-//    {
-//        int arrLength = arr.size();
-//        bool shoudAdd = true;
-//        for (int i = 0; i < arrLength; i++)
-//        {
-//            if (arr[i].data == mat.datastart)
-//            {
-//                shoudAdd = false;
-//                break;
-//            }
-//        }
-//        if (shoudAdd)
-//            arr.push_back(SharedMemory(mat.datastart, *mat.refcount, mat.dataend - mat.datastart));
-//    }
-//}
-//
-//static long long int calcMemorySize(const cv::cuda::GpuMat& mat, std::vector<SharedMemory>& mems)
-//{
-//    addNewRefCountLargerThanOne(mems, mat);
-//    if (mat.data && mat.refcount)
-//        return mat.dataend - mat.datastart;
-//    else
-//        return 0;
-//}
-//
-//static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats, std::vector<SharedMemory>& mems)
-//{
-//    long long int size = 0;
-//    int num = mats.size();
-//    for (int i = 0; i < num; i++)
-//        size += calcMemorySize(mats[i], mems);
-//    return size;
-//}
-//
-//static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats, std::vector<SharedMemory>& mems)
-//{
-//    long long int size = 0;
-//    int num = mats.size();
-//    for (int i = 0; i < num; i++)
-//        size += calcMemorySize(mats[i], mems);
-//    return size;
-//}
-//
-//static long long int calcMemorySize(const std::vector<SharedMemory>& mems)
-//{
-//    long long int size = 0;
-//    int numMems = mems.size();
-//    for (int i = 0; i < numMems; i++)
-//        size += mems[i].size;
-//    return size;
-//}
-//
-//static long long int calcMemorySize(const cv::cuda::GpuMat& mat)
-//{
-//    if (mat.data && mat.refcount)
-//        return mat.dataend - mat.datastart;
-//    else
-//        return 0;
-//}
-//
-//static long long int calcMemorySize(const std::vector<cv::cuda::GpuMat>& mats)
-//{
-//    long long int size = 0;
-//    int num = mats.size();
-//    for (int i = 0; i < num; i++)
-//        size += calcMemorySize(mats[i]);
-//    return size;
-//}
-//
-//static long long int calcMemorySize(const std::vector<std::vector<cv::cuda::GpuMat> >& mats)
-//{
-//    long long int size = 0;
-//    int num = mats.size();
-//    for (int i = 0; i < num; i++)
-//        size += calcMemorySize(mats[i]);
-//    return size;
-//}
-
 bool CudaTilingMultibandBlend::prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength)
 {
     success = false;
@@ -490,7 +400,7 @@ void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images
     end(blendImage);
 }
 
-long long int CudaTilingMultibandBlend::calcMemory() const
+long long int CudaTilingMultibandBlend::calcUsedMemorySize() const
 {
     if (!success)
         return 0;
@@ -512,6 +422,12 @@ long long int CudaTilingMultibandBlend::calcMemory() const
     size += calcMemorySize(aux16S, mems);
     size += calcMemorySize(maskNot, mems);
     return calcMemorySize(mems);
+}
+
+long long int CudaTilingMultibandBlend::estimateMemorySize(int width, int height, int numImages)
+{
+    long long int lwidth = width, lheight = height, lnumImages = numImages;
+    return lwidth * lheight  * (2 * lnumImages + 32 * 4 / 3 + 21);
 }
 
 static void getPyramidLevelSizes(std::vector<cv::Size>& sizes, int rows, int cols, int numLevels)
@@ -672,10 +588,106 @@ bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::Mat>& masks, in
     return true;
 }
 
+bool CudaTilingMultibandBlendFast::prepare(const std::vector<cv::cuda::GpuMat>& masks, int maxLevels, int minLength)
+{
+    success = false;
+    if (masks.empty())
+        return false;
+
+    int currNumMasks = masks.size();
+    if (currNumMasks > 255)
+        return false;
+
+    int currRows = masks[0].rows, currCols = masks[0].cols;
+    for (int i = 0; i < currNumMasks; i++)
+    {
+        if (!masks[i].data || masks[i].type() != CV_8UC1 ||
+            masks[i].rows != currRows || masks[i].cols != currCols)
+            return false;
+    }
+    rows = currRows;
+    cols = currCols;
+    numImages = currNumMasks;
+
+    std::vector<cv::Mat> masksCpu(numImages), uniqueMasksCpu;
+    for (int i = 0; i < numImages; i++)
+        masks[i].download(masksCpu[i]);
+    getNonIntersectingMasks(masksCpu, uniqueMasksCpu);
+
+    uniqueMasks.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        uniqueMasks[i].upload(uniqueMasksCpu[i]);
+
+    numLevels = getTrueNumLevels(cols, rows, maxLevels, minLength);
+
+    cv::cuda::GpuMat aux16S(rows, cols, CV_16SC1);
+
+    std::vector<cv::cuda::GpuMat> tempAlphaPyr(numLevels + 1);
+    alphaPyrs.resize(numImages);
+    weightPyrs.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        alphaPyrs[i].resize(numLevels + 1);
+        weightPyrs[i].resize(numLevels + 1);
+        aux16S.setTo(0);
+        aux16S.setTo(256, masks[i]);
+        tempAlphaPyr[0] = aux16S.clone();
+        aux16S.setTo(0);
+        aux16S.setTo(256, uniqueMasks[i]);
+        weightPyrs[i][0] = aux16S.clone();
+        for (int j = 0; j < numLevels; j++)
+        {
+            pyramidDown16SC1To32SC1(tempAlphaPyr[j], alphaPyrs[i][j + 1], cv::Size(), true);
+            tempAlphaPyr[j + 1].create(alphaPyrs[i][j + 1].size(), CV_16SC1);
+            scaledSet16SC1Mask32SC1(tempAlphaPyr[j + 1], 256, alphaPyrs[i][j + 1]);
+            pyramidDown16SC1To16SC1(weightPyrs[i][j], weightPyrs[i][j + 1], cv::Size(), true);
+        }
+    }
+
+    std::vector<cv::Size> sizes;
+    getPyramidLevelSizes(sizes, rows, cols, numLevels);
+
+    std::vector<int> stepsImageUpPyr, stepsResultUpPyr;
+    getStepsOfImageUpPyr(sizes, stepsImageUpPyr);
+    getStepsOfResultUpPyr(sizes, stepsResultUpPyr);
+    allocMemoryForUpPyrs(sizes, stepsImageUpPyr, stepsResultUpPyr, imageUpPyr, resultUpPyr);
+
+    allocMemoryForResultPyr(sizes, resultPyr);
+
+    cv::Mat mask = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+        mask |= masksCpu[i];
+    fullMask = cv::countNonZero(mask) == (rows * cols);
+    if (fullMask)
+    {
+        resultWeightPyr.clear();
+        maskNot.release();
+    }
+    else
+    {
+        resultWeightPyr.resize(numLevels + 1);
+        for (int i = 0; i < numLevels + 1; i++)
+        {
+            resultWeightPyr[i].create(sizes[i], CV_32SC1);
+            resultWeightPyr[i].setTo(0);
+        }
+        for (int i = 0; i < numImages; i++)
+            accumulateWeight(weightPyrs[i], resultWeightPyr);
+        mask = ~mask;
+        maskNot.upload(mask);
+    }
+
+    success = true;
+    return true;
+}
+
 void CudaTilingMultibandBlendFast::begin()
 {
     if (!success)
         return;
+
+    for (int i = 0; i <= numLevels; i++)
+        resultPyr[i].setTo(0);
 }
 
 void CudaTilingMultibandBlendFast::tile(const cv::cuda::GpuMat& image, int index)
@@ -835,7 +847,7 @@ void CudaTilingMultibandBlendFast::getUniqueMasks(std::vector<cv::cuda::GpuMat>&
         masks.clear();
 }
 
-long long int CudaTilingMultibandBlendFast::calcMemory() const
+long long int CudaTilingMultibandBlendFast::calcUsedMemorySize() const
 {
     if (!success)
         return 0;
@@ -852,6 +864,12 @@ long long int CudaTilingMultibandBlendFast::calcMemory() const
     size += calcMemorySize(weightPyrs, mems);
     size += calcMemorySize(maskNot, mems);
     return calcMemorySize(mems);
+}
+
+long long int CudaTilingMultibandBlendFast::estimateMemorySize(int width, int height, int numImages)
+{
+    long long int lwidth = width, lheight = height, lnumImages = numImages;
+    return lwidth * lheight  * (lnumImages + 4 * numImages * 4 / 3 + 28 * 4 / 3 + 17);
 }
 
 static void getStepsOfImageDownPyr32F(const std::vector<cv::Size>& sizes, std::vector<int>& steps)

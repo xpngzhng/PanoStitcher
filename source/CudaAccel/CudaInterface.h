@@ -13,7 +13,8 @@ public:
     void tile(const cv::cuda::GpuMat& image, int index);
     void end(cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
-    long long int calcMemory() const;
+    long long int calcUsedMemorySize() const;
+    static long long int estimateMemorySize(int width, int height, int numImages);
 
 private:
     // r ~= 4 / 3
@@ -29,7 +30,7 @@ private:
     std::vector<cv::cuda::GpuMat> imageUpPyr, resultUpPyr;
     // W * H * r * 2 * 1, W * H * r * 4 * 1
     std::vector<cv::cuda::GpuMat> weightPyr, resultWeightPyr;
-    // W * H * 2 * 1, W * H * 2 * 1, W * H * 1 * 1
+    // ---in imagePyr---, ---in alphaPyr---, W * H * 1 * 1
     cv::cuda::GpuMat image16S, aux16S, maskNot;
     int numImages;
     int rows, cols;
@@ -42,6 +43,7 @@ class CudaTilingMultibandBlendFast
 public:
     CudaTilingMultibandBlendFast() : numImages(0), rows(0), cols(0), numLevels(0), success(false) {}
     bool prepare(const std::vector<cv::Mat>& masks, int maxLevels, int minLength);
+    bool prepare(const std::vector<cv::cuda::GpuMat>& masks, int maxLevels, int minLength);
     void begin();
     void tile(const cv::cuda::GpuMat& image, int index);
     void end(cv::cuda::GpuMat& blendImage);
@@ -49,7 +51,8 @@ public:
     void blend(const std::vector<cv::cuda::GpuMat>& images, const std::vector<cv::cuda::GpuMat>& masks,
         cv::cuda::GpuMat& blendImage);
     void getUniqueMasks(std::vector<cv::cuda::GpuMat>& masks) const;
-    long long int calcMemory() const;
+    long long int calcUsedMemorySize() const;
+    static long long int estimateMemorySize(int width, int height, int numImages);
 
 private:
     // r ~= 4 / 3

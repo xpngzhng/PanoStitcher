@@ -6,7 +6,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
-void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
+void compare32FAnd64F(const cv::Mat& mat32F, const cv::Mat& mat64F)
 {
     CV_Assert(mat32F.size() == mat64F.size() &&
         mat32F.type() == CV_32FC1 && mat64F.type() == CV_64FC1);
@@ -22,10 +22,36 @@ void compare(const cv::Mat& mat32F, const cv::Mat& mat64F)
         {
             if (abs(ptr32F[j] - ptr64F[j]) > 0.001)
             {
-                printf("y = %d, x = %d, %f, %f\n", j, i, ptr32F[j], ptr64F[j]);
+                //printf("y = %d, x = %d, %f, %f\n", j, i, ptr32F[j], ptr64F[j]);
                 ptrDiff[j] = 255;
             }
                 
+        }
+    }
+    cv::imshow("diff", diff);
+    cv::waitKey(0);
+}
+
+void compare32F(const cv::Mat& a, const cv::Mat& b)
+{
+    CV_Assert(a.size() == b.size() &&
+        a.type() == CV_32FC1 && b.type() == CV_32FC1);
+
+    int rows = a.rows, cols = a.cols;
+    cv::Mat diff = cv::Mat::zeros(rows, cols, CV_8UC1);
+    for (int i = 0; i < rows; i++)
+    {
+        const float* ptrA = a.ptr<float>(i);
+        const float* ptrB = b.ptr<float>(i);
+        unsigned char* ptrDiff = diff.ptr<unsigned char>(i);
+        for (int j = 0; j < cols; j++)
+        {
+            if (abs(ptrA[j] - ptrB[j]) > 0.001F)
+            {
+                //printf("y = %d, x = %d, %f, %f\n", j, i, ptrA[j], ptrB[j]);
+                ptrDiff[j] = 255;
+            }
+
         }
     }
     cv::imshow("diff", diff);
@@ -81,6 +107,29 @@ int main()
     //}
     //printf("finish\n");
 
+    //{
+    //    std::vector<PhotoParam> params;
+    //    //loadPhotoParamFromXML("F:\\panovideo\\test\\test1\\haiyangguansimple.xml", params);
+    //    loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
+    //    cv::Mat cpuXMap, cpuYMap, cpuMask, dlXMap, dlYMap, dlMask, maskDiff;
+    //    cv::cuda::GpuMat gpuXMap, gpuYMap, gpuMask;
+    //    int numParams = params.size();
+    //    cv::Size srcSize(1920, 1440), dstSize(2048, 1024);
+    //    for (int i = 0; i < numParams; i++)
+    //    {
+    //        getReprojectMap32FAndMask(params[i], srcSize, dstSize, cpuXMap, cpuYMap, cpuMask);
+    //        cudaGenerateReprojectMapAndMask(params[i], srcSize, dstSize, gpuXMap, gpuYMap, gpuMask);
+    //        gpuXMap.download(dlXMap);
+    //        gpuYMap.download(dlYMap);
+    //        gpuMask.download(dlMask);
+    //        compare32F(cpuXMap, dlXMap);
+    //        compare32F(cpuYMap, dlYMap);
+
+    //        cv::imshow("mask diff", cpuMask != dlMask);
+    //        cv::waitKey(0);
+    //    };
+    //}
+
     {
         ztool::Timer t;
         std::vector<std::string> paths;
@@ -94,23 +143,23 @@ int main()
         //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
         //rotateCameras(params, 0, 0, 3.1415926 / 2);
 
-        //paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
-        //paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
-        //paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
-        //paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");        
-        //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+        paths.push_back("F:\\panoimage\\919-4\\snapshot0.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot1.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot2.bmp");
+        paths.push_back("F:\\panoimage\\919-4\\snapshot3.bmp");        
+        loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
         //paths.push_back("F:\\panovideo\\ricoh m15\\image0.bmp");
         //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
-        paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
-        paths.push_back("F:\\panoimage\\beijing\\image1.bmp");
-        paths.push_back("F:\\panoimage\\beijing\\image2.bmp");
-        paths.push_back("F:\\panoimage\\beijing\\image3.bmp");
-        paths.push_back("F:\\panoimage\\beijing\\image4.bmp");
-        paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
-        loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
-        rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+        //paths.push_back("F:\\panoimage\\beijing\\image0.bmp");
+        //paths.push_back("F:\\panoimage\\beijing\\image1.bmp");
+        //paths.push_back("F:\\panoimage\\beijing\\image2.bmp");
+        //paths.push_back("F:\\panoimage\\beijing\\image3.bmp");
+        //paths.push_back("F:\\panoimage\\beijing\\image4.bmp");
+        //paths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+        //loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
+        //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
 
         int numImages = paths.size();
         std::vector<cv::Mat> src(numImages);
@@ -209,8 +258,8 @@ int main()
             cv::split(maps[i], splitMats);
             xmaps[i].download(fromGpuMats[0]);
             ymaps[i].download(fromGpuMats[1]);
-            compare(fromGpuMats[0], splitMats[0]);
-            compare(fromGpuMats[1], splitMats[1]);
+            compare32FAnd64F(fromGpuMats[0], splitMats[0]);
+            compare32FAnd64F(fromGpuMats[1], splitMats[1]);
         }
     }
 

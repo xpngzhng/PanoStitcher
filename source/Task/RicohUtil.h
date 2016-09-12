@@ -207,6 +207,7 @@ protected:
     std::vector<cv::cuda::GpuMat> srcImagesGPU;
     std::vector<cv::cuda::GpuMat> reprojImagesGPU;
     std::vector<cv::cuda::Stream> streams;
+    int useStreams;
     int highQualityBlend;
     CudaTilingMultibandBlendFast mbBlender;
     std::vector<cv::cuda::GpuMat> weightsGPU;

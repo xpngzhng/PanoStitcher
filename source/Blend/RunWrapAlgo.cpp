@@ -173,6 +173,21 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\blackwhite\\mask0.bmp");
     //maskPaths.push_back("F:\\panoimage\\blackwhite\\mask1.bmp");
 
+    std::vector<std::string> contentPaths;
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage0.bmp");
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage1.bmp");
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage2.bmp");
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage3.bmp");
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage4.bmp");
+    contentPaths.push_back("F:\\panoimage\\beijing\\reprojimage5.bmp");
+    std::vector<std::string> maskPaths;
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask0.bmp");
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask1.bmp");
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask2.bmp");
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask3.bmp");
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask4.bmp");
+    maskPaths.push_back("F:\\panoimage\\beijing\\mask5.bmp");
+
     ztool::Timer timer;
     timer.start();
 

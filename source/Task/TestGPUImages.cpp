@@ -14,34 +14,34 @@
 const double PI = 3.1415926535898;
 const double scale = 3.1415926535898 / 180;
 
-int main(int argc, char* argv[])
+int main1(int argc, char* argv[])
 {
     std::vector<std::string> contentPaths;
-    contentPaths.push_back("F:\\panoimage\\beijing\\image0.bmp");
-    contentPaths.push_back("F:\\panoimage\\beijing\\image1.bmp");
-    contentPaths.push_back("F:\\panoimage\\beijing\\image2.bmp");
-    contentPaths.push_back("F:\\panoimage\\beijing\\image3.bmp");
-    contentPaths.push_back("F:\\panoimage\\beijing\\image4.bmp");
-    contentPaths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image0.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image1.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image2.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image3.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image4.bmp");
+    //contentPaths.push_back("F:\\panoimage\\beijing\\image5.bmp");
+
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    contentPaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
     int numImages = contentPaths.size();
 
     std::vector<cv::Mat> images(numImages);
     for (int i = 0; i < numImages; i++)
         images[i] = cv::imread(contentPaths[i]);
 
-    cv::Size dstSize(4096, 2048);
+    cv::Size dstSize(2048, 1024);
 
     std::vector<PhotoParam> params;
-    loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
-    //pi.rotateCamera(0, -35.264 / 180 * PI, -PI / 4);
-    //pi.rotateCamera(0, -0.621986, -0.702595);
-    //pi.rotateCamera(-0.716718, -0.628268, -0.695993);
-    //pi.rotateCamera(0, -35.264 / 180 * PI, -PI / 4); // panotools
-    //pi.rotateCamera(0.710973 + 1, -0.510681, -1.910918); // distort
-    //pi.rotateCamera(1.410963, -0.540605, -0.908481); // distort
-    //pi.rotateCamera(0.736832, -0.489683, -2.0011); // distort
-    //pi.rotateCamera(1.599374, -0.516422, -0.703413); // distort
-    rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+    //loadPhotoParamFromXML("F:\\panoimage\\beijing\\temp_camera_param_new.xml", params);
+    //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
 
     ztool::Timer timer;
 
@@ -81,7 +81,8 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("serial reproj serial blend %f\n", timer.elapse());
-        printf("memory size = %lld\n", blender.calcMemory());
+        printf("memory size = %lld, estimate = %lld\n", blender.calcUsedMemorySize(), 
+            blender.estimateMemorySize(dstSize.width, dstSize.height, numImages));
 
         std::vector<MatMemorySize> memSizes;
         calcMemorySize(src, memSizes);
@@ -90,12 +91,12 @@ int main(int argc, char* argv[])
         calcMemorySize(masks, memSizes);
         calcMemorySize(reprojImage, memSizes);
         calcMemorySize(blendImage, memSizes);
-        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
+        printf("total mem size %lld\n", blender.calcUsedMemorySize() + calcMemorySize(memSizes));
 
-        //cv::Mat show;
-        //blendImage.download(show);
-        //cv::imshow("blend image", show);
-        //cv::waitKey(0);
+        cv::Mat show;
+        blendImage.download(show);
+        cv::imshow("blend image", show);
+        cv::waitKey(0);
     }
 
     /*{
@@ -131,6 +132,41 @@ int main(int argc, char* argv[])
     }*/
 
     {
+        CudaTilingMultibandBlendFast blender;
+        blender.prepare(masksCpu, 20, 4);
+        cv::cuda::GpuMat reprojImage, blendImage;
+        timer.start();
+        for (int k = 0; k < numIter; k++)
+        {
+            blender.begin();
+            for (int i = 0; i < numImages; i++)
+            {
+                cudaReprojectTo16S(src[i], reprojImage, dstSize, params[i]);
+                blender.tile(reprojImage, i);
+            }
+            blender.end(blendImage);
+        }
+        timer.end();
+        printf("serial reproj serial blend fast %f\n", timer.elapse());
+        printf("memory size = %lld, estimate = %lld\n", blender.calcUsedMemorySize(),
+            blender.estimateMemorySize(dstSize.width, dstSize.height, numImages));
+
+        std::vector<MatMemorySize> memSizes;
+        calcMemorySize(src, memSizes);
+        calcMemorySize(xmaps, memSizes);
+        calcMemorySize(ymaps, memSizes);
+        calcMemorySize(masks, memSizes);
+        calcMemorySize(reprojImage, memSizes);
+        calcMemorySize(blendImage, memSizes);
+        printf("total mem size %lld\n", blender.calcUsedMemorySize() + calcMemorySize(memSizes));
+
+        cv::Mat show;
+        blendImage.download(show);
+        cv::imshow("blend image", show);
+        cv::waitKey(0);
+    }
+
+    {
         CudaTilingMultibandBlend blender;
         blender.prepare(masksCpu, 20, 4);
         std::vector<cv::cuda::GpuMat> reprojImages(numImages);
@@ -152,7 +188,7 @@ int main(int argc, char* argv[])
         calcMemorySize(masks, memSizes);
         calcMemorySize(reprojImages, memSizes);
         calcMemorySize(blendImage, memSizes);
-        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
+        printf("total mem size %lld\n", blender.calcUsedMemorySize() + calcMemorySize(memSizes));
     }
 
     {
@@ -169,7 +205,8 @@ int main(int argc, char* argv[])
         }
         timer.end();
         printf("map reproj fast blend %f\n", timer.elapse());
-        printf("memory size = %lld\n", blender.calcMemory());
+        printf("memory size = %lld, estimate = %lld\n", blender.calcUsedMemorySize(),
+            blender.estimateMemorySize(dstSize.width, dstSize.height, numImages));
 
         std::vector<MatMemorySize> memSizes;
         calcMemorySize(src, memSizes);
@@ -178,7 +215,7 @@ int main(int argc, char* argv[])
         calcMemorySize(masks, memSizes);
         calcMemorySize(reprojImages, memSizes);
         calcMemorySize(blendImage, memSizes);
-        printf("total mem size %lld\n", blender.calcMemory() + calcMemorySize(memSizes));
+        printf("total mem size %lld\n", blender.calcUsedMemorySize() + calcMemorySize(memSizes));
 
         //cv::Mat show;
         //blendImage.download(show);

@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
         panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
 #else
     bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 1, 
-        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "veryfast", 30 * 48);
+        panoVideoName, dstSize.width, dstSize.height, 48000000, "h264", "medium", 10 * 48);
 #endif
     if (!ok)
     {

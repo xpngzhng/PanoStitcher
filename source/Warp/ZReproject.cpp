@@ -149,10 +149,17 @@ void getReprojectMapAndMask(const PhotoParam& param,
             {
                 double sx, sy;
                 remap.remapImage(sx, sy, w, h);
-                ptrMap[w].x = sx;
-                ptrMap[w].y = sy;
                 if (sx >= 0 && sy >= 0 && sx < srcWidth && sy < srcHeight)
+                {
+                    ptrMap[w].x = sx;
+                    ptrMap[w].y = sy;
                     ptrMask[w] = 255;
+                }
+                else
+                {
+                    ptrMap[w].x = -1;
+                    ptrMap[w].y = -1;
+                }
             }
         }
     }

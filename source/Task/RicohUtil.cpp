@@ -7,6 +7,7 @@
 #include "opencv2/core/cuda.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include "cuda_runtime_api.h"
 #include <thread>
 #include <exception>
 
@@ -1111,16 +1112,59 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
 
     std::vector<cv::Mat> masks, dstSrcMaps, dstSrcXMaps, dstSrcYMaps;
     try
-    {
-        numImages = params.size();
-        getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
+    {        
         if (highQualityBlend)
         {
+            numImages = params.size();
+            getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
             if (!mbBlender.prepare(masks, 20, 2))
+            {
+                ztool::lprintf("Error in %s, failed to prepare for blending\n", __FUNCTION__);
                 return false;
+            }
+
+            size_t gpuTotalMemSize, gpuFreeMemSize;
+            cudaMemGetInfo(&gpuFreeMemSize, &gpuTotalMemSize);
+
+            long long int origImagesMemSize, reprojImagesMemSize, mapsMemSize, blenderMemSize, totalMemSize;
+            origImagesMemSize = (long long int)(numImages) * srcSize.width * srcSize.height * 4;
+            reprojImagesMemSize = (long long int)(numImages) * dstSize.width * dstSize.height * 2 * 4;
+            mapsMemSize = (long long int)(numImages)* dstSize.width * dstSize.height * 4 * 2;
+            blenderMemSize = CudaTilingMultibandBlendFast::estimateMemorySize(dstSize.width, dstSize.height, numImages);
+            totalMemSize = origImagesMemSize + reprojImagesMemSize + mapsMemSize + blenderMemSize;
+
+            long long int memSizeDiff = gpuFreeMemSize - totalMemSize;
+            if (true/*memSizeDiff < 500000000*/)
+            {
+                ztool::lprintf("Info in %s, estimated gpu mem size for stream based high quality blend is %lld bytes, "
+                    "free gpu mem size is %lld bytes, disable streams, use %lld gpu mem size only\n", 
+                    __FUNCTION__, totalMemSize, gpuFreeMemSize, 
+                    origImagesMemSize / numImages + reprojImagesMemSize / numImages + blenderMemSize);
+
+                useStreams = 0;
+            }
+            else
+            {
+                ztool::lprintf("Info in %s, estimated gpu mem size for stream based high quality blend is %lld bytes, "
+                    "free gpu mem size is %lld bytes, enable streams\n", __FUNCTION__, totalMemSize, gpuFreeMemSize);
+
+                dstSrcXMapsGPU.resize(numImages);
+                dstSrcYMapsGPU.resize(numImages);
+                for (int i = 0; i < numImages; i++)
+                {
+                    dstSrcXMapsGPU[i].upload(dstSrcXMaps[i]);
+                    dstSrcYMapsGPU[i].upload(dstSrcYMaps[i]);
+                }
+
+                streams.resize(numImages);
+                useStreams = 1;
+            }
         }
         else
         {
+            numImages = params.size();
+            getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
+
             std::vector<cv::Mat> weights;
             //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
             getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
@@ -1128,17 +1172,18 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
             accumGPU.create(dstSize, CV_32FC4);
-        }
 
-        dstSrcXMapsGPU.resize(numImages);
-        dstSrcYMapsGPU.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-        {
-            dstSrcXMapsGPU[i].upload(dstSrcXMaps[i]);
-            dstSrcYMapsGPU[i].upload(dstSrcYMaps[i]);
-        }
+            dstSrcXMapsGPU.resize(numImages);
+            dstSrcYMapsGPU.resize(numImages);
+            for (int i = 0; i < numImages; i++)
+            {
+                dstSrcXMapsGPU[i].upload(dstSrcXMaps[i]);
+                dstSrcYMapsGPU[i].upload(dstSrcYMaps[i]);
+            }
 
-        streams.resize(numImages);
+            streams.resize(numImages);
+            useStreams = 1;
+        }
     }
     catch (std::exception& e)
     {
@@ -1221,29 +1266,47 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
         }
         else
         {
-            srcImagesGPU.resize(numImages);
-            reprojImagesGPU.resize(numImages);
-            // Add the following two lines to prevent exception if dstSize is around (1200, 600)
-            //for (int i = 0; i < numImages; i++)
-            //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
-            // Further test shows that the above two lines cannot prevent cuda runtime
-            // from throwing exception, so they are commented.
-            // It seems that the only way to avoid exception is to call 
-            // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
-            // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
-            for (int i = 0; i < numImages; i++)
-                srcImagesGPU[i].upload(src[i], streams[i]);
-            if (correct)
+            if (useStreams)
             {
+                srcImagesGPU.resize(numImages);
+                reprojImagesGPU.resize(numImages);
+                // Add the following two lines to prevent exception if dstSize is around (1200, 600)
+                //for (int i = 0; i < numImages; i++)
+                //    reprojImagesGPU[i].create(dstSize, CV_16SC4);
+                // Further test shows that the above two lines cannot prevent cuda runtime
+                // from throwing exception, so they are commented.
+                // It seems that the only way to avoid exception is to call 
+                // cudaReproject instead of cudaReprojectTo16S, but then CudaTilingMultibandBlend::blend
+                // will perform data conversion from type CV_8UC4 to CV_16SC4, more time consumed.
                 for (int i = 0; i < numImages; i++)
-                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
-            }
-            for (int i = 0; i < numImages; i++)
-                cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
-            for (int i = 0; i < numImages; i++)
-                streams[i].waitForCompletion();
+                    srcImagesGPU[i].upload(src[i], streams[i]);
+                if (correct)
+                {
+                    for (int i = 0; i < numImages; i++)
+                        cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+                }
+                for (int i = 0; i < numImages; i++)
+                    cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);
+                for (int i = 0; i < numImages; i++)
+                    streams[i].waitForCompletion();
 
-            mbBlender.blend(reprojImagesGPU, dst);
+                mbBlender.blend(reprojImagesGPU, dst);
+            }
+            else
+            {
+                srcImagesGPU.resize(1);
+                reprojImagesGPU.resize(1);
+                mbBlender.begin();
+                for (int i = 0; i < numImages; i++)
+                {
+                    srcImagesGPU[0].upload(src[i]);
+                    if (correct)
+                        cudaTransform(srcImagesGPU[0], srcImagesGPU[0], luts[i]);
+                    cudaReprojectTo16S(srcImagesGPU[0], reprojImagesGPU[0], dstSize, params[i]);
+                    mbBlender.tile(reprojImagesGPU[0], i);
+                }
+                mbBlender.end(dst);
+            }
         }
     }
     catch (std::exception& e)
@@ -1266,6 +1329,7 @@ void CudaPanoramaRender2::clear()
     reprojImagesGPU.clear();
     weightsGPU.clear();
     streams.clear();
+    useStreams = 0;
     highQualityBlend = 0;
     numImages = 0;
     success = 0;
