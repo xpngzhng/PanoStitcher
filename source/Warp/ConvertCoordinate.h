@@ -211,14 +211,15 @@ inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face
     return cv::Point3d(qx * scale, -qy * scale, qz * scale);
 }
 
-inline void cubeToSphere(const std::vector<cv::Point2d>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
+template<typename PointType>
+inline void cubeToSphere(const std::vector<PointType>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
 {
     int size = src.size();
     dst.resize(size);
     for (int i = 0; i < size; i++)
     {
-        double x = (src[i].x + 0.5) / cubeLength;
-        double y = 1.0 - (src[i].y + 0.5) / cubeLength;
+        double x = (src[i].x) / cubeLength;
+        double y = 1.0 - (src[i].y) / cubeLength;
         const double* p, *vx, *vy;
         switch (face)
         {

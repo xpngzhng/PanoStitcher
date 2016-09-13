@@ -334,6 +334,10 @@ static inline void cvtCubeToEquiRect(int cubeType, float x, float y, float *outX
     qy = p[1] + vx[1] * x + vy[1] * y;
     qz = p[2] + vx[2] * x + vy[2] * y;
 
+    // theta: from zox plane to current point, [-pi / 2, pi / 2]
+    // phi:   angle on zox plane, z axis represent zero angle, [-pi, pi]
+    // in 3D space, x = cos(theta) * sin(phi), y = sin(theta), z = cos(theta) * cos(phi)
+
     d = sqrtf(qx * qx + qy * qy + qz * qz);
     *outX = -atan2f(-qx / d, qz / d) / (PI * 2.0f) + 0.5f;
     *outY = asinf(-qy / d) / PI + 0.5f;
