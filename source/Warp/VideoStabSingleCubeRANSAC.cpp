@@ -13,6 +13,9 @@
 #include <iostream>
 #include <utility>
 #include <fstream>
+#include <memory>
+#include <list>
+#include <algorithm>
 
 void mapBilinear(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot);
 void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot);
@@ -291,6 +294,116 @@ int main1()
     return 0;
 }
 
+struct FeaturePoint
+{
+    FeaturePoint(const cv::Point2f& pt_, int index_, int face_)
+    : index(index_), face(face_)
+    {
+        pos.reserve(256);
+        pos.push_back(pt_);
+    }
+    static std::vector<cv::Point2f> offsets;
+    std::vector<cv::Point2f> pos;
+    int index;
+    int face;
+};
+
+std::vector<cv::Point2f> FeaturePoint::offsets;
+
+static void init(const std::vector<cv::Point2f>& pts, int face, std::list<std::shared_ptr<FeaturePoint> >& feats)
+{
+    feats.clear();
+    int size = pts.size();
+    for (int i = 0; i < size; i++)
+        feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(pts[i], i, face)));
+}
+
+struct Pred
+{
+    Pred(int index_)
+    {
+        index = index_;
+    }
+    bool operator()(const std::shared_ptr<FeaturePoint>& i)
+    {
+        return i->index == index;
+    }
+    int index;
+};
+
+static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, const std::vector<unsigned char>& status,
+    std::list<std::shared_ptr<FeaturePoint> >& feats)
+{
+    std::vector<cv::Point2f> p1, p2;
+    int size = pts1.size();
+    p1.reserve(size);
+    p2.reserve(size);
+    for (int i = 0; i < size; i++)
+    {
+        std::list<std::shared_ptr<FeaturePoint> >::iterator itr = std::find_if(feats.begin(), feats.end(), Pred(i));
+        if (status[i])
+        {
+            (*itr)->index = p1.size();
+            (*itr)->pos.push_back(pts2[i]);
+            p1.push_back(pts1[i]);
+            p2.push_back(pts2[i]);
+        }
+        else
+        {
+            feats.erase(itr);
+        }
+    }
+    std::swap(pts1, p1);
+    std::swap(pts2, p2);
+}
+
+static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Point2f>& candidates, int face, 
+    std::list<std::shared_ptr<FeaturePoint> >& feats)
+{
+    int size = pts.size();
+    int sizeCandidates = candidates.size();
+    float maxSqrDist = 1000000000;
+    for (int i = 0; i < sizeCandidates; i++)
+    {
+        int index = -1;
+        float minSqrDist = maxSqrDist;
+        for (int j = 0; j < size; j++)
+        {
+            cv::Point2f diff = pts[j] - candidates[i];
+            float sqrDist = diff.dot(diff);
+            if (sqrDist < minSqrDist)
+            {
+                minSqrDist = sqrDist;
+                index = i;
+            }
+        }
+        if (minSqrDist > 1000)
+        {
+            feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(candidates[index], pts.size(), face)));
+            pts.push_back(candidates[index]);
+        }
+    }
+}
+
+static void drawFeaturePointHistory(cv::Mat& image, const FeaturePoint& pt)
+{
+    int size = pt.pos.size();
+    for (int i = 0; i < size - 1; i++)
+    {
+        cv::circle(image, pt.pos[i] + pt.offsets[pt.face], 2, cv::Scalar(0, 0, 255));
+        cv::line(image, pt.pos[i] + pt.offsets[pt.face], pt.pos[i + 1] + pt.offsets[pt.face], cv::Scalar(0, 0, 255));
+    }
+    cv::circle(image, pt.pos[size - 1] + pt.offsets[pt.face], 2, cv::Scalar(0, 0, 255));
+}
+
+static void drawFeaturPointsHistory(cv::Mat& image, const std::list<std::shared_ptr<FeaturePoint> >& pts)
+{
+    for (std::list<std::shared_ptr<FeaturePoint> >::const_iterator itr = pts.begin(), itrEnd = pts.end(); itr != itrEnd; ++itr)
+    {
+        drawFeaturePointHistory(image, **itr);
+    }
+}
+
 static void keepMatches(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, const std::vector<unsigned char>& status)
 {
     std::vector<cv::Point2f> p1, p2;
@@ -395,6 +508,7 @@ int main()
     offsets.push_back(cv::Point2f(0, cubeLength));
     offsets.push_back(cv::Point2f(cubeLength, cubeLength));
     offsets.push_back(cv::Point2f(2 * cubeLength, cubeLength));
+    FeaturePoint::offsets = offsets;
 
     int numVideos = 6;
     cv::Mat frame, cubeFrame, gray, lastGray;
@@ -403,15 +517,17 @@ int main()
     std::vector<std::vector<cv::Point3d> > srcSpherePts(numVideos), dstSpherePts(numVideos);
     std::vector<cv::Point3d> src, dst;
     std::vector<unsigned char> mask;
+    std::vector<std::list<std::shared_ptr<FeaturePoint> > > trackPoints(numVideos);
 
     cap.read(frame);
     reprojectParallel(frame, cubeFrame, map);
     cv::cvtColor(cubeFrame, gray, CV_BGR2GRAY);
     gray.copyTo(lastGray);
-    double qualityLevel = 0.05, featPointDistThresh = 50;
+    double qualityLevel = 0.1, featPointDistThresh = 50;
     for (int i = 0; i < numVideos; i++)
     {
         cv::goodFeaturesToTrack(gray(squares[i]), points1[i], 1000, qualityLevel, featPointDistThresh, detectMask);
+        init(points1[i], i, trackPoints[i]);
     }
     angles.push_back(cv::Vec3d(0, 0, 0));
 
@@ -444,7 +560,8 @@ int main()
             cv::calcOpticalFlowPyrLK(lastGray(squares[i]), gray(squares[i]), points1[i], points2[i], 
                 status, errs, cv::Size(31, 31), 3, termCrit, 0, 0.001);
 
-            keepMatches(points1[i], points2[i], status);
+            //keepMatches(points1[i], points2[i], status);
+            match(points1[i], points2[i], status, trackPoints[i]);
 
             cubeToSphere(points1[i], cubeLength, i, srcSpherePts[i]);
             cubeToSphere(points2[i], cubeLength, i, dstSpherePts[i]);
@@ -496,12 +613,20 @@ int main()
 
         for (int i = 0; i < numVideos; i++)
         {
+            //1
             //cv::goodFeaturesToTrack(gray(squares[i]), points1[i], 1000, qualityLevel, featPointDistThresh, detectMask);
 
+            // 2
             //points1[i] = points2[i];
 
+            // 3
+            //cv::goodFeaturesToTrack(gray(squares[i]), newPoints[i], 1000, qualityLevel, featPointDistThresh, detectMask);
+            //addNewPoints(points2[i], newPoints[i]);
+            //std::swap(points1[i], points2[i]);
+
+            // 4
             cv::goodFeaturesToTrack(gray(squares[i]), newPoints[i], 1000, qualityLevel, featPointDistThresh, detectMask);
-            addNewPoints(points2[i], newPoints[i]);
+            addNewPoints(points2[i], newPoints[i], i, trackPoints[i]);
             std::swap(points1[i], points2[i]);
 
             printf("%d ", points1[i].size());
@@ -517,16 +642,20 @@ int main()
         //}
         //cv::imshow("match", show2);
 
-        //int key = cv::waitKey(10);
-        //if (key == 'q')
-        //{
-        //    quit = true;
-        //    break;
-        //}
+        for (int i = 0; i < numVideos; i++)
+            drawFeaturPointsHistory(show2, trackPoints[i]);
+        cv::imshow("match", show2);
+
+        int key = cv::waitKey(10);
+        if (key == 'q')
+        {
+            quit = true;
+            break;
+        }
     }
     if (quit)
         return 0;
-    //return 0;
+    return 0;
 
     std::vector<cv::Vec3d> anglesProc;
     smooth(angles, 30, anglesProc);
