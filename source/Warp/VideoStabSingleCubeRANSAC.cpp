@@ -65,11 +65,11 @@ static void toEquiRect(const PhotoParam& param, const cv::Size& srcSize, const c
 //}
 
 template<typename PointType>
-static void drawPoints(cv::Mat& image, const std::vector<PointType>& points, const cv::Scalar& color)
+static void drawPoints(cv::Mat& image, const std::vector<PointType>& points, const cv::Scalar& color, int thick = 1)
 {
     int size = points.size();
     for (int i = 0; i < size; i++)
-        cv::circle(image, cv::Point(points[i].x, points[i].y), 2, color);
+        cv::circle(image, cv::Point(points[i].x, points[i].y), 2, color, thick);
 }
 
 template<typename PointType>
@@ -296,14 +296,18 @@ int main1()
 
 struct FeaturePoint
 {
-    FeaturePoint(const cv::Point2f& pt_, int index_, int face_)
-    : index(index_), face(face_)
+    FeaturePoint(const cv::Point2f& pt_, int frameCount_, int index_, int face_)
+    : loss(0), index(index_), face(face_)
     {
         pos.reserve(256);
         pos.push_back(pt_);
+        frameCount.reserve(256);
+        frameCount.push_back(frameCount_);
     }
     static std::vector<cv::Point2f> offsets;
     std::vector<cv::Point2f> pos;
+    std::vector<int> frameCount;
+    int loss;
     int index;
     int face;
 };
@@ -315,7 +319,7 @@ static void init(const std::vector<cv::Point2f>& pts, int face, std::list<std::s
     feats.clear();
     int size = pts.size();
     for (int i = 0; i < size; i++)
-        feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(pts[i], i, face)));
+        feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(pts[i], 0, i, face)));
 }
 
 struct Pred
@@ -332,7 +336,7 @@ struct Pred
 };
 
 static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, const std::vector<unsigned char>& status,
-    std::list<std::shared_ptr<FeaturePoint> >& feats)
+    int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats)
 {
     std::vector<cv::Point2f> p1, p2;
     int size = pts1.size();
@@ -341,10 +345,12 @@ static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2
     for (int i = 0; i < size; i++)
     {
         std::list<std::shared_ptr<FeaturePoint> >::iterator itr = std::find_if(feats.begin(), feats.end(), Pred(i));
-        if (status[i])
+        if (status[i] && pts2[i].x >= 0 && pts2[i].y >= 0 &&
+            pts2[i].x < cubeLength && pts2[i].y < cubeLength)
         {
             (*itr)->index = p1.size();
             (*itr)->pos.push_back(pts2[i]);
+            (*itr)->frameCount.push_back((*itr)->frameCount.back() + 1);
             p1.push_back(pts1[i]);
             p2.push_back(pts2[i]);
         }
@@ -357,8 +363,8 @@ static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2
     std::swap(pts2, p2);
 }
 
-static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Point2f>& candidates, int face, 
-    std::list<std::shared_ptr<FeaturePoint> >& feats)
+static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Point2f>& candidates, int frameCount, 
+    int face, int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats)
 {
     int size = pts.size();
     int sizeCandidates = candidates.size();
@@ -377,11 +383,64 @@ static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Po
                 index = i;
             }
         }
-        if (minSqrDist > 1000)
+        if (minSqrDist > 1000 && candidates[index].x >= 0 && candidates[index].y >= 0 &&
+            candidates[index].x < cubeLength && candidates[index].y < cubeLength)
         {
-            feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(candidates[index], pts.size(), face)));
+            feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(candidates[index], frameCount, pts.size(), face)));
             pts.push_back(candidates[index]);
         }
+    }
+}
+
+static void addNewPoints2(std::vector<cv::Point2f>& pts, const std::vector<cv::Point2f>& candidates, int frameCount,
+    int face, int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats)
+{
+    int size = pts.size();
+    int sizeCandidates = candidates.size();
+    std::vector<char> candUsed(sizeCandidates, 0);
+    float maxSqrDist = 1000000000;
+
+    for (int i = 0; i < sizeCandidates; i++)
+    {
+        //int index = -1;
+        float minSqrDist = maxSqrDist;
+        for (int j = 0; j < size; j++)
+        {
+            cv::Point2f diff = pts[j] - candidates[i];
+            float sqrDist = diff.dot(diff);
+            if (sqrDist < minSqrDist)
+            {
+                minSqrDist = sqrDist;
+                //index = i;
+            }
+        }
+        if (minSqrDist > 1000 && candidates[i].x >= 0 && candidates[i].y >= 0 &&
+            candidates[i].x < cubeLength && candidates[i].y < cubeLength)
+        {
+            feats.push_back(std::shared_ptr<FeaturePoint>(new FeaturePoint(candidates[i], frameCount, pts.size(), face)));
+            pts.push_back(candidates[i]);
+            candUsed[i] = 1;
+        }
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        int index = -1;
+        float minSqrDist = maxSqrDist;
+        for (int j = 0; j < sizeCandidates; j++)
+        {
+            if (candUsed[j]) continue;
+
+            cv::Point2f diff = pts[i] - candidates[j];
+            float sqrDist = diff.dot(diff);
+            if (sqrDist < minSqrDist)
+            {
+                minSqrDist = sqrDist;
+                index = j;
+            }
+        }
+        if (minSqrDist < 25)
+            pts[i] = candidates[index];
     }
 }
 
@@ -401,6 +460,18 @@ static void drawFeaturPointsHistory(cv::Mat& image, const std::list<std::shared_
     for (std::list<std::shared_ptr<FeaturePoint> >::const_iterator itr = pts.begin(), itrEnd = pts.end(); itr != itrEnd; ++itr)
     {
         drawFeaturePointHistory(image, **itr);
+    }
+}
+
+static void drawPointsEquiRect(cv::Mat& image, const std::vector<cv::Point2f>& cubePts, const cv::Matx33d& rot)
+{
+    int size = cubePts.size();
+    for (int i = 0; i < size; i++)
+    {
+        cv::Point3d spherePt = cubeToSphere(cubePts[i], 512);
+        cv::Point2d equiRectPt = sphereToEquirect(spherePt, image.cols * 0.5, image.rows * 0.5);
+        equiRectPt = findRotateEquiRectangularSrc(equiRectPt, image.cols * 0.5, image.rows * 0.5, rot);
+        cv::circle(image, cv::Point(equiRectPt.x, equiRectPt.y), 2, cv::Scalar(255, 255, 0));
     }
 }
 
@@ -519,24 +590,29 @@ int main()
     std::vector<unsigned char> mask;
     std::vector<std::list<std::shared_ptr<FeaturePoint> > > trackPoints(numVideos);
 
+    std::vector<cv::Point2f> p1, p2;
+    std::vector<std::vector<cv::Point2f> > allPoints;
+
     cap.read(frame);
     reprojectParallel(frame, cubeFrame, map);
     cv::cvtColor(cubeFrame, gray, CV_BGR2GRAY);
     gray.copyTo(lastGray);
-    double qualityLevel = 0.1, featPointDistThresh = 50;
+    double qualityLevel = 0.05, featPointDistThresh = 50;
+    allPoints.resize(1);
     for (int i = 0; i < numVideos; i++)
     {
         cv::goodFeaturesToTrack(gray(squares[i]), points1[i], 1000, qualityLevel, featPointDistThresh, detectMask);
         init(points1[i], i, trackPoints[i]);
+
+        shiftPoints(points1[i], p1, offsets[i]);
+        allPoints.back().resize(allPoints.back().size() + points1[i].size());
+        std::copy(p1.begin(), p1.end(), allPoints.back().end() - points1[i].size());
     }
     angles.push_back(cv::Vec3d(0, 0, 0));
 
     int count = 0;
 
     cv::Mat show, show2, showMatch;
-
-    std::vector<cv::Point2f> p1, p2;
-
     std::vector<unsigned char> status;
     std::vector<float> errs;
     cv::TermCriteria termCrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 20, 0.03);
@@ -547,7 +623,7 @@ int main()
     {
         bool success = cap.read(frame);
         ++count;
-        if (count > 1500 || !success)
+        if (count > 1000 || !success)
             break;
 
         reprojectParallel(frame, cubeFrame, map);
@@ -561,16 +637,16 @@ int main()
                 status, errs, cv::Size(31, 31), 3, termCrit, 0, 0.001);
 
             //keepMatches(points1[i], points2[i], status);
-            match(points1[i], points2[i], status, trackPoints[i]);
+            match(points1[i], points2[i], status, cubeLength, trackPoints[i]);
 
             cubeToSphere(points1[i], cubeLength, i, srcSpherePts[i]);
             cubeToSphere(points2[i], cubeLength, i, dstSpherePts[i]);
 
             //drawPoints(show, points1[i], cv::Scalar(255));
             //drawPoints(show, points2[i], cv::Scalar(0, 255));
-            //shiftPoints(points1[i], p1, offsets[i]);
-            //shiftPoints(points2[i], p2, offsets[i]);
-            //drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
+            shiftPoints(points1[i], p1, offsets[i]);
+            shiftPoints(points2[i], p2, offsets[i]);
+            drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
         }
 
         //cv::imshow("cube frame", show);
@@ -611,9 +687,10 @@ int main()
         angles.push_back(cv::Vec3d(yaw, pitch, roll));
         printf("yaw = %f, pitch = %f, roll = %f\n", yaw, pitch, roll);
 
+        allPoints.resize(allPoints.size() + 1);
         for (int i = 0; i < numVideos; i++)
         {
-            //1
+            // 1
             //cv::goodFeaturesToTrack(gray(squares[i]), points1[i], 1000, qualityLevel, featPointDistThresh, detectMask);
 
             // 2
@@ -626,13 +703,24 @@ int main()
 
             // 4
             cv::goodFeaturesToTrack(gray(squares[i]), newPoints[i], 1000, qualityLevel, featPointDistThresh, detectMask);
-            addNewPoints(points2[i], newPoints[i], i, trackPoints[i]);
+            addNewPoints2(points2[i], newPoints[i], count, i, cubeLength, trackPoints[i]);
             std::swap(points1[i], points2[i]);
+
+            shiftPoints(points1[i], p1, offsets[i]);
+            allPoints.back().resize(allPoints.back().size() + points1[i].size());
+            std::copy(p1.begin(), p1.end(), allPoints.back().end() - points1[i].size());
 
             printf("%d ", points1[i].size());
             gray.copyTo(lastGray);
         }
         printf("\n");
+
+        for (int i = 0; i < numVideos; i++)
+        {
+            shiftPoints(newPoints[i], p1, offsets[i]);
+            drawPoints(show, p1, cv::Scalar(0, 0, 255), -1);
+        }
+        cv::imshow("show", show);
 
         //for (int i = 0; i < numVideos; i++)
         //{
@@ -642,9 +730,9 @@ int main()
         //}
         //cv::imshow("match", show2);
 
-        for (int i = 0; i < numVideos; i++)
-            drawFeaturPointsHistory(show2, trackPoints[i]);
-        cv::imshow("match", show2);
+        //for (int i = 0; i < numVideos; i++)
+        //    drawFeaturPointsHistory(show2, trackPoints[i]);
+        //cv::imshow("match", show2);
 
         int key = cv::waitKey(10);
         if (key == 'q')
@@ -655,7 +743,7 @@ int main()
     }
     if (quit)
         return 0;
-    return 0;
+    //return 0;
 
     std::vector<cv::Vec3d> anglesProc;
     smooth(angles, 30, anglesProc);
@@ -663,6 +751,14 @@ int main()
     std::vector<cv::Vec3d> anglesAccum, anglesProcAccum;
     accumulate(angles, anglesAccum);
     accumulate(anglesProc, anglesProcAccum);
+
+    int s = angles.size();
+    std::vector<cv::Matx33d> rotMats(s);
+    for (int i = 0; i < s; i++)
+    {
+        cv::Vec3d diff = anglesProcAccum[i] - anglesAccum[i];
+        setRotationRM(rotMats[i], diff[0], diff[1], diff[2]);
+    }
 
     //frameSize = cv::Size(800, 400);
 
@@ -695,6 +791,14 @@ int main()
         cv::Matx33d rot;
         setRotationRM(rot, diff[0], diff[1], diff[2]);
         mapBilinear(frame, rotateImage, rot);
+
+        printf("size = %d\n", allPoints[frameCount].size());
+        rotateImage.copyTo(show);
+        drawPointsEquiRect(show, allPoints[frameCount], rot);
+        cv::imshow("show", show);
+        int key = cv::waitKey(10);
+        if (key == 'q')
+            break;
 
         writer.write(rotateImage);
 

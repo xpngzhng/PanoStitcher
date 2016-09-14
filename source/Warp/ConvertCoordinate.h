@@ -211,6 +211,33 @@ inline cv::Point3d cubeToSphere(const cv::Point& pt, double cubeLength, int face
     return cv::Point3d(qx * scale, -qy * scale, qz * scale);
 }
 
+inline cv::Point3d cubeToSphere(const cv::Point2d& pt, double cubeLength)
+{
+    double width = cubeLength * 3, height = cubeLength * 2;
+    double x = (pt.x) / width;
+    double y = 1.0 - (pt.y) / height;
+    int vface = (int)(y * 2);
+    int hface = (int)(x * 3);
+    x = x * 3 - hface;
+    y = y * 2 - vface;
+    int face = hface + (1 - vface) * 3;
+    const double* p, *vx, *vy;
+    switch (face)
+    {
+    case cts::RIGHT:   p = cts::P5; vx = cts::NZ; vy = cts::PY; break;
+    case cts::LEFT:    p = cts::P0; vx = cts::PZ; vy = cts::PY; break;
+    case cts::TOP:     p = cts::P6; vx = cts::PX; vy = cts::NZ; break;
+    case cts::BOTTOM:  p = cts::P0; vx = cts::PX; vy = cts::PZ; break;
+    case cts::FRONT:   p = cts::P4; vx = cts::PX; vy = cts::PY; break;
+    case cts::BACK:    p = cts::P1; vx = cts::NX; vy = cts::PY; break;
+    }
+    double qx = p[0] + vx[0] * x + vy[0] * y;
+    double qy = p[1] + vx[1] * x + vy[1] * y;
+    double qz = p[2] + vx[2] * x + vy[2] * y;
+    double scale = 1.0 / sqrt(qx * qx + qy * qy + qz * qz);
+    return cv::Point3d(qx * scale, -qy * scale, qz * scale);
+}
+
 template<typename PointType>
 inline void cubeToSphere(const std::vector<PointType>& src, double cubeLength, int face, std::vector<cv::Point3d>& dst)
 {
