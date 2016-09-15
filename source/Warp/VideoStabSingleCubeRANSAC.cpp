@@ -304,8 +304,31 @@ struct FeaturePoint
         frameCount.reserve(256);
         frameCount.push_back(frameCount_);
     }
+    void addOffset()
+    {
+        int size = pos.size();
+        for (int i = 0; i < size; i++)
+            pos[i] += offsets[face];
+    }
+    void cvtToEquiRectAndRotate(const std::vector<cv::Matx33d>& rots)
+    {
+        int size = pos.size();
+        equiRectPos.resize(size);
+        equiRectRotPos.resize(size);
+        for (int i = 0; i < size; i++)
+        {
+            cv::Point3d sphere = cubeToSphere(cv::Point2d(pos[i].x, pos[i].y), cubeLength);
+            equiRectPos[i] = sphereToEquirect(sphere, halfWidth, halfHeight);
+            equiRectRotPos[i] = findRotateEquiRectangularSrc(equiRectPos[i], halfWidth, halfHeight, rots[frameCount[i]]);
+        }
+    }
     static std::vector<cv::Point2f> offsets;
+    static double cubeLength;
+    static double halfWidth;
+    static double halfHeight;
     std::vector<cv::Point2f> pos;
+    std::vector<cv::Point2d> equiRectPos;
+    std::vector<cv::Point2d> equiRectRotPos;
     std::vector<int> frameCount;
     int loss;
     int index;
@@ -313,6 +336,9 @@ struct FeaturePoint
 };
 
 std::vector<cv::Point2f> FeaturePoint::offsets;
+double FeaturePoint::cubeLength;
+double FeaturePoint::halfWidth;
+double FeaturePoint::halfHeight;
 
 static void init(const std::vector<cv::Point2f>& pts, int face, std::list<std::shared_ptr<FeaturePoint> >& feats)
 {
@@ -336,7 +362,7 @@ struct Pred
 };
 
 static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, const std::vector<unsigned char>& status,
-    int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats)
+    int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats, std::list<std::shared_ptr<FeaturePoint> >& historyFeats)
 {
     std::vector<cv::Point2f> p1, p2;
     int size = pts1.size();
@@ -356,6 +382,7 @@ static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2
         }
         else
         {
+            historyFeats.push_back(*itr);
             feats.erase(itr);
         }
     }
@@ -393,26 +420,25 @@ static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Po
 }
 
 static void addNewPoints2(std::vector<cv::Point2f>& pts, const std::vector<cv::Point2f>& candidates, int frameCount,
-    int face, int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats)
+    int face, int cubeLength, std::list<std::shared_ptr<FeaturePoint> >& feats, 
+    std::list<std::shared_ptr<FeaturePoint> >& historyFeats)
 {
     int size = pts.size();
     int sizeCandidates = candidates.size();
     std::vector<char> candUsed(sizeCandidates, 0);
     float maxSqrDist = 1000000000;
 
+    // First check whether there are new feature points should be inserted. If there are, insert them.
+    // New feature points should locate in places where there are no existing feature points nearby.
     for (int i = 0; i < sizeCandidates; i++)
     {
-        //int index = -1;
         float minSqrDist = maxSqrDist;
         for (int j = 0; j < size; j++)
         {
             cv::Point2f diff = pts[j] - candidates[i];
             float sqrDist = diff.dot(diff);
             if (sqrDist < minSqrDist)
-            {
                 minSqrDist = sqrDist;
-                //index = i;
-            }
         }
         if (minSqrDist > 1000 && candidates[i].x >= 0 && candidates[i].y >= 0 &&
             candidates[i].x < cubeLength && candidates[i].y < cubeLength)
@@ -423,6 +449,11 @@ static void addNewPoints2(std::vector<cv::Point2f>& pts, const std::vector<cv::P
         }
     }
 
+    // Then check whether there are new feature points very close to some existing feature points.
+    // If there are, use the new feature points to replace the existing feature points.
+    // New feature points are more accurate since they a computed by good feature to track algorithm.
+    // We also mark the existing feature points that do not have new feature points nearby.
+    std::vector<char> remove(size, 0);
     for (int i = 0; i < size; i++)
     {
         int index = -1;
@@ -441,7 +472,36 @@ static void addNewPoints2(std::vector<cv::Point2f>& pts, const std::vector<cv::P
         }
         if (minSqrDist < 25)
             pts[i] = candidates[index];
+        else
+            remove[i] = 1;
     }
+
+    // For the feature points marked remove, check the loss field.
+    // Delete the feature points whose loss field is larger than a threshold.
+    size = pts.size();
+    remove.resize(size, 0);
+    int ii = 0;
+    for (int i = 0; i < size; i++)
+    {
+        std::list<std::shared_ptr<FeaturePoint> >::iterator itr = std::find_if(feats.begin(), feats.end(), Pred(i));
+        if (remove[i] && ((*itr)->loss > 10))
+        {
+            historyFeats.push_back(*itr);
+            feats.erase(itr);
+        }
+        else
+        {
+            if (!remove[i])
+                (*itr)->loss = 0;
+            else
+                ((*itr)->loss)++;
+
+            pts[ii] = pts[i];
+            (*itr)->index = ii;
+            ii++;
+        }
+    }
+    pts.resize(ii);
 }
 
 static void drawFeaturePointHistory(cv::Mat& image, const FeaturePoint& pt)
@@ -579,7 +639,11 @@ int main()
     offsets.push_back(cv::Point2f(0, cubeLength));
     offsets.push_back(cv::Point2f(cubeLength, cubeLength));
     offsets.push_back(cv::Point2f(2 * cubeLength, cubeLength));
+
     FeaturePoint::offsets = offsets;
+    FeaturePoint::cubeLength = cubeLength;
+    FeaturePoint::halfWidth = frameSize.width * 0.5;
+    FeaturePoint::halfHeight = frameSize.height * 0.5;
 
     int numVideos = 6;
     cv::Mat frame, cubeFrame, gray, lastGray;
@@ -591,22 +655,23 @@ int main()
     std::vector<std::list<std::shared_ptr<FeaturePoint> > > trackPoints(numVideos);
 
     std::vector<cv::Point2f> p1, p2;
-    std::vector<std::vector<cv::Point2f> > allPoints;
+    std::vector<std::vector<cv::Point2f> > allPointsInEachFrame;
+    std::list<std::shared_ptr<FeaturePoint> > allFeaturePointsHistory;
 
     cap.read(frame);
     reprojectParallel(frame, cubeFrame, map);
     cv::cvtColor(cubeFrame, gray, CV_BGR2GRAY);
     gray.copyTo(lastGray);
     double qualityLevel = 0.05, featPointDistThresh = 50;
-    allPoints.resize(1);
+    allPointsInEachFrame.resize(1);
     for (int i = 0; i < numVideos; i++)
     {
         cv::goodFeaturesToTrack(gray(squares[i]), points1[i], 1000, qualityLevel, featPointDistThresh, detectMask);
         init(points1[i], i, trackPoints[i]);
 
         shiftPoints(points1[i], p1, offsets[i]);
-        allPoints.back().resize(allPoints.back().size() + points1[i].size());
-        std::copy(p1.begin(), p1.end(), allPoints.back().end() - points1[i].size());
+        allPointsInEachFrame.back().resize(allPointsInEachFrame.back().size() + points1[i].size());
+        std::copy(p1.begin(), p1.end(), allPointsInEachFrame.back().end() - points1[i].size());
     }
     angles.push_back(cv::Vec3d(0, 0, 0));
 
@@ -623,7 +688,7 @@ int main()
     {
         bool success = cap.read(frame);
         ++count;
-        if (count > 1000 || !success)
+        if (count > 2000 || !success)
             break;
 
         reprojectParallel(frame, cubeFrame, map);
@@ -637,16 +702,16 @@ int main()
                 status, errs, cv::Size(31, 31), 3, termCrit, 0, 0.001);
 
             //keepMatches(points1[i], points2[i], status);
-            match(points1[i], points2[i], status, cubeLength, trackPoints[i]);
+            match(points1[i], points2[i], status, cubeLength, trackPoints[i], allFeaturePointsHistory);
 
             cubeToSphere(points1[i], cubeLength, i, srcSpherePts[i]);
             cubeToSphere(points2[i], cubeLength, i, dstSpherePts[i]);
 
             //drawPoints(show, points1[i], cv::Scalar(255));
             //drawPoints(show, points2[i], cv::Scalar(0, 255));
-            shiftPoints(points1[i], p1, offsets[i]);
-            shiftPoints(points2[i], p2, offsets[i]);
-            drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
+            //shiftPoints(points1[i], p1, offsets[i]);
+            //shiftPoints(points2[i], p2, offsets[i]);
+            //drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
         }
 
         //cv::imshow("cube frame", show);
@@ -687,7 +752,7 @@ int main()
         angles.push_back(cv::Vec3d(yaw, pitch, roll));
         printf("yaw = %f, pitch = %f, roll = %f\n", yaw, pitch, roll);
 
-        allPoints.resize(allPoints.size() + 1);
+        allPointsInEachFrame.resize(allPointsInEachFrame.size() + 1);
         for (int i = 0; i < numVideos; i++)
         {
             // 1
@@ -703,24 +768,24 @@ int main()
 
             // 4
             cv::goodFeaturesToTrack(gray(squares[i]), newPoints[i], 1000, qualityLevel, featPointDistThresh, detectMask);
-            addNewPoints2(points2[i], newPoints[i], count, i, cubeLength, trackPoints[i]);
+            addNewPoints2(points2[i], newPoints[i], count, i, cubeLength, trackPoints[i], allFeaturePointsHistory);
             std::swap(points1[i], points2[i]);
 
             shiftPoints(points1[i], p1, offsets[i]);
-            allPoints.back().resize(allPoints.back().size() + points1[i].size());
-            std::copy(p1.begin(), p1.end(), allPoints.back().end() - points1[i].size());
+            allPointsInEachFrame.back().resize(allPointsInEachFrame.back().size() + points1[i].size());
+            std::copy(p1.begin(), p1.end(), allPointsInEachFrame.back().end() - points1[i].size());
 
             printf("%d ", points1[i].size());
             gray.copyTo(lastGray);
         }
         printf("\n");
 
-        for (int i = 0; i < numVideos; i++)
-        {
-            shiftPoints(newPoints[i], p1, offsets[i]);
-            drawPoints(show, p1, cv::Scalar(0, 0, 255), -1);
-        }
-        cv::imshow("show", show);
+        //for (int i = 0; i < numVideos; i++)
+        //{
+        //    shiftPoints(newPoints[i], p1, offsets[i]);
+        //    drawPoints(show, p1, cv::Scalar(0, 0, 255), -1);
+        //}
+        //cv::imshow("show", show);
 
         //for (int i = 0; i < numVideos; i++)
         //{
@@ -730,11 +795,11 @@ int main()
         //}
         //cv::imshow("match", show2);
 
-        //for (int i = 0; i < numVideos; i++)
-        //    drawFeaturPointsHistory(show2, trackPoints[i]);
-        //cv::imshow("match", show2);
+        for (int i = 0; i < numVideos; i++)
+            drawFeaturPointsHistory(show2, trackPoints[i]);
+        cv::imshow("match", show2);
 
-        int key = cv::waitKey(10);
+        int key = cv::waitKey(5);
         if (key == 'q')
         {
             quit = true;
@@ -763,7 +828,7 @@ int main()
     //frameSize = cv::Size(800, 400);
 
     const char* outPath = "stab_2.avi";
-    cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
+    //cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     cap.release();
     cap.open(videoPath);
@@ -792,15 +857,15 @@ int main()
         setRotationRM(rot, diff[0], diff[1], diff[2]);
         mapBilinear(frame, rotateImage, rot);
 
-        printf("size = %d\n", allPoints[frameCount].size());
+        printf("size = %d\n", allPointsInEachFrame[frameCount].size());
         rotateImage.copyTo(show);
-        drawPointsEquiRect(show, allPoints[frameCount], rot);
+        drawPointsEquiRect(show, allPointsInEachFrame[frameCount], rot);
         cv::imshow("show", show);
         int key = cv::waitKey(10);
         if (key == 'q')
             break;
 
-        writer.write(rotateImage);
+        //writer.write(rotateImage);
 
         frameCount++;
         if (frameCount >= maxCount)
