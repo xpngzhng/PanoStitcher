@@ -535,6 +535,38 @@ static void drawPointsEquiRect(cv::Mat& image, const std::vector<cv::Point2f>& c
     }
 }
 
+static void drawHistoryOnEquiRect(cv::Mat& image, int frameCount, const std::list<std::shared_ptr<FeaturePoint> >& pts)
+{
+    for (std::list<std::shared_ptr<FeaturePoint> >::const_iterator itr = pts.begin(), itrEnd = pts.end(); itr != itrEnd; ++itr)
+    {
+        std::vector<int>::const_iterator itrFrameCount = 
+            std::find_if((*itr)->frameCount.cbegin(), (*itr)->frameCount.cend(), [frameCount](int a){ return a == frameCount; });
+        if (itrFrameCount != (*itr)->frameCount.cend())
+        {
+            if ((*itr)->frameCount[0] == frameCount)
+            {
+                cv::circle(image, (*itr)->equiRectPos[0], 2, cv::Scalar(0, 0, 255));
+                cv::circle(image, (*itr)->equiRectRotPos[0], 2, cv::Scalar(0, 255, 255));
+                continue;
+            }
+            for (int i = 0; (*itr)->frameCount[i] < frameCount; i++)
+            {
+                cv::circle(image, (*itr)->equiRectPos[i], 2, cv::Scalar(0, 255, 255));
+                cv::circle(image, (*itr)->equiRectPos[i + 1], 2, cv::Scalar(0, 255, 255));
+                // If last and current points are near left and right boundaries, do not draw.
+                if (abs((*itr)->equiRectPos[i].x - (*itr)->equiRectPos[i + 1].x) < 100)
+                    cv::line(image, (*itr)->equiRectPos[i], (*itr)->equiRectPos[i + 1], cv::Scalar(0, 255, 255));
+
+                cv::circle(image, (*itr)->equiRectRotPos[i], 2, cv::Scalar(0, 0, 255));
+                cv::circle(image, (*itr)->equiRectRotPos[i + 1], 2, cv::Scalar(0, 0, 255));
+                // If last and current points are near left and right boundaries, do not draw.
+                if (abs((*itr)->equiRectRotPos[i].x - (*itr)->equiRectRotPos[i + 1].x) < 100)
+                    cv::line(image, (*itr)->equiRectRotPos[i], (*itr)->equiRectRotPos[i + 1], cv::Scalar(0, 0, 255));
+            }
+        }
+    }
+}
+
 static void keepMatches(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2, const std::vector<unsigned char>& status)
 {
     std::vector<cv::Point2f> p1, p2;
@@ -688,7 +720,7 @@ int main()
     {
         bool success = cap.read(frame);
         ++count;
-        if (count > 2000 || !success)
+        if (count > 3000 || !success)
             break;
 
         reprojectParallel(frame, cubeFrame, map);
@@ -775,10 +807,10 @@ int main()
             allPointsInEachFrame.back().resize(allPointsInEachFrame.back().size() + points1[i].size());
             std::copy(p1.begin(), p1.end(), allPointsInEachFrame.back().end() - points1[i].size());
 
-            printf("%d ", points1[i].size());
+            //printf("%d ", points1[i].size());
             gray.copyTo(lastGray);
         }
-        printf("\n");
+        //printf("\n");
 
         //for (int i = 0; i < numVideos; i++)
         //{
@@ -795,20 +827,31 @@ int main()
         //}
         //cv::imshow("match", show2);
 
-        for (int i = 0; i < numVideos; i++)
-            drawFeaturPointsHistory(show2, trackPoints[i]);
-        cv::imshow("match", show2);
+        //for (int i = 0; i < numVideos; i++)
+        //    drawFeaturPointsHistory(show2, trackPoints[i]);
+        //cv::imshow("match", show2);
 
-        int key = cv::waitKey(5);
-        if (key == 'q')
-        {
-            quit = true;
-            break;
-        }
+        //int key = cv::waitKey(5);
+        //if (key == 'q')
+        //{
+        //    quit = true;
+        //    break;
+        //}
     }
     if (quit)
         return 0;
     //return 0;
+
+    for (int i = 0; i < numVideos; i++)
+    {
+        for (std::list<std::shared_ptr<FeaturePoint> >::iterator itr = trackPoints[i].begin(), itrEnd = trackPoints[i].end(); itr != itrEnd; ++itr)
+            allFeaturePointsHistory.push_back(*itr);
+        trackPoints[i].clear();
+    }
+    for (std::list<std::shared_ptr<FeaturePoint> >::iterator itr = allFeaturePointsHistory.begin(), itrEnd = allFeaturePointsHistory.end(); itr != itrEnd; ++itr)
+    {
+        (*itr)->addOffset();
+    }
 
     std::vector<cv::Vec3d> anglesProc;
     smooth(angles, 30, anglesProc);
@@ -823,6 +866,13 @@ int main()
     {
         cv::Vec3d diff = anglesProcAccum[i] - anglesAccum[i];
         setRotationRM(rotMats[i], diff[0], diff[1], diff[2]);
+    }
+
+    for (std::list<std::shared_ptr<FeaturePoint> >::iterator itr = allFeaturePointsHistory.begin(), 
+                                                             itrEnd = allFeaturePointsHistory.end(); 
+         itr != itrEnd; ++itr)
+    {
+        (*itr)->cvtToEquiRectAndRotate(rotMats);
     }
 
     //frameSize = cv::Size(800, 400);
@@ -842,7 +892,7 @@ int main()
     cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
     while (true)
     {
-        printf("currCount = %d\n", frameCount);
+        //printf("currCount = %d\n", frameCount);
         bool success = cap.read(frame);
         if (!success)
             break;
@@ -857,9 +907,10 @@ int main()
         setRotationRM(rot, diff[0], diff[1], diff[2]);
         mapBilinear(frame, rotateImage, rot);
 
-        printf("size = %d\n", allPointsInEachFrame[frameCount].size());
+        //printf("size = %d\n", allPointsInEachFrame[frameCount].size());
         rotateImage.copyTo(show);
-        drawPointsEquiRect(show, allPointsInEachFrame[frameCount], rot);
+        //drawPointsEquiRect(show, allPointsInEachFrame[frameCount], rot);
+        drawHistoryOnEquiRect(show, frameCount, allFeaturePointsHistory);
         cv::imshow("show", show);
         int key = cv::waitKey(10);
         if (key == 'q')
