@@ -329,6 +329,7 @@ struct FeaturePoint
     std::vector<cv::Point2f> pos;
     std::vector<cv::Point2d> equiRectPos;
     std::vector<cv::Point2d> equiRectRotPos;
+    std::vector<cv::Point2d> equiRectRotSmoothPos;
     std::vector<int> frameCount;
     int loss;
     int index;
@@ -374,11 +375,23 @@ static void match(std::vector<cv::Point2f>& pts1, std::vector<cv::Point2f>& pts2
         if (status[i] && pts2[i].x >= 0 && pts2[i].y >= 0 &&
             pts2[i].x < cubeLength && pts2[i].y < cubeLength)
         {
-            (*itr)->index = p1.size();
-            (*itr)->pos.push_back(pts2[i]);
-            (*itr)->frameCount.push_back((*itr)->frameCount.back() + 1);
-            p1.push_back(pts1[i]);
-            p2.push_back(pts2[i]);
+            if (abs(pts1[i].x - pts2[i].x) + abs(pts1[i].y - pts2[i].y) < 30)
+            {
+                (*itr)->index = p1.size();
+                (*itr)->pos.push_back(pts2[i]);
+                (*itr)->frameCount.push_back((*itr)->frameCount.back() + 1);
+                p1.push_back(pts1[i]);
+                p2.push_back(pts2[i]);
+            }
+            else
+            {
+                printf("===================================\n");
+                printf("(%3d,%3d) (%3d,%3d)\n", int(pts1[i].x), int(pts1[i].y), int(pts2[i].x), int(pts2[i].y));
+                printf("===================================\n");
+
+                historyFeats.push_back(*itr);
+                feats.erase(itr);
+            }
         }
         else
         {
@@ -545,11 +558,13 @@ static void drawHistoryOnEquiRect(cv::Mat& image, int frameCount, const std::lis
         {
             if ((*itr)->frameCount[0] == frameCount)
             {
-                cv::circle(image, (*itr)->equiRectPos[0], 2, cv::Scalar(0, 0, 255));
-                cv::circle(image, (*itr)->equiRectRotPos[0], 2, cv::Scalar(0, 255, 255));
+                cv::circle(image, (*itr)->equiRectPos[0], 2, cv::Scalar(0, 255, 255));
+                cv::circle(image, (*itr)->equiRectRotPos[0], 2, cv::Scalar(0, 0, 255));
+                cv::circle(image, (*itr)->equiRectRotSmoothPos[0], 2, cv::Scalar(0, 255, 0));
                 continue;
             }
-            for (int i = 0; (*itr)->frameCount[i] < frameCount; i++)
+            int i;
+            for (i = 0; (*itr)->frameCount[i] < frameCount; i++)
             {
                 cv::circle(image, (*itr)->equiRectPos[i], 2, cv::Scalar(0, 255, 255));
                 cv::circle(image, (*itr)->equiRectPos[i + 1], 2, cv::Scalar(0, 255, 255));
@@ -562,6 +577,39 @@ static void drawHistoryOnEquiRect(cv::Mat& image, int frameCount, const std::lis
                 // If last and current points are near left and right boundaries, do not draw.
                 if (abs((*itr)->equiRectRotPos[i].x - (*itr)->equiRectRotPos[i + 1].x) < 100)
                     cv::line(image, (*itr)->equiRectRotPos[i], (*itr)->equiRectRotPos[i + 1], cv::Scalar(0, 0, 255));
+
+                cv::circle(image, (*itr)->equiRectRotSmoothPos[i], 2, cv::Scalar(0, 255, 0));
+                cv::circle(image, (*itr)->equiRectRotSmoothPos[i + 1], 2, cv::Scalar(0, 255, 0));
+                // If last and current points are near left and right boundaries, do not draw.
+                if (abs((*itr)->equiRectRotSmoothPos[i].x - (*itr)->equiRectRotSmoothPos[i + 1].x) < 100)
+                    cv::line(image, (*itr)->equiRectRotSmoothPos[i], (*itr)->equiRectRotSmoothPos[i + 1], cv::Scalar(0, 255, 0));
+            }
+
+            cv::line(image, (*itr)->equiRectRotPos[i], (*itr)->equiRectRotSmoothPos[i], cv::Scalar(255, 0, 0));
+        }
+    }
+}
+
+static void getCorrespondingPoints(const std::list<std::shared_ptr<FeaturePoint> >& featPts, int frameCount,
+    std::vector<cv::Point2f>& rotPts, std::vector<cv::Point2f>& smoothRotPts)
+{
+    rotPts.clear();
+    smoothRotPts.clear();
+    rotPts.reserve(100);
+    smoothRotPts.reserve(100);
+    for (std::list<std::shared_ptr<FeaturePoint> >::const_iterator itr = featPts.begin(), itrEnd = featPts.end(); itr != itrEnd; ++itr)
+    {
+        std::vector<int>::const_iterator itrFrameCount =
+            std::find_if((*itr)->frameCount.cbegin(), (*itr)->frameCount.cend(), [frameCount](int a){ return a == frameCount; });
+        if (itrFrameCount != (*itr)->frameCount.cend() && (*itr)->pos.size() > 10)
+        {
+            cv::Point2f p1 = (*itr)->equiRectRotPos[frameCount];
+            cv::Point2f p2 = (*itr)->equiRectRotSmoothPos[frameCount];
+            cv::Point2f diff = p1 - p2;
+            if (diff.dot(diff) < 100000)
+            {
+                rotPts.push_back(p1);
+                smoothRotPts.push_back(p2);
             }
         }
     }
@@ -636,6 +684,41 @@ static void addNewPoints(std::vector<cv::Point2f>& pts, const std::vector<cv::Po
             pts.push_back(candidates[index]);
     }
 }
+
+void smoothEquiRect(const std::vector<cv::Point2d>& src, const cv::Size& sz, int radius, std::vector<cv::Point2d>& dst)
+{
+    dst.clear();
+    if (src.empty())
+        return;
+    int size = src.size();
+    dst.resize(size);
+
+    double halfWidth = sz.width * 0.5, halfHeight = sz.height * 0.5;
+    std::vector<cv::Point3d> srcSphere(size), dstSphere(size);
+
+    for (int i = 0; i < size; i++)
+        srcSphere[i] = equirectToSphere(src[i], halfWidth, halfHeight);
+
+    // If from begin to end, the points travel more than a half circle,
+    // we should inverse the averaged point sign, which is not implemented.
+    for (int i = 0; i < size; i++)
+    {
+        int beg = std::max(0, i - radius);
+        int end = std::min(i + radius, size - 1);
+        cv::Point3d sum(0, 0, 0);
+        for (int j = beg; j <= end; j++)
+            sum += srcSphere[j];
+        cv::Point3d t = sum *= (1.0 / (end + 1 - beg));
+        double norm = cv::norm(t);
+        dstSphere[i] = t * (1.0 / norm);
+    }
+
+    for (int i = 0; i < size; i++)
+        dst[i] = sphereToEquirect(dstSphere[i], halfWidth, halfHeight);
+}
+
+void warpAffineMap(const std::vector<cv::Point2f>& src, const std::vector<cv::Point2f>& dst,
+    const cv::Mat& srcImage, cv::Mat& dstImage);
 
 int main()
 {
@@ -720,7 +803,7 @@ int main()
     {
         bool success = cap.read(frame);
         ++count;
-        if (count > 3000 || !success)
+        if (count > 1500 || !success)
             break;
 
         reprojectParallel(frame, cubeFrame, map);
@@ -741,13 +824,13 @@ int main()
 
             //drawPoints(show, points1[i], cv::Scalar(255));
             //drawPoints(show, points2[i], cv::Scalar(0, 255));
-            //shiftPoints(points1[i], p1, offsets[i]);
-            //shiftPoints(points2[i], p2, offsets[i]);
-            //drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
+            shiftPoints(points1[i], p1, offsets[i]);
+            shiftPoints(points2[i], p2, offsets[i]);
+            drawPoints(show, p1, p2, 255, cv::Scalar(0, 255));
         }
 
-        //cv::imshow("cube frame", show);
-        //int key = cv::waitKey(10);
+        cv::imshow("cube frame", show);
+        int key = cv::waitKey(10);
         //if (key == 'q')
         //{
         //    quit = true;
@@ -873,6 +956,7 @@ int main()
          itr != itrEnd; ++itr)
     {
         (*itr)->cvtToEquiRectAndRotate(rotMats);
+        smoothEquiRect((*itr)->equiRectRotPos, frameSize, 30, (*itr)->equiRectRotSmoothPos);
     }
 
     //frameSize = cv::Size(800, 400);
@@ -883,7 +967,9 @@ int main()
     cap.release();
     cap.open(videoPath);
 
-    cv::Mat rotateImage;
+    std::vector<cv::Point2f> rotPts, smoothRotPts;
+
+    cv::Mat rotateImage, warpImage;
     int frameCount = 0;
     int maxCount = angles.size();
     std::vector<cv::Mat> srcImages(numVideos);
@@ -907,12 +993,16 @@ int main()
         setRotationRM(rot, diff[0], diff[1], diff[2]);
         mapBilinear(frame, rotateImage, rot);
 
+        //getCorrespondingPoints(allFeaturePointsHistory, frameCount, rotPts, smoothRotPts);
+        //warpAffineMap(rotPts, smoothRotPts, rotateImage, warpImage);
+
         //printf("size = %d\n", allPointsInEachFrame[frameCount].size());
         rotateImage.copyTo(show);
         //drawPointsEquiRect(show, allPointsInEachFrame[frameCount], rot);
         drawHistoryOnEquiRect(show, frameCount, allFeaturePointsHistory);
         cv::imshow("show", show);
-        int key = cv::waitKey(10);
+        //cv::imshow("warp", warpImage);
+        int key = cv::waitKey(0);
         if (key == 'q')
             break;
 
@@ -925,3 +1015,4 @@ int main()
 
     return 0;
 }
+

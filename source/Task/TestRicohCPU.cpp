@@ -19,7 +19,7 @@ int main()
     avp::AudioVideoReader reader;
     //reader.open("F:\\QQRecord\\452103256\\FileRecv\\vlc-record-2016-06-16-13h42m11s-rtsp___192.168.1.254-.mp4", false, true, avp::PixelTypeBGR24);
     //reader.open("F:\\panovideo\\ricoh\\R0010113.MP4", false, true, avp::PixelTypeBGR24);
-    reader.open("F:\\panovideo\\ricoh m15\\R0010128.MOV", false, true, avp::PixelTypeBGR24);
+    reader.open("F:\\panovideo\\ricoh m15\\R0010129.MOV", false, true, avp::PixelTypeBGR24);
 
     cv::Size dstSize = cv::Size(2048, 1024);
     cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
