@@ -732,3 +732,102 @@ void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda:
     cudaSafeCall(cudaUnbindTexture(ymapTexture));
     cudaSafeCall(cudaUnbindTexture(weightTexture));
 }
+
+__constant__ double MATH_PI = 3.1415926535898;
+__constant__ double MATH_HALF_PI = 3.1415926535898 * 0.5;
+__constant__ double rotateMat[9];
+
+__device__ __forceinline__ int deviceFloor(double val)
+{
+    if (val >= 0) return (int)val;
+    else return (int)(val) - 1;
+}
+
+template<typename DstElemType>
+__global__ void rotateEquiRectKernel(const unsigned char* dstData, int dstStep, int width, int height)
+{
+    int dstx = threadIdx.x + blockIdx.x * blockDim.x;
+    int dsty = threadIdx.y + blockIdx.y * blockDim.y;
+    if (dstx >= width || dsty >= height)
+        return;
+
+    double halfWidth = width * 0.5, halfHeight = height * 0.5;
+    double theta = MATH_PI - (dsty + 0.5) / halfHeight * MATH_HALF_PI;
+    double phi = ((dstx + 0.5) - halfWidth) / halfWidth * MATH_PI;
+
+    double srcx = sin(theta) * sin(phi), srcy = cos(theta), srcz = sin(theta) * cos(phi);
+
+    double srcxx = rotateMat[0] * srcx + rotateMat[1] * srcy + rotateMat[2] * srcz;
+    double srcyy = rotateMat[3] * srcx + rotateMat[4] * srcy + rotateMat[5] * srcz;
+    double srczz = rotateMat[6] * srcx + rotateMat[7] * srcy + rotateMat[8] * srcz;
+
+    theta = acos(srcyy) / MATH_HALF_PI;
+    phi = atan2(srcxx, srczz) / MATH_PI;
+
+    srcx = halfWidth + phi * halfWidth - 0.5;
+    srcy = halfHeight * (2 - theta) - 0.5;
+
+    DstElemType* ptrDst = (DstElemType*)(dstData + dsty * dstStep) + dstx * 4;
+
+    int x0 = deviceFloor(srcx), y0 = deviceFloor(srcy);
+    int x1 = x0 + 1, y1 = y0 + 1;
+    int deltax0 = (srcx - x0) * BILINEAR_UNIT, deltax1 = BILINEAR_UNIT - deltax0;
+    int deltay0 = (srcy - y0) * BILINEAR_UNIT, deltay1 = BILINEAR_UNIT - deltay0;
+    if (x0 < 0) x0 = width - 1;
+    if (x1 >= width) x1 = 0;
+    if (y0 < 0) y0 = 0;
+    if (y1 >= height) y1 = height - 1;
+    int b = 0, g = 0, r = 0, w = 0;
+    uchar4 val;
+
+    val = tex2D(srcTexture, x0, y0);
+    w = deltax1 * deltay1;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = tex2D(srcTexture, x1, y0);
+    w = deltax0 * deltay1;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = tex2D(srcTexture, x0, y1);
+    w = deltax1 * deltay0;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    val = tex2D(srcTexture, x1, y1);
+    w = deltax0 * deltay0;
+    b += val.x * w;
+    g += val.y * w;
+    r += val.z * w;
+
+    ptrDst[0] = b >> BILINEAR_INTER_BACK_SHIFT;
+    ptrDst[1] = g >> BILINEAR_INTER_BACK_SHIFT;
+    ptrDst[2] = r >> BILINEAR_INTER_BACK_SHIFT;
+    ptrDst[3] = 0;
+}
+
+void cudaRotateEquiRect(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Matx33d& rot)
+{
+    CV_Assert(src.data && src.type() == CV_8UC4);
+    CV_Assert(src.rows / 2 == 0 && src.cols == src.rows * 2);
+
+    int width = src.cols, height = src.rows;
+    dst.create(height, width, CV_8UC4);
+
+    cv::Matx33d invRot = rot.t();
+    cudaMemcpyToSymbol(rotateMat, invRot.val, sizeof(invRot.val));
+
+    cudaChannelFormatDesc chanDescUchar4 = cudaCreateChannelDesc<uchar4>();
+    cudaSafeCall(cudaBindTexture2D(NULL, srcTexture, src.data, chanDescUchar4, src.cols, src.rows, src.step));
+
+    dim3 block(16, 16);
+    dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
+    rotateEquiRectKernel<unsigned char><<<grid, block>>>(dst.data, dst.step, width, height);
+    cudaSafeCall(cudaGetLastError());
+
+    cudaSafeCall(cudaUnbindTexture(srcTexture));
+}

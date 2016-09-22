@@ -112,6 +112,8 @@ private:
 
 void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std::vector<unsigned char>& lut);
 
+void cudaTransform(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const std::vector<std::vector<unsigned char> >& luts);
+
 void cudaGenerateReprojectMap(const PhotoParam& param,
     const cv::Size& srcSize, const cv::Size& dstSize, cv::cuda::GpuMat& xmap, cv::cuda::GpuMat& ymap);
 
@@ -139,6 +141,8 @@ void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
 void cudaReprojectWeightedAccumulateTo32F(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst,
     const cv::cuda::GpuMat& xmap, const cv::cuda::GpuMat& ymap, const cv::cuda::GpuMat& weight,
     cv::cuda::Stream& stream = cv::cuda::Stream::Null());
+
+void cudaRotateEquiRect(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Matx33d& rot);
 
 void alphaBlend8UC4(cv::cuda::GpuMat& target, const cv::cuda::GpuMat& blender);
 

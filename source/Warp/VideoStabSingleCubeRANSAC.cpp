@@ -3,8 +3,11 @@
 #include "Stabilize.h"
 #include "ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "CudaAccel/CudaInterface.h"
 #include "Tool/Timer.h"
+#include "AudioVideoProcessor.h"
 #include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/features2d.hpp"
@@ -115,7 +118,7 @@ static void shiftPoints(const std::vector<PointType>& src, std::vector<PointType
         dst[i] = src[i] + offset;
 }
 
-int main1()
+int main()
 {
     //cv::Ptr<cv::AKAZE> ptrOrb = cv::AKAZE::create(cv::AKAZE::DESCRIPTOR_MLDB, 0, 1/*250*/);
     cv::Ptr<cv::ORB> ptrOrb = cv::ORB::create(250);
@@ -258,9 +261,49 @@ int main1()
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     cap.release();
-    cap.open(videoPath);
+    //cap.open(videoPath);
 
-    cv::Mat rotateImage;
+    //cv::Mat rotateImage;
+    //int frameCount = 0;
+    //int maxCount = angles.size();
+    //std::vector<cv::Mat> srcImages(numVideos);
+    //std::vector<cv::Mat> dstImages, compImages;
+    //ztool::Timer timer;
+    //cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    //while (true)
+    //{
+    //    printf("currCount = %d\n", frameCount);
+    //    bool success = cap.read(frame);
+    //    if (!success)
+    //        break;
+
+    //    accumOrig += angles[frameCount];
+    //    accumProc += anglesProc[frameCount];
+    //    printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+    //        accumOrig[0], accumOrig[1], accumOrig[2],
+    //        accumProc[0], accumProc[1], accumProc[2]);
+    //    cv::Vec3d diff = accumProc - accumOrig;
+    //    cv::Matx33d rot;
+    //    setRotationRM(rot, diff[0], diff[1], diff[2]);
+    //    mapBilinear(frame, rotateImage, rot);
+
+    //    writer.write(rotateImage);
+
+    //    frameCount++;
+    //    if (frameCount >= maxCount)
+    //        break;
+    //}
+
+    avp::AudioVideoReader3 r;
+    r.open(videoPath, false, 0, true, avp::PixelTypeBGR32);
+
+    cv::cuda::HostMem srcFrameMem(frameSize, CV_8UC4), dstFrameMem(frameSize, CV_8UC4);
+    unsigned char* data[4] = { srcFrameMem.data, 0, 0, 0 };
+    int steps[4] = { srcFrameMem.step, 0, 0, 0 };
+    avp::AudioVideoFrame2 f(data, steps, avp::PixelTypeBGR32, frameSize.width, frameSize.height, -1LL, -1), dummy;
+    cv::cuda::GpuMat srcGpuImage, dstGpuImage;
+
+    cv::Mat rotateImage, rotateImageC3;
     int frameCount = 0;
     int maxCount = angles.size();
     std::vector<cv::Mat> srcImages(numVideos);
@@ -270,7 +313,8 @@ int main1()
     while (true)
     {
         printf("currCount = %d\n", frameCount);
-        bool success = cap.read(frame);
+        int mediaType;
+        bool success = r.readTo(dummy, f, mediaType);
         if (!success)
             break;
 
@@ -282,9 +326,16 @@ int main1()
         cv::Vec3d diff = accumProc - accumOrig;
         cv::Matx33d rot;
         setRotationRM(rot, diff[0], diff[1], diff[2]);
-        mapBilinear(frame, rotateImage, rot);
+        //mapBilinear(frame, rotateImage, rot);
 
-        writer.write(rotateImage);
+        cv::Mat srcCpu = srcFrameMem.createMatHeader();
+        srcGpuImage.upload(srcCpu);
+        cudaRotateEquiRect(srcGpuImage, dstGpuImage, rot);
+        dstGpuImage.download(dstFrameMem);
+        rotateImage = dstFrameMem.createMatHeader();
+
+        cv::cvtColor(rotateImage, rotateImageC3, CV_BGRA2BGR);
+        writer.write(rotateImageC3);
 
         frameCount++;
         if (frameCount >= maxCount)
@@ -563,6 +614,7 @@ static void drawHistoryOnEquiRect(cv::Mat& image, int frameCount, const std::lis
                 cv::circle(image, (*itr)->equiRectRotSmoothPos[0], 2, cv::Scalar(0, 255, 0));
                 continue;
             }
+
             int i;
             for (i = 0; (*itr)->frameCount[i] < frameCount; i++)
             {
@@ -720,7 +772,7 @@ void smoothEquiRect(const std::vector<cv::Point2d>& src, const cv::Size& sz, int
 void warpAffineMap(const std::vector<cv::Point2f>& src, const std::vector<cv::Point2f>& dst,
     const cv::Mat& srcImage, cv::Mat& dstImage);
 
-int main()
+int main2()
 {
     const char* videoPath = "F:\\QQRecord\\452103256\\FileRecv\\mergetest2new.avi";
     cv::VideoCapture cap(videoPath);

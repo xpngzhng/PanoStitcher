@@ -303,8 +303,8 @@ inline cv::Point2d findRotateEquiRectangularSrc(const cv::Point& dst, double hal
 
 inline cv::Point2d findRotateEquiRectangularSrc(const cv::Point2d& dst, double halfWidth, double halfHeight, const cv::Matx33d& invRot)
 {
-    double theta = PI - (dst.y + 0.5) / halfHeight * HALF_PI;
-    double phi = ((dst.x + 0.5) - halfWidth) / halfWidth * PI;
+    double theta = PI - (dst.y) / halfHeight * HALF_PI;
+    double phi = ((dst.x) - halfWidth) / halfWidth * PI;
     cv::Point3d pt(sin(theta) * sin(phi), cos(theta), sin(theta) * cos(phi));
     pt = invRot * pt;
     theta = acos(pt.y) / HALF_PI;
