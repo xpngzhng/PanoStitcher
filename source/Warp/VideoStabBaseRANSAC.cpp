@@ -3,8 +3,10 @@
 #include "Stabilize.h"
 #include "ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "CudaAccel/CudaInterface.h"
 #include "Tool/Timer.h"
 #include "opencv2/core.hpp"
+#include "opencv2/core/cuda.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/features2d.hpp"
@@ -155,7 +157,7 @@ int main()
 
     int count = 0;
 
-    cv::Mat showCombined(height, width, CV_8UC3);
+    cv::Mat showCombined(frameSize.height, frameSize.width, CV_8UC3);
     while (true)
     {
         bool success = true;
@@ -168,7 +170,7 @@ int main()
             }
         }
         ++count;
-        if (count > 500 || !success)
+        if (count > 2500 || !success)
             break;
 
         //showCombined.setTo(0);
@@ -177,15 +179,16 @@ int main()
             cv::cvtColor(frames[i], gray, CV_BGR2GRAY);
             ptrOrb->detectAndCompute(gray, cv::Mat(), pointsCurr[i], descsCurr[i]);
             matcher.match(descsPrev[i], descsCurr[i], matches[i]);
+            filterMatches(pointsPrev[i], pointsCurr[i], matches[i], 50);
             extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points1[i], srcEquiRectPts[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points2[i], dstEquiRectPts[i]);
-            //drawDirection(srcEquiRectPts[i], dstEquiRectPts[i], showCombined);
+            drawDirection(srcEquiRectPts[i], dstEquiRectPts[i], showCombined);
             equirectToSphere(srcEquiRectPts[i], width, height, srcSpherePts[i]);
             equirectToSphere(dstEquiRectPts[i], width, height, dstSpherePts[i]);
         }
         //cv::imshow("show", showCombined);
-        //cv::waitKey(15);
+        //cv::waitKey(0);
 
         int pointCount = 0;
         for (int i = 0; i < numVideos; i++)
@@ -302,7 +305,8 @@ int main()
     const char* outPath = "stab_exposure_color_correct_2.avi";
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
-    
+    // rotate reproject adjust blend
+    /*
     TilingMultibandBlendFast blender;
     blender.prepare(dstMasks, 16, 2);
 
@@ -343,7 +347,7 @@ int main()
 
         ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
         for (int i = 0; i < numVideos; i++)
-        transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
+            transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
 
         //timer.start();
         printf("blend:\n");
@@ -357,8 +361,9 @@ int main()
         if (frameCount >= maxCount)
             break;
     }
+    */
     
-
+    // reproject adjust blend rotate
     /*
     TilingMultibandBlendFast blender;
     blender.prepare(dstMasks, 16, 2);
@@ -417,6 +422,7 @@ int main()
     }
     */
 
+    // rotate reproject adjust blend
     /*
     BlendConfig config;
     config.setBlendMultiBand(8, 4);
@@ -474,6 +480,162 @@ int main()
             break;
     }
     */
+
+    // reproject adjust blend rotate
+    /*
+    TilingMultibandBlendFast blender;
+    blender.prepare(dstMasks, 16, 2);
+
+    cv::Mat blendImage;
+    int frameCount = 0;
+    int maxCount = angles.size();
+    std::vector<cv::Mat> srcImages(numVideos);
+    std::vector<cv::Mat> dstImages, compImages;
+    ztool::Timer timer;
+    cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    cv::Mat remapFrame;
+    while (true)
+    {
+        printf("currCount = %d\n", frameCount);
+        bool success = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (!caps[i].read(srcImages[i]))
+            {
+                success = false;
+                break;
+            }
+        }
+        if (!success)
+            break;
+
+        accumOrig += angles[frameCount];
+        accumProc += anglesProc[frameCount];
+        printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+            accumOrig[0], accumOrig[1], accumOrig[2],
+            accumProc[0], accumProc[1], accumProc[2]);
+        cv::Vec3d diff = accumProc - accumOrig;
+
+        printf("reproject:\n");
+        reprojectParallel(srcImages, dstImages, dstSrcMaps);
+
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+            transform(dstImages[i], dstImages[i], luts[i], dstMasks[i]);
+
+        //timer.start();
+        printf("blend:\n");
+        blender.blend(dstImages, blendImage);
+        //timer.end();
+        //printf("%f\n", timer.elapse());
+
+        cv::Matx33d rot;
+        setRotationRM(rot, diff[0], diff[1], diff[2]);
+        mapBilinear(blendImage, remapFrame, rot);
+        writer.write(remapFrame);
+
+        frameCount++;
+        if (frameCount >= maxCount)
+            break;
+    }
+    */
+
+    // cuda reproject adjust blend rotate
+    frameSize.width = 2048;
+    frameSize.height = 1024;
+    writer.open(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
+    CudaTilingMultibandBlendFast blender;
+    getReprojectMapsAndMasks(params, srcSize, frameSize, dstSrcMaps, dstMasks);
+    blender.prepare(dstMasks, 10, 4);
+
+    std::vector<cv::cuda::HostMem> srcHostMems(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        srcHostMems[i].create(srcSize, CV_8UC4);
+
+    std::vector<cv::cuda::GpuMat> xmapsGpu, ymapsGpu;
+    cudaGenerateReprojectMaps(params, srcSize, frameSize, xmapsGpu, ymapsGpu);
+
+    std::vector<cv::cuda::GpuMat> srcImagesGpu(numVideos), procImagesGpu(numVideos), masksGpu(numVideos);
+    cv::cuda::GpuMat blendImageGpu, rotateImageGpu;
+    cv::cuda::HostMem blendMem(frameSize, CV_8UC4);
+    std::vector<cv::cuda::Stream> streams(numVideos);
+
+    cv::Mat blendImageC4 = blendMem.createMatHeader(), blendImage;
+    cv::Mat showImage, showMask;
+    int frameCount = 0;
+    int maxCount = angles.size();
+    ztool::Timer timer;
+    cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    cv::Mat temp;
+    while (true)
+    {
+        printf("currCount = %d\n", frameCount);
+        bool success = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            /*if (!readers[i].readTo(dummy, srcFrames[i], mediaType))
+            {
+                success = false;
+                break;
+            }*/
+            if (!caps[i].read(temp))
+            {
+                success = false;
+                break;
+            }
+            cv::cvtColor(temp, srcHostMems[i].createMatHeader(), CV_BGR2BGRA);
+        }
+        if (!success)
+            break;
+
+        accumOrig += angles[frameCount];
+        accumProc += anglesProc[frameCount];
+        //printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+        //    accumOrig[0], accumOrig[1], accumOrig[2],
+        //    accumProc[0], accumProc[1], accumProc[2]);
+        cv::Vec3d diff = accumProc - accumOrig;
+
+        //printf("reproject:\n");
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+            srcImagesGpu[i].upload(srcHostMems[i].createMatHeader(), streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaTransform(srcImagesGpu[i], srcImagesGpu[i], luts[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaReprojectTo16S(srcImagesGpu[i], procImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            streams[i].waitForCompletion();
+
+        //for (int i = 0; i < numVideos; i++)
+        //{
+        //    procImagesGpu[i].download(showImage);
+        //    masksGpu[i].download(showMask);
+        //    showImage.setTo(cv::Scalar::all(0), showMask);
+        //    cv::imshow("image", showImage);
+        //    cv::imshow("mask", showMask);
+        //    cv::waitKey(0);
+        //}
+
+        //timer.start();
+        //printf("blend:\n");
+        blender.blend(procImagesGpu, blendImageGpu);
+        //timer.end();
+        //printf("%f\n", timer.elapse());
+
+        cv::Matx33d rot;
+        setRotationRM(rot, diff[0], diff[1], diff[2]);
+        cudaRotateEquiRect(blendImageGpu, rotateImageGpu, rot);
+
+        rotateImageGpu.download(blendImageC4);
+        cv::cvtColor(blendImageC4, blendImage, CV_BGRA2BGR);
+
+        writer.write(blendImage);
+
+        frameCount++;
+        if (frameCount >= maxCount)
+            break;
+    }
+
     
     return 0;
 }

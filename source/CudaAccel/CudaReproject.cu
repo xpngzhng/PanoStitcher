@@ -575,6 +575,32 @@ __global__ void reprojectCubicNoMapKernel(unsigned char* dstData,
         resampling(srcWidth, srcHeight, srcx, srcy, ptrDst);
 }
 
+template<typename DstElemType>
+__global__ void reprojectCubicNoMapKernel(unsigned char* dstData,int dstStep, 
+    unsigned char* maskData, int maskStep, int dstWidth, int dstHeight, int srcWidth, int srcHeight)
+{
+    int dstx = threadIdx.x + blockIdx.x * blockDim.x;
+    int dsty = threadIdx.y + blockIdx.y * blockDim.y;
+    if (dstx >= dstWidth || dsty >= dstHeight)
+        return;
+
+    float srcx, srcy;
+    dstToSrc(&srcx, &srcy, dstx, dsty, dstWidth, dstHeight);
+
+    DstElemType* ptrDst = (DstElemType*)(dstData + dsty * dstStep) + dstx * 4;
+    unsigned char* ptrMask = maskData + dsty * maskStep + dstx;
+    if (srcx < 0 || srcx >= srcWidth || srcy < 0 || srcy >= srcHeight)
+    {
+        ptrDst[3] = ptrDst[2] = ptrDst[1] = ptrDst[0] = 0;
+        *ptrMask = 0;
+    }
+    else
+    {
+        resampling(srcWidth, srcHeight, srcx, srcy, ptrDst);
+        *ptrMask = 255;
+    }        
+}
+
 __global__ void reprojectWeightedAccumulate(unsigned char* dstData,
     int dstWidth, int dstHeight, int dstStep, int srcWidth, int srcHeight)
 {
@@ -636,6 +662,50 @@ void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cons
     dim3 block(16, 16);
     dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
     reprojectCubicNoMapKernel<short><<<grid, block, 0, st>>>(dst.data, dstSize.width, dstSize.height, dst.step, src.cols, src.rows);
+    cudaSafeCall(cudaGetLastError());
+
+    cudaSafeCall(cudaUnbindTexture(srcTexture));
+}
+
+void cudaReproject(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& mask,
+    const cv::Size& dstSize, const PhotoParam& param, cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_8UC4);
+
+    prepareConstantRemapParam(param, src.size(), dstSize);
+    dst.create(dstSize, CV_8UC4);
+    mask.create(dstSize, CV_8UC1);
+
+    cudaChannelFormatDesc chanDescUchar4 = cudaCreateChannelDesc<uchar4>();
+    cudaSafeCall(cudaBindTexture2D(NULL, srcTexture, src.data, chanDescUchar4, src.cols, src.rows, src.step));
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    dim3 block(16, 16);
+    dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
+    reprojectCubicNoMapKernel<unsigned char><<<grid, block, 0, st>>>(dst.data, dst.step, 
+        mask.data, mask.step, dstSize.width, dstSize.height, src.cols, src.rows);
+    cudaSafeCall(cudaGetLastError());
+
+    cudaSafeCall(cudaUnbindTexture(srcTexture));
+}
+
+void cudaReprojectTo16S(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, cv::cuda::GpuMat& mask,
+    const cv::Size& dstSize, const PhotoParam& param, cv::cuda::Stream& stream)
+{
+    CV_Assert(src.data && src.type() == CV_8UC4);
+
+    prepareConstantRemapParam(param, src.size(), dstSize);
+    dst.create(dstSize, CV_16SC4);
+    mask.create(dstSize, CV_8UC1);
+
+    cudaChannelFormatDesc chanDescUchar4 = cudaCreateChannelDesc<uchar4>();
+    cudaSafeCall(cudaBindTexture2D(NULL, srcTexture, src.data, chanDescUchar4, src.cols, src.rows, src.step));
+
+    cudaStream_t st = cv::cuda::StreamAccessor::getStream(stream);
+    dim3 block(16, 16);
+    dim3 grid((dstSize.width + block.x - 1) / block.x, (dstSize.height + block.y - 1) / block.y);
+    reprojectCubicNoMapKernel<short><<<grid, block, 0, st>>>(dst.data, dst.step,
+        mask.data, mask.step, dstSize.width, dstSize.height, src.cols, src.rows);
     cudaSafeCall(cudaGetLastError());
 
     cudaSafeCall(cudaUnbindTexture(srcTexture));
@@ -813,7 +883,7 @@ __global__ void rotateEquiRectKernel(const unsigned char* dstData, int dstStep, 
 void cudaRotateEquiRect(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst, const cv::Matx33d& rot)
 {
     CV_Assert(src.data && src.type() == CV_8UC4);
-    CV_Assert(src.rows / 2 == 0 && src.cols == src.rows * 2);
+    CV_Assert(src.rows % 2 == 0 && src.cols == src.rows * 2);
 
     int width = src.cols, height = src.rows;
     dst.create(height, width, CV_8UC4);
