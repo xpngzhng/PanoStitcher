@@ -400,6 +400,59 @@ void CudaTilingMultibandBlend::blend(const std::vector<cv::cuda::GpuMat>& images
     end(blendImage);
 }
 
+void CudaTilingMultibandBlend::blendAndCompensate(const std::vector<cv::cuda::GpuMat>& images,
+    const std::vector<cv::cuda::GpuMat>& masks, cv::cuda::GpuMat& blendImage)
+{
+    if (!success)
+        return;
+
+    CV_Assert(images.size() == numImages && masks.size() == numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        CV_Assert(images[i].data && (images[i].type() == CV_8UC4 || images[i].type() == CV_16SC4) &&
+            images[i].rows == rows && images[i].cols == cols &&
+            masks[i].data && masks[i].type() == CV_8UC1 &&
+            masks[i].rows == rows && masks[i].cols == cols);
+    }
+
+    remain.create(rows, cols, CV_8UC1);
+    remain.setTo(0);
+    adjustMasks.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        and8UC1(masks[i], uniqueMasks[i], adjustMasks[i]);
+        or8UC1(remain, adjustMasks[i], remain);
+    }
+    not8UC1(remain, remain);
+
+    matchArea.create(rows, cols, CV_8UC1);
+    for (int i = 0; i < numImages; i++)
+    {
+        and8UC1(masks[i], remain, matchArea);
+        or8UC1(adjustMasks[i], matchArea, adjustMasks[i]);
+        subtract8UC1(remain, matchArea, remain);
+    }
+
+    begin();
+    for (int i = 0; i < numImages; i++)
+    {
+        if (images[i].type() == CV_8UC4)
+            images[i].convertTo(image16S, CV_16S);
+        else
+            images[i].copyTo(image16S);
+        aux16S.create(rows, cols, CV_16SC1);
+        aux16S.setTo(0);
+        aux16S.setTo(256, masks[i]);
+        createLaplacePyramidPrecise(image16S, aux16S, numLevels, true,
+            imagePyr, image32SPyr, alphaPyr, alpha32SPyr, imageUpPyr);
+        aux16S.setTo(0);
+        aux16S.setTo(256, adjustMasks[i]);
+        createGaussPyramid(aux16S, numLevels, true, weightPyr);
+        accumulate(imagePyr, weightPyr, resultPyr, resultWeightPyr);
+    }
+    end(blendImage);
+}
+
 long long int CudaTilingMultibandBlend::calcUsedMemorySize() const
 {
     if (!success)

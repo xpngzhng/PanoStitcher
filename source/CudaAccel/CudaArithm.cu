@@ -224,6 +224,31 @@ void or8UC1(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuM
     //cudaSafeCall(cudaDeviceSynchronize());
 }
 
+__global__ void and8UC1(const unsigned char* aData, int aStep, const unsigned char* bData, int bStep,
+    unsigned char* cData, int cStep, int rows, int cols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < cols && y < rows)
+    {
+        getRowPtr<unsigned char>(cData, cStep, y)[x] = getElem<unsigned char>(aData, aStep, y, x) & getElem<unsigned char>(bData, bStep, y, x);
+    }
+}
+
+void and8UC1(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c)
+{
+    CV_Assert(a.data && a.type() == CV_8UC1 &&
+        b.data && b.type() == CV_8UC1 && a.size() == b.size());
+
+    c.create(a.size(), CV_8UC1);
+
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
+    and8UC1<<<grid, block>>>(a.data, a.step, b.data, b.step, c.data, c.step, a.rows, a.cols);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
 __global__ void not8UC1(const unsigned char* srcData, int srcStep, unsigned char* dstData, int dstStep,
     int rows, int cols)
 {
@@ -244,6 +269,31 @@ void not8UC1(const cv::cuda::GpuMat& src, cv::cuda::GpuMat& dst)
     const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
     const dim3 grid(cv::cuda::device::divUp(src.cols, block.x), cv::cuda::device::divUp(src.rows, block.y));
     not8UC1<<<grid, block>>>(src.data, src.step, dst.data, dst.step, src.rows, src.cols);
+    //cudaSafeCall(cudaGetLastError());
+    //cudaSafeCall(cudaDeviceSynchronize());
+}
+
+__global__ void subtract8UC1(const unsigned char* aData, int aStep, const unsigned char* bData, int bStep,
+    unsigned char* cData, int cStep, int rows, int cols)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < cols && y < rows)
+    {
+        getRowPtr<unsigned char>(cData, cStep, y)[x] = getElem<unsigned char>(aData, aStep, y, x) - getElem<unsigned char>(bData, bStep, y, x);
+    }
+}
+
+void subtract8UC1(const cv::cuda::GpuMat& a, const cv::cuda::GpuMat& b, cv::cuda::GpuMat& c)
+{
+    CV_Assert(a.data && a.type() == CV_8UC1 &&
+        b.data && b.type() == CV_8UC1 && a.size() == b.size());
+
+    c.create(a.size(), CV_8UC1);
+
+    const dim3 block(UTIL_BLOCK_WIDTH, UTIL_BLOCK_HEIGHT);
+    const dim3 grid(cv::cuda::device::divUp(a.cols, block.x), cv::cuda::device::divUp(a.rows, block.y));
+    subtract8UC1<<<grid, block>>>(a.data, a.step, b.data, b.step, c.data, c.step, a.rows, a.cols);
     //cudaSafeCall(cudaGetLastError());
     //cudaSafeCall(cudaDeviceSynchronize());
 }

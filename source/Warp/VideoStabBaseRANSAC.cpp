@@ -541,6 +541,7 @@ int main()
     */
 
     // cuda reproject adjust blend rotate
+    /*
     frameSize.width = 2048;
     frameSize.height = 1024;
     writer.open(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
@@ -573,11 +574,6 @@ int main()
         bool success = true;
         for (int i = 0; i < numVideos; i++)
         {
-            /*if (!readers[i].readTo(dummy, srcFrames[i], mediaType))
-            {
-                success = false;
-                break;
-            }*/
             if (!caps[i].read(temp))
             {
                 success = false;
@@ -606,16 +602,6 @@ int main()
         for (int i = 0; i < numVideos; i++)
             streams[i].waitForCompletion();
 
-        //for (int i = 0; i < numVideos; i++)
-        //{
-        //    procImagesGpu[i].download(showImage);
-        //    masksGpu[i].download(showMask);
-        //    showImage.setTo(cv::Scalar::all(0), showMask);
-        //    cv::imshow("image", showImage);
-        //    cv::imshow("mask", showMask);
-        //    cv::waitKey(0);
-        //}
-
         //timer.start();
         //printf("blend:\n");
         blender.blend(procImagesGpu, blendImageGpu);
@@ -627,6 +613,84 @@ int main()
         cudaRotateEquiRect(blendImageGpu, rotateImageGpu, rot);
 
         rotateImageGpu.download(blendImageC4);
+        cv::cvtColor(blendImageC4, blendImage, CV_BGRA2BGR);
+
+        writer.write(blendImage);
+
+        frameCount++;
+        if (frameCount >= maxCount)
+            break;
+    }
+    */
+
+    // cuda rotate reproject adjust blend
+    frameSize.width = 2048;
+    frameSize.height = 1024;
+    writer.open(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
+    CudaTilingMultibandBlend blender;
+    getReprojectMapsAndMasks(params, srcSize, frameSize, dstSrcMaps, dstMasks);
+    blender.prepare(dstMasks, 10, 4);
+
+    std::vector<cv::cuda::HostMem> srcHostMems(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        srcHostMems[i].create(srcSize, CV_8UC4);
+
+    std::vector<cv::cuda::GpuMat> srcImagesGpu(numVideos), procImagesGpu(numVideos), masksGpu(numVideos);
+    cv::cuda::GpuMat blendImageGpu;
+    cv::cuda::HostMem blendMem(frameSize, CV_8UC4);
+    std::vector<cv::cuda::Stream> streams(numVideos);
+
+    cv::Mat blendImageC4 = blendMem.createMatHeader(), blendImage;
+    cv::Mat showImage, showMask;
+    int frameCount = 0;
+    int maxCount = angles.size();
+    ztool::Timer timer;
+    cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    cv::Mat temp;
+    while (true)
+    {
+        printf("currCount = %d\n", frameCount);
+        bool success = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            if (!caps[i].read(temp))
+            {
+                success = false;
+                break;
+            }
+            cv::cvtColor(temp, srcHostMems[i].createMatHeader(), CV_BGR2BGRA);
+        }
+        if (!success)
+            break;
+
+        accumOrig += angles[frameCount];
+        accumProc += anglesProc[frameCount];
+        //printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+        //    accumOrig[0], accumOrig[1], accumOrig[2],
+        //    accumProc[0], accumProc[1], accumProc[2]);
+        cv::Vec3d diff = accumProc - accumOrig;
+
+        std::vector<PhotoParam> currParams = params;
+        rotateCameras(currParams, diff[0], diff[1], diff[2]);
+
+        //printf("reproject:\n");
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es[frameCount], rsProc[frameCount], bsProc[frameCount], luts);
+        for (int i = 0; i < numVideos; i++)
+            srcImagesGpu[i].upload(srcHostMems[i].createMatHeader(), streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaTransform(srcImagesGpu[i], srcImagesGpu[i], luts[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaReprojectTo16S(srcImagesGpu[i], procImagesGpu[i], masksGpu[i], frameSize, currParams[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            streams[i].waitForCompletion();
+
+        //timer.start();
+        //printf("blend:\n");
+        blender.blendAndCompensate(procImagesGpu, masksGpu, blendImageGpu);
+        //timer.end();
+        //printf("%f\n", timer.elapse());
+
+        blendImageGpu.download(blendImageC4);
         cv::cvtColor(blendImageC4, blendImage, CV_BGRA2BGR);
 
         writer.write(blendImage);

@@ -13,6 +13,8 @@ public:
     void tile(const cv::cuda::GpuMat& image, int index);
     void end(cv::cuda::GpuMat& blendImage);
     void blend(const std::vector<cv::cuda::GpuMat>& images, cv::cuda::GpuMat& blendImage);
+    void blendAndCompensate(const std::vector<cv::cuda::GpuMat>& images, 
+        const std::vector<cv::cuda::GpuMat>& masks, cv::cuda::GpuMat& blendImage);
     long long int calcUsedMemorySize() const;
     static long long int estimateMemorySize(int width, int height, int numImages);
 
@@ -32,6 +34,8 @@ private:
     std::vector<cv::cuda::GpuMat> weightPyr, resultWeightPyr;
     // ---in imagePyr---, ---in alphaPyr---, W * H * 1 * 1
     cv::cuda::GpuMat image16S, aux16S, maskNot;
+    std::vector<cv::cuda::GpuMat> adjustMasks;
+    cv::cuda::GpuMat remain, matchArea;
     int numImages;
     int rows, cols;
     int numLevels;
