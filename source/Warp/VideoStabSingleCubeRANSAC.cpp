@@ -261,39 +261,40 @@ int main()
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     cap.release();
-    //cap.open(videoPath);
+#if 0
+    cap.open(videoPath);
 
-    //cv::Mat rotateImage;
-    //int frameCount = 0;
-    //int maxCount = angles.size();
-    //std::vector<cv::Mat> srcImages(numVideos);
-    //std::vector<cv::Mat> dstImages, compImages;
-    //ztool::Timer timer;
-    //cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
-    //while (true)
-    //{
-    //    printf("currCount = %d\n", frameCount);
-    //    bool success = cap.read(frame);
-    //    if (!success)
-    //        break;
+    cv::Mat rotateImage;
+    int frameCount = 0;
+    int maxCount = angles.size();
+    std::vector<cv::Mat> srcImages(numVideos);
+    std::vector<cv::Mat> dstImages, compImages;
+    ztool::Timer timer;
+    cv::Vec3d accumOrig(0, 0, 0), accumProc(0, 0, 0);
+    while (true)
+    {
+        printf("currCount = %d\n", frameCount);
+        bool success = cap.read(frame);
+        if (!success)
+            break;
 
-    //    accumOrig += angles[frameCount];
-    //    accumProc += anglesProc[frameCount];
-    //    printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
-    //        accumOrig[0], accumOrig[1], accumOrig[2],
-    //        accumProc[0], accumProc[1], accumProc[2]);
-    //    cv::Vec3d diff = accumProc - accumOrig;
-    //    cv::Matx33d rot;
-    //    setRotationRM(rot, diff[0], diff[1], diff[2]);
-    //    mapBilinear(frame, rotateImage, rot);
+        accumOrig += angles[frameCount];
+        accumProc += anglesProc[frameCount];
+        printf("accumOrig = (%f, %f, %f), accumProc = (%f, %f, %f)\n",
+            accumOrig[0], accumOrig[1], accumOrig[2],
+            accumProc[0], accumProc[1], accumProc[2]);
+        cv::Vec3d diff = accumProc - accumOrig;
+        cv::Matx33d rot;
+        setRotationRM(rot, diff[0], diff[1], diff[2]);
+        mapBilinear(frame, rotateImage, rot);
 
-    //    writer.write(rotateImage);
+        writer.write(rotateImage);
 
-    //    frameCount++;
-    //    if (frameCount >= maxCount)
-    //        break;
-    //}
-
+        frameCount++;
+        if (frameCount >= maxCount)
+            break;
+    }
+#else
     avp::AudioVideoReader3 r;
     r.open(videoPath, false, 0, true, avp::PixelTypeBGR32);
 
@@ -341,6 +342,7 @@ int main()
         if (frameCount >= maxCount)
             break;
     }
+#endif
 
     return 0;
 }
