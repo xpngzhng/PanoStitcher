@@ -66,106 +66,6 @@ static void smooth(const std::vector<std::vector<double> >& src, int radius, std
     }
 }
 
-struct FeatureDetectAndMatch
-{
-    FeatureDetectAndMatch(std::vector<cv::Mat>& frames_, std::vector<PhotoParam>& params_, 
-    std::vector<cv::Mat>& descsPrev_, std::vector<cv::Mat>& descsCurr_,
-    std::vector<std::vector<cv::KeyPoint> >& pointsPrev_, std::vector<std::vector<cv::KeyPoint> >& pointsCurr_,
-    std::vector<std::vector<cv::DMatch> >& matches_,
-    std::vector<std::vector<cv::Point2d> >& points1_, std::vector<std::vector<cv::Point2d> >& points2_,
-    std::vector<std::vector<cv::Point2d> >& srcEquiRectPts_, std::vector<std::vector<cv::Point2d> >& dstEquiRectPts_,
-    std::vector<std::vector<cv::Point3d> >& srcSpherePts_, std::vector<std::vector<cv::Point3d> >& dstSpherePts_,
-    cv::Size srcSize, cv::Size dstSize)
-    : frames(frames_), params(params_), descsPrev(descsPrev_), descsCurr(descsCurr_),
-      pointsPrev(pointsPrev_), pointsCurr(pointsCurr_), matches(matches_),
-      points1(points1_), points2(points2_), srcEquiRectPts(srcEquiRectPts_), dstEquiRectPts(dstEquiRectPts_),
-      srcSpherePts(srcSpherePts_), dstSpherePts(dstSpherePts_)
-    {
-        frameSize = dstSize;
-        width = srcSize.width;
-        height = srcSize.height;
-
-        numImages = frames.size();
-        grays.resize(numImages);
-        for (int i = 0; i < numImages; i++)
-        {
-            ptrOrbs.push_back(cv::ORB::create(250));
-            ptrMatchers.push_back(new cv::BFMatcher(cv::NORM_L2, true));
-        }
-
-        pass = 0;
-        atmVal.store(numImages);
-        for (int i = 0; i < numImages; i++)
-            threads.emplace_back(std::thread(&FeatureDetectAndMatch::runThread, this, i));
-    }
-
-    void start()
-    {
-        atmVal.store(0);
-        condStart.notify_all();
-    }
-
-    void runThread(int i)
-    {
-        while (true)
-        {
-            std::unique_lock<std::mutex> lg(mtxStart);
-            condStart.wait(lg);
-            if (pass)
-                break;
-
-            cv::cvtColor(frames[i], grays[i], CV_BGR2GRAY);
-            ptrOrbs[i]->detectAndCompute(grays[i], cv::Mat(), pointsCurr[i], descsCurr[i]);
-            ptrMatchers[i]->match(descsPrev[i], descsCurr[i], matches[i]);
-            filterMatches(pointsPrev[i], pointsCurr[i], matches[i], 50);
-            extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
-            toEquiRect(params[i], frames[i].size(), frameSize, points1[i], srcEquiRectPts[i]);
-            toEquiRect(params[i], frames[i].size(), frameSize, points2[i], dstEquiRectPts[i]);
-            equirectToSphere(srcEquiRectPts[i], width, height, srcSpherePts[i]);
-            equirectToSphere(dstEquiRectPts[i], width, height, dstSpherePts[i]);
-
-            atmVal.fetch_add(1);
-            if (atmVal.load() == numImages)
-                condWait.notify_all();
-        }
-    }
-
-    void waitForCompletion()
-    {
-        std::unique_lock<std::mutex> lg(mtxWait);
-        condWait.wait(lg, [this]{ return atmVal.load() == numImages; });
-    }
-
-    void finish()
-    {
-        pass = 1;
-        condStart.notify_all();
-        for (int i = 0; i < numImages; i++)
-            threads[i].join();
-    }
-
-    std::vector<cv::Ptr<cv::ORB> > ptrOrbs;
-    std::vector<cv::Ptr<cv::BFMatcher> > ptrMatchers;
-    std::vector<cv::Mat> grays;
-    std::vector<PhotoParam> params;
-    std::vector<cv::Mat>& frames;
-    std::vector<cv::Mat>& descsPrev, & descsCurr;
-    std::vector<std::vector<cv::KeyPoint> >& pointsPrev, & pointsCurr;
-    std::vector<std::vector<cv::DMatch> >& matches;
-    std::vector<std::vector<cv::Point2d> >& points1, & points2;
-    std::vector<std::vector<cv::Point2d> >& srcEquiRectPts, & dstEquiRectPts;
-    std::vector<std::vector<cv::Point3d> >& srcSpherePts, & dstSpherePts;
-    int width, height;
-    cv::Size frameSize;
-    std::vector<std::thread> threads;
-    std::mutex mtxStart, mtxWait;
-    std::condition_variable condStart, condWait;
-    std::atomic<int> atmVal;
-    int pass;
-    int numImages;
-
-};
-
 int main()
 {
     cv::Ptr<cv::ORB> ptrOrb = cv::ORB::create(250);
@@ -244,9 +144,6 @@ int main()
     std::vector<cv::Point3d> src, dst;
     std::vector<unsigned char> mask;
 
-    //FeatureDetectAndMatch fdm(frames, params, descsPrev, descsCurr, pointsPrev, pointsCurr, matches, 
-    //    points1, points2, srcEquiRectPts, dstEquiRectPts, srcSpherePts, dstSpherePts, srcSize, frameSize);
-
     for (int i = 0; i < numVideos; i++)
     {
         caps[i].read(frames[i]);
@@ -301,9 +198,6 @@ int main()
         }
         //cv::imshow("show", showCombined);
         //cv::waitKey(0);
-
-        //fdm.start();
-        //fdm.waitForCompletion();
         t.end();
         timeElapse.push_back(t.elapse());
 
@@ -356,7 +250,6 @@ int main()
         printf("detect %f, estimate rotate %f, reproject %f, correct %f\n",
             timeElapse[0], timeElapse[1], timeElapse[2], t.elapse());
     }
-    //fdm.finish();
 
     for (int i = 0; i < numVideos; i++)
     {
