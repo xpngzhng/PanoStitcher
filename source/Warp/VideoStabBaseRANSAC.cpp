@@ -14,6 +14,10 @@
 #include <iostream>
 #include <utility>
 #include <fstream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 void mapBilinear(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot);
 void mapNearestNeighbor(const cv::Mat& src, cv::Mat& dst, const cv::Matx33d& rot);
@@ -62,11 +66,111 @@ static void smooth(const std::vector<std::vector<double> >& src, int radius, std
     }
 }
 
+struct FeatureDetectAndMatch
+{
+    FeatureDetectAndMatch(std::vector<cv::Mat>& frames_, std::vector<PhotoParam>& params_, 
+    std::vector<cv::Mat>& descsPrev_, std::vector<cv::Mat>& descsCurr_,
+    std::vector<std::vector<cv::KeyPoint> >& pointsPrev_, std::vector<std::vector<cv::KeyPoint> >& pointsCurr_,
+    std::vector<std::vector<cv::DMatch> >& matches_,
+    std::vector<std::vector<cv::Point2d> >& points1_, std::vector<std::vector<cv::Point2d> >& points2_,
+    std::vector<std::vector<cv::Point2d> >& srcEquiRectPts_, std::vector<std::vector<cv::Point2d> >& dstEquiRectPts_,
+    std::vector<std::vector<cv::Point3d> >& srcSpherePts_, std::vector<std::vector<cv::Point3d> >& dstSpherePts_,
+    cv::Size srcSize, cv::Size dstSize)
+    : frames(frames_), params(params_), descsPrev(descsPrev_), descsCurr(descsCurr_),
+      pointsPrev(pointsPrev_), pointsCurr(pointsCurr_), matches(matches_),
+      points1(points1_), points2(points2_), srcEquiRectPts(srcEquiRectPts_), dstEquiRectPts(dstEquiRectPts_),
+      srcSpherePts(srcSpherePts_), dstSpherePts(dstSpherePts_)
+    {
+        frameSize = dstSize;
+        width = srcSize.width;
+        height = srcSize.height;
+
+        numImages = frames.size();
+        grays.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+        {
+            ptrOrbs.push_back(cv::ORB::create(250));
+            ptrMatchers.push_back(new cv::BFMatcher(cv::NORM_L2, true));
+        }
+
+        pass = 0;
+        atmVal.store(numImages);
+        for (int i = 0; i < numImages; i++)
+            threads.emplace_back(std::thread(&FeatureDetectAndMatch::runThread, this, i));
+    }
+
+    void start()
+    {
+        atmVal.store(0);
+        condStart.notify_all();
+    }
+
+    void runThread(int i)
+    {
+        while (true)
+        {
+            std::unique_lock<std::mutex> lg(mtxStart);
+            condStart.wait(lg);
+            if (pass)
+                break;
+
+            cv::cvtColor(frames[i], grays[i], CV_BGR2GRAY);
+            ptrOrbs[i]->detectAndCompute(grays[i], cv::Mat(), pointsCurr[i], descsCurr[i]);
+            ptrMatchers[i]->match(descsPrev[i], descsCurr[i], matches[i]);
+            filterMatches(pointsPrev[i], pointsCurr[i], matches[i], 50);
+            extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
+            toEquiRect(params[i], frames[i].size(), frameSize, points1[i], srcEquiRectPts[i]);
+            toEquiRect(params[i], frames[i].size(), frameSize, points2[i], dstEquiRectPts[i]);
+            equirectToSphere(srcEquiRectPts[i], width, height, srcSpherePts[i]);
+            equirectToSphere(dstEquiRectPts[i], width, height, dstSpherePts[i]);
+
+            atmVal.fetch_add(1);
+            if (atmVal.load() == numImages)
+                condWait.notify_all();
+        }
+    }
+
+    void waitForCompletion()
+    {
+        std::unique_lock<std::mutex> lg(mtxWait);
+        condWait.wait(lg, [this]{ return atmVal.load() == numImages; });
+    }
+
+    void finish()
+    {
+        pass = 1;
+        condStart.notify_all();
+        for (int i = 0; i < numImages; i++)
+            threads[i].join();
+    }
+
+    std::vector<cv::Ptr<cv::ORB> > ptrOrbs;
+    std::vector<cv::Ptr<cv::BFMatcher> > ptrMatchers;
+    std::vector<cv::Mat> grays;
+    std::vector<PhotoParam> params;
+    std::vector<cv::Mat>& frames;
+    std::vector<cv::Mat>& descsPrev, & descsCurr;
+    std::vector<std::vector<cv::KeyPoint> >& pointsPrev, & pointsCurr;
+    std::vector<std::vector<cv::DMatch> >& matches;
+    std::vector<std::vector<cv::Point2d> >& points1, & points2;
+    std::vector<std::vector<cv::Point2d> >& srcEquiRectPts, & dstEquiRectPts;
+    std::vector<std::vector<cv::Point3d> >& srcSpherePts, & dstSpherePts;
+    int width, height;
+    cv::Size frameSize;
+    std::vector<std::thread> threads;
+    std::mutex mtxStart, mtxWait;
+    std::condition_variable condStart, condWait;
+    std::atomic<int> atmVal;
+    int pass;
+    int numImages;
+
+};
+
 int main()
 {
     cv::Ptr<cv::ORB> ptrOrb = cv::ORB::create(250);
     cv::BFMatcher matcher(cv::NORM_L2, true);
-    const char* videoPath = "F:\\QQRecord\\452103256\\FileRecv\\mergetest2new.avi";
+    const char* videoPath = "F:\\QQRecord\\452103256\\FileRecv\\mergetest1new.avi";
     cv::VideoCapture cap(videoPath);
     int numFrames = cap.get(CV_CAP_PROP_FRAME_COUNT);
     cap.release();
@@ -82,8 +186,8 @@ int main()
     cv::Size frameSize = cv::Size(1280, 640);
 
     std::vector<PhotoParam> params;
-    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
-    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml", params);
+    loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test1\\changtai_cam_param.xml", params);
+    //loadPhotoParamFromXML("F:\\QQRecord\\452103256\\FileRecv\\test2\\changtai.xml", params);
 
     std::vector<cv::Mat> dstMasks;
     std::vector<cv::Mat> dstSrcMaps;
@@ -92,29 +196,29 @@ int main()
     ExposureColorCorrect correct;
     correct.prepare(dstMasks);
 
-    //std::vector<std::string> srcVideoNames;
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
-    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
-    //int numVideos = srcVideoNames.size();
-
-    //int offset[] = { 563, 0, 268, 651, 91, 412 };
-    //int numSkip = 2100;
-
     std::vector<std::string> srcVideoNames;
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
-    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0087.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0108.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0118.mp4");
+    srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0518.mp4");
     int numVideos = srcVideoNames.size();
 
-    int offset[] = {554, 0, 436, 1064, 164, 785};
-    int numSkip = 3000;
+    int offset[] = { 563, 0, 268, 651, 91, 412 };
+    int numSkip = 2100;
+
+    //std::vector<std::string> srcVideoNames;
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0080.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0101.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0112.mp4");
+    //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0512.mp4");
+    //int numVideos = srcVideoNames.size();
+
+    //int offset[] = {554, 0, 436, 1064, 164, 785};
+    //int numSkip = 3000;
 
     std::vector<cv::VideoCapture> caps(numVideos);
     for (int i = 0; i < numVideos; i++)
@@ -140,20 +244,8 @@ int main()
     std::vector<cv::Point3d> src, dst;
     std::vector<unsigned char> mask;
 
-    // detect
-    //std::vector<cv::cuda::GpuMat> dXMapsGpu(numVideos), dYMapsGpu(numVideos);
-    //std::vector<cv::cuda::GpuMat> dFramesGpu(numVideos), dReprojFramesGpu(numVideos);
-    //std::vector<cv::cuda::HostMem> dFrameMems(numVideos), dReprojFrameMems(numVideos);
-    //std::vector<cv::Mat> dFrames(numVideos), dReprojFrames(numVideos);
-    //std::vector<cv::cuda::Stream> dStreams(numVideos);
-    //cudaGenerateReprojectMaps(params, srcSize, frameSize, dXMapsGpu, dYMapsGpu);
-    //for (int i = 0; i < numVideos; i++)
-    //{
-    //    dFrameMems[i].create(srcSize, CV_8UC4);
-    //    dReprojFrameMems[i].create(frameSize, CV_8UC4);
-    //    dFrames[i] = dFrameMems[i].createMatHeader();
-    //    dReprojFrames[i] = dReprojFrameMems[i].createMatHeader();
-    //}
+    //FeatureDetectAndMatch fdm(frames, params, descsPrev, descsCurr, pointsPrev, pointsCurr, matches, 
+    //    points1, points2, srcEquiRectPts, dstEquiRectPts, srcSpherePts, dstSpherePts, srcSize, frameSize);
 
     for (int i = 0; i < numVideos; i++)
     {
@@ -171,10 +263,13 @@ int main()
     bs.push_back(b);
 
     int count = 0;
+    ztool::Timer t;
+    std::vector<double> timeElapse;
 
     cv::Mat showCombined(frameSize.height, frameSize.width, CV_8UC3);
     while (true)
     {
+        printf("count %d\n", count);
         bool success = true;
         for (int i = 0; i < numVideos; i++)
         {
@@ -185,9 +280,11 @@ int main()
             }
         }
         ++count;
-        if (count > 2500 || !success)
+        if (/*count > 2500 ||*/ !success)
             break;
 
+        timeElapse.clear();
+        t.start();
         //showCombined.setTo(0);
         for (int i = 0; i < numVideos; i++)
         {
@@ -198,12 +295,17 @@ int main()
             extractMatchPoints(pointsPrev[i], pointsCurr[i], matches[i], points1[i], points2[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points1[i], srcEquiRectPts[i]);
             toEquiRect(params[i], frames[i].size(), frameSize, points2[i], dstEquiRectPts[i]);
-            drawDirection(srcEquiRectPts[i], dstEquiRectPts[i], showCombined);
+            //drawDirection(srcEquiRectPts[i], dstEquiRectPts[i], showCombined);
             equirectToSphere(srcEquiRectPts[i], width, height, srcSpherePts[i]);
             equirectToSphere(dstEquiRectPts[i], width, height, dstSpherePts[i]);
         }
         //cv::imshow("show", showCombined);
         //cv::waitKey(0);
+
+        //fdm.start();
+        //fdm.waitForCompletion();
+        t.end();
+        timeElapse.push_back(t.elapse());
 
         int pointCount = 0;
         for (int i = 0; i < numVideos; i++)
@@ -222,6 +324,7 @@ int main()
             itrDst = std::copy(dstSpherePts[i].begin(), dstSpherePts[i].end(), itrDst);
         }
 
+        t.start();
         cv::Matx33d currRot;
         cv::Point3d currTranslation;
         double yaw, pitch, roll;
@@ -229,7 +332,9 @@ int main()
         getRigidTransformRANSAC(src, dst, currRot, currTranslation, mask);
         getRotationRM(currRot, yaw, pitch, roll);
         angles.push_back(cv::Vec3d(yaw, pitch, roll));
-        printf("yaw = %f, pitch = %f, roll = %f\n", yaw, pitch, roll);
+        t.end();
+        timeElapse.push_back(t.elapse());
+        //printf("yaw = %f, pitch = %f, roll = %f\n", yaw, pitch, roll);
 
         for (int i = 0; i < numVideos; i++)
         {
@@ -237,26 +342,21 @@ int main()
             cv::swap(descsCurr[i], descsPrev[i]);
         }
 
+        t.start();
         reprojectParallel(frames, reprojFrames, dstSrcMaps);
-
-        //for (int i = 0; i < numVideos; i++)
-        //    cv::cvtColor(frames[i], dFrames[i], CV_BGR2BGRA);
-        //for (int i = 0; i < numVideos; i++)
-        //    dFramesGpu[i].upload(dFrames[i], dStreams[i]);
-        //for (int i = 0; i < numVideos; i++)
-        //    cudaReproject(dFramesGpu[i], dReprojFramesGpu[i], dXMapsGpu[i], dYMapsGpu[i], dStreams[i]);
-        //for (int i = 0; i < numVideos; i++)
-        //    dReprojFramesGpu[i].download(dReprojFrames[i], dStreams[i]);
-        //for (int i = 0; i < numVideos; i++)
-        //    dStreams[i].waitForCompletion();
-        //for (int i = 0; i < numVideos; i++)
-        //    cv::cvtColor(dReprojFrames[i], reprojFrames[i], CV_BGRA2BGR);
-
+        t.end();
+        timeElapse.push_back(t.elapse());
+        t.start();
         correct.correctExposureAndWhiteBalance(reprojFrames, e, r, b);
         es.push_back(e);
         rs.push_back(r);
         bs.push_back(b);
+        t.end();
+
+        printf("detect %f, estimate rotate %f, reproject %f, correct %f\n",
+            timeElapse[0], timeElapse[1], timeElapse[2], t.elapse());
     }
+    //fdm.finish();
 
     for (int i = 0; i < numVideos; i++)
     {
@@ -331,7 +431,7 @@ int main()
 
     //frameSize = cv::Size(800, 400);
 
-    const char* outPath = "stab_exposure_color_correct_2.avi";
+    const char* outPath = "stab_exposure_color_correct_1.avi";
     cv::VideoWriter writer(outPath, CV_FOURCC('X', 'V', 'I', 'D'), 48, frameSize);
 
     // rotate reproject adjust blend
