@@ -1256,7 +1256,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
             if (correct)
             {
                 for (int i = 0; i < numImages; i++)
-                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+                    cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i], streams[i]);
             }
             for (int i = 0; i < numImages; i++)
                 cudaReprojectWeightedAccumulateTo32F(srcImagesGPU[i], accumGPU, dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], weightsGPU[i], streams[i]);
@@ -1283,7 +1283,7 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
                 if (correct)
                 {
                     for (int i = 0; i < numImages; i++)
-                        cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i]);
+                        cudaTransform(srcImagesGPU[i], srcImagesGPU[i], luts[i], streams[i]);
                 }
                 for (int i = 0; i < numImages; i++)
                     cudaReprojectTo16S(srcImagesGPU[i], reprojImagesGPU[i], dstSrcXMapsGPU[i], dstSrcYMapsGPU[i], streams[i]);

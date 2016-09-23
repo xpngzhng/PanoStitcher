@@ -140,6 +140,21 @@ int main()
     std::vector<cv::Point3d> src, dst;
     std::vector<unsigned char> mask;
 
+    // detect
+    //std::vector<cv::cuda::GpuMat> dXMapsGpu(numVideos), dYMapsGpu(numVideos);
+    //std::vector<cv::cuda::GpuMat> dFramesGpu(numVideos), dReprojFramesGpu(numVideos);
+    //std::vector<cv::cuda::HostMem> dFrameMems(numVideos), dReprojFrameMems(numVideos);
+    //std::vector<cv::Mat> dFrames(numVideos), dReprojFrames(numVideos);
+    //std::vector<cv::cuda::Stream> dStreams(numVideos);
+    //cudaGenerateReprojectMaps(params, srcSize, frameSize, dXMapsGpu, dYMapsGpu);
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    dFrameMems[i].create(srcSize, CV_8UC4);
+    //    dReprojFrameMems[i].create(frameSize, CV_8UC4);
+    //    dFrames[i] = dFrameMems[i].createMatHeader();
+    //    dReprojFrames[i] = dReprojFrameMems[i].createMatHeader();
+    //}
+
     for (int i = 0; i < numVideos; i++)
     {
         caps[i].read(frames[i]);
@@ -223,6 +238,20 @@ int main()
         }
 
         reprojectParallel(frames, reprojFrames, dstSrcMaps);
+
+        //for (int i = 0; i < numVideos; i++)
+        //    cv::cvtColor(frames[i], dFrames[i], CV_BGR2BGRA);
+        //for (int i = 0; i < numVideos; i++)
+        //    dFramesGpu[i].upload(dFrames[i], dStreams[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    cudaReproject(dFramesGpu[i], dReprojFramesGpu[i], dXMapsGpu[i], dYMapsGpu[i], dStreams[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    dReprojFramesGpu[i].download(dReprojFrames[i], dStreams[i]);
+        //for (int i = 0; i < numVideos; i++)
+        //    dStreams[i].waitForCompletion();
+        //for (int i = 0; i < numVideos; i++)
+        //    cv::cvtColor(dReprojFrames[i], reprojFrames[i], CV_BGRA2BGR);
+
         correct.correctExposureAndWhiteBalance(reprojFrames, e, r, b);
         es.push_back(e);
         rs.push_back(r);
