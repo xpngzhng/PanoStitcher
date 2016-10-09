@@ -26,7 +26,6 @@
     <ClInclude Include="..\..\source\Warp\RotateImage.h" />
     <ClInclude Include="..\..\source\Warp\Rotation.h" />
     <ClInclude Include="..\..\source\Warp\Stabilize.h" />
-    <ClInclude Include="..\..\source\Warp\Timer.h" />
     <ClInclude Include="..\..\source\Warp\ZReproject.h" />
   </ItemGroup>
   <ItemGroup>

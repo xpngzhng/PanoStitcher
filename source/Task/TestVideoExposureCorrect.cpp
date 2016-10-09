@@ -1,6 +1,8 @@
+#include "RicohUtil.h"
 #include "PanoramaTaskUtil.h"
 #include "Warp/ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "CudaAccel/CudaInterface.h"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
@@ -77,7 +79,7 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
     std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
 // main 1
-int main()
+int main1()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
@@ -376,6 +378,222 @@ int main2()
         avp::AudioVideoFrame2 f(data, steps, avp::PixelTypeBGR24, dstSize.width, dstSize.height, -1LL);
         writer.write(f);
         
+        count++;
+        //if (count >= 200)
+        //    break;
+
+        printf("write %d/%d\n", count, validFrameCount);
+    }
+
+    writer.close();
+
+    return 0;
+}
+
+// main 3
+int main()
+{
+    std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
+        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
+        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/
+        "F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs";
+
+    std::vector<std::string> fileNames;
+    std::vector<int> offsets;
+    loadVideoFileNamesAndOffset(configFileName, fileNames, offsets);
+
+    int numVideos = fileNames.size();
+    //int globalOffset = 1095;
+    int globalOffset = 0;
+    for (int i = 0; i < numVideos; i++)
+        offsets[i] += globalOffset;
+    int readSkipCount = 3;
+    int interval = readSkipCount + 1;
+
+    std::vector<avp::AudioVideoReader3> readers;
+    cv::Size srcSize;
+    int audioIndex, validFrameCount;
+    prepareSrcVideos(fileNames, avp::PixelTypeBGR24, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
+
+    cv::Size dstSize(1280, 640);
+    std::vector<PhotoParam> photoParams;
+    loadPhotoParams(configFileName, photoParams);
+    std::vector<cv::Mat> masks, maps;
+    getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
+
+    std::vector<cv::Mat> images(numVideos), reprojImages(numVideos);
+
+    ExposureColorCorrect correct;
+    correct.prepare(masks);
+
+    std::vector<std::vector<double> > exposures, reds, blues;
+    exposures.reserve(validFrameCount / readSkipCount + 20);
+    reds.reserve(validFrameCount / readSkipCount + 20);
+    blues.reserve(validFrameCount / readSkipCount + 20);
+
+    int numAnalyze = validFrameCount / interval + 1;
+    int analyzeCount = 0;
+    std::vector<avp::AudioVideoFrame2> frames(numVideos);
+    while (true)
+    {
+        bool ok = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            ok = readers[i].read(frames[i]);
+            if (!ok)
+            {
+                break;
+            }
+        }
+        if (!ok)
+            break;
+
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%6d", frames[i].frameIndex);
+        //printf("\n");
+
+        for (int i = 0; i < numVideos; i++)
+            images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
+        reprojectParallel(images, reprojImages, maps);
+
+        std::vector<double> es, bs, rs;
+        correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
+        exposures.push_back(es);
+        reds.push_back(rs);
+        blues.push_back(bs);
+
+        printf("e: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", es[i]);
+        printf("\nr: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", rs[i]);
+        printf("\nb: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", bs[i]);
+        printf("\n");
+
+        for (int i = 0; i < numVideos; i++)
+        {
+            for (int j = 0; j < readSkipCount; j++)
+            {
+                ok = readers[i].read(frames[i]);
+                if (!ok)
+                {
+                    break;
+                }
+            }
+        }
+        if (!ok)
+            break;
+        analyzeCount++;
+        if (analyzeCount % 10 == 0)
+            printf("analyze %d\n", analyzeCount);
+    }
+
+    printf("analyze finish\n");
+
+    //return 0;
+
+    dstSize.width = 2048, dstSize.height = 1024;
+    avp::AudioVideoWriter3 writer;
+    writer.open("video1.mp4", "", false, false, "", 0, 0, 0, 0,
+        true, "h264_qsv", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
+    prepareSrcVideos(fileNames, avp::PixelTypeBGR32, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
+    getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
+
+    std::vector<cv::cuda::GpuMat> xmapsGpu, ymapsGpu;
+    cudaGenerateReprojectMaps(photoParams, srcSize, dstSize, xmapsGpu, ymapsGpu);
+
+    std::vector<cv::cuda::Stream> streams(numVideos);
+    std::vector<cv::cuda::HostMem> srcFrameMems(numVideos);
+    std::vector<avp::AudioVideoFrame2> srcFrames(numVideos);
+    std::vector<cv::Mat> srcImagesCpu(numVideos);
+    std::vector<cv::cuda::GpuMat> srcImagesGpu(numVideos), reprojImagesGpu(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        srcFrameMems[i].create(srcSize, CV_8UC4);
+        unsigned char* data[4] = { srcFrameMems[i].data, 0, 0, 0 };
+        int steps[4] = { srcFrameMems[i].step, 0, 0, 0 };
+        srcFrames[i] = avp::AudioVideoFrame2(data, steps, avp::PixelTypeBGR32, srcSize.width, srcSize.height, -1LL, -1);
+        srcImagesCpu[i] = srcFrameMems[i].createMatHeader();
+    }
+
+    CudaTilingMultibandBlendFast blender;
+    blender.prepare(masks, 8, 32);
+
+    printf("offsets: ");
+    for (int i = 0; i < numVideos; i++)
+        printf("%3d ", offsets[i]);
+    printf("\n");
+
+    avp::AudioVideoFrame2 dummyAudioFrame;
+    cv::cuda::HostMem blendMem(dstSize, CV_8UC4);
+    cv::Mat blendImageCpu = blendMem.createMatHeader();
+    cv::cuda::GpuMat blendImageGpu;
+    unsigned char* data[4] = { 0 };
+    int steps[4] = { 0 };
+    int count = 0;
+    int frameMediaType;
+    while (true)
+    {
+        bool ok = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            ok = readers[i].readTo(dummyAudioFrame, srcFrames[i], frameMediaType);
+            if (!ok)
+            {
+                break;
+            }
+        }
+        if (!ok)
+            break;
+
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%6d", srcFrames[i].frameIndex);
+        //printf("\n");
+
+        std::vector<double> currExpo(numVideos), currBlue(numVideos), currRed(numVideos);
+        int index = count / interval;
+        int nextIndex = index + 1;
+        if (nextIndex < exposures.size())
+        {
+            for (int i = 0; i < numVideos; i++)
+            {
+                double lambda = double(nextIndex * interval - count) / interval;
+                double compLambda = 1 - lambda;
+                currExpo[i] = exposures[index][i] * lambda + exposures[nextIndex][i] * compLambda;
+                currBlue[i] = blues[index][i] * lambda + blues[nextIndex][i] * compLambda;
+                currRed[i] = reds[index][i] * lambda + blues[nextIndex][i] * compLambda;
+            }
+        }
+        else
+        {
+            currExpo = exposures.back();
+            currBlue = blues.back();
+            currRed = reds.back();
+        }
+
+        std::vector<std::vector<std::vector<unsigned char> > > luts;
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(currExpo, currRed, currBlue, luts);
+        
+        for (int i = 0; i < numVideos; i++)
+            srcImagesGpu[i].upload(srcImagesCpu[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaTransform(srcImagesGpu[i], srcImagesGpu[i], luts[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            cudaReprojectTo16S(srcImagesGpu[i], reprojImagesGpu[i], xmapsGpu[i], ymapsGpu[i], streams[i]);
+        for (int i = 0; i < numVideos; i++)
+            streams[i].waitForCompletion();
+
+        blender.blend(reprojImagesGpu, blendImageGpu);
+        blendImageGpu.download(blendImageCpu);
+
+        data[0] = blendImageCpu.data;
+        steps[0] = blendImageCpu.step;
+        avp::AudioVideoFrame2 f(data, steps, avp::PixelTypeBGR32, dstSize.width, dstSize.height, -1LL);
+        writer.write(f);
+
         count++;
         //if (count >= 200)
         //    break;
