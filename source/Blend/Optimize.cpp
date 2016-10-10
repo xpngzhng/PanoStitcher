@@ -1,5 +1,5 @@
 #include "ZBlend.h"
-#include "ZReproject.h"
+#include "Warp/ZReproject.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -142,9 +142,9 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
 
     int minValThresh = 5, maxValThresh = 250;
     int gradThresh = 3;
-    cv::RNG_MT19937 rng(cv::getTickCount());
+    cv::RNG_MT19937 rng(cv::getTickCount()/*0xffffffff*/);
     int numTrials = 8000 * 5;
-    int expectNumPairs = 1000 * 5;
+    int expectNumPairs = 100 * 5;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
@@ -455,11 +455,12 @@ enum OptimizeParamType
 
 enum ExposureType
 {
-    EMOR = 0,
-    GAMMA = 1
+    NONE = 0,
+    EMOR = 1,
+    GAMMA = 2
 };
 
-static const int exposureType = GAMMA;
+static const int exposureType = NONE;
 
 struct ImageInfo
 {
@@ -473,7 +474,8 @@ struct ImageInfo
         memset(emorCoeffs, 0, sizeof(emorCoeffs));
         memset(radialVignettCoeffs, 0, sizeof(radialVignettCoeffs));
         radialVignettCoeffs[0] = 1;
-        exposureExponent = 0;
+        //exposureExponent = 0;
+        exposureExponent = 1;
         gamma = 1;
         whiteBalanceRed = 1;
         whiteBalanceBlue = 1;
@@ -482,12 +484,14 @@ struct ImageInfo
 
     double getExposure() const
     {
-        return 1.0 / pow(2.0, exposureExponent);
+        //return 1.0 / pow(2.0, exposureExponent);
+        return exposureExponent;
     }
 
     void setExposure(double e)
     {
-        exposureExponent = log2(1 / e);
+        //exposureExponent = log2(1 / e);
+        exposureExponent = e;
     }
 
     int static getNumParams(int optimizeWhat, int exposureType) 
@@ -497,8 +501,10 @@ struct ImageInfo
         {
             if (exposureType == EMOR)
                 num += EMOR_COEFF_LENGTH + 1;
-            else
+            else if (exposureType == GAMMA)
                 num += 2;
+            else
+                num += 1;
         }
         if (optimizeWhat & VIGNETTE)
             num += VIGNETT_COEFF_LENGTH;
@@ -517,7 +523,7 @@ struct ImageInfo
                 for (; index < EMOR_COEFF_LENGTH; index++)
                     emorCoeffs[index] = x[index];
             }
-            else
+            else if (exposureType == GAMMA)
                 gamma = x[index++];
         }
         if (optimizeWhat & VIGNETTE)
@@ -527,7 +533,9 @@ struct ImageInfo
                 radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
         }
         if (optimizeWhat & EXPOSURE)
+        {
             setExposure(x[index++]);
+        }
         if (optimizeWhat & WHITE_BALANCE)
         {
             whiteBalanceRed = x[index++];
@@ -545,7 +553,7 @@ struct ImageInfo
                 for (; index < EMOR_COEFF_LENGTH; index++)
                     x[index] = emorCoeffs[index];
             }
-            else
+            else if (exposureType == GAMMA)
                 x[index++] = gamma;
             
         }
@@ -610,7 +618,7 @@ struct Transform
                 lut[i] = t;
             }
         }
-        else
+        else if (exposureType == GAMMA)
         {
             double gamma = imageInfo.gamma;
             for (int i = 0; i < LUT_LENGTH; i++)
@@ -618,6 +626,11 @@ struct Transform
                 double s = double(i) / (LUT_LENGTH - 1);
                 lut[i] = pow(s, gamma);
             }
+        }
+        else
+        {
+            for (int i = 0; i < LUT_LENGTH; i++)
+                lut[i] = double(i) / (LUT_LENGTH - 1);
         }
 
         vigCenterX = imageInfo.size.width / 2;
@@ -649,6 +662,24 @@ struct Transform
         r /= whiteBalanceRed;
         b /= whiteBalanceBlue;
         return cv::Vec3d(b, g, r);
+    }
+
+    cv::Vec3d applyInverseExposureOnly(const cv::Point& p, const cv::Vec3d& val) const
+    {
+        double scale = 1.0 / (calcVigFactor(p) * exposure);
+        double b = invLUT(val[0]) * scale;
+        double g = invLUT(val[1]) * scale;
+        double r = invLUT(val[2]) * scale;
+        return cv::Vec3d(b, g, r);
+    }
+
+    cv::Vec3d correctExposureOnly(const cv::Point& p, const cv::Vec3d& val) const
+    {
+        double scale = 1.0 / exposure;
+        double b = invLUT(val[0]) * scale;
+        double g = invLUT(val[1]) * scale;
+        double r = invLUT(val[2]) * scale;
+        return cv::Vec3d(LUT(b), LUT(g), LUT(r));
     }
 
     double calcVigFactor(const cv::Point& p) const
@@ -988,9 +1019,9 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         double e = 1.0 / infos[i].getExposure();
         double r = 1.0 / infos[i].whiteBalanceRed;
         double b = 1.0 / infos[i].whiteBalanceBlue;
-        getLUT(lutr, e * r);
+        getLUT(lutr, e/* * r*/);
         getLUT(lutg, e);
-        getLUT(lutb, e * b);
+        getLUT(lutb, e/* * b*/);
         for (int y = 0; y < rows; y++)
         {
             const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
@@ -1115,6 +1146,14 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
 
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\4.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
+
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1205,7 +1244,7 @@ void compute(double *p, double *x, int m, int n, void *data)
     printf("%d: a = %f, b = %f\n", ptrData->count, p[0], p[1]);
 }
 
-int main1()
+int mainy()
 {
     int num = 1000;
     double beg = -3, end = 3;
