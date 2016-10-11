@@ -46,7 +46,6 @@
     <ClCompile Include="..\..\source\Task\PanoramaPreviewTask.cpp" />
     <ClCompile Include="..\..\source\Task\PanoramaTaskUtil.cpp" />
     <ClCompile Include="..\..\source\Task\RicohUtil.cpp" />
-    <ClCompile Include="..\..\source\Task\TestAudioVideoSource.cpp" />
     <ClCompile Include="..\..\source\Task\Text.cpp" />
     <ClCompile Include="..\..\source\Tool\Print.cpp" />
   </ItemGroup>

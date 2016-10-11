@@ -144,7 +144,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount()/*0xffffffff*/);
     int numTrials = 8000 * 5;
-    int expectNumPairs = 100 * 5;
+    int expectNumPairs = 100 * 10;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
@@ -1120,15 +1120,15 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    double PI = 3.1415926;
-    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -1153,6 +1153,15 @@ int main()
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
     //loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
+
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image1.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image2.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image3.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image4.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image5.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);

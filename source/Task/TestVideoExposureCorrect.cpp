@@ -396,7 +396,8 @@ int main()
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
         /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/
-        "F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs";
+        /*"F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs"*/
+        "F:\\panovideo\\test\\chengdu\\1\\proj.pvs";
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
@@ -404,6 +405,7 @@ int main()
 
     int numVideos = fileNames.size();
     //int globalOffset = 1095;
+    //int globalOffset = 25 * 60 * 3;
     int globalOffset = 0;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
@@ -414,6 +416,16 @@ int main()
     cv::Size srcSize;
     int audioIndex, validFrameCount;
     prepareSrcVideos(fileNames, avp::PixelTypeBGR24, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    avp::AudioVideoFrame2 frame;
+    //    readers[i].read(frame);
+    //    cv::Mat image(frame.height, frame.width, CV_8UC3, frame.data[0], frame.steps[0]);
+    //    char buf[128];
+    //    sprintf(buf, "image%d.bmp", i);
+    //    cv::imwrite(buf, image);
+    //}
+    //return 0;
 
     cv::Size dstSize(1280, 640);
     std::vector<PhotoParam> photoParams;

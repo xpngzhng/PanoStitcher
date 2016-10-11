@@ -1117,7 +1117,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         {
             numImages = params.size();
             getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
-            if (!mbBlender.prepare(masks, 20, 32))
+            if (!mbBlender.prepare(masks, 20, 2))
             {
                 ztool::lprintf("Error in %s, failed to prepare for blending\n", __FUNCTION__);
                 return false;
