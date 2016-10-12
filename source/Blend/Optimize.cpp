@@ -117,7 +117,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 1024, erHeight = 512;
+    int erWidth = 256, erHeight = 128;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -141,10 +141,10 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     pairs.clear();
 
     int minValThresh = 5, maxValThresh = 250;
-    int gradThresh = 3;
+    int gradThresh = 15;
     cv::RNG_MT19937 rng(cv::getTickCount()/*0xffffffff*/);
-    int numTrials = 8000 * 5;
-    int expectNumPairs = 100 * 10;
+    int numTrials = 10000 * 5;
+    int expectNumPairs = 100 * 5;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
@@ -281,7 +281,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 512, erHeight = 256;
+    int erWidth = 256, erHeight = 128;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -382,14 +382,14 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                                 getPair = 1;
                                 numPairs++;
                                 pairs.push_back(pair);
-                                break;
+                                //break;
                             }
                         }
                     }
                 }
             }
-            if (getPair)
-                break;
+            //if (getPair)
+            //    break;
         }
         //if (numPairs >= expectNumPairs)
         //    break;
@@ -565,7 +565,9 @@ struct ImageInfo
                 x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
         }
         if (optimizeWhat & EXPOSURE)
+        {
             x[index++] = getExposure();
+        }
         if (optimizeWhat & WHITE_BALANCE)
         {
             x[index++] = whiteBalanceRed;
@@ -606,7 +608,7 @@ void writeTo(const std::vector<ImageInfo>& infos, double* x, int anchorIndex, in
     {
         if (i != anchorIndex)
         {
-            infos[i].toOutside(x + i * numParams, optimizeWhat, exposureType);
+            infos[i].toOutside(x + offset, optimizeWhat, exposureType);
             offset += numParams;
         }
     }
@@ -816,6 +818,9 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     const std::vector<ValuePair>& pairs = edata->pairs;
     int anchorIndex = edata->anchoIndex;
 
+    std::vector<double> pv(m);
+    memcpy(pv.data(), p, m * 8);
+
     readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat, exposureType);
     int numImages = infos.size();
 
@@ -923,7 +928,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     int maxIter = 500;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 1; i++)
     {
         int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
         int numParams = ImageInfo::getNumParams(option, exposureType);
@@ -1221,13 +1226,13 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
-    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -1245,13 +1250,13 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
 
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\4.MP4.jpg");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\4.MP4.jpg");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image1.bmp");
@@ -1293,10 +1298,10 @@ int main()
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    getPointPairsAll(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), imageInfos);
+    optimize(pairs, numImages, 4, testSrc[0].size(), imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
