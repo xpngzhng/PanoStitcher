@@ -449,8 +449,9 @@ enum { VIGNETT_COEFF_LENGTH = 4 };
 enum OptimizeParamType
 {
     EXPOSURE = 1,
-    WHITE_BALANCE = 2,
-    VIGNETTE = 4
+    RESPONSE_CURVE = 2,
+    WHITE_BALANCE = 4,
+    VIGNETTE = 8
 };
 
 enum ExposureType
@@ -460,7 +461,7 @@ enum ExposureType
     GAMMA = 2
 };
 
-static const int exposureType = NONE;
+static const int exposureType = GAMMA;
 
 struct ImageInfo
 {
@@ -498,12 +499,12 @@ struct ImageInfo
     {
         int num = 0;
         if (optimizeWhat & EXPOSURE)
+            num += 1;
+        if (optimizeWhat & RESPONSE_CURVE)
         {
             if (exposureType == EMOR)
-                num += EMOR_COEFF_LENGTH + 1;
+                num += EMOR_COEFF_LENGTH;
             else if (exposureType == GAMMA)
-                num += 2;
-            else
                 num += 1;
         }
         if (optimizeWhat & VIGNETTE)
@@ -516,7 +517,7 @@ struct ImageInfo
     void fromOutside(const double* x, int optimizeWhat, int exposureType)
     {
         int index = 0;
-        if (optimizeWhat & EXPOSURE)
+        if (optimizeWhat & RESPONSE_CURVE)
         {
             if (exposureType == EMOR)
             {
@@ -546,7 +547,7 @@ struct ImageInfo
     void toOutside(double* x, int optimizeWhat, int exposureType) const
     {
         int index = 0;
-        if (optimizeWhat & EXPOSURE)
+        if (optimizeWhat & RESPONSE_CURVE)
         {
             if (exposureType == EMOR)
             {
@@ -922,9 +923,9 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     int maxIter = 500;
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 2; i++)
     {
-        int option = i == 0 ? EXPOSURE/* | WHITE_BALANCE*/ : (VIGNETTE);
+        int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
         int numParams = ImageInfo::getNumParams(option, exposureType);
 
         // parameters
@@ -963,7 +964,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         sprintf(buf, "emor lut %d", i);
         Transform t(imageInfos[i], exposureType);
         t.enforceMonotonicity();
-        t.showLUT(buf);
+        //t.showLUT(buf);
     }
     //cv::waitKey(0);
 
@@ -973,7 +974,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 void getLUT(unsigned char lut[256], double k)
 {
     CV_Assert(k > 0);
-    if (abs(k - 1) < 0.02)
+    if (/*abs(k - 1) < 0.02*/1)
     {
         for (int i = 0; i < 256; i++)
             lut[i] = cv::saturate_cast<unsigned char>(i * k);
@@ -1001,6 +1002,13 @@ void getLUT(unsigned char lut[256], double k)
     }
 }
 
+void getLUT(unsigned char lut[256], double k, double gamma)
+{
+    CV_Assert(k > 0);
+    for (int i = 0; i < 256; i++)
+        lut[i] = cv::saturate_cast<unsigned char>(pow((double)i / 255, gamma) * k * 255);
+}
+
 void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
 {
     int numImages = src.size();
@@ -1008,6 +1016,13 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
         transforms[i] = Transform(infos[i], exposureType);
+
+    double maxE = 0;
+    for (int i = 0; i < numImages; i++)
+    {
+        double e = 1.0 / infos[i].getExposure();
+        maxE = e > maxE ? e : maxE;
+    }
 
     dst.resize(numImages);
     char buf[64];
@@ -1028,12 +1043,12 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
             {
                 double b = ptrSrc[0] / 255.0, g = ptrSrc[1] / 255.0, r = ptrSrc[2] / 255.0;
                 cv::Vec3d d = trans.applyInverse(cv::Point(x, y), cv::Vec3d(b, g, r));
-                ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
-                ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
-                ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
-                //ptrDst[0] = cv::saturate_cast<unsigned char>(trans.LUT(d[0]) * 255);
-                //ptrDst[1] = cv::saturate_cast<unsigned char>(trans.LUT(d[1]) * 255);
-                //ptrDst[2] = cv::saturate_cast<unsigned char>(trans.LUT(d[2]) * 255);
+                //ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
+                //ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
+                //ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
+                ptrDst[0] = cv::saturate_cast<unsigned char>(trans.LUT(d[0]) * 255);
+                ptrDst[1] = cv::saturate_cast<unsigned char>(trans.LUT(d[1]) * 255);
+                ptrDst[2] = cv::saturate_cast<unsigned char>(trans.LUT(d[2]) * 255);
                 ptrSrc += 3;
                 ptrDst += 3;
             }
@@ -1041,11 +1056,13 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         */
         
         double e = 1.0 / infos[i].getExposure();
+        //e /= maxE;
         double r = 1.0 / infos[i].whiteBalanceRed;
         double b = 1.0 / infos[i].whiteBalanceBlue;
-        getLUT(lutr, e * r);
-        getLUT(lutg, e);
-        getLUT(lutb, e * b);
+        double gamma = 1.0 / infos[i].gamma;
+        getLUT(lutr, e * r, gamma);
+        getLUT(lutg, e, gamma);
+        getLUT(lutb, e * b, gamma);
         for (int y = 0; y < rows; y++)
         {
             const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
@@ -1055,16 +1072,22 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
                 //ptrDst[0] = cv::saturate_cast<unsigned char>(ptrSrc[0] * e * b);
                 //ptrDst[1] = cv::saturate_cast<unsigned char>(ptrSrc[1] * e);
                 //ptrDst[2] = cv::saturate_cast<unsigned char>(ptrSrc[2] * e * r);
+
                 ptrDst[0] = lutb[ptrSrc[0]];
                 ptrDst[1] = lutg[ptrSrc[1]];
                 ptrDst[2] = lutr[ptrSrc[2]];
+
+                //ptrDst[0] = pow(ptrSrc[0] / 255.0 * e, 1.0 / 2.2) * 255;
+                //ptrDst[1] = pow(ptrSrc[1] / 255.0 * e, 1.0 / 2.2) * 255;
+                //ptrDst[2] = pow(ptrSrc[2] / 255.0 * e, 1.0 / 2.2) * 255;
+
                 ptrSrc += 3;
                 ptrDst += 3;
             }
         }
         
-        sprintf(buf, "dst image %d", i);
-        cv::imshow(buf, dst[i]);
+        //sprintf(buf, "dst image %d", i);
+        //cv::imshow(buf, dst[i]);
     }
     cv::waitKey(0);
 }
@@ -1138,6 +1161,12 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
     //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
 
+    //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
+    //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
+
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
@@ -1148,21 +1177,57 @@ int main()
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
+
     //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
     //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    double PI = 3.1415926;
-    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -1236,11 +1301,19 @@ int main()
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
 
-    //return 0;
-
-    //std::vector<cv::Mat> srcGrad(numImages);
+    //std::vector<unsigned char> lut(256);
+    //std::vector<double> exposures(numImages);
+    //exposures[0] = pow(2, -0.275820);
+    //exposures[1] = pow(2, 0.150765);
+    //exposures[2] = pow(2, -0.345042);
+    //exposures[3] = pow(2, 0.244996);
+    //exposures[4] = pow(2, 0.527928);
+    //exposures[5] = pow(2, -0.145509);
     //for (int i = 0; i < numImages; i++)
-    //    calcGradImage(src[i], srcGrad[i]);
+    //{
+    //    getLUT(lut.data(), exposures[i]);
+    //    transform(src[i], dstImages[i], lut);
+    //}
 
     cv::Size dstSize(1600, 800);
     std::vector<cv::Mat> maps, masks, weights;
@@ -1249,24 +1322,20 @@ int main()
     std::vector<cv::Mat> images;
     reprojectParallel(dstImages, images, maps);
 
-    TilingLinearBlend blender;
-    blender.prepare(masks, 100);
     cv::Mat blendImage;
+
+    TilingLinearBlend blender;
+    blender.prepare(masks, 50);
     blender.blend(images, blendImage);
     cv::imshow("blend", blendImage);
-    //cv::imwrite("out.bmp", blendImage);
-    cv::waitKey(0);
-    //cv::Mat dst;
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    cv::imshow("image", images[i]);
-    //    calcGradImage(images[i], dst);
-    //    cv::imshow("grad", dst);
-    //    cv::waitKey(0);
-    //}
+    cv::imwrite("out.bmp", blendImage);
 
+    TilingMultibandBlendFast mbBlender;
+    mbBlender.prepare(masks, 10, 8);
+    mbBlender.blend(images, blendImage);
+    cv::imshow("mb blend", blendImage);
     
-
+    cv::waitKey(0);
     return 0;
 }
 

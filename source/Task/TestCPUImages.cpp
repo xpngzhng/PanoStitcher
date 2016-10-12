@@ -1,5 +1,6 @@
 #include "Warp/ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "Blend/ZBlendAlgo.h"
 #include "Tool/Timer.h"
 #include "CudaAccel/CudaInterface.h"
 #include "opencv2/core/core.hpp"
@@ -7,7 +8,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include <fstream>
 
-int main()
+int maina()
 {
     cv::Size dstSize = cv::Size(1920, 960);
 
@@ -21,9 +22,9 @@ int main()
     //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
     //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
 
-    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_122835_001.JPG");
-    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_122835_001.JPG");
-    loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl1.xml", params);
+    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
 
     int numImages = paths.size();
     std::vector<cv::Mat> src(numImages);
@@ -38,7 +39,7 @@ int main()
     {
         char buf[64];
         sprintf(buf, "mask%d.bmp", i);
-        //cv::imwrite(buf, masks[i]);
+        cv::imwrite(buf, masks[i]);
         reproject(src[i], dst[i], maps[i]);
         sprintf(buf, "reprojimage%d.bmp", i);
         cv::imwrite(buf, dst[i]);
@@ -52,9 +53,20 @@ int main()
     blender.blend(dst, masks, blendImage);
     cv::imshow("blend", blendImage);
     cv::waitKey(0);
-}
 
-void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
+    std::vector<cv::Mat> weights;
+    getWeightsLinearBlend32F(masks, 25, weights);
+
+    cv::Mat r = cv::Mat::zeros(dstSize, CV_32FC3);
+    for (int i = 0; i < numImages; i++)
+        reprojectWeightedAccumulateParallelTo32F(src[i], r, maps[i], weights[i]);
+    cv::Mat rr;
+    r.convertTo(rr, CV_8U);
+    cv::imshow("r", rr);
+    cv::waitKey(0);
+
+    return 0;
+}
 
 static void retrievePaths(const std::string& fileName, std::vector<std::string>& paths)
 {
@@ -69,7 +81,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int maina()
+int mainb()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
 

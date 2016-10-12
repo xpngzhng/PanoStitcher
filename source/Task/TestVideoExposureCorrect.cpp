@@ -79,11 +79,12 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
     std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
 // main 1
-int main1()
+int main()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
-        "F:\\panovideo\\test\\test6\\zhanxiang.xml";
+        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/
+        "F:\\panovideo\\test\\test6\\proj.pvs";
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
@@ -91,7 +92,7 @@ int main1()
 
     int numVideos = fileNames.size();
     //int globalOffset = 3000/*1095*/;
-    int globalOffset = 2000;
+    int globalOffset = 150 * 48;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
     int readSkipCount = 20;
@@ -100,6 +101,17 @@ int main1()
     cv::Size srcSize;
     int audioIndex, validFrameCount;
     prepareSrcVideos(fileNames, avp::PixelTypeBGR24, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
+
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    char buf[256];
+    //    sprintf(buf, "image%d.bmp", i);
+    //    avp::AudioVideoFrame2 f;
+    //    readers[i].read(f);
+    //    cv::Mat m(f.height, f.width, CV_8UC3, f.data[0], f.steps[0]);
+    //    cv::imwrite(buf, m);
+    //}
+    //return 0;
 
     ShowTiledImages shower;
     shower.init(srcSize.width, srcSize.height, numVideos);
@@ -391,7 +403,7 @@ int main2()
 }
 
 // main 3
-int main()
+int main3()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
