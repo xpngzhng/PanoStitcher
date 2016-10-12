@@ -1,53 +1,58 @@
-#include "ZReproject.h"
-#include "ZBlend.h"
-#include "Timer.h"
+#include "Warp/ZReproject.h"
+#include "Blend/ZBlend.h"
+#include "Tool/Timer.h"
+#include "CudaAccel/CudaInterface.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <fstream>
 
-//int main()
-//{
-//    cv::Size dstSize = cv::Size(2048, 1024);
-//
-//    std::vector<std::string> paths;
-//    paths.push_back("F:\\panoimage\\outdoor\\1.MOV.tif");
-//    paths.push_back("F:\\panoimage\\outdoor\\2.MOV.tif");
-//    paths.push_back("F:\\panoimage\\outdoor\\3.MOV.tif");
-//    paths.push_back("F:\\panoimage\\outdoor\\4.MOV.tif");
-//
-//    int numImages = paths.size();
-//    std::vector<cv::Mat> src(numImages);
-//    for (int i = 0; i < numImages; i++)
-//        src[i] = cv::imread(paths[i]);
-//
-//    std::vector<PhotoParam> params;
-//    loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
-//    //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
-//
-//    std::vector<cv::Mat> maps, masks;
-//    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
-//
-//    std::vector<cv::Mat> dst(numImages);
-//    for (int i = 0; i < numImages; i++)
-//    {
-//        char buf[64];
-//        sprintf(buf, "mask%d.bmp", i);
-//        //cv::imwrite(buf, masks[i]);
-//        reproject(src[i], dst[i], maps[i]);
-//        sprintf(buf, "reprojimage%d.bmp", i);
-//        cv::imwrite(buf, dst[i]);
-//        cv::imshow("dst", dst[i]);
-//        cv::waitKey(0);
-//    }
-//
-//    TilingMultibandBlend blender;
-//    blender.prepare(masks, 20, 2);
-//    cv::Mat blendImage;
-//    blender.blend(dst, masks, blendImage);
-//    cv::imshow("blend", blendImage);
-//    cv::waitKey(0);
-//}
+int main()
+{
+    cv::Size dstSize = cv::Size(1920, 960);
+
+    std::vector<std::string> paths;
+    std::vector<PhotoParam> params;
+
+    //paths.push_back("F:\\panoimage\\outdoor\\1.MOV.tif");
+    //paths.push_back("F:\\panoimage\\outdoor\\2.MOV.tif");
+    //paths.push_back("F:\\panoimage\\outdoor\\3.MOV.tif");
+    //paths.push_back("F:\\panoimage\\outdoor\\4.MOV.tif");
+    //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
+    //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
+
+    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_122835_001.JPG");
+    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_122835_001.JPG");
+    loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl1.xml", params);
+
+    int numImages = paths.size();
+    std::vector<cv::Mat> src(numImages);
+    for (int i = 0; i < numImages; i++)
+        src[i] = cv::imread(paths[i]);
+
+    std::vector<cv::Mat> maps, masks;
+    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+    std::vector<cv::Mat> dst(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        char buf[64];
+        sprintf(buf, "mask%d.bmp", i);
+        //cv::imwrite(buf, masks[i]);
+        reproject(src[i], dst[i], maps[i]);
+        sprintf(buf, "reprojimage%d.bmp", i);
+        cv::imwrite(buf, dst[i]);
+        cv::imshow("dst", dst[i]);
+        cv::waitKey(0);
+    }
+
+    TilingMultibandBlend blender;
+    blender.prepare(masks, 20, 2);
+    cv::Mat blendImage;
+    blender.blend(dst, masks, blendImage);
+    cv::imshow("blend", blendImage);
+    cv::waitKey(0);
+}
 
 void getWeightsLinearBlend32F(const std::vector<cv::Mat>& masks, int radius, std::vector<cv::Mat>& weights);
 
@@ -64,7 +69,7 @@ static void retrievePaths(const std::string& fileName, std::vector<std::string>&
     }
 }
 
-int main()
+int maina()
 {
     cv::Size dstSize = cv::Size(2048, 1024);
 

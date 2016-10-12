@@ -1852,28 +1852,32 @@ void calcWeights32F(const std::vector<cv::Mat>& dists, std::vector<cv::Mat>& wei
 }
 
 // main6 kolor style linear blend
-int main6()
+int main()
 {
     std::vector<std::string> paths;
+    std::vector<PhotoParam> params;
+
     //paths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     //paths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
+    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
 
-    paths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
-    paths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
-    paths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
-    paths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
+    //paths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
+    //paths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
+    //paths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
+    //paths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
+    //loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
+
+    paths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
+    paths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
     int numImages = paths.size();
     std::vector<cv::Mat> src(numImages);
     for (int i = 0; i < numImages; i++)
         src[i] = cv::imread(paths[i]);
-
-    std::vector<PhotoParam> params;
-    //loadPhotoParams("E:\\Projects\\GitRepo\\panoLive\\PanoLive\\PanoLive\\PanoLive\\201603260848.vrdl", params);
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl201606231708.xml", params);
-    loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
 
     cv::Size dstSize(2048, 1024);
     std::vector<cv::Mat> maps, masks;
