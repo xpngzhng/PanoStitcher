@@ -1,5 +1,6 @@
 #include "ZBlend.h"
 #include "Warp/ZReproject.h"
+#include "Tool/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
@@ -165,7 +166,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
                 {
                     double diffx = srcxid - photoParams[i].circleX;
                     double diffy = srcyid - photoParams[i].circleY;
-                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR/* - 25*/)
                         continue;
                 }
                 cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
@@ -189,7 +190,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
                             {
                                 double diffx = srcxjd - photoParams[j].circleX;
                                 double diffy = srcyjd - photoParams[j].circleY;
-                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR/* - 25*/)
                                     continue;
                             }
                             if (pti.x < 20 || ptj.x < 20)
@@ -281,7 +282,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 256, erHeight = 128;
+    int erWidth = 128, erHeight = 64;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -331,7 +332,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                 {
                     double diffx = srcxid - photoParams[i].circleX;
                     double diffy = srcyid - photoParams[i].circleY;
-                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR/* - 25*/)
                         continue;
                 }
                 cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
@@ -355,7 +356,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                             {
                                 double diffx = srcxjd - photoParams[j].circleX;
                                 double diffy = srcyjd - photoParams[j].circleY;
-                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR/* - 25*/)
                                     continue;
                             }
                             if (pti.x < 20 || ptj.x < 20)
@@ -663,7 +664,7 @@ struct Transform
 
     cv::Vec3d apply(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = calcVigFactor(p) * exposure;
+        double scale = /*calcVigFactor(p) **/ exposure;
         double b = val[0] * scale * whiteBalanceBlue;
         double g = val[1] * scale;
         double r = val[2] * scale * whiteBalanceRed;
@@ -672,7 +673,7 @@ struct Transform
 
     cv::Vec3d applyInverse(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = 1.0 / (calcVigFactor(p) * exposure);
+        double scale = 1.0 / (/*calcVigFactor(p) **/ exposure);
         double b = invLUT(val[0]) * scale;
         double g = invLUT(val[1]) * scale;
         double r = invLUT(val[2]) * scale;
@@ -683,7 +684,7 @@ struct Transform
 
     cv::Vec3d applyInverseExposureOnly(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = 1.0 / (calcVigFactor(p) * exposure);
+        double scale = 1.0 / (/*calcVigFactor(p) **/ exposure);
         double b = invLUT(val[0]) * scale;
         double g = invLUT(val[1]) * scale;
         double r = invLUT(val[2]) * scale;
@@ -928,7 +929,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     int maxIter = 500;
 
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 2; i++)
     {
         int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
         int numParams = ImageInfo::getNumParams(option, exposureType);
@@ -1091,8 +1092,10 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
             }
         }
         
-        //sprintf(buf, "dst image %d", i);
-        //cv::imshow(buf, dst[i]);
+        sprintf(buf, "dst image %d", i);
+        cv::Mat show;
+        cv::resize(dst[i], show, cv::Size(), 0.5, 0.5);
+        cv::imshow(buf, show);
     }
     cv::waitKey(0);
 }
@@ -1226,13 +1229,13 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -1250,13 +1253,13 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
 
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\4.MP4.jpg");
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
-    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
-    loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\4.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
+    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
     //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image1.bmp");
@@ -1295,13 +1298,15 @@ int main()
             testSrc[i] = small;
         }
     }
+    //for (int i = 0; i < numImages; i++)
+    //    cv::blur(testSrc[i], testSrc[i], cv::Size(3, 3));
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
     getPointPairsAll(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, 4, testSrc[0].size(), imageInfos);
+    optimize(pairs, numImages, -1, testSrc[0].size(), imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
@@ -1320,12 +1325,16 @@ int main()
     //    transform(src[i], dstImages[i], lut);
     //}
 
-    cv::Size dstSize(1600, 800);
+    cv::Size dstSize(2048, 1024);
     std::vector<cv::Mat> maps, masks, weights;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
     std::vector<cv::Mat> images;
+    //ztool::Timer t;
+    //for (int i = 0; i < 100; i++)
     reprojectParallel(dstImages, images, maps);
+    //t.end();
+    //printf("t = %f\n", t.elapse());
 
     cv::Mat blendImage;
 
