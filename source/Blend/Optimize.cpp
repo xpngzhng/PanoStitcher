@@ -144,7 +144,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     pairs.clear();
 
     int minValThresh = 5, maxValThresh = 250;
-    int gradThresh = 15;
+    int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount()/*0xffffffff*/);
     int numTrials = 10000 * 5;
     int expectNumPairs = 100 * 5;
@@ -168,7 +168,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
                 {
                     double diffx = srcxid - photoParams[i].circleX;
                     double diffy = srcyid - photoParams[i].circleY;
-                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR/* - 25*/)
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
                         continue;
                 }
                 cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
@@ -192,7 +192,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
                             {
                                 double diffx = srcxjd - photoParams[j].circleX;
                                 double diffy = srcyjd - photoParams[j].circleY;
-                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR/* - 25*/)
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
                                     continue;
                             }
                             if (pti.x < 20 || ptj.x < 20)
@@ -308,7 +308,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     pairs.clear();
 
     int minValThresh = 5, maxValThresh = 250;
-    int gradThresh = 3;
+    int gradThresh = 5;
     cv::RNG_MT19937 rng(cv::getTickCount());
     int numTrials = 8000 * 5;
     int expectNumPairs = 1000 * 5;
@@ -334,7 +334,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                 {
                     double diffx = srcxid - photoParams[i].circleX;
                     double diffy = srcyid - photoParams[i].circleY;
-                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR/* - 25*/)
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
                         continue;
                 }
                 cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
@@ -358,7 +358,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                             {
                                 double diffx = srcxjd - photoParams[j].circleX;
                                 double diffy = srcyjd - photoParams[j].circleY;
-                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR/* - 25*/)
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
                                     continue;
                             }
                             if (pti.x < 20 || ptj.x < 20)
@@ -1032,7 +1032,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     int maxIter = 500;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 1; i++)
     {
         int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
         int numParams = ImageInfo::getNumParams(option, exposureType);
@@ -1270,7 +1270,7 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    //loadPhotoParamFromPTS("F:\\panoimage\\detuoffice\\4p.pts", params);
+    //loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
 
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
@@ -1278,11 +1278,11 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
     //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
 
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
 
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
@@ -1332,13 +1332,13 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
-    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
-    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
 
     //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
@@ -1406,6 +1406,7 @@ int main()
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
+    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
     getPointPairsAll(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, pairs);
 
@@ -1461,6 +1462,19 @@ void compute(double *p, double *x, int m, int n, void *data)
     printf("%d: a = %f, b = %f\n", ptrData->count, p[0], p[1]);
 }
 
+void jacob(double *p, double *x, int m, int n, void *data)
+{
+    Data* ptrData = (Data*)data;
+    double* ptrIn = ptrData->ptrIn;
+    double* ptrOut = ptrData->ptrOut;
+    for (int i = 0; i < n; i++)
+    {
+        double y = exp(p[0] * ptrIn[i * 2] * ptrIn[i * 2] + p[1] * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]);
+        x[i * 2] = -y * ptrIn[i * 2] * ptrIn[i * 2];
+        x[i * 2 + 1] = -y * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1];
+    }
+}
+
 int mainy()
 {
     int num = 1000;
@@ -1510,6 +1524,7 @@ int mainy()
     data.count = 0;
 
     ret = dlevmar_dif(&compute, &(p[0]), &(x[0]), 2, num, maxIter, optimOpts, info, NULL, (double*)cov.data, &data);  // no jacobian
+    //ret = dlevmar_der(&compute, &jacob, &(p[0]), &(x[0]), 2, num, maxIter, optimOpts, info, NULL, (double*)cov.data, &data);  // with jacobian
     // copy to source images (data.m_imgs)
 
     int kkka = 0;
