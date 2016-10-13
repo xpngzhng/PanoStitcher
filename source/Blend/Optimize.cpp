@@ -1,4 +1,5 @@
 #include "ZBlend.h"
+#include "ZBlendAlgo.h"
 #include "Warp/ZReproject.h"
 #include "Tool/Timer.h"
 #include "opencv2/core.hpp"
@@ -97,8 +98,9 @@ inline cv::Vec3d toVec3d(const cv::Vec3b v)
 void calcGradImage(const cv::Mat& src, cv::Mat& dst)
 {
     CV_Assert(src.type() == CV_8UC3);
-    cv::Mat blurred, grad;
-    cv::GaussianBlur(src, blurred, cv::Size(3, 3), 1.0);
+    cv::Mat gray, blurred, grad;
+    cv::cvtColor(src, gray, CV_BGR2GRAY);
+    cv::GaussianBlur(gray, blurred, cv::Size(3, 3), 1.0);
     cv::Laplacian(blurred, grad, CV_16S);
     //cv::Laplacian(src, grad, CV_16S);
     cv::convertScaleAbs(grad, dst);
@@ -443,6 +445,87 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     cv::waitKey(0);
 }
 
+void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, std::vector<ValuePair>& pairs)
+{
+    int numImages = src.size();
+    int erWidth = 256, erHeight = 128;
+
+    std::vector<cv::Mat> reprojImages, masks;
+    reproject(src, reprojImages, masks, photoParams, cv::Size(erWidth, erHeight));
+
+    int gradThresh = 5;
+    std::vector<cv::Mat> grads(numImages), gradSmalls(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        calcGradImage(reprojImages[i], grads[i]);
+        gradSmalls[i] = grads[i] <= gradThresh;
+    }
+
+    std::vector<unsigned char> lutI[3], lutJ[3];
+    std::vector<double> accumHistI[3], accumHistJ[3];
+    std::vector<unsigned char> transIToJ[3], transJToI[3];
+    cv::Mat intersect;
+    cv::Mat bgrI[3], bgrJ[3];
+
+    int minVal = 5, maxVal = 250;
+    double normScale = 1.0 / 255.0;
+    
+    pairs.reserve(numImages * (numImages - 1) * 2 * 256);
+    for (int i = 0; i < numImages - 1; i++)
+    {
+        for (int j = i + 1; j < numImages; j++)
+        {
+            cv::bitwise_and(masks[i], masks[j], intersect);
+            //cv::bitwise_and(intersect, gradSmalls[i], intersect);
+            //cv::bitwise_and(intersect, gradSmalls[j], intersect);
+            if (cv::countNonZero(intersect) <= 0)
+                continue;
+
+            cv::split(reprojImages[i], bgrI);
+            cv::split(reprojImages[j], bgrJ);
+            
+            for (int k = 0; k < 3; k++)
+            {
+                calcAccumHist(bgrI[k], intersect, accumHistI[k]);
+                calcAccumHist(bgrJ[k], intersect, accumHistJ[k]);
+                histSpecification(accumHistI[k], accumHistJ[k], transIToJ[k]);
+                histSpecification(accumHistJ[k], accumHistI[k], transJToI[k]);
+            }
+
+            for (int k = minVal; k < maxVal; k++)
+            {
+                if (transIToJ[0][k] > minVal && transIToJ[0][k] < maxVal &&
+                    transIToJ[1][k] > minVal && transIToJ[1][k] < maxVal &&
+                    transIToJ[2][k] > minVal && transIToJ[2][k] < maxVal)
+                {
+                    ValuePair pair;
+                    pair.i = i;
+                    pair.j = j;
+                    pair.iVal = cv::Vec3b(k, k, k);
+                    pair.iValD = toVec3d(pair.iVal) * normScale;
+                    pair.jVal = cv::Vec3b(transIToJ[0][k], transIToJ[1][k], transIToJ[2][k]);
+                    pair.jValD = toVec3d(pair.jVal) * normScale;
+                    pairs.push_back(pair);
+                }
+
+                if (transJToI[0][k] > minVal && transJToI[0][k] < maxVal &&
+                    transJToI[1][k] > minVal && transJToI[1][k] < maxVal &&
+                    transJToI[2][k] > minVal && transJToI[2][k] < maxVal)
+                {
+                    ValuePair pair;
+                    pair.i = j;
+                    pair.j = i;
+                    pair.iVal = cv::Vec3b(k, k, k);
+                    pair.iValD = toVec3d(pair.iVal) * normScale;
+                    pair.jVal = cv::Vec3b(transJToI[0][k], transJToI[1][k], transJToI[2][k]);
+                    pair.jValD = toVec3d(pair.jVal) * normScale;
+                    pairs.push_back(pair);
+                }
+            }
+        }
+    }
+}
+
 enum { OPTIMIZE_VAL_NUM = 8 };
 enum { EMOR_COEFF_LENGTH = 5 };
 enum { VIGNETT_COEFF_LENGTH = 4 };
@@ -660,6 +743,26 @@ struct Transform
 
         whiteBalanceRed = imageInfo.whiteBalanceRed;
         whiteBalanceBlue = imageInfo.whiteBalanceBlue;
+    }
+
+    cv::Vec3d apply(const cv::Vec3d& val) const
+    {
+        double scale = exposure;
+        double b = val[0] * scale * whiteBalanceBlue;
+        double g = val[1] * scale;
+        double r = val[2] * scale * whiteBalanceRed;
+        return cv::Vec3d(LUT(b), LUT(g), LUT(r));
+    }
+
+    cv::Vec3d applyInverse(const cv::Vec3d& val) const
+    {
+        double scale = 1.0 / exposure;
+        double b = invLUT(val[0]) * scale;
+        double g = invLUT(val[1]) * scale;
+        double r = invLUT(val[2]) * scale;
+        r /= whiteBalanceRed;
+        b /= whiteBalanceBlue;
+        return cv::Vec3d(b, g, r);
     }
 
     cv::Vec3d apply(const cv::Point& p, const cv::Vec3d& val) const
@@ -1244,6 +1347,8 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
     //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
     //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
+    //double PI = 3.1415926;
+    //rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
 
     //imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
     //imagePaths.push_back("F:\\panoimage\\changtai\\image1.bmp");
@@ -1298,12 +1403,11 @@ int main()
             testSrc[i] = small;
         }
     }
-    //for (int i = 0; i < numImages; i++)
-    //    cv::blur(testSrc[i], testSrc[i], cv::Size(3, 3));
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
     getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsHistogram(testSrc, params, pairs);
 
     std::vector<ImageInfo> imageInfos;
     optimize(pairs, numImages, -1, testSrc[0].size(), imageInfos);
@@ -1311,21 +1415,7 @@ int main()
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
 
-    //std::vector<unsigned char> lut(256);
-    //std::vector<double> exposures(numImages);
-    //exposures[0] = pow(2, -0.275820);
-    //exposures[1] = pow(2, 0.150765);
-    //exposures[2] = pow(2, -0.345042);
-    //exposures[3] = pow(2, 0.244996);
-    //exposures[4] = pow(2, 0.527928);
-    //exposures[5] = pow(2, -0.145509);
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    getLUT(lut.data(), exposures[i]);
-    //    transform(src[i], dstImages[i], lut);
-    //}
-
-    cv::Size dstSize(2048, 1024);
+    cv::Size dstSize(1600, 800);
     std::vector<cv::Mat> maps, masks, weights;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 

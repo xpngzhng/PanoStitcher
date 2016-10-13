@@ -397,3 +397,7 @@ void calcHist(const cv::Mat& image, std::vector<int>& hist);
 void calcHist(const cv::Mat& image, const cv::Mat& mask, std::vector<int>& hist);
 
 int countNonZeroHistBins(const std::vector<int>& hist);
+
+void calcAccumHist(const cv::Mat& image, const cv::Mat& mask, std::vector<double>& hist);
+
+void histSpecification(std::vector<double>& src, std::vector<double>& dst, std::vector<unsigned char>& lut);
