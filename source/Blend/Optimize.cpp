@@ -538,14 +538,14 @@ enum OptimizeParamType
     VIGNETTE = 8
 };
 
-enum ExposureType
+enum ResponseCurveType
 {
-    NONE = 0,
+    IDENTITY = 0,
     EMOR = 1,
     GAMMA = 2
 };
 
-static const int exposureType = GAMMA;
+static const int responseCurveType = GAMMA;
 
 struct ImageInfo
 {
@@ -579,16 +579,16 @@ struct ImageInfo
         exposureExponent = e;
     }
 
-    int static getNumParams(int optimizeWhat, int exposureType)
+    int static getNumParams(int optimizeWhat, int responseCurveType)
     {
         int num = 0;
         if (optimizeWhat & EXPOSURE)
             num += 1;
         if (optimizeWhat & RESPONSE_CURVE)
         {
-            if (exposureType == EMOR)
+            if (responseCurveType == EMOR)
                 num += EMOR_COEFF_LENGTH;
-            else if (exposureType == GAMMA)
+            else if (responseCurveType == GAMMA)
                 num += 1;
         }
         if (optimizeWhat & VIGNETTE)
@@ -598,17 +598,17 @@ struct ImageInfo
         return num;
     }
 
-    void fromOutside(const double* x, int optimizeWhat, int exposureType)
+    void fromOutside(const double* x, int optimizeWhat, int responseCurveType)
     {
         int index = 0;
         if (optimizeWhat & RESPONSE_CURVE)
         {
-            if (exposureType == EMOR)
+            if (responseCurveType == EMOR)
             {
                 for (; index < EMOR_COEFF_LENGTH; index++)
                     emorCoeffs[index] = x[index];
             }
-            else if (exposureType == GAMMA)
+            else if (responseCurveType == GAMMA)
                 gamma = x[index++];
         }
         if (optimizeWhat & VIGNETTE)
@@ -925,12 +925,12 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     std::vector<double> pv(m);
     memcpy(pv.data(), p, m * 8);
 
-    readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat, exposureType);
+    readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat, responseCurveType);
     int numImages = infos.size();
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i], exposureType);
+        transforms[i] = Transform(infos[i], responseCurveType);
 
     int index = 0;
     for (int i = 0; i < numImages; i++)
@@ -1035,7 +1035,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
     for (int i = 0; i < 1; i++)
     {
         int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
-        int numParams = ImageInfo::getNumParams(option, exposureType);
+        int numParams = ImageInfo::getNumParams(option, responseCurveType);
 
         // parameters
         int m = numImages * numParams;
@@ -1049,7 +1049,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
             n -= 1;
         std::vector<double> x(n, 0.0);
 
-        writeTo(imageInfos, p.data(), anchorIndex, option, exposureType);
+        writeTo(imageInfos, p.data(), anchorIndex, option, responseCurveType);
 
         // covariance matrix at solution
         cv::Mat cov(m, m, CV_64FC1);
@@ -1062,7 +1062,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
         ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
         // copy to source images (data.m_imgs)
-        readFrom(imageInfos, p.data(), anchorIndex, option, exposureType);
+        readFrom(imageInfos, p.data(), anchorIndex, option, responseCurveType);
     }
 
     for (int i = 0; i < numImages; i++)
@@ -1071,7 +1071,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
             i, imageInfos[i].getExposure(), imageInfos[i].gamma, imageInfos[i].whiteBalanceBlue, imageInfos[i].whiteBalanceRed);
         char buf[256];
         sprintf(buf, "emor lut %d", i);
-        Transform t(imageInfos[i], exposureType);
+        Transform t(imageInfos[i], responseCurveType);
         t.enforceMonotonicity();
         //t.showLUT(buf);
     }
@@ -1124,7 +1124,7 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i], exposureType);
+        transforms[i] = Transform(infos[i], responseCurveType);
 
     double maxE = 0;
     for (int i = 0; i < numImages; i++)
@@ -1241,7 +1241,7 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i], exposureType);
+        transforms[i] = Transform(infos[i], responseCurveType);
 
     luts.resize(numImages);
     char buf[64];
