@@ -836,9 +836,9 @@ struct Transform
             return lut[int(val * LUT_LENGTH)];
         }
         else if (responseCurveType == GAMMA)
-            return pow(val, gamma);
+            return /*val <= 0 ? 0 : val > 1 ? 1 : */pow(val, gamma);
         else
-            return val;
+            return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
     }
 
     double invLUT(double val) const
@@ -875,9 +875,9 @@ struct Transform
             return (lowIdx * lambda + upIdx * (1 - lambda)) / (LUT_LENGTH - 1);
         }
         else if (responseCurveType == GAMMA)
-            return pow(val, 1.0 / gamma);
+            return /*val <= 0 ? 0 : val > 1 ? 1 : */pow(val, 1.0 / gamma);
         else
-            return val;
+            return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
     }
 
     void enforceMonotonicity()
@@ -1028,7 +1028,8 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 #include "levmar.h"
 
 void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int anchorIndex,
-    const cv::Size& imageSize, int responseCurveType, std::vector<ImageInfo>& outImageInfos)
+    const cv::Size& imageSize, int responseCurveType, const std::vector<int>& optimizeOptions,
+    std::vector<ImageInfo>& outImageInfos)
 {
     std::vector<ImageInfo> imageInfos(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1054,9 +1055,10 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     int maxIter = 500;
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < optimizeOptions.size(); i++)
     {
-        int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
+        //int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
+        int option = optimizeOptions[i];
         int numParams = ImageInfo::getNumParams(option, responseCurveType);
 
         // parameters
@@ -1258,8 +1260,10 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
     std::vector<ValuePair> pairs;
     getPointPairsRandom(testSrc, params, downSizePower, pairs);
 
+    std::vector<int> opts;
+    opts.push_back(EXPOSURE);
     std::vector<ImageInfo> infos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), responseCurveType, infos);
+    optimize(pairs, numImages, -1, testSrc[0].size(), responseCurveType, opts, infos);
 
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1283,103 +1287,205 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
     }
 }
 
+void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoParam>& params,
+    int responseCurveType, const std::vector<int>& optimizeOptions)
+{
+    int numImages = imagePaths.size();
+    std::vector<cv::Mat> src(numImages);
+    for (int i = 0; i < numImages; i++)
+        src[i] = cv::imread(imagePaths[i]);
+
+    int resizeTimes = 0;
+    int minWidth = 80, minHeight = 60;
+    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
+
+    std::vector<cv::Mat> testSrc(numImages);
+    if (resizeTimes == 0)
+    {
+        testSrc = src;
+    }
+    else
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::Mat large = src[i];
+            cv::Mat small;
+            for (int j = 0; j < resizeTimes; j++)
+            {
+                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
+                large = small;
+            }
+            testSrc[i] = small;
+        }
+    }
+
+    int downSizePower = pow(2, resizeTimes);
+    std::vector<ValuePair> pairs;
+    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsHistogram(testSrc, params, pairs);
+
+    std::vector<int> opts;
+    opts.push_back(EXPOSURE);
+    std::vector<ImageInfo> imageInfos;
+    optimize(pairs, numImages, -1, testSrc[0].size(), GAMMA, opts, imageInfos);
+
+    std::vector<cv::Mat> dstImages;
+    correct(src, imageInfos, dstImages);
+
+    cv::Size dstSize(1600, 800);
+    std::vector<cv::Mat> maps, masks, weights;
+    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+
+    std::vector<cv::Mat> images;
+    //ztool::Timer t;
+    //for (int i = 0; i < 100; i++)
+    reprojectParallel(dstImages, images, maps);
+    //t.end();
+    //printf("t = %f\n", t.elapse());
+
+    cv::Mat blendImage;
+
+    TilingLinearBlend blender;
+    blender.prepare(masks, 50);
+    blender.blend(images, blendImage);
+    cv::imshow("blend", blendImage);
+    cv::imwrite("out.bmp", blendImage);
+
+    TilingMultibandBlendFast mbBlender;
+    mbBlender.prepare(masks, 10, 8);
+    mbBlender.blend(images, blendImage);
+    cv::imshow("mb blend", blendImage);
+
+    cv::waitKey(0);
+}
+
 int main()
 {
+    double PI = 3.1415926;
+
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
-    //imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
-    //loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
+    int respCurveType = IDENTITY;
+    std::vector<int> opts;
+    opts.push_back(EXPOSURE);
 
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
+    imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
+    loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
+    run(imagePaths, params, respCurveType, opts);
+
+    //imagePaths.clear();
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
     //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
+    //run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot1(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
+    run(imagePaths, params, respCurveType, opts);
 
+    //imagePaths.clear();
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
+    //imagePaths.clear();
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
 
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    //double PI = 3.1415926;
-    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
-    //double PI = 3.1415926;
-    //rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
+    rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
+    run(imagePaths, params, respCurveType, opts);
 
+    imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\2.MP4.jpg");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\3.MP4.jpg");
@@ -1387,15 +1493,20 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
 
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image1.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image2.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image3.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image4.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image5.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image1.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image2.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image3.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image4.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image5.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
+    run(imagePaths, params, respCurveType, opts);
+
+    return 0;
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
@@ -1432,8 +1543,10 @@ int main()
     getPointPairsAll(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, pairs);
 
+    std::vector<int> options;
+    opts.push_back(EXPOSURE);
     std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, 1, testSrc[0].size(), IDENTITY, imageInfos);
+    optimize(pairs, numImages, -1, testSrc[0].size(), GAMMA, options, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
