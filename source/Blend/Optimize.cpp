@@ -1098,6 +1098,12 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat);
     int numImages = infos.size();
 
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    printf("[%d] e = %f, gamma = %f, blue = %f, red = %f\n",
+    //        i, infos[i].getExposure(), infos[i].gamma, infos[i].whiteBalanceBlue, infos[i].whiteBalanceRed);
+    //}
+
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
         transforms[i] = Transform(infos[i]);
@@ -1190,7 +1196,16 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     {
         diff += transforms[i].applyInverse(edata->meanVals[i]) - edata->meanVals[i];
     }
-    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2])/* * 1.0 / 3*/, huberSigma);
+    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
 
     edata->errorFuncCallCount++;
 
@@ -1245,7 +1260,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = /*2 **/ 2 * 3 * valuePairs.size() + numImages + 1;
+        int n = /*2 **/ 2 * 3 * valuePairs.size() + numImages + 1/*0*/;
         if (anchorIndex >= 0 && anchorIndex < numImages)
             n -= 1;
         std::vector<double> x(n, 0.0);
@@ -1502,8 +1517,8 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
     //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    //getPointPairsAll(testSrc, params, downSizePower, pairs);
-    getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
+    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
     
     std::vector<ImageInfo> imageInfos(numImages);
@@ -1544,7 +1559,7 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
     cv::waitKey(0);
 }
 
-int mainx()
+int main()
 {
     double PI = 3.1415926;
 
@@ -1554,7 +1569,7 @@ int mainx()
     int respCurveType = GAMMA;
     std::vector<int> opts;
     opts.push_back(EXPOSURE/* | RESPONSE_CURVE*/);
-    //opts.push_back(WHITE_BALANCE);
+    opts.push_back(WHITE_BALANCE);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
