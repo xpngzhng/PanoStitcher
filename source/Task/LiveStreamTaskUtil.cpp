@@ -894,9 +894,12 @@ bool JuJingAudioVideoSource::open(const std::vector<std::string>& urls)
     if (failExists)
         return false;
 
-    videoFrameSize.width = 1920;
-    videoFrameSize.height = 1080;
-    videoFrameRate = 25;
+    //videoFrameSize.width = 1920;
+    //videoFrameSize.height = 1080;
+    //videoFrameRate = 25;
+    videoFrameSize.width = 2048;
+    videoFrameSize.height = 1536;
+    videoFrameRate = 30;
     roundedVideoFrameRate = videoFrameRate + 0.5;
 
     ptrDataPacketQueues.reset(new std::vector<RealTimeDataPacketQueue>(numVideos));

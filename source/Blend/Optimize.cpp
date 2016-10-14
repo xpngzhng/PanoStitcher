@@ -106,6 +106,29 @@ void calcGradImage(const cv::Mat& src, cv::Mat& dst)
     cv::convertScaleAbs(grad, dst);
 }
 
+void rescalePhotoParam(PhotoParam& param, double scale)
+{
+    param.shiftX *= scale;
+    param.shiftY *= scale;
+    param.shearX *= scale;
+    param.shearY *= scale;
+
+    param.cropX *= scale;
+    param.cropY *= scale;
+    param.cropWidth *= scale;
+    param.cropHeight *= scale;
+    param.circleX *= scale;
+    param.circleY *= scale;
+    param.circleR *= scale;
+}
+
+void rescalePhotoParams(std::vector<PhotoParam>& params, double scale)
+{
+    int size = params.size();
+    for (int i = 0; i < size; i++)
+        rescalePhotoParam(params[i], scale);
+}
+
 struct ValuePair
 {
     int i, j;
@@ -307,8 +330,8 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
 
     pairs.clear();
 
-    int minValThresh = 5, maxValThresh = 250;
-    int gradThresh = 10;
+    int minValThresh = 5, maxValThresh = 256;
+    int gradThresh = 5;
     cv::RNG_MT19937 rng(cv::getTickCount());
     int numTrials = 8000 * 5;
     int expectNumPairs = 1000 * 5;
@@ -445,13 +468,136 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     cv::waitKey(0);
 }
 
-void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, std::vector<ValuePair>& pairs)
+void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
-    int erWidth = 256, erHeight = 128;
+    int erWidth = 200, erHeight = 100;
+
+    std::vector<PhotoParam> params = photoParams;
+    rescalePhotoParams(params, 1.0 / downSizeRatio);
 
     std::vector<cv::Mat> reprojImages, masks;
-    reproject(src, reprojImages, masks, photoParams, cv::Size(erWidth, erHeight));
+    reproject(src, reprojImages, masks, params, cv::Size(erWidth, erHeight));
+
+    std::vector<cv::Mat> grads(numImages);
+    for (int i = 0; i < numImages; i++)
+        calcGradImage(reprojImages[i], grads[i]);
+
+    cv::Mat intersect;
+    int minValThresh = 5, maxValThresh = 256;
+    int gradThresh = 5;
+    double normScale = 1.0 / 255.0;
+
+    int numPairs = 0;
+
+    pairs.reserve(numImages * (numImages - 1) * 2 * 256);
+    for (int i = 0; i < numImages - 1; i++)
+    {
+        for (int j = i + 1; j < numImages; j++)
+        {
+            cv::bitwise_and(masks[i], masks[j], intersect);
+            //cv::bitwise_and(intersect, gradSmalls[i], intersect);
+            //cv::bitwise_and(intersect, gradSmalls[j], intersect);
+            if (cv::countNonZero(intersect) <= 0)
+                continue;
+
+            for (int y = 0; y < erHeight; y++)
+            {
+                const unsigned char* ptrI = reprojImages[i].ptr<unsigned char>(y);
+                const unsigned char* ptrJ = reprojImages[j].ptr<unsigned char>(y);
+                const unsigned char* ptrGradI = grads[i].ptr<unsigned char>(y);
+                const unsigned char* ptrGradJ = grads[j].ptr<unsigned char>(y);
+                for (int x = 0; x < erWidth; x++)
+                {
+                    if (ptrI[0] > minValThresh && ptrI[0] < maxValThresh &&
+                        ptrI[1] > minValThresh && ptrI[1] < maxValThresh &&
+                        ptrI[2] > minValThresh && ptrI[2] < maxValThresh &&
+                        ptrJ[0] > minValThresh && ptrJ[0] < maxValThresh &&
+                        ptrJ[1] > minValThresh && ptrJ[1] < maxValThresh &&
+                        ptrJ[2] > minValThresh && ptrJ[2] < maxValThresh &&
+                        ptrGradI[0] < gradThresh && ptrGradJ[0] < gradThresh)
+                    {
+                        ValuePair pair;
+                        pair.i = i;
+                        pair.j = j;
+                        pair.iVal = cv::Vec3b(ptrI[0], ptrI[1], ptrI[2]);
+                        pair.jVal = cv::Vec3b(ptrJ[0], ptrJ[1], ptrJ[2]);
+                        pair.iValD = toVec3d(pair.iVal) * normScale;
+                        pair.jValD = toVec3d(pair.jVal) * normScale;
+                        pair.equiRectPos = cv::Point(x, y);
+                        numPairs++;
+                        pairs.push_back(pair);
+                    }
+
+                    ptrI += 3;
+                    ptrJ += 3;
+                    ptrGradI++;
+                    ptrGradJ++;
+                }
+            }
+        }
+    }
+
+    std::vector<int> appearCount(numImages, 0);
+
+    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
+    for (int i = 0; i < numPairs; i++)
+    {
+        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                appearCount[k]++;
+            if (pairs[i].j == k)
+                appearCount[k]++;
+        }
+    }
+
+    printf("num pairs found %d\n", numPairs);
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("%d appear %d times\n", i, appearCount[i]);
+    }
+    cv::imshow("mask", mask);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> show(numImages);
+    for (int i = 0; i < numImages; i++)
+        show[i] = reprojImages[i].clone();
+
+    for (int i = 0; i < numPairs; i++)
+    {
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
+            if (pairs[i].j == k)
+                cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
+        }
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        char buf[64];
+        sprintf(buf, "%d", i);
+        cv::imshow(buf, show[i]);
+    }
+    cv::waitKey(0);
+}
+
+// use this downSizeRatio had better keep small
+void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    int downSizeRatio, std::vector<ValuePair>& pairs)
+{
+    int numImages = src.size();
+    int erWidth = 1600, erHeight = 800;
+
+    std::vector<PhotoParam> params = photoParams;
+    rescalePhotoParams(params, 1.0 / downSizeRatio);
+
+    std::vector<cv::Mat> reprojImages, masks;
+    reproject(src, reprojImages, masks, params, cv::Size(erWidth, erHeight));
 
     int gradThresh = 5;
     std::vector<cv::Mat> grads(numImages), gradSmalls(numImages);
@@ -671,6 +817,7 @@ struct ImageInfo
     double gamma;
     cv::Size size;
     int responseCurveType;
+    cv::Vec3d meanVals;
 };
 
 void readFrom(std::vector<ImageInfo>& infos, const double* x, int anchorIndex, int optimizeWhat)
@@ -826,7 +973,7 @@ struct Transform
 
     double LUT(double val) const
     {
-        if (responseCurveType == EMOR)
+        if (responseCurveType == EMOR/*1*/)
         {
             if (val <= 0)
                 return lut[0];
@@ -843,7 +990,7 @@ struct Transform
 
     double invLUT(double val) const
     {
-        if (responseCurveType == EMOR)
+        if (responseCurveType == EMOR/*1*/)
         {
             if (val <= 0)
                 return 0;
@@ -872,7 +1019,7 @@ struct Transform
 
             double diff = lut[upIdx] - lut[lowIdx];
             double lambda = (val - lut[lowIdx]) / diff;
-            return (lowIdx * lambda + upIdx * (1 - lambda)) / (LUT_LENGTH - 1);
+            return (lowIdx * (1 - lambda) + upIdx * lambda) / (LUT_LENGTH - 1);
         }
         else if (responseCurveType == GAMMA)
             return /*val <= 0 ? 0 : val > 1 ? 1 : */pow(val, 1.0 / gamma);
@@ -926,6 +1073,7 @@ struct ExternData
     int errorFuncCallCount;
     int optimizeWhat;
     int anchoIndex;
+    std::vector<cv::Vec3d> meanVals;
 };
 
 inline double weightHuber(double x, double sigma)
@@ -980,6 +1128,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
     double sqrErr = 0;
     int numPairs = pairs.size();
+    double rdiff = 0, gdiff = 0, bdiff = 0;
     for (int i = 0; i < numPairs; i++)
     {
         const ValuePair& pair = pairs[i];
@@ -1010,11 +1159,38 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
             //hx[index++] = errJ[j];
         }
 
+        //hx[index++] = weightHuber(abs(lightI[0] - pair.iValD[0]) * 0.05, huberSigma);
+        //hx[index++] = weightHuber(abs(lightI[1] - pair.iValD[1]) * 0.05, huberSigma);
+        //hx[index++] = weightHuber(abs(lightI[2] - pair.iValD[2]) * 0.05, huberSigma);
+
+        //hx[index++] = weightHuber(abs(lightJ[0] - pair.jValD[0]) * 0.05, huberSigma);
+        //hx[index++] = weightHuber(abs(lightJ[1] - pair.jValD[1]) * 0.05, huberSigma);
+        //hx[index++] = weightHuber(abs(lightJ[2] - pair.jValD[2]) * 0.05, huberSigma);
+
         //printf("err %d: %f %f %f %f %f %f\n", i, errI[0], errI[1], errI[2], errJ[0], errJ[1], errJ[2]);
+
+        bdiff += lightI[0] - pair.iValD[0];
+        gdiff += lightI[1] - pair.iValD[1];
+        rdiff += lightI[2] - pair.iValD[2];
+
+        bdiff += lightJ[0] - pair.jValD[0];
+        gdiff += lightJ[1] - pair.jValD[1];
+        rdiff += lightJ[2] - pair.jValD[2];
 
         sqrErr += errI.dot(errI);
         sqrErr += errJ.dot(errJ);
     }
+
+    //hx[index++] = weightHuber(abs(bdiff + gdiff + rdiff) * 1.0 / numPairs, huberSigma);
+    //hx[index++] = weightHuber(abs(gdiff), huberSigma);
+    //hx[index++] = weightHuber(abs(rdiff), huberSigma);
+
+    cv::Vec3d diff;
+    for (int i = 0; i < numImages; i++)
+    {
+        diff += transforms[i].applyInverse(edata->meanVals[i]) - edata->meanVals[i];
+    }
+    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2])/* * 1.0 / 3*/, huberSigma);
 
     edata->errorFuncCallCount++;
 
@@ -1036,6 +1212,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
     {
         ImageInfo info(imageSize, responseCurveType);
         imageInfos[i] = info;
+        imageInfos[i].meanVals = outImageInfos[i].meanVals;
     }
 
     int ret;
@@ -1068,7 +1245,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = 2 * 3 * valuePairs.size() + numImages;
+        int n = /*2 **/ 2 * 3 * valuePairs.size() + numImages + 1;
         if (anchorIndex >= 0 && anchorIndex < numImages)
             n -= 1;
         std::vector<double> x(n, 0.0);
@@ -1083,6 +1260,9 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         edata.errorFuncCallCount = 0;
         edata.optimizeWhat = option;
         edata.anchoIndex = anchorIndex;
+        edata.meanVals.resize(numImages);
+        for (int i = 0; i < numImages; i++)
+            edata.meanVals[i] = imageInfos[i].meanVals;
 
         ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
         // copy to source images (data.m_imgs)
@@ -1296,7 +1476,7 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
         src[i] = cv::imread(imagePaths[i]);
 
     int resizeTimes = 0;
-    int minWidth = 80, minHeight = 60;
+    int minWidth = 200, minHeight = 200;
     resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
 
     std::vector<cv::Mat> testSrc(numImages);
@@ -1322,13 +1502,17 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
     //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
-    //getPointPairsHistogram(testSrc, params, pairs);
-
-    std::vector<int> opts;
-    opts.push_back(EXPOSURE);
-    std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), GAMMA, opts, imageInfos);
+    //getPointPairsAll(testSrc, params, downSizePower, pairs);
+    getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
+    //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
+    
+    std::vector<ImageInfo> imageInfos(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
+        imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
+    }
+    optimize(pairs, numImages, -1, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
@@ -1360,16 +1544,17 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
     cv::waitKey(0);
 }
 
-int main()
+int mainx()
 {
     double PI = 3.1415926;
 
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    int respCurveType = IDENTITY;
+    int respCurveType = GAMMA;
     std::vector<int> opts;
-    opts.push_back(EXPOSURE);
+    opts.push_back(EXPOSURE/* | RESPONSE_CURVE*/);
+    //opts.push_back(WHITE_BALANCE);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
@@ -1379,6 +1564,7 @@ int main()
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
     run(imagePaths, params, respCurveType, opts);
 
+    //xxxx
     //imagePaths.clear();
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-00.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-01.jpg");
@@ -1395,15 +1581,25 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     run(imagePaths, params, respCurveType, opts);
 
+    //xxxx
     //imagePaths.clear();
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //imagePaths.push_back("F:\\panovideo\\ricoh m15\\image2-128.bmp");
     //loadPhotoParamFromXML("F:\\panovideo\\ricoh m15\\parambestcircle.xml", params);
 
+    //xxxx
     //imagePaths.clear();
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
+    //run(imagePaths, params, respCurveType, opts);
+
+    //xxxx
+    //imagePaths.clear();
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\QQͼƬ20161014101159.png");
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\QQͼƬ20161014101159.png");
+    //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019small.xml", params);
+    //run(imagePaths, params, respCurveType, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
@@ -1514,7 +1710,7 @@ int main()
         src[i] = cv::imread(imagePaths[i]);
 
     int resizeTimes = 0;
-    int minWidth = 80, minHeight = 60;
+    int minWidth = 120, minHeight = 90;
     resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
     
     std::vector<cv::Mat> testSrc(numImages);
