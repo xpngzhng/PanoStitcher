@@ -103,6 +103,8 @@ ShowTiledImages showTiledImages;
 PanoramaLiveStreamTask2 task;
 
 int prevCount = 0;
+int singleShowWidth = 1200;
+std::vector<cv::Mat> singleShows;
 void showVideoSources()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -122,7 +124,18 @@ void showVideoSources()
                 images[i] = cv::Mat(frames[i].height, frames[i].width,
                     frames[i].pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frames[i].data[0], frames[i].steps[0]);
             }
-            showTiledImages.show("src images", images);
+            //showTiledImages.show("src images", images);
+
+            double scale = double(singleShowWidth) / frames[0].width;
+            singleShows.resize(numCameras);
+            for (int i = 0; i < numCameras; i++)
+            {
+                char buf[256];
+                sprintf(buf, "single %d", i);
+                cv::resize(images[i], singleShows[i], cv::Size(), scale, scale);
+                cv::imshow(buf, singleShows[i]);
+            }
+
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
                 printf("pressed in %s\n", __FUNCTION__);
@@ -402,20 +415,20 @@ int main(int argc, char* argv[])
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::vector<double> expos;
-    ok = task.calcExposures(expos);
-    {
-        if (!ok)
-        {
-            printf("Failed to calc exposures\n");
-            task.closeAll();
-            return 0;
-        }
-    }
-    printf("exposure: ");
-    for (int i = 0; i < expos.size(); i++)
-        printf("%f, ", expos[i]);
-    printf("\n");
-    task.setExposures(expos);
+    //ok = task.calcExposures(expos);
+    //{
+    //    if (!ok)
+    //    {
+    //        printf("Failed to calc exposures\n");
+    //        task.closeAll();
+    //        return 0;
+    //    }
+    //}
+    //printf("exposure: ");
+    //for (int i = 0; i < expos.size(); i++)
+    //    printf("%f, ", expos[i]);
+    //printf("\n");
+    //task.setExposures(expos);
 
     numCameras = task.getNumVideos();
     showTiledImages.init(task.getVideoWidth(), task.getVideoHeight(), task.getNumVideos());

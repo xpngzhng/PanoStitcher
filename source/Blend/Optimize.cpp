@@ -307,7 +307,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
 
-    int erWidth = 128, erHeight = 64;
+    int erWidth = 400, erHeight = 200;
     std::vector<Remap> remaps(numImages);
     for (int i = 0; i < numImages; i++)
         remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
@@ -331,7 +331,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     pairs.clear();
 
     int minValThresh = 5, maxValThresh = 256;
-    int gradThresh = 5;
+    int gradThresh = 50;
     cv::RNG_MT19937 rng(cv::getTickCount());
     int numTrials = 8000 * 5;
     int expectNumPairs = 1000 * 5;
@@ -485,8 +485,8 @@ void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vecto
         calcGradImage(reprojImages[i], grads[i]);
 
     cv::Mat intersect;
-    int minValThresh = 5, maxValThresh = 250;
-    int gradThresh = 5;
+    int minValThresh = 5, maxValThresh = 256;
+    int gradThresh = 50;
     double normScale = 1.0 / 255.0;
 
     int numPairs = 0;
@@ -1080,7 +1080,7 @@ inline double weightHuber(double x, double sigma)
 {
     if (x > sigma)
     {
-        x = sqrt(sigma* (2 * x - sigma));
+        return sqrt(sigma* (2 * x - sigma));
     }
     return x;
 }
@@ -1126,7 +1126,8 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         }
         //printf("%f ", trans.lut[Transform::LUT_LENGTH - 1]);
         trans.enforceMonotonicity();
-        hx[index++] = err;
+        //hx[index++] = err;
+        hx[index++] = abs(transforms[i].exposure - 1);
     }
     //printf("\n");
 
@@ -1196,16 +1197,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     {
         diff += transforms[i].applyInverse(edata->meanVals[i]) - edata->meanVals[i];
     }
-    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]), huberSigma);
+    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]) / 3.0, huberSigma);
 
     edata->errorFuncCallCount++;
 
@@ -1491,7 +1483,7 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
         src[i] = cv::imread(imagePaths[i]);
 
     int resizeTimes = 0;
-    int minWidth = 200, minHeight = 200;
+    int minWidth = 100, minHeight = 100;
     resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
 
     std::vector<cv::Mat> testSrc(numImages);
