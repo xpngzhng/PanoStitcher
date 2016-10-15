@@ -485,7 +485,7 @@ void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vecto
         calcGradImage(reprojImages[i], grads[i]);
 
     cv::Mat intersect;
-    int minValThresh = 5, maxValThresh = 256;
+    int minValThresh = 5, maxValThresh = 250;
     int gradThresh = 5;
     double normScale = 1.0 / 255.0;
 
@@ -1516,8 +1516,8 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    //getPointPairsAll(testSrc, params, downSizePower, pairs);
     //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
     
@@ -1569,7 +1569,7 @@ int main()
     int respCurveType = GAMMA;
     std::vector<int> opts;
     opts.push_back(EXPOSURE/* | RESPONSE_CURVE*/);
-    opts.push_back(WHITE_BALANCE);
+    //opts.push_back(WHITE_BALANCE);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
