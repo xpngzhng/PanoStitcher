@@ -1127,7 +1127,9 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         //printf("%f ", trans.lut[Transform::LUT_LENGTH - 1]);
         trans.enforceMonotonicity();
         //hx[index++] = err;
-        hx[index++] = abs(transforms[i].exposure - 1);
+        hx[index++] = abs(transforms[i].exposure - 1) * 2;
+        hx[index++] = abs(transforms[i].whiteBalanceBlue - 1) * 2;
+        hx[index++] = abs(transforms[i].whiteBalanceRed - 1) * 2;
     }
     //printf("\n");
 
@@ -1197,7 +1199,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     {
         diff += transforms[i].applyInverse(edata->meanVals[i]) - edata->meanVals[i];
     }
-    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]) / 3.0, huberSigma);
+    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]) / 3.0, huberSigma);
 
     edata->errorFuncCallCount++;
 
@@ -1252,9 +1254,9 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = /*2 **/ 2 * 3 * valuePairs.size() + numImages + 1/*0*/;
+        int n = /*2 **/ 2 * 3 * valuePairs.size() + 3 * numImages/* + 1*//*0*/;
         if (anchorIndex >= 0 && anchorIndex < numImages)
-            n -= 1;
+            n -= 3;
         std::vector<double> x(n, 0.0);
 
         writeTo(imageInfos, p.data(), anchorIndex, option);
@@ -1508,9 +1510,9 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
     //getPointPairsAll(testSrc, params, downSizePower, pairs);
-    //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
+    getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
     
     std::vector<ImageInfo> imageInfos(numImages);
