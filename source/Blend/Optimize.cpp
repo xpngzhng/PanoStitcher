@@ -170,7 +170,7 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int minValThresh = 5, maxValThresh = 250;
     int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount()/*0xffffffff*/);
-    int numTrials = 10000 * 5;
+    int numTrials = 10000 * 50;
     int expectNumPairs = 100 * 5;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
@@ -338,7 +338,7 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     int minValThresh = 5, maxValThresh = 250;
     int gradThresh = 3;
     cv::RNG_MT19937 rng(cv::getTickCount());
-    int numTrials = 8000 * 5;
+    int numTrials = 8000 * 50;
     int expectNumPairs = 1000 * 5;
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
@@ -516,9 +516,20 @@ void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoP
     int expectNumPairs = 1000 * 5;
     int numPairs = 0;
     const double normScale = 1.0 / 255.0;
-    for (int ery = 0; ery < erHeight; ery++)
-    for (int erx = 0; erx < erWidth; erx++)
+    const double halfWidth = erWidth * 0.5;
+    const double halfHeight = erHeight * 0.5;
+    const int gridSize = 200;
+    //for (int ery = 0; ery < erHeight; ery++)
+    //for (int erx = 0; erx < erWidth; erx++)
+    for (int y = 0; y < gridSize; y++)
+    for (int x = 0; x < gridSize; x++)
     {
+        double theta = 2 * PI * ((x + 0.5) / gridSize - 0.5);
+        double u = ((y + 0.5) / gridSize - 0.5) * 2;
+        double v = sqrt(1 - u * u);
+        cv::Point2d pd = sphereToEquirect(cv::Point3d(cos(theta) * v, sin(theta) * v, u), halfWidth, halfHeight);
+        int erx = pd.x + 0.5;
+        int ery = pd.y + 0.5;
         for (int i = 0; i < numImages; i++)
         {
             int getPair = 0;
@@ -1684,8 +1695,8 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    //getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    getPointPairsAll(testSrc, params, downSizePower, pairs);
     //getPointPairsAll2(testSrc, params, downSizePower, pairs);
     //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
@@ -1696,12 +1707,12 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
-    optimize(pairs, numImages, /*numImages */-1, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
+    optimize(pairs, numImages, numImages -2, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
 
-    cv::Size dstSize(1600, 800);
+    cv::Size dstSize(1200, 600);
     std::vector<cv::Mat> maps, masks, weights;
     getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
 
@@ -1737,7 +1748,7 @@ int main()
 
     int respCurveType = GAMMA;
     std::vector<int> opts;
-    opts.push_back(EXPOSURE/* | RESPONSE_CURVE*/);
+    opts.push_back(EXPOSURE | WHITE_BALANCE);
     //opts.push_back(WHITE_BALANCE);
 
     imagePaths.clear();
