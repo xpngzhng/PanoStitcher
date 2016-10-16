@@ -1,6 +1,7 @@
 #include "ZBlend.h"
 #include "ZBlendAlgo.h"
 #include "Warp/ZReproject.h"
+#include "Warp/ConvertCoordinate.h"
 #include "Tool/Timer.h"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
@@ -174,11 +175,18 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
+    const double halfWidth = erWidth * 0.5;
+    const double halfHeight = erHeight * 0.5;
     for (int t = 0; t < numTrials; t++)
     {
-        int erx = rng.uniform(0, erWidth);
-        int ery = rng.uniform(0, erHeight);
-        //ery = cvtUToS.transform(ery);
+        //int erx = rng.uniform(0, erWidth);
+        //int ery = rng.uniform(0, erHeight);
+        double theta = rng.uniform(-1.0, 1.0) * PI;
+        double u = rng.uniform(-1.0, 1.0);
+        double v = sqrt(1 - u * u);
+        cv::Point2d pd = sphereToEquirect(cv::Point3d(cos(theta) * v, sin(theta) * v, u), halfWidth, halfHeight);
+        int erx = pd.x + 0.5;
+        int ery = pd.y + 0.5;
         for (int i = 0; i < numImages; i++)
         {
             int getPair = 0;
@@ -323,9 +331,6 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
         printf("min %f, max %f\n", minVal, maxVal);
     }
 
-    UniformToSphereConverter cvtUToS;
-    cvtUToS.init(erHeight / 2);
-
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
     pairs.clear();
@@ -338,13 +343,20 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     int numPairs = 0;
     const double downSizeScale = 1.0 / downSizeRatio;
     const double normScale = 1.0 / 255.0;
-    //for (int t = 0; t < numTrials; t++)
-    for (int ery = 0; ery < erHeight; ery++)
-    for (int erx = 0; erx < erWidth; erx++)
+    const double halfWidth = erWidth * 0.5;
+    const double halfHeight = erHeight * 0.5;
+    const int gridSize = 200;
+    //for (int ery = 0; ery < erHeight; ery++)
+    //for (int erx = 0; erx < erWidth; erx++)
+    for (int y = 0; y < gridSize; y++)
+    for (int x = 0; x < gridSize; x++)
     {
-        //int erx = rng.uniform(0, erWidth);
-        //int ery = rng.uniform(0, erHeight);
-        //ery = cvtUToS.transform(ery);
+        double theta = 2 * PI * ((x + 0.5) / gridSize - 0.5);
+        double u = ((y + 0.5) / gridSize - 0.5) * 2;
+        double v = sqrt(1 - u * u);
+        cv::Point2d pd = sphereToEquirect(cv::Point3d(cos(theta) * v, sin(theta) * v, u), halfWidth, halfHeight);
+        int erx = pd.x + 0.5;
+        int ery = pd.y + 0.5;
         for (int i = 0; i < numImages; i++)
         {
             int getPair = 0;
@@ -382,6 +394,168 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
                                 double diffx = srcxjd - photoParams[j].circleX;
                                 double diffy = srcyjd - photoParams[j].circleY;
                                 if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
+                                    continue;
+                            }
+                            if (pti.x < 20 || ptj.x < 20)
+                            {
+                                int a = 0;
+                            }
+                            cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
+                            int gradValJ = grads[j].at<unsigned char>(ptj);
+                            if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
+                                valJ[1] > minValThresh && valJ[1] < maxValThresh &&
+                                valJ[2] > minValThresh && valJ[2] < maxValThresh &&
+                                gradValJ < gradThresh)
+                            {
+                                ValuePair pair;
+                                pair.i = i;
+                                pair.j = j;
+                                pair.iPos = pti;
+                                pair.jPos = ptj;
+                                pair.iVal = valI;
+                                pair.jVal = valJ;
+                                pair.iValD = toVec3d(pair.iVal) * normScale;
+                                pair.jValD = toVec3d(pair.jVal) * normScale;
+                                pair.equiRectPos = cv::Point(erx, ery);
+                                getPair = 1;
+                                numPairs++;
+                                pairs.push_back(pair);
+                                //break;
+                            }
+                        }
+                    }
+                }
+            }
+            //if (getPair)
+            //    break;
+        }
+        //if (numPairs >= expectNumPairs)
+        //    break;
+    }
+
+    std::vector<int> appearCount(numImages, 0);
+
+    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
+    for (int i = 0; i < numPairs; i++)
+    {
+        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                appearCount[k]++;
+            if (pairs[i].j == k)
+                appearCount[k]++;
+        }
+    }
+
+    printf("num pairs found %d\n", numPairs);
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("%d appear %d times\n", i, appearCount[i]);
+    }
+    cv::imwrite("mask.bmp", mask);
+    cv::imshow("mask", mask);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> show(numImages);
+    for (int i = 0; i < numImages; i++)
+        show[i] = src[i].clone();
+
+    for (int i = 0; i < numPairs; i++)
+    {
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
+            if (pairs[i].j == k)
+                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
+        }
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        char buf[64];
+        sprintf(buf, "%d", i);
+        cv::imshow(buf, show[i]);
+    }
+    cv::waitKey(0);
+}
+
+void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+{
+    int numImages = src.size();
+    CV_Assert(photoParams.size() == numImages);
+
+    std::vector<PhotoParam> params = photoParams;
+    rescalePhotoParams(params, 1.0 / downSizeRatio);
+
+    int erWidth = 200, erHeight = 100;
+    std::vector<Remap> remaps(numImages);
+    for (int i = 0; i < numImages; i++)
+        remaps[i].init(params[i], erWidth, erHeight, src[0].cols, src[0].rows);
+
+    std::vector<cv::Mat> grads(numImages);
+    for (int i = 0; i < numImages; i++)
+        calcGradImage(src[i], grads[i]);
+
+    for (int i = 0; i < numImages; i++)
+    {
+        double maxVal, minVal;
+        cv::minMaxLoc(grads[i], &minVal, &maxVal);
+        printf("min %f, max %f\n", minVal, maxVal);
+    }
+
+    cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
+
+    pairs.clear();
+
+    int minValThresh = 5, maxValThresh = 250;
+    int gradThresh = 3;
+    cv::RNG_MT19937 rng(cv::getTickCount());
+    int numTrials = 8000 * 5;
+    int expectNumPairs = 1000 * 5;
+    int numPairs = 0;
+    const double normScale = 1.0 / 255.0;
+    for (int ery = 0; ery < erHeight; ery++)
+    for (int erx = 0; erx < erWidth; erx++)
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            int getPair = 0;
+            double srcxid, srcyid;
+            remaps[i].remapImage(srcxid, srcyid, erx, ery);
+            cv::Point pti(srcxid, srcyid);
+            if (validRect.contains(pti))
+            {
+                if (params[i].circleR > 0)
+                {
+                    double diffx = srcxid - params[i].circleX;
+                    double diffy = srcyid - params[i].circleY;
+                    if (diffx * diffx + diffy * diffy > params[i].circleR * params[i].circleR - 5)
+                        continue;
+                }
+                cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
+                int gradValI = grads[i].at<unsigned char>(pti);
+                if (valI[0] > minValThresh && valI[0] < maxValThresh &&
+                    valI[1] > minValThresh && valI[1] < maxValThresh &&
+                    valI[2] > minValThresh && valI[2] < maxValThresh &&
+                    gradValI < gradThresh)
+                {
+                    for (int j = 0; j < numImages; j++)
+                    {
+                        if (i == j)
+                            continue;
+
+                        double srcxjd, srcyjd;
+                        remaps[j].remapImage(srcxjd, srcyjd, erx, ery);
+                        cv::Point ptj(srcxjd, srcyjd);
+                        if (validRect.contains(ptj))
+                        {
+                            if (params[j].circleR > 0)
+                            {
+                                double diffx = srcxjd - params[j].circleX;
+                                double diffy = srcyjd - params[j].circleY;
+                                if (diffx * diffx + diffy * diffy > params[j].circleR * params[j].circleR - 5)
                                     continue;
                             }
                             if (pti.x < 20 || ptj.x < 20)
@@ -1199,7 +1373,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     {
         diff += transforms[i].applyInverse(edata->meanVals[i]) - edata->meanVals[i];
     }
-    //hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]) / 3.0, huberSigma);
+    hx[index++] = weightHuber(abs(diff[0] + diff[1] + diff[2]) / 3.0, huberSigma);
 
     edata->errorFuncCallCount++;
 
@@ -1254,7 +1428,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = /*2 **/ 2 * 3 * valuePairs.size() + 3 * numImages/* + 1*//*0*/;
+        int n = /*2 **/ 2 * 3 * valuePairs.size() + 3 * numImages + 1/*0*/;
         if (anchorIndex >= 0 && anchorIndex < numImages)
             n -= 3;
         std::vector<double> x(n, 0.0);
@@ -1510,8 +1684,9 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    //getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsAll2(testSrc, params, downSizePower, pairs);
     //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
     
@@ -1521,7 +1696,7 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
-    optimize(pairs, numImages, numImages - 1, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
+    optimize(pairs, numImages, /*numImages */-1, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
@@ -1563,7 +1738,7 @@ int main()
     int respCurveType = GAMMA;
     std::vector<int> opts;
     opts.push_back(EXPOSURE/* | RESPONSE_CURVE*/);
-    opts.push_back(WHITE_BALANCE);
+    //opts.push_back(WHITE_BALANCE);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
