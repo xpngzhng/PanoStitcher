@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\Blend\gcgraph.hpp" />
+    <ClInclude Include="..\..\source\Blend\VisualManip.h" />
     <ClInclude Include="..\..\source\Blend\Pyramid.h" />
     <ClInclude Include="..\..\source\Blend\SeamVisualizer.h" />
     <ClInclude Include="..\..\source\Blend\Timer.h" />

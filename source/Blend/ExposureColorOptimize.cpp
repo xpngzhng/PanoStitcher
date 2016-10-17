@@ -7,7 +7,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-int getResizeTimes(int width, int height, int minWidth, int minHeight)
+static int getResizeTimes(int width, int height, int minWidth, int minHeight)
 {
     if (width < minWidth || height < minHeight)
         return 0;
@@ -35,7 +35,7 @@ inline cv::Vec3d toVec3d(const cv::Vec3b v)
     return cv::Vec3d(v[0], v[1], v[2]);
 }
 
-void calcGradImage(const cv::Mat& src, cv::Mat& dst)
+static void calcGradImage(const cv::Mat& src, cv::Mat& dst)
 {
     CV_Assert(src.type() == CV_8UC3);
     cv::Mat gray, blurred, grad;
@@ -46,7 +46,7 @@ void calcGradImage(const cv::Mat& src, cv::Mat& dst)
     cv::convertScaleAbs(grad, dst);
 }
 
-void rescalePhotoParam(PhotoParam& param, double scale)
+static void rescalePhotoParam(PhotoParam& param, double scale)
 {
     param.shiftX *= scale;
     param.shiftY *= scale;
@@ -62,7 +62,7 @@ void rescalePhotoParam(PhotoParam& param, double scale)
     param.circleR *= scale;
 }
 
-void rescalePhotoParams(std::vector<PhotoParam>& params, double scale)
+static void rescalePhotoParams(std::vector<PhotoParam>& params, double scale)
 {
     int size = params.size();
     for (int i = 0; i < size; i++)
@@ -78,7 +78,8 @@ struct ValuePair
     cv::Point equiRectPos;
 };
 
-void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
@@ -246,7 +247,8 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
     cv::waitKey(0);
 }
 
-void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
@@ -417,7 +419,8 @@ void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoPa
     cv::waitKey(0);
 }
 
-void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, int downSizeRatio, std::vector<ValuePair>& pairs)
+static void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+    int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
     CV_Assert(photoParams.size() == numImages);
@@ -589,7 +592,7 @@ void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoP
     cv::waitKey(0);
 }
 
-void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
+static void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
     int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
@@ -708,7 +711,7 @@ void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vecto
 }
 
 // use this downSizeRatio had better keep small
-void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
+static void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
     int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
@@ -870,7 +873,7 @@ inline bool contains(const std::vector<int>& arr, int test)
     return false;
 }
 
-void readFrom(std::vector<ImageInfo>& infos, const double* x, const std::vector<int> anchorIndexes, int optimizeWhat)
+static void readFrom(std::vector<ImageInfo>& infos, const double* x, const std::vector<int> anchorIndexes, int optimizeWhat)
 {
     int numInfos = infos.size();
     int offset = 0;
@@ -884,7 +887,7 @@ void readFrom(std::vector<ImageInfo>& infos, const double* x, const std::vector<
     }
 }
 
-void writeTo(const std::vector<ImageInfo>& infos, double* x, const std::vector<int>& anchorIndexes, int optimizeWhat)
+static void writeTo(const std::vector<ImageInfo>& infos, double* x, const std::vector<int>& anchorIndexes, int optimizeWhat)
 {
     int numInfos = infos.size();
     int offset = 0;
@@ -1008,7 +1011,7 @@ inline double weightHuber(double x, double sigma)
     return x;
 }
 
-void errorFunc(double* p, double* hx, int m, int n, void* data)
+static void errorFunc(double* p, double* hx, int m, int n, void* data)
 {
     ExternData* edata = (ExternData*)data;
     const std::vector<ImageInfo>& infos = edata->imageInfos;
@@ -1084,7 +1087,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
 #include "levmar.h"
 
-void optimize(const std::vector<ValuePair>& valuePairs, int numImages, std::vector<int> anchorIndexes,
+static void optimize(const std::vector<ValuePair>& valuePairs, int numImages, std::vector<int> anchorIndexes,
     const cv::Size& imageSize, const std::vector<int>& optimizeOptions,
     std::vector<ImageInfo>& outImageInfos)
 {
@@ -1154,6 +1157,14 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, std::vect
     //cv::waitKey(0);
 
     outImageInfos = imageInfos;
+}
+
+void getLUT(std::vector<unsigned char> lut, double k)
+{
+    CV_Assert(k > 0);
+    lut.resize(256);
+    for (int i = 0; i < 256; i++)
+        lut[i] = cv::saturate_cast<unsigned char>(k * i);
 }
 
 void getLUT(unsigned char lut[256], double k)
@@ -1282,6 +1293,10 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
     std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios)
 {
     int numImages = images.size();
+    CV_Assert(numImages == params.size());
+    CV_Assert(checkSize(images));
+    CV_Assert(checkType(images, CV_8UC3));
+
     int minWidth = 100, minHeight = 100;
     int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
 
@@ -1332,62 +1347,25 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
     }
 }
 
+void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
+    const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    int size = exposures.size();
+    CV_Assert(size > 0 && size == redRatios.size() && size == blueRatios.size());
+
+    luts.resize(size);
+    for (int i = 0; i < size; i++)
+    {
+        luts[i].resize(3);
+        getLUT(luts[i][0], exposures[i] * blueRatios[i]);
+        getLUT(luts[i][1], exposures[i]);
+        getLUT(luts[i][2], exposures[i] * redRatios[i]);
+    }
+}
+
 void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
     const std::vector<int>& anchorIndexes, const std::vector<int>& optimizeOptions)
 {
-    //int numImages = images.size();
-    //int minWidth = 100, minHeight = 100;
-    //int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
-
-    //std::vector<cv::Mat> testSrc(numImages);
-    //if (resizeTimes == 0)
-    //{
-    //    testSrc = images;
-    //}
-    //else
-    //{
-    //    for (int i = 0; i < numImages; i++)
-    //    {
-    //        cv::Mat large = images[i];
-    //        cv::Mat small;
-    //        for (int j = 0; j < resizeTimes; j++)
-    //        {
-    //            cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
-    //            large = small;
-    //        }
-    //        testSrc[i] = small;
-    //    }
-    //}
-
-    //int downSizePower = pow(2, resizeTimes);
-    //std::vector<ValuePair> pairs;
-    ////getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    //getPointPairsAll(testSrc, params, downSizePower, pairs);
-    ////getPointPairsAll2(testSrc, params, downSizePower, pairs);
-    ////getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
-    ////getPointPairsHistogram(testSrc, params, downSizePower, pairs);
-
-    //std::vector<ImageInfo> imageInfos(numImages);
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
-    //    imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
-    //}
-    //std::vector<int> anchors;
-    //anchors.push_back(numImages - 2);
-    //optimize(pairs, numImages, anchors, testSrc[0].size(), optimizeOptions, imageInfos);
-
-    //std::vector<double> exposures, redRatios, blueRatios;
-    //exposures.resize(numImages);
-    //redRatios.resize(numImages);
-    //blueRatios.resize(numImages);
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    exposures[i] = 1.0 / imageInfos[i].exposure;
-    //    redRatios[i] = 1.0 / imageInfos[i].whiteBalanceRed;
-    //    blueRatios[i] = 1.0 / imageInfos[i].whiteBalanceBlue;
-    //}
-
     std::vector<double> exposures, redRatios, blueRatios;
     exposureColorOptimize(images, params, anchorIndexes, optimizeOptions, exposures, redRatios, blueRatios);
 
@@ -1399,11 +1377,7 @@ void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& para
     getReprojectMapsAndMasks(params, images[0].size(), dstSize, maps, masks);
 
     std::vector<cv::Mat> reprojImages;
-    //ztool::Timer t;
-    //for (int i = 0; i < 100; i++)
     reprojectParallel(dstImages, reprojImages, maps);
-    //t.end();
-    //printf("t = %f\n", t.elapse());
 
     cv::Mat blendImage;
 
@@ -1451,7 +1425,7 @@ int main()
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     //xxxx
@@ -1471,7 +1445,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     //xxxx
@@ -1502,7 +1476,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1516,7 +1490,7 @@ int main()
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1529,7 +1503,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1542,7 +1516,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1555,7 +1529,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1568,7 +1542,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1582,7 +1556,8 @@ int main()
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(0);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1595,7 +1570,11 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(0);
+    //anchors.push_back(1);
+    //anchors.push_back(2);
+    //anchors.push_back(4);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1608,7 +1587,9 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(3);
+    //anchors.push_back(4);
+    //anchors.push_back(5);
     run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
@@ -1622,7 +1603,9 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(imagePaths.size() - 2);
+    //anchors.push_back(1);
+    //anchors.push_back(3);
     run(srcImages, params, anchors, opts);
 
     return 0;

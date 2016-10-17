@@ -4,6 +4,7 @@
 #include "ConcurrentQueue.h"
 #include "CustomMask.h"
 #include "Blend/ZBlend.h"
+#include "Blend/VisualManip.h"
 #include "Warp/ZReproject.h"
 #include "CudaAccel/CudaInterface.h"
 #include "opencv2/core.hpp"
