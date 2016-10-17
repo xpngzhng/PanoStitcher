@@ -23,67 +23,6 @@ int getResizeTimes(int width, int height, int minWidth, int minHeight)
     return num - 1;
 }
 
-struct UniformToSphereConverter
-{
-    void init(int radius)
-    {
-        length = radius * 2;
-        std::vector<double> temp(length, 0);
-        double r2 = radius * radius;
-        for (int i = 0; i < length; i++)
-        {
-            double diff = i - radius;
-            double val = sqrt(r2 - diff * diff);
-            temp[i] = val;
-        }
-        for (int i = 1; i < length; i++)
-            temp[i] += temp[i - 1];
-        double scale = length / temp[length - 1];
-        for (int i = 0; i < length; i++)
-            temp[i] *= scale;
-
-        lut.resize(length);
-        for (int i = 0; i < length; i++)
-        {
-            int lowIndex = 0, highIndex = length - 1;
-            for (int j = 0; j < length - 1; j++)
-            {
-                if (temp[j] <= i && temp[j + 1] >= i)
-                {
-                    lowIndex = j;
-                    break;
-                }
-            }
-            for (int j = length - 1; j > 0; j--)
-            {
-                if (temp[j - 1] <= i && temp[j] >= i)
-                {
-                    highIndex = j;
-                    break;
-                }
-            }
-            if (lowIndex == highIndex)
-            {
-                lut[i] = lowIndex;
-                continue;
-            }
-            double diff = highIndex - lowIndex;
-            double lambda = (i - lowIndex) / diff;
-            lut[i] = lambda * lowIndex + (1 - lambda) * highIndex + 0.5;
-        }
-    }
-    int transform(int i) const
-    {
-        if (i < 0)
-            return 0;
-        if (i >= length)
-            return length - 1;
-        return lut[i];
-    }
-    std::vector<int> lut;
-    int length;
-};
-
 inline cv::Vec3b toVec3b(const cv::Vec3d v)
 {
     return cv::Vec3b(cv::saturate_cast<unsigned char>(v[0]),
@@ -159,9 +98,6 @@ void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<Phot
         cv::minMaxLoc(grads[i], &minVal, &maxVal);
         printf("min %f, max %f\n", minVal, maxVal);
     }
-
-    UniformToSphereConverter cvtUToS;
-    cvtUToS.init(erHeight / 2);
 
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
@@ -1025,12 +961,12 @@ struct Transform
 
     double LUT(double val) const
     {
-        return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
+        return val;
     }
 
     double invLUT(double val) const
     {
-        return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
+        return val;
     }
 
     double exposure;
@@ -1271,27 +1207,16 @@ void getLUTMaxScale(unsigned char LUT[256], double k, double maxK)
     }
 }
 
-void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
+void correct(const std::vector<cv::Mat>& src, const std::vector<double>& es, 
+    const std::vector<double>& rs, const std::vector<double>& bs, std::vector<cv::Mat>& dst)
 {
     int numImages = src.size();
-
-    std::vector<Transform> transforms(numImages);
-    for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i]);
 
     double maxE = 0;
     for (int i = 0; i < numImages; i++)
     {
-        double e = 1.0 / infos[i].exposure;
+        double e = es[i];
         maxE = e > maxE ? e : maxE;
-    }
-
-    std::vector<double> es(numImages), bs(numImages), rs(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        es[i] = 1.0 / infos[i].exposure;
-        rs[i] = 1.0 / infos[i].whiteBalanceRed;
-        bs[i] = 1.0 / infos[i].whiteBalanceBlue;
     }
     double maxScale = calcMaxScale(es, rs, bs);
 
@@ -1300,14 +1225,13 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     unsigned char lutr[256], lutg[256], lutb[256];
     for (int i = 0; i < numImages; i++)
     {
-        Transform& trans = transforms[i];
         dst[i].create(src[i].size(), CV_8UC3);
         int rows = dst[i].rows, cols = dst[i].cols;
 
-        double e = 1.0 / infos[i].exposure;
+        double e = es[i];
         //e /= maxE;
-        double r = 1.0 / infos[i].whiteBalanceRed;
-        double b = 1.0 / infos[i].whiteBalanceBlue;
+        double r = rs[i];
+        double b = bs[i];
         getLUT(lutr, e * r);
         getLUT(lutg, e);
         getLUT(lutb, e * b);
@@ -1345,28 +1269,24 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     cv::waitKey(0);
 }
 
-void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoParam>& params,
-    const std::vector<int>& optimizeOptions)
+void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
+    const std::vector<int> anchorIndexes, const std::vector<int>& optimizeOptions,
+    std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios)
 {
-    int numImages = imagePaths.size();
-    std::vector<cv::Mat> src(numImages);
-    for (int i = 0; i < numImages; i++)
-        src[i] = cv::imread(imagePaths[i]);
-
-    int resizeTimes = 0;
+    int numImages = images.size();
     int minWidth = 100, minHeight = 100;
-    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
+    int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
 
     std::vector<cv::Mat> testSrc(numImages);
     if (resizeTimes == 0)
     {
-        testSrc = src;
+        testSrc = images;
     }
     else
     {
         for (int i = 0; i < numImages; i++)
         {
-            cv::Mat large = src[i];
+            cv::Mat large = images[i];
             cv::Mat small;
             for (int j = 0; j < resizeTimes; j++)
             {
@@ -1393,17 +1313,82 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
     }
     optimize(pairs, numImages, numImages - 2, testSrc[0].size(), optimizeOptions, imageInfos);
 
+    exposures.resize(numImages);
+    redRatios.resize(numImages);
+    blueRatios.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        exposures[i] = 1.0 / imageInfos[i].exposure;
+        redRatios[i] = 1.0 / imageInfos[i].whiteBalanceRed;
+        blueRatios[i] = 1.0 / imageInfos[i].whiteBalanceBlue;
+    }
+}
+
+void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
+    const std::vector<int>& optimizeOptions)
+{
+    int numImages = images.size();
+    int minWidth = 100, minHeight = 100;
+    int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
+
+    std::vector<cv::Mat> testSrc(numImages);
+    if (resizeTimes == 0)
+    {
+        testSrc = images;
+    }
+    else
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            cv::Mat large = images[i];
+            cv::Mat small;
+            for (int j = 0; j < resizeTimes; j++)
+            {
+                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
+                large = small;
+            }
+            testSrc[i] = small;
+        }
+    }
+
+    int downSizePower = pow(2, resizeTimes);
+    std::vector<ValuePair> pairs;
+    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    //getPointPairsAll2(testSrc, params, downSizePower, pairs);
+    //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
+    //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
+
+    std::vector<ImageInfo> imageInfos(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
+        imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
+    }
+    optimize(pairs, numImages, numImages - 2, testSrc[0].size(), optimizeOptions, imageInfos);
+
+    std::vector<double> exposures, redRatios, blueRatios;
+    exposures.resize(numImages);
+    redRatios.resize(numImages);
+    blueRatios.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        exposures[i] = 1.0 / imageInfos[i].exposure;
+        redRatios[i] = 1.0 / imageInfos[i].whiteBalanceRed;
+        blueRatios[i] = 1.0 / imageInfos[i].whiteBalanceBlue;
+    }
+
     std::vector<cv::Mat> dstImages;
-    correct(src, imageInfos, dstImages);
+    correct(images, exposures, redRatios, blueRatios, dstImages);
 
     cv::Size dstSize(1200, 600);
     std::vector<cv::Mat> maps, masks, weights;
-    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
+    getReprojectMapsAndMasks(params, images[0].size(), dstSize, maps, masks);
 
-    std::vector<cv::Mat> images;
+    std::vector<cv::Mat> reprojImages;
     //ztool::Timer t;
     //for (int i = 0; i < 100; i++)
-    reprojectParallel(dstImages, images, maps);
+    reprojectParallel(dstImages, reprojImages, maps);
     //t.end();
     //printf("t = %f\n", t.elapse());
 
@@ -1411,16 +1396,24 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
 
     TilingLinearBlend blender;
     blender.prepare(masks, 50);
-    blender.blend(images, blendImage);
+    blender.blend(reprojImages, blendImage);
     cv::imshow("blend", blendImage);
     cv::imwrite("out.bmp", blendImage);
 
     TilingMultibandBlendFast mbBlender;
     mbBlender.prepare(masks, 10, 8);
-    mbBlender.blend(images, blendImage);
+    mbBlender.blend(reprojImages, blendImage);
     cv::imshow("mb blend", blendImage);
 
     cv::waitKey(0);
+}
+
+void loadImages(const std::vector<std::string>& imagePaths, std::vector<cv::Mat>& images)
+{
+    int numImages = imagePaths.size();
+    images.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        images[i] = cv::imread(imagePaths[i]);
 }
 
 int main()
@@ -1429,6 +1422,7 @@ int main()
 
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
+    std::vector<cv::Mat> srcImages;
 
     std::vector<int> opts;
     opts.push_back(EXPOSURE | WHITE_BALANCE);
@@ -1440,7 +1434,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1457,7 +1452,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1485,7 +1481,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -1496,7 +1493,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
     loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
@@ -1506,7 +1504,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
@@ -1516,7 +1515,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
@@ -1526,7 +1526,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
@@ -1536,7 +1537,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -1547,7 +1549,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
     loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
@@ -1557,7 +1560,8 @@ int main()
     imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
@@ -1567,7 +1571,8 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
@@ -1578,164 +1583,8 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image5.bmp");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
-    run(imagePaths, params, opts);
+    loadImages(imagePaths, srcImages);
+    run(srcImages, params, opts);
 
-    return 0;
-
-    int numImages = imagePaths.size();
-    std::vector<cv::Mat> src(numImages);
-    for (int i = 0; i < numImages; i++)
-        src[i] = cv::imread(imagePaths[i]);
-
-    int resizeTimes = 0;
-    int minWidth = 120, minHeight = 90;
-    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
-
-    std::vector<cv::Mat> testSrc(numImages);
-    if (resizeTimes == 0)
-    {
-        testSrc = src;
-    }
-    else
-    {
-        for (int i = 0; i < numImages; i++)
-        {
-            cv::Mat large = src[i];
-            cv::Mat small;
-            for (int j = 0; j < resizeTimes; j++)
-            {
-                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
-                large = small;
-            }
-            testSrc[i] = small;
-        }
-    }
-
-    int downSizePower = pow(2, resizeTimes);
-    std::vector<ValuePair> pairs;
-    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
-    //getPointPairsHistogram(testSrc, params, pairs);
-
-    std::vector<int> options;
-    opts.push_back(EXPOSURE);
-    std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), options, imageInfos);
-
-    std::vector<cv::Mat> dstImages;
-    correct(src, imageInfos, dstImages);
-
-    cv::Size dstSize(1600, 800);
-    std::vector<cv::Mat> maps, masks, weights;
-    getReprojectMapsAndMasks(params, src[0].size(), dstSize, maps, masks);
-
-    std::vector<cv::Mat> images;
-    //ztool::Timer t;
-    //for (int i = 0; i < 100; i++)
-    reprojectParallel(dstImages, images, maps);
-    //t.end();
-    //printf("t = %f\n", t.elapse());
-
-    cv::Mat blendImage;
-
-    TilingLinearBlend blender;
-    blender.prepare(masks, 50);
-    blender.blend(images, blendImage);
-    cv::imshow("blend", blendImage);
-    cv::imwrite("out.bmp", blendImage);
-
-    TilingMultibandBlendFast mbBlender;
-    mbBlender.prepare(masks, 10, 8);
-    mbBlender.blend(images, blendImage);
-    cv::imshow("mb blend", blendImage);
-
-    cv::waitKey(0);
-    return 0;
-}
-
-struct Data
-{
-    double* ptrIn;
-    double* ptrOut;
-    int count;
-};
-
-void compute(double *p, double *x, int m, int n, void *data)
-{
-    Data* ptrData = (Data*)data;
-    double* ptrIn = ptrData->ptrIn;
-    double* ptrOut = ptrData->ptrOut;
-    for (int i = 0; i < n; i++)
-        x[i] = ptrOut[i] - exp(p[0] * ptrIn[i * 2] * ptrIn[i * 2] + p[1] * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]);
-    ptrData->count++;
-    printf("%d: a = %f, b = %f\n", ptrData->count, p[0], p[1]);
-}
-
-void jacob(double *p, double *x, int m, int n, void *data)
-{
-    Data* ptrData = (Data*)data;
-    double* ptrIn = ptrData->ptrIn;
-    double* ptrOut = ptrData->ptrOut;
-    for (int i = 0; i < n; i++)
-    {
-        double y = exp(p[0] * ptrIn[i * 2] * ptrIn[i * 2] + p[1] * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]);
-        x[i * 2] = -y * ptrIn[i * 2] * ptrIn[i * 2];
-        x[i * 2 + 1] = -y * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1];
-    }
-}
-
-int mainy()
-{
-    int num = 1000;
-    double beg = -3, end = 3;
-    double a = -1, b = -1;
-    cv::Mat input(num, 2, CV_64FC1);
-    cv::Mat output(num, 1, CV_64FC1);
-    cv::Mat noise(num, 1, CV_64FC1);
-    cv::RNG rng;
-    rng.fill(input, cv::RNG::UNIFORM, beg, end);
-    rng.fill(noise, cv::RNG::NORMAL, 0, 0.01);
-    double* ptrIn = (double*)input.data;
-    double* ptrOut = (double*)output.data;
-    double* ptrNoise = (double*)noise.data;
-    for (int i = 0; i < num; i++)
-        ptrOut[i] = exp(a * ptrIn[i * 2] * ptrIn[i * 2] + b * ptrIn[i * 2 + 1] * ptrIn[i * 2 + 1]) + ptrNoise[i];
-
-    int ret;
-    //double opts[LM_OPTS_SZ];
-    double info[LM_INFO_SZ];
-
-    // parameters
-    std::vector<double> p(2, 0.0);
-    p[0] = 1, p[1] = 1;
-
-    // vector for mesurements
-    std::vector<double> x(num, 0.0);
-
-    // covariance matrix at solution
-    cv::Mat cov(2, 2, CV_64FC1);
-    // TODO: setup optimisation options with some good defaults.
-    double optimOpts[5];
-
-    optimOpts[0] = 1E-03;  // init mu
-    // stop thresholds
-    optimOpts[1] = 1e-5;   // ||J^T e||_inf
-    optimOpts[2] = 1e-5;   // ||Dp||_2
-    optimOpts[3] = 1e-1;   // ||e||_2
-    // difference mode
-    optimOpts[4] = LM_DIFF_DELTA;
-
-    int maxIter = 300;
-
-    Data data;
-    data.ptrIn = ptrIn;
-    data.ptrOut = ptrOut;
-    data.count = 0;
-
-    ret = dlevmar_dif(&compute, &(p[0]), &(x[0]), 2, num, maxIter, optimOpts, info, NULL, (double*)cov.data, &data);  // no jacobian
-    //ret = dlevmar_der(&compute, &jacob, &(p[0]), &(x[0]), 2, num, maxIter, optimOpts, info, NULL, (double*)cov.data, &data);  // with jacobian
-    // copy to source images (data.m_imgs)
-
-    int kkka = 0;
     return 0;
 }

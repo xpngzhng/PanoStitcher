@@ -115,7 +115,7 @@ bool ExposureColorCorrect::correctExposureAndWhiteBalance(const std::vector<cv::
     std::vector<unsigned char> lut;
     for (int i = 0; i < numImages; i++)
     {
-        getLUT(lut, exposures[i]);
+        getLUTBezierSmooth(lut, exposures[i]);
         adjust(images[i], transImages[i], lut);
     }
 
@@ -209,7 +209,7 @@ bool ExposureColorCorrect::getExposureLUTs(const std::vector<double>& exposures,
 
     luts.resize(numImages);
     for (int i = 0; i < numImages; i++)
-        getLUT(luts[i], exposures[i]);
+        getLUTBezierSmooth(luts[i], exposures[i]);
     return true;
 }
 
@@ -227,9 +227,9 @@ bool ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(const std::vector<doub
     for (int i = 0; i < numImages; i++)
     {
         luts[i].resize(3);
-        getLUT(luts[i][0], exposures[i] * blueRatios[i]);
-        getLUT(luts[i][1], exposures[i]);
-        getLUT(luts[i][2], exposures[i] * redRatios[i]);
+        getLUTBezierSmooth(luts[i][0], exposures[i] * blueRatios[i]);
+        getLUTBezierSmooth(luts[i][1], exposures[i]);
+        getLUTBezierSmooth(luts[i][2], exposures[i] * redRatios[i]);
     }
     return true;
 }
@@ -253,7 +253,7 @@ bool ExposureColorCorrect::getColorExposureLUTs(const std::vector<std::vector<do
     {
         luts[i].resize(3);
         for (int j = 0; j < 3; j++)
-            getLUT(luts[i][j], exposures[i][j]);
+            getLUTBezierSmooth(luts[i][j], exposures[i][j]);
     }
     return true;
 }

@@ -318,7 +318,7 @@ void getTransformsBGRPairWiseMutualError(const std::vector<cv::Mat>& images, con
     }
 }
 
-void getLUT(std::vector<unsigned char>& lut, double k)
+void getLUTBezierSmooth(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
     lut.resize(256);
@@ -458,7 +458,7 @@ void compensate(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& 
     std::vector<unsigned char> lut;
     for (int i = 0; i < numImages; i++)
     {
-        getLUT(lut, gains[i]);
+        getLUTBezierSmooth(lut, gains[i]);
         adjust(images[i], results[i], lut);
     }
 }
@@ -475,7 +475,7 @@ void compensateBGR(const std::vector<cv::Mat>& images, const std::vector<cv::Mat
     {
         luts[i].resize(3);
         for (int j = 0; j < 3; j++)
-            getLUT(luts[i][j], kts[i][j]);
+            getLUTBezierSmooth(luts[i][j], kts[i][j]);
     }
 
     results.resize(numImages);
