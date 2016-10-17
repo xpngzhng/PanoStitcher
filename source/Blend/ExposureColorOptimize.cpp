@@ -857,23 +857,10 @@ void getPointPairsHistogram(const std::vector<cv::Mat>& src, const std::vector<P
     }
 }
 
-enum { OPTIMIZE_VAL_NUM = 8 };
-enum { EMOR_COEFF_LENGTH = 5 };
-enum { VIGNETT_COEFF_LENGTH = 4 };
-
 enum OptimizeParamType
 {
     EXPOSURE = 1,
-    RESPONSE_CURVE = 2,
     WHITE_BALANCE = 4,
-    VIGNETTE = 8
-};
-
-enum ResponseCurveType
-{
-    IDENTITY = 0,
-    EMOR = 1,
-    GAMMA = 2
 };
 
 struct ImageInfo
@@ -883,78 +870,30 @@ struct ImageInfo
 
     }
 
-    ImageInfo(const cv::Size& size_, int responseCurveType_)
+    ImageInfo(const cv::Size& size_)
     {
-        memset(emorCoeffs, 0, sizeof(emorCoeffs));
-        memset(radialVignettCoeffs, 0, sizeof(radialVignettCoeffs));
-        radialVignettCoeffs[0] = 1;
-        //exposureExponent = 0;
-        exposureExponent = 1;
-        gamma = 1;
+        exposure = 1;
         whiteBalanceRed = 1;
         whiteBalanceBlue = 1;
         size = size_;
-        responseCurveType = responseCurveType_;
     }
 
-    double getExposure() const
-    {
-        //return 1.0 / pow(2.0, exposureExponent);
-        return exposureExponent;
-    }
-
-    void setExposure(double e)
-    {
-        //exposureExponent = log2(1 / e);
-        exposureExponent = e;
-    }
-
-    int static getNumParams(int optimizeWhat, int responseCurveType)
+    int static getNumParams(int optimizeWhat)
     {
         int num = 0;
         if (optimizeWhat & EXPOSURE)
             num += 1;
-        if (optimizeWhat & RESPONSE_CURVE)
-        {
-            if (responseCurveType == EMOR)
-                num += EMOR_COEFF_LENGTH;
-            else if (responseCurveType == GAMMA)
-                num += 1;
-        }
-        if (optimizeWhat & VIGNETTE)
-            num += VIGNETT_COEFF_LENGTH;
         if (optimizeWhat & WHITE_BALANCE)
             num += 2;
         return num;
     }
 
-    int getNumParams(int optimizeWhat) const
-    {
-        return getNumParams(optimizeWhat, responseCurveType);
-    }
-
     void fromOutside(const double* x, int optimizeWhat)
     {
         int index = 0;
-        if (optimizeWhat & RESPONSE_CURVE)
-        {
-            if (responseCurveType == EMOR)
-            {
-                for (; index < EMOR_COEFF_LENGTH; index++)
-                    emorCoeffs[index] = x[index];
-            }
-            else if (responseCurveType == GAMMA)
-                gamma = x[index++];
-        }
-        if (optimizeWhat & VIGNETTE)
-        {
-            int lastLength = index;
-            for (; index < lastLength + VIGNETT_COEFF_LENGTH; index++)
-                radialVignettCoeffs[index - EMOR_COEFF_LENGTH] = x[index];
-        }
         if (optimizeWhat & EXPOSURE)
         {
-            setExposure(x[index++]);
+            exposure = x[index++];
         }
         if (optimizeWhat & WHITE_BALANCE)
         {
@@ -966,26 +905,9 @@ struct ImageInfo
     void toOutside(double* x, int optimizeWhat) const
     {
         int index = 0;
-        if (optimizeWhat & RESPONSE_CURVE)
-        {
-            if (responseCurveType == EMOR)
-            {
-                for (; index < EMOR_COEFF_LENGTH; index++)
-                    x[index] = emorCoeffs[index];
-            }
-            else if (responseCurveType == GAMMA)
-                x[index++] = gamma;
-
-        }
-        if (optimizeWhat & VIGNETTE)
-        {
-            int lastLength = index;
-            for (; index < lastLength + VIGNETT_COEFF_LENGTH; index++)
-                x[index] = radialVignettCoeffs[index - EMOR_COEFF_LENGTH];
-        }
         if (optimizeWhat & EXPOSURE)
         {
-            x[index++] = getExposure();
+            x[index++] = exposure;
         }
         if (optimizeWhat & WHITE_BALANCE)
         {
@@ -994,14 +916,10 @@ struct ImageInfo
         }
     }
 
-    double emorCoeffs[EMOR_COEFF_LENGTH];
-    double radialVignettCoeffs[VIGNETT_COEFF_LENGTH];
-    double exposureExponent;
+    double exposure;
     double whiteBalanceRed;
     double whiteBalanceBlue;
-    double gamma;
     cv::Size size;
-    int responseCurveType;
     cv::Vec3d meanVals;
 };
 
@@ -1033,7 +951,6 @@ void writeTo(const std::vector<ImageInfo>& infos, double* x, int anchorIndex, in
     }
 }
 
-#include "emor.h"
 struct Transform
 {
     Transform()
@@ -1043,42 +960,7 @@ struct Transform
 
     Transform(const ImageInfo& imageInfo)
     {
-        responseCurveType = imageInfo.responseCurveType;
-        gamma = imageInfo.gamma;
-
-        memset(lut, 0, sizeof(lut));
-        if (responseCurveType == EMOR)
-        {
-            for (int i = 0; i < LUT_LENGTH; i++)
-            {
-                double t = EMoR::f0[i];
-                for (int k = 0; k < EMOR_COEFF_LENGTH; k++)
-                    t += EMoR::h[k][i] * imageInfo.emorCoeffs[k];
-                lut[i] = t;
-            }
-        }
-        else if (responseCurveType == GAMMA)
-        {
-            double gamma = imageInfo.gamma;
-            for (int i = 0; i < LUT_LENGTH; i++)
-            {
-                double s = double(i) / (LUT_LENGTH - 1);
-                lut[i] = pow(s, gamma);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < LUT_LENGTH; i++)
-                lut[i] = double(i) / (LUT_LENGTH - 1);
-        }
-
-        vigCenterX = imageInfo.size.width / 2;
-        vigCenterY = imageInfo.size.height / 2;
-        memcpy(vigCoeffs, imageInfo.radialVignettCoeffs, sizeof(vigCoeffs));
-        radiusScale = 1.0 / sqrt(vigCenterX * vigCenterX + vigCenterY * vigCenterY);
-
-        exposure = imageInfo.getExposure();
-
+        exposure = imageInfo.exposure;
         whiteBalanceRed = imageInfo.whiteBalanceRed;
         whiteBalanceBlue = imageInfo.whiteBalanceBlue;
     }
@@ -1105,7 +987,7 @@ struct Transform
 
     cv::Vec3d apply(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = /*calcVigFactor(p) **/ exposure;
+        double scale = exposure;
         double b = val[0] * scale * whiteBalanceBlue;
         double g = val[1] * scale;
         double r = val[2] * scale * whiteBalanceRed;
@@ -1114,7 +996,7 @@ struct Transform
 
     cv::Vec3d applyInverse(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = 1.0 / (/*calcVigFactor(p) **/ exposure);
+        double scale = 1.0 / exposure;
         double b = invLUT(val[0]) * scale;
         double g = invLUT(val[1]) * scale;
         double r = invLUT(val[2]) * scale;
@@ -1125,7 +1007,7 @@ struct Transform
 
     cv::Vec3d applyInverseExposureOnly(const cv::Point& p, const cv::Vec3d& val) const
     {
-        double scale = 1.0 / (/*calcVigFactor(p) **/ exposure);
+        double scale = 1.0 / exposure;
         double b = invLUT(val[0]) * scale;
         double g = invLUT(val[1]) * scale;
         double r = invLUT(val[2]) * scale;
@@ -1141,110 +1023,19 @@ struct Transform
         return cv::Vec3d(LUT(b), LUT(g), LUT(r));
     }
 
-    double calcVigFactor(const cv::Point& p) const
-    {
-        double diffx = (p.x - vigCenterX) * radiusScale;
-        double diffy = (p.y - vigCenterY) * radiusScale;
-        double vig = vigCoeffs[0];
-        double r2 = diffx * diffx + diffy * diffy;
-        double r = r2;
-        for (int i = 1; i < VIGNETT_COEFF_LENGTH; i++)
-        {
-            vig += vigCoeffs[i] * r;
-            r *= r2;
-        }
-        return vig;
-    }
-
     double LUT(double val) const
     {
-        if (responseCurveType == EMOR/*1*/)
-        {
-            if (val <= 0)
-                return lut[0];
-            if (val >= 1)
-                return lut[LUT_LENGTH - 1];
-
-            return lut[int(val * LUT_LENGTH)];
-        }
-        else if (responseCurveType == GAMMA)
-            return /*val <= 0 ? 0 : val > 1 ? 1 : */pow(val, gamma);
-        else
-            return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
+        return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
     }
 
     double invLUT(double val) const
     {
-        if (responseCurveType == EMOR/*1*/)
-        {
-            if (val <= 0)
-                return 0;
-            if (val >= 1)
-                return 1;
-
-            int lowIdx = 0, upIdx = LUT_LENGTH - 1;
-            for (int i = 0; i < LUT_LENGTH - 1; i++)
-            {
-                if (lut[i] <= val && lut[i + 1] >= val)
-                {
-                    lowIdx = i;
-                    break;
-                }
-            }
-            for (int i = LUT_LENGTH - 1; i > 0; i--)
-            {
-                if (lut[i - 1] <= val && lut[i] >= val)
-                {
-                    upIdx = i;
-                    break;
-                }
-            }
-            if (lowIdx == upIdx)
-                return double(lowIdx) / (LUT_LENGTH - 1);
-
-            double diff = lut[upIdx] - lut[lowIdx];
-            double lambda = (val - lut[lowIdx]) / diff;
-            return (lowIdx * (1 - lambda) + upIdx * lambda) / (LUT_LENGTH - 1);
-        }
-        else if (responseCurveType == GAMMA)
-            return /*val <= 0 ? 0 : val > 1 ? 1 : */pow(val, 1.0 / gamma);
-        else
-            return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
+        return /*val <= 0 ? 0 : val > 1 ? 1 : */val;
     }
 
-    void enforceMonotonicity()
-    {
-        double val = lut[LUT_LENGTH - 1];
-        for (int i = 0; i < LUT_LENGTH - 1; i++)
-        {
-            if (lut[i] > val)
-                lut[i] = val;
-            if (lut[i + 1] < lut[i])
-                lut[i + 1] = lut[i];
-        }
-    }
-
-    void showLUT(const std::string& winName)
-    {
-        cv::Mat image = cv::Mat::zeros(LUT_LENGTH, LUT_LENGTH, CV_8UC1);
-        for (int i = 0; i < LUT_LENGTH - 1; i++)
-        {
-            cv::line(image, cv::Point(i, LUT_LENGTH * (1 - lut[i])),
-                cv::Point(i + 1, LUT_LENGTH * (1 - lut[i + 1])), cv::Scalar(255));
-        }
-        cv::imshow(winName, image);
-    }
-
-    enum { LUT_LENGTH = 1024 };
-    double lut[LUT_LENGTH];
-    double vigCenterX, vigCenterY;
-    double vigCoeffs[VIGNETT_COEFF_LENGTH];
-    double radiusScale;
     double exposure;
     double whiteBalanceRed;
     double whiteBalanceBlue;
-    double gamma;
-    int responseCurveType;
 };
 
 struct ExternData
@@ -1283,12 +1074,6 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat);
     int numImages = infos.size();
 
-    //for (int i = 0; i < numImages; i++)
-    //{
-    //    printf("[%d] e = %f, gamma = %f, blue = %f, red = %f\n",
-    //        i, infos[i].getExposure(), infos[i].gamma, infos[i].whiteBalanceBlue, infos[i].whiteBalanceRed);
-    //}
-
     std::vector<Transform> transforms(numImages);
     for (int i = 0; i < numImages; i++)
         transforms[i] = Transform(infos[i]);
@@ -1299,41 +1084,18 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
         if (i == anchorIndex)
             continue;
 
-        Transform& trans = transforms[i];
-        double err = 0;
-        for (int j = 0; j < Transform::LUT_LENGTH; j++)
-        {
-            if (trans.lut[j] > trans.lut[j + 1])
-            {
-                double diff = trans.lut[j] - trans.lut[j + 1];
-                err += diff * diff * 256;
-            }
-        }
-        //printf("%f ", trans.lut[Transform::LUT_LENGTH - 1]);
-        trans.enforceMonotonicity();
-        //hx[index++] = err;
         hx[index++] = abs(transforms[i].exposure - 1) * 2;
         hx[index++] = abs(transforms[i].whiteBalanceBlue - 1) * 2;
         hx[index++] = abs(transforms[i].whiteBalanceRed - 1) * 2;
     }
-    //printf("\n");
 
     double huberSigma = edata->huberSigma;
 
     double sqrErr = 0;
     int numPairs = pairs.size();
-    double rdiff = 0, gdiff = 0, bdiff = 0;
     for (int i = 0; i < numPairs; i++)
     {
         const ValuePair& pair = pairs[i];
-
-        if ((double(pair.iVal[0]) - pair.jVal[0]) > 10 ||
-            (double(pair.iVal[1]) - pair.jVal[1]) > 10 ||
-            (double(pair.iVal[2]) - pair.jVal[2]) > 10)
-        {
-            //printf("diff large\n");
-            int a = 0;
-        }
 
         cv::Vec3d lightI = transforms[pair.i].applyInverse(pair.iPos, pair.iValD);
         cv::Vec3d valIInJ = transforms[pair.j].apply(pair.jPos, lightI);
@@ -1353,31 +1115,9 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
             //hx[index++] = errJ[j];
         }
 
-        //hx[index++] = weightHuber(abs(lightI[0] - pair.iValD[0]) * 0.05, huberSigma);
-        //hx[index++] = weightHuber(abs(lightI[1] - pair.iValD[1]) * 0.05, huberSigma);
-        //hx[index++] = weightHuber(abs(lightI[2] - pair.iValD[2]) * 0.05, huberSigma);
-
-        //hx[index++] = weightHuber(abs(lightJ[0] - pair.jValD[0]) * 0.05, huberSigma);
-        //hx[index++] = weightHuber(abs(lightJ[1] - pair.jValD[1]) * 0.05, huberSigma);
-        //hx[index++] = weightHuber(abs(lightJ[2] - pair.jValD[2]) * 0.05, huberSigma);
-
-        //printf("err %d: %f %f %f %f %f %f\n", i, errI[0], errI[1], errI[2], errJ[0], errJ[1], errJ[2]);
-
-        bdiff += lightI[0] - pair.iValD[0];
-        gdiff += lightI[1] - pair.iValD[1];
-        rdiff += lightI[2] - pair.iValD[2];
-
-        bdiff += lightJ[0] - pair.jValD[0];
-        gdiff += lightJ[1] - pair.jValD[1];
-        rdiff += lightJ[2] - pair.jValD[2];
-
         sqrErr += errI.dot(errI);
         sqrErr += errJ.dot(errJ);
     }
-
-    //hx[index++] = weightHuber(abs(bdiff + gdiff + rdiff) * 1.0 / numPairs, huberSigma);
-    //hx[index++] = weightHuber(abs(gdiff), huberSigma);
-    //hx[index++] = weightHuber(abs(rdiff), huberSigma);
 
     cv::Vec3d diff;
     for (int i = 0; i < numImages; i++)
@@ -1398,13 +1138,13 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 #include "levmar.h"
 
 void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int anchorIndex,
-    const cv::Size& imageSize, int responseCurveType, const std::vector<int>& optimizeOptions,
+    const cv::Size& imageSize, const std::vector<int>& optimizeOptions,
     std::vector<ImageInfo>& outImageInfos)
 {
     std::vector<ImageInfo> imageInfos(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        ImageInfo info(imageSize, responseCurveType);
+        ImageInfo info(imageSize);
         imageInfos[i] = info;
         imageInfos[i].meanVals = outImageInfos[i].meanVals;
     }
@@ -1428,9 +1168,8 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     for (int i = 0; i < optimizeOptions.size(); i++)
     {
-        //int option = i == 0 ? EXPOSURE | RESPONSE_CURVE/* | WHITE_BALANCE*/ : (WHITE_BALANCE);
         int option = optimizeOptions[i];
-        int numParams = ImageInfo::getNumParams(option, responseCurveType);
+        int numParams = ImageInfo::getNumParams(option);
 
         // parameters
         int m = numImages * numParams;
@@ -1439,7 +1178,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = /*2 **/ 2 * 3 * valuePairs.size() + 3 * numImages + 1/*0*/;
+        int n = 2 * 3 * valuePairs.size() + 3 * numImages + 1;
         if (anchorIndex >= 0 && anchorIndex < numImages)
             n -= 3;
         std::vector<double> x(n, 0.0);
@@ -1465,13 +1204,8 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 
     for (int i = 0; i < numImages; i++)
     {
-        printf("[%d] e = %f, gamma = %f, blue = %f, red = %f\n",
-            i, imageInfos[i].getExposure(), imageInfos[i].gamma, imageInfos[i].whiteBalanceBlue, imageInfos[i].whiteBalanceRed);
-        char buf[256];
-        sprintf(buf, "emor lut %d", i);
-        Transform t(imageInfos[i]);
-        t.enforceMonotonicity();
-        //t.showLUT(buf);
+        printf("[%d] e = %f, blue = %f, red = %f\n",
+            i, imageInfos[i].exposure, imageInfos[i].whiteBalanceBlue, imageInfos[i].whiteBalanceRed);
     }
     //cv::waitKey(0);
 
@@ -1481,39 +1215,8 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
 void getLUT(unsigned char lut[256], double k)
 {
     CV_Assert(k > 0);
-    if (/*abs(k - 1) < 0.02*/1)
-    {
-        for (int i = 0; i < 256; i++)
-            lut[i] = cv::saturate_cast<unsigned char>(i * k);
-    }
-    else
-    {
-        cv::Point2d p0(0, 0), p1 = k > 1 ? cv::Point(255 / k, 255) : cv::Point(255, k * 255), p2(255, 255);
-        lut[0] = 0;
-        lut[255] = 255;
-        for (int i = 1; i < 255; i++)
-        {
-            double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - i;
-            double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
-            double t0 = m - n, t1 = m + n, t;
-            if (t0 < 1 && t0 > 0)
-                t = t0;
-            else if (t1 < 1 && t1 > 0)
-                t = t1;
-            else
-                CV_Assert(0);
-            double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y + 0.5;
-            y = y < 0 ? 0 : (y > 255 ? 255 : y);
-            lut[i] = y;
-        }
-    }
-}
-
-void getLUT(unsigned char lut[256], double k, double gamma)
-{
-    CV_Assert(k > 0);
     for (int i = 0; i < 256; i++)
-        lut[i] = cv::saturate_cast<unsigned char>(pow((double)i / 255, gamma) * k * 255);
+        lut[i] = cv::saturate_cast<unsigned char>(k * i);
 }
 
 double calcMaxScale(const std::vector<double>& es, const std::vector<double>& rs, const std::vector<double>& bs)
@@ -1579,14 +1282,14 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     double maxE = 0;
     for (int i = 0; i < numImages; i++)
     {
-        double e = 1.0 / infos[i].getExposure();
+        double e = 1.0 / infos[i].exposure;
         maxE = e > maxE ? e : maxE;
     }
 
     std::vector<double> es(numImages), bs(numImages), rs(numImages);
     for (int i = 0; i < numImages; i++)
     {
-        es[i] = 1.0 / infos[i].getExposure();
+        es[i] = 1.0 / infos[i].exposure;
         rs[i] = 1.0 / infos[i].whiteBalanceRed;
         bs[i] = 1.0 / infos[i].whiteBalanceBlue;
     }
@@ -1601,36 +1304,13 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         dst[i].create(src[i].size(), CV_8UC3);
         int rows = dst[i].rows, cols = dst[i].cols;
 
-        /*
-        double e = infos[i].getExposure();
-        for (int y = 0; y < rows; y++)
-        {
-        const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
-        unsigned char* ptrDst = dst[i].ptr<unsigned char>(y);
-        for (int x = 0; x < cols; x++)
-        {
-        double b = ptrSrc[0] / 255.0, g = ptrSrc[1] / 255.0, r = ptrSrc[2] / 255.0;
-        cv::Vec3d d = trans.applyInverse(cv::Point(x, y), cv::Vec3d(b, g, r));
-        //ptrDst[0] = cv::saturate_cast<unsigned char>(d[0] * 255);
-        //ptrDst[1] = cv::saturate_cast<unsigned char>(d[1] * 255);
-        //ptrDst[2] = cv::saturate_cast<unsigned char>(d[2] * 255);
-        ptrDst[0] = cv::saturate_cast<unsigned char>(trans.LUT(d[0]) * 255);
-        ptrDst[1] = cv::saturate_cast<unsigned char>(trans.LUT(d[1]) * 255);
-        ptrDst[2] = cv::saturate_cast<unsigned char>(trans.LUT(d[2]) * 255);
-        ptrSrc += 3;
-        ptrDst += 3;
-        }
-        }
-        */
-
-        double e = 1.0 / infos[i].getExposure();
+        double e = 1.0 / infos[i].exposure;
         //e /= maxE;
         double r = 1.0 / infos[i].whiteBalanceRed;
         double b = 1.0 / infos[i].whiteBalanceBlue;
-        double gamma = 1.0 / infos[i].gamma;
-        getLUT(lutr, e * r, gamma);
-        getLUT(lutg, e, gamma);
-        getLUT(lutb, e * b, gamma);
+        getLUT(lutr, e * r);
+        getLUT(lutg, e);
+        getLUT(lutb, e * b);
         //getLUTMaxScale(lutr, e * r, maxScale);
         //getLUTMaxScale(lutg, e, maxScale);
         //getLUTMaxScale(lutb, e * b, maxScale);
@@ -1665,68 +1345,8 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
     cv::waitKey(0);
 }
 
-void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& params,
-    int responseCurveType, std::vector<std::vector<std::vector<unsigned char> > >& luts)
-{
-    int numImages = src.size();
-
-    int resizeTimes = 0;
-    int minWidth = 80, minHeight = 60;
-    resizeTimes = getResizeTimes(src[0].cols, src[0].rows, minWidth, minHeight);
-
-    std::vector<cv::Mat> testSrc(numImages);
-    if (resizeTimes == 0)
-    {
-        testSrc = src;
-    }
-    else
-    {
-        for (int i = 0; i < numImages; i++)
-        {
-            cv::Mat large = src[i];
-            cv::Mat small;
-            for (int j = 0; j < resizeTimes; j++)
-            {
-                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
-                large = small;
-            }
-            testSrc[i] = small;
-        }
-    }
-
-    int downSizePower = pow(2, resizeTimes);
-    std::vector<ValuePair> pairs;
-    getPointPairsRandom(testSrc, params, downSizePower, pairs);
-
-    std::vector<int> opts;
-    opts.push_back(EXPOSURE);
-    std::vector<ImageInfo> infos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), responseCurveType, opts, infos);
-
-    std::vector<Transform> transforms(numImages);
-    for (int i = 0; i < numImages; i++)
-        transforms[i] = Transform(infos[i]);
-
-    luts.resize(numImages);
-    char buf[64];
-    for (int i = 0; i < numImages; i++)
-    {
-        Transform& trans = transforms[i];
-        double e = 1.0 / infos[i].getExposure();
-        double r = 1.0 / infos[i].whiteBalanceRed;
-        double b = 1.0 / infos[i].whiteBalanceBlue;
-        luts[i].resize(3);
-        luts[i][0].resize(256);
-        luts[i][1].resize(256);
-        luts[i][2].resize(256);
-        getLUT(luts[i][2].data(), e * r);
-        getLUT(luts[i][1].data(), e);
-        getLUT(luts[i][0].data(), e * b);
-    }
-}
-
 void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoParam>& params,
-    int responseCurveType, const std::vector<int>& optimizeOptions)
+    const std::vector<int>& optimizeOptions)
 {
     int numImages = imagePaths.size();
     std::vector<cv::Mat> src(numImages);
@@ -1771,7 +1391,7 @@ void run(const std::vector<std::string>& imagePaths, const std::vector<PhotoPara
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
-    optimize(pairs, numImages, numImages - 2, testSrc[0].size(), responseCurveType, optimizeOptions, imageInfos);
+    optimize(pairs, numImages, numImages - 2, testSrc[0].size(), optimizeOptions, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
@@ -1810,7 +1430,6 @@ int main()
     std::vector<std::string> imagePaths;
     std::vector<PhotoParam> params;
 
-    int respCurveType = GAMMA;
     std::vector<int> opts;
     opts.push_back(EXPOSURE | WHITE_BALANCE);
     //opts.push_back(WHITE_BALANCE);
@@ -1821,7 +1440,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-02.jpg");
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1830,7 +1449,7 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-02.jpg");
     //imagePaths.push_back("F:\\panoimage\\detuoffice2\\input-03.jpg");
     //loadPhotoParamFromXML("F:\\panoimage\\detuoffice2\\detu.xml", params);
-    //run(imagePaths, params, respCurveType, opts);
+    //run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot0(2).bmp");
@@ -1838,7 +1457,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot2(2).bmp");
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1851,14 +1470,14 @@ int main()
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
     //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
-    //run(imagePaths, params, respCurveType, opts);
+    //run(imagePaths, params, opts);
 
     //xxxx
     //imagePaths.clear();
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\QQÍ¼Æ¬20161014101159.png");
     //imagePaths.push_back("F:\\panoimage\\vrdlc\\QQÍ¼Æ¬20161014101159.png");
     //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019small.xml", params);
-    //run(imagePaths, params, respCurveType, opts);
+    //run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
@@ -1866,7 +1485,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -1877,7 +1496,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
     loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
@@ -1887,7 +1506,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
@@ -1897,7 +1516,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
@@ -1907,7 +1526,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
@@ -1917,7 +1536,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -1928,7 +1547,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
     loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
@@ -1938,7 +1557,7 @@ int main()
     imagePaths.push_back("F:\\panoimage\\changtai\\image4.bmp");
     imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
@@ -1948,7 +1567,7 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\5.MP4.jpg");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
@@ -1959,7 +1578,7 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image5.bmp");
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
-    run(imagePaths, params, respCurveType, opts);
+    run(imagePaths, params, opts);
 
     return 0;
 
@@ -2001,7 +1620,7 @@ int main()
     std::vector<int> options;
     opts.push_back(EXPOSURE);
     std::vector<ImageInfo> imageInfos;
-    optimize(pairs, numImages, -1, testSrc[0].size(), GAMMA, options, imageInfos);
+    optimize(pairs, numImages, -1, testSrc[0].size(), options, imageInfos);
 
     std::vector<cv::Mat> dstImages;
     correct(src, imageInfos, dstImages);
