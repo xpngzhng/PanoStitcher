@@ -859,13 +859,24 @@ struct ImageInfo
     cv::Vec3d meanVals;
 };
 
-void readFrom(std::vector<ImageInfo>& infos, const double* x, int anchorIndex, int optimizeWhat)
+inline bool contains(const std::vector<int>& arr, int test)
+{
+    int size = arr.size();
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i] == test)
+            return true;
+    }
+    return false;
+}
+
+void readFrom(std::vector<ImageInfo>& infos, const double* x, const std::vector<int> anchorIndexes, int optimizeWhat)
 {
     int numInfos = infos.size();
     int offset = 0;
     for (int i = 0; i < numInfos; i++)
     {
-        if (i != anchorIndex)
+        if (!contains(anchorIndexes, i))
         {
             infos[i].fromOutside(x + offset, optimizeWhat);
             offset += infos[i].getNumParams(optimizeWhat);
@@ -873,13 +884,13 @@ void readFrom(std::vector<ImageInfo>& infos, const double* x, int anchorIndex, i
     }
 }
 
-void writeTo(const std::vector<ImageInfo>& infos, double* x, int anchorIndex, int optimizeWhat)
+void writeTo(const std::vector<ImageInfo>& infos, double* x, const std::vector<int>& anchorIndexes, int optimizeWhat)
 {
     int numInfos = infos.size();
     int offset = 0;
     for (int i = 0; i < numInfos; i++)
     {
-        if (i != anchorIndex)
+        if (!contains(anchorIndexes, i))
         {
             infos[i].toOutside(x + offset, optimizeWhat);
             offset += infos[i].getNumParams(optimizeWhat);
@@ -984,7 +995,7 @@ struct ExternData
     double huberSigma;
     int errorFuncCallCount;
     int optimizeWhat;
-    int anchoIndex;
+    std::vector<int> anchoIndexes;
     std::vector<cv::Vec3d> meanVals;
 };
 
@@ -1002,12 +1013,12 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     ExternData* edata = (ExternData*)data;
     const std::vector<ImageInfo>& infos = edata->imageInfos;
     const std::vector<ValuePair>& pairs = edata->pairs;
-    int anchorIndex = edata->anchoIndex;
+    const std::vector<int>& anchorIndexes = edata->anchoIndexes;
 
     std::vector<double> pv(m);
     memcpy(pv.data(), p, m * 8);
 
-    readFrom(edata->imageInfos, p, anchorIndex, edata->optimizeWhat);
+    readFrom(edata->imageInfos, p, anchorIndexes, edata->optimizeWhat);
     int numImages = infos.size();
 
     std::vector<Transform> transforms(numImages);
@@ -1017,7 +1028,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
     int index = 0;
     for (int i = 0; i < numImages; i++)
     {
-        if (i == anchorIndex)
+        if (contains(anchorIndexes, i))
             continue;
 
         hx[index++] = abs(transforms[i].exposure - 1) * 2;
@@ -1073,7 +1084,7 @@ void errorFunc(double* p, double* hx, int m, int n, void* data)
 
 #include "levmar.h"
 
-void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int anchorIndex,
+void optimize(const std::vector<ValuePair>& valuePairs, int numImages, std::vector<int> anchorIndexes,
     const cv::Size& imageSize, const std::vector<int>& optimizeOptions,
     std::vector<ImageInfo>& outImageInfos)
 {
@@ -1084,6 +1095,7 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         imageInfos[i] = info;
         imageInfos[i].meanVals = outImageInfos[i].meanVals;
     }
+    int numAnchors = anchorIndexes.size();
 
     int ret;
     //double opts[LM_OPTS_SZ];
@@ -1108,18 +1120,14 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         int numParams = ImageInfo::getNumParams(option);
 
         // parameters
-        int m = numImages * numParams;
-        if (anchorIndex >= 0 && anchorIndex < numImages)
-            m -= numParams;
+        int m = (numImages - numAnchors) * numParams;
         std::vector<double> p(m, 0.0);
 
         // vector for errors
-        int n = 2 * 3 * valuePairs.size() + 3 * numImages + 1;
-        if (anchorIndex >= 0 && anchorIndex < numImages)
-            n -= 3;
+        int n = 2 * 3 * valuePairs.size() + 3 * (numImages - numAnchors) + 1;
         std::vector<double> x(n, 0.0);
 
-        writeTo(imageInfos, p.data(), anchorIndex, option);
+        writeTo(imageInfos, p.data(), anchorIndexes, option);
 
         // covariance matrix at solution
         cv::Mat cov(m, m, CV_64FC1);
@@ -1128,14 +1136,14 @@ void optimize(const std::vector<ValuePair>& valuePairs, int numImages, int ancho
         edata.huberSigma = 5.0 / 255;
         edata.errorFuncCallCount = 0;
         edata.optimizeWhat = option;
-        edata.anchoIndex = anchorIndex;
+        edata.anchoIndexes = anchorIndexes;
         edata.meanVals.resize(numImages);
         for (int i = 0; i < numImages; i++)
             edata.meanVals[i] = imageInfos[i].meanVals;
 
         ret = dlevmar_dif(&errorFunc, &(p[0]), &(x[0]), m, n, maxIter, optimOpts, info, NULL, (double*)cov.data, &edata);  // no jacobian
         // copy to source images (data.m_imgs)
-        readFrom(imageInfos, p.data(), anchorIndex, option);
+        readFrom(imageInfos, p.data(), anchorIndexes, option);
     }
 
     for (int i = 0; i < numImages; i++)
@@ -1311,7 +1319,7 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
-    optimize(pairs, numImages, numImages - 2, testSrc[0].size(), optimizeOptions, imageInfos);
+    optimize(pairs, numImages, anchorIndexes, testSrc[0].size(), optimizeOptions, imageInfos);
 
     exposures.resize(numImages);
     redRatios.resize(numImages);
@@ -1365,7 +1373,9 @@ void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& para
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
-    optimize(pairs, numImages, numImages - 2, testSrc[0].size(), optimizeOptions, imageInfos);
+    std::vector<int> anchors;
+    anchors.push_back(numImages - 2);
+    optimize(pairs, numImages, anchors, testSrc[0].size(), optimizeOptions, imageInfos);
 
     std::vector<double> exposures, redRatios, blueRatios;
     exposures.resize(numImages);
