@@ -1516,6 +1516,58 @@ void getLUT(unsigned char lut[256], double k, double gamma)
         lut[i] = cv::saturate_cast<unsigned char>(pow((double)i / 255, gamma) * k * 255);
 }
 
+double calcMaxScale(const std::vector<double>& es, const std::vector<double>& rs, const std::vector<double>& bs)
+{
+    int size = es.size();
+    CV_Assert(size > 0 && rs.size() == size && bs.size() == size);
+
+    double scale = 0;
+    for (int i = 0; i < size; i++)
+    {
+        scale = es[i] > scale ? es[i] : scale;
+        double s;
+        s = es[i] * rs[i];
+        scale = s > scale ? s : scale;
+        s = es[i] * bs[i];
+        scale = s > scale ? s : scale;
+    }
+    return scale;
+}
+
+void getLUTMaxScale(unsigned char LUT[256], double k, double maxK)
+{
+    CV_Assert(k > 0);
+    if (maxK <= 1.05)
+    {
+        for (int i = 0; i < 256; i++)
+            LUT[i] = cv::saturate_cast<unsigned char>(k * i);
+        return;
+    }
+    LUT[0] = 0;
+    for (int i = 1; i < 256; i++)
+    {
+        double val = i / 255.0 * k;
+        cv::Point2d p0(0, 0), p1(1, 1), p2(maxK, 1);
+        double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - val;
+        double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+        double t0 = m - n, t1 = m + n, t;
+        if (t0 <= 1 && t0 >= 0)
+            t = t0;
+        else if (t1 <= 1 && t1 >= 0)
+            t = t1;
+        else
+            //CV_Assert(0);
+        {
+            if (i < 2)
+                t = 0;
+            if (i > 253)
+                t = 1;
+        }
+        double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y;
+        LUT[i] = cv::saturate_cast<unsigned char>(y * 255);
+    }
+}
+
 void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& infos, std::vector<cv::Mat>& dst)
 {
     int numImages = src.size();
@@ -1530,6 +1582,15 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         double e = 1.0 / infos[i].getExposure();
         maxE = e > maxE ? e : maxE;
     }
+
+    std::vector<double> es(numImages), bs(numImages), rs(numImages);
+    for (int i = 0; i < numImages; i++)
+    {
+        es[i] = 1.0 / infos[i].getExposure();
+        rs[i] = 1.0 / infos[i].whiteBalanceRed;
+        bs[i] = 1.0 / infos[i].whiteBalanceBlue;
+    }
+    double maxScale = calcMaxScale(es, rs, bs);
 
     dst.resize(numImages);
     char buf[64];
@@ -1570,6 +1631,9 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<ImageInfo>& info
         getLUT(lutr, e * r, gamma);
         getLUT(lutg, e, gamma);
         getLUT(lutb, e * b, gamma);
+        //getLUTMaxScale(lutr, e * r, maxScale);
+        //getLUTMaxScale(lutg, e, maxScale);
+        //getLUTMaxScale(lutb, e * b, maxScale);
         for (int y = 0; y < rows; y++)
         {
             const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);

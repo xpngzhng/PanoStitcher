@@ -1621,27 +1621,27 @@ int main()
     //maskPaths.push_back("F:\\panoimage\\changtai\\mask4.bmp");
     //maskPaths.push_back("F:\\panoimage\\changtai\\mask5.bmp");
 
-    //std::vector<std::string> imagePaths;
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image0.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image1.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image2.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image3.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image4.bmp");
-    //imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image5.bmp");
-    //std::vector<std::string> maskPaths;
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask0.bmp");
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask1.bmp");
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask2.bmp");
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask3.bmp");
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask4.bmp");
-    //maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask5.bmp");
-
     std::vector<std::string> imagePaths;
-    imagePaths.push_back("F:\\panoimage\\vrdlc\\reprojimage0.bmp");
-    imagePaths.push_back("F:\\panoimage\\vrdlc\\reprojimage1.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image0.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image1.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image2.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image3.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image4.bmp");
+    imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\image5.bmp");
     std::vector<std::string> maskPaths;
-    maskPaths.push_back("F:\\panoimage\\vrdlc\\mask0.bmp");
-    maskPaths.push_back("F:\\panoimage\\vrdlc\\mask1.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask0.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask1.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask2.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask3.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask4.bmp");
+    maskPaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\mask5.bmp");
+
+    //std::vector<std::string> imagePaths;
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\reprojimage0.bmp");
+    //imagePaths.push_back("F:\\panoimage\\vrdlc\\reprojimage1.bmp");
+    //std::vector<std::string> maskPaths;
+    //maskPaths.push_back("F:\\panoimage\\vrdlc\\mask0.bmp");
+    //maskPaths.push_back("F:\\panoimage\\vrdlc\\mask1.bmp");
 
     int numImages = imagePaths.size();
     std::vector<cv::Mat> images(numImages), masks(numImages);
