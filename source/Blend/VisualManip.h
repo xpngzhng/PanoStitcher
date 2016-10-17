@@ -51,6 +51,12 @@ private:
     std::vector<cv::Mat> origMasks, transImages;
 };
 
+enum OptimizeParamType
+{
+    EXPOSURE = 1,
+    WHITE_BALANCE = 2,
+};
+
 void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
     const std::vector<int> anchorIndexes, const std::vector<int>& optimizeOptions,
     std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios);
