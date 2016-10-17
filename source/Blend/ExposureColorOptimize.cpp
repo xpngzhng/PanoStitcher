@@ -1333,60 +1333,63 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
 }
 
 void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
-    const std::vector<int>& optimizeOptions)
+    const std::vector<int>& anchorIndexes, const std::vector<int>& optimizeOptions)
 {
-    int numImages = images.size();
-    int minWidth = 100, minHeight = 100;
-    int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
+    //int numImages = images.size();
+    //int minWidth = 100, minHeight = 100;
+    //int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
 
-    std::vector<cv::Mat> testSrc(numImages);
-    if (resizeTimes == 0)
-    {
-        testSrc = images;
-    }
-    else
-    {
-        for (int i = 0; i < numImages; i++)
-        {
-            cv::Mat large = images[i];
-            cv::Mat small;
-            for (int j = 0; j < resizeTimes; j++)
-            {
-                cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
-                large = small;
-            }
-            testSrc[i] = small;
-        }
-    }
+    //std::vector<cv::Mat> testSrc(numImages);
+    //if (resizeTimes == 0)
+    //{
+    //    testSrc = images;
+    //}
+    //else
+    //{
+    //    for (int i = 0; i < numImages; i++)
+    //    {
+    //        cv::Mat large = images[i];
+    //        cv::Mat small;
+    //        for (int j = 0; j < resizeTimes; j++)
+    //        {
+    //            cv::resize(large, small, cv::Size(), 0.5, 0.5, cv::INTER_AREA);
+    //            large = small;
+    //        }
+    //        testSrc[i] = small;
+    //    }
+    //}
 
-    int downSizePower = pow(2, resizeTimes);
-    std::vector<ValuePair> pairs;
-    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
-    //getPointPairsAll2(testSrc, params, downSizePower, pairs);
-    //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
-    //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
+    //int downSizePower = pow(2, resizeTimes);
+    //std::vector<ValuePair> pairs;
+    ////getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    //getPointPairsAll(testSrc, params, downSizePower, pairs);
+    ////getPointPairsAll2(testSrc, params, downSizePower, pairs);
+    ////getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
+    ////getPointPairsHistogram(testSrc, params, downSizePower, pairs);
 
-    std::vector<ImageInfo> imageInfos(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
-        imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
-    }
-    std::vector<int> anchors;
-    anchors.push_back(numImages - 2);
-    optimize(pairs, numImages, anchors, testSrc[0].size(), optimizeOptions, imageInfos);
+    //std::vector<ImageInfo> imageInfos(numImages);
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
+    //    imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
+    //}
+    //std::vector<int> anchors;
+    //anchors.push_back(numImages - 2);
+    //optimize(pairs, numImages, anchors, testSrc[0].size(), optimizeOptions, imageInfos);
+
+    //std::vector<double> exposures, redRatios, blueRatios;
+    //exposures.resize(numImages);
+    //redRatios.resize(numImages);
+    //blueRatios.resize(numImages);
+    //for (int i = 0; i < numImages; i++)
+    //{
+    //    exposures[i] = 1.0 / imageInfos[i].exposure;
+    //    redRatios[i] = 1.0 / imageInfos[i].whiteBalanceRed;
+    //    blueRatios[i] = 1.0 / imageInfos[i].whiteBalanceBlue;
+    //}
 
     std::vector<double> exposures, redRatios, blueRatios;
-    exposures.resize(numImages);
-    redRatios.resize(numImages);
-    blueRatios.resize(numImages);
-    for (int i = 0; i < numImages; i++)
-    {
-        exposures[i] = 1.0 / imageInfos[i].exposure;
-        redRatios[i] = 1.0 / imageInfos[i].whiteBalanceRed;
-        blueRatios[i] = 1.0 / imageInfos[i].whiteBalanceBlue;
-    }
+    exposureColorOptimize(images, params, anchorIndexes, optimizeOptions, exposures, redRatios, blueRatios);
 
     std::vector<cv::Mat> dstImages;
     correct(images, exposures, redRatios, blueRatios, dstImages);
@@ -1438,6 +1441,8 @@ int main()
     opts.push_back(EXPOSURE | WHITE_BALANCE);
     //opts.push_back(WHITE_BALANCE);
 
+    std::vector<int> anchors;
+
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-00.jpg");
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-01.jpg");
@@ -1445,7 +1450,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\detuoffice\\input-03.jpg");
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1463,7 +1470,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4\\snapshot3(2).bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -1492,7 +1501,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -1504,7 +1515,9 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
@@ -1515,7 +1528,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
@@ -1526,7 +1541,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
@@ -1537,7 +1554,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
@@ -1548,7 +1567,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -1560,7 +1581,9 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
@@ -1571,7 +1594,9 @@ int main()
     imagePaths.push_back("F:\\panoimage\\changtai\\image5.bmp");
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
@@ -1582,7 +1607,9 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\6.MP4.jpg");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
@@ -1594,7 +1621,9 @@ int main()
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image6.bmp");
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
-    run(srcImages, params, opts);
+    anchors.clear();
+    anchors.push_back(imagePaths.size() - 2);
+    run(srcImages, params, anchors, opts);
 
     return 0;
 }
