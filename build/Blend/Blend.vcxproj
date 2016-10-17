@@ -31,6 +31,7 @@
     <ClCompile Include="..\..\source\Blend\Compensate.cpp" />
     <ClCompile Include="..\..\source\Blend\Copy.cpp" />
     <ClCompile Include="..\..\source\Blend\ExposureColorCorrect.cpp" />
+    <ClCompile Include="..\..\source\Blend\ExposureColorOptimize.cpp" />
     <ClCompile Include="..\..\source\Blend\FeatherBlend.cpp" />
     <ClCompile Include="..\..\source\Blend\GainAdjust.cpp" />
     <ClCompile Include="..\..\source\Blend\Histogram.cpp" />
@@ -123,7 +124,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\..\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\..\source;E:\Projects\levmar-2.6;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -169,7 +170,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\..\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\OpenCV3.0.0\build\include;..\..\source;E:\Projects\levmar-2.6;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
