@@ -7,6 +7,8 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
+#define PRINT_AND_SHOW 1
+
 static int getResizeTimes(int width, int height, int minWidth, int minHeight)
 {
     if (width < minWidth || height < minHeight)
@@ -42,7 +44,7 @@ static void calcGradImage(const cv::Mat& src, cv::Mat& dst)
     cv::cvtColor(src, gray, CV_BGR2GRAY);
     cv::GaussianBlur(gray, blurred, cv::Size(3, 3), 1.0);
     cv::Laplacian(blurred, grad, CV_16S);
-    //cv::Laplacian(src, grad, CV_16S);
+    //cv::Laplacian(gray, grad, CV_16S);
     cv::convertScaleAbs(grad, dst);
 }
 
@@ -78,6 +80,74 @@ struct ValuePair
     cv::Point equiRectPos;
 };
 
+static void printAndShowPairsInfo(const std::vector<cv::Mat>& images, bool reprojected, 
+    const std::vector<ValuePair>& pairs, int erWidth, int erHeight)
+{
+    int numImages = images.size();
+    std::vector<int> appearCount(numImages, 0);
+
+    int numPairs = pairs.size();
+    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
+    for (int i = 0; i < numPairs; i++)
+    {
+        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
+        for (int k = 0; k < numImages; k++)
+        {
+            if (pairs[i].i == k)
+                appearCount[k]++;
+            if (pairs[i].j == k)
+                appearCount[k]++;
+        }
+    }
+
+    printf("num pairs found %d\n", numPairs);
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("%d appear %d times\n", i, appearCount[i]);
+    }
+    cv::imshow("mask", mask);
+    cv::waitKey(0);
+
+    std::vector<cv::Mat> show(numImages);
+    for (int i = 0; i < numImages; i++)
+        show[i] = images[i].clone();
+
+    if (reprojected)
+    {
+        for (int i = 0; i < numPairs; i++)
+        {
+            for (int k = 0; k < numImages; k++)
+            {
+                if (pairs[i].i == k)
+                    cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
+                if (pairs[i].j == k)
+                    cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < numPairs; i++)
+        {
+            for (int k = 0; k < numImages; k++)
+            {
+                if (pairs[i].i == k)
+                    cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
+                if (pairs[i].j == k)
+                    cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
+            }
+        }
+    }
+
+    for (int i = 0; i < numImages; i++)
+    {
+        char buf[64];
+        sprintf(buf, "%d", i);
+        cv::imshow(buf, show[i]);
+    }
+    cv::waitKey(0);
+}
+
 static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
     int downSizeRatio, std::vector<ValuePair>& pairs)
 {
@@ -93,12 +163,14 @@ static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vect
     for (int i = 0; i < numImages; i++)
         calcGradImage(src[i], grads[i]);
 
+#if PRINT_AND_SHOW
     for (int i = 0; i < numImages; i++)
     {
         double maxVal, minVal;
         cv::minMaxLoc(grads[i], &minVal, &maxVal);
         printf("min %f, max %f\n", minVal, maxVal);
     }
+#endif
 
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
@@ -163,10 +235,6 @@ static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vect
                                 if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
                                     continue;
                             }
-                            if (pti.x < 20 || ptj.x < 20)
-                            {
-                                int a = 0;
-                            }
                             cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
                             int gradValJ = grads[j].at<unsigned char>(ptj);
                             if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
@@ -200,51 +268,9 @@ static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vect
             break;
     }
 
-    std::vector<int> appearCount(numImages, 0);
-
-    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
-    for (int i = 0; i < numPairs; i++)
-    {
-        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                appearCount[k]++;
-            if (pairs[i].j == k)
-                appearCount[k]++;
-        }
-    }
-
-    printf("num pairs found %d\n", numPairs);
-    for (int i = 0; i < numImages; i++)
-    {
-        printf("%d appear %d times\n", i, appearCount[i]);
-    }
-    cv::imshow("mask", mask);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> show(numImages);
-    for (int i = 0; i < numImages; i++)
-        show[i] = src[i].clone();
-
-    for (int i = 0; i < numPairs; i++)
-    {
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
-            if (pairs[i].j == k)
-                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
-        }
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        char buf[64];
-        sprintf(buf, "%d", i);
-        cv::imshow(buf, show[i]);
-    }
-    cv::waitKey(0);
+#if PRINT_AND_SHOW
+    printAndShowPairsInfo(src, false, pairs, erWidth, erHeight);
+#endif
 }
 
 static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
@@ -262,12 +288,14 @@ static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<
     for (int i = 0; i < numImages; i++)
         calcGradImage(src[i], grads[i]);
 
+#if PRINT_AND_SHOW
     for (int i = 0; i < numImages; i++)
     {
         double maxVal, minVal;
         cv::minMaxLoc(grads[i], &minVal, &maxVal);
         printf("min %f, max %f\n", minVal, maxVal);
     }
+#endif
 
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
@@ -371,52 +399,9 @@ static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<
         //    break;
     }
 
-    std::vector<int> appearCount(numImages, 0);
-
-    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
-    for (int i = 0; i < numPairs; i++)
-    {
-        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                appearCount[k]++;
-            if (pairs[i].j == k)
-                appearCount[k]++;
-        }
-    }
-
-    printf("num pairs found %d\n", numPairs);
-    for (int i = 0; i < numImages; i++)
-    {
-        printf("%d appear %d times\n", i, appearCount[i]);
-    }
-    cv::imwrite("mask.bmp", mask);
-    cv::imshow("mask", mask);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> show(numImages);
-    for (int i = 0; i < numImages; i++)
-        show[i] = src[i].clone();
-
-    for (int i = 0; i < numPairs; i++)
-    {
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
-            if (pairs[i].j == k)
-                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
-        }
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        char buf[64];
-        sprintf(buf, "%d", i);
-        cv::imshow(buf, show[i]);
-    }
-    cv::waitKey(0);
+#if PRINT_AND_SHOW
+    printAndShowPairsInfo(src, false, pairs, erWidth, erHeight);
+#endif
 }
 
 static void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
@@ -437,12 +422,14 @@ static void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector
     for (int i = 0; i < numImages; i++)
         calcGradImage(src[i], grads[i]);
 
+#if PRINT_AND_SHOW
     for (int i = 0; i < numImages; i++)
     {
         double maxVal, minVal;
         cv::minMaxLoc(grads[i], &minVal, &maxVal);
         printf("min %f, max %f\n", minVal, maxVal);
     }
+#endif
 
     cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
 
@@ -545,51 +532,9 @@ static void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector
         //    break;
     }
 
-    std::vector<int> appearCount(numImages, 0);
-
-    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
-    for (int i = 0; i < numPairs; i++)
-    {
-        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                appearCount[k]++;
-            if (pairs[i].j == k)
-                appearCount[k]++;
-        }
-    }
-
-    printf("num pairs found %d\n", numPairs);
-    for (int i = 0; i < numImages; i++)
-    {
-        printf("%d appear %d times\n", i, appearCount[i]);
-    }
-    cv::imshow("mask", mask);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> show(numImages);
-    for (int i = 0; i < numImages; i++)
-        show[i] = src[i].clone();
-
-    for (int i = 0; i < numPairs; i++)
-    {
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                cv::circle(show[k], pairs[i].iPos, 2, cv::Scalar(255), -1);
-            if (pairs[i].j == k)
-                cv::circle(show[k], pairs[i].jPos, 2, cv::Scalar(255), -1);
-        }
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        char buf[64];
-        sprintf(buf, "%d", i);
-        cv::imshow(buf, show[i]);
-    }
-    cv::waitKey(0);
+#if PRINT_AND_SHOW
+    printAndShowPairsInfo(src, false, pairs, erWidth, erHeight);
+#endif
 }
 
 static void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
@@ -663,51 +608,9 @@ static void getPointPairsAllReproject(const std::vector<cv::Mat>& src, const std
         }
     }
 
-    std::vector<int> appearCount(numImages, 0);
-
-    cv::Mat mask = cv::Mat::zeros(erHeight, erWidth, CV_8UC1);
-    for (int i = 0; i < numPairs; i++)
-    {
-        mask.at<unsigned char>(pairs[i].equiRectPos) = 255;
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                appearCount[k]++;
-            if (pairs[i].j == k)
-                appearCount[k]++;
-        }
-    }
-
-    printf("num pairs found %d\n", numPairs);
-    for (int i = 0; i < numImages; i++)
-    {
-        printf("%d appear %d times\n", i, appearCount[i]);
-    }
-    cv::imshow("mask", mask);
-    cv::waitKey(0);
-
-    std::vector<cv::Mat> show(numImages);
-    for (int i = 0; i < numImages; i++)
-        show[i] = reprojImages[i].clone();
-
-    for (int i = 0; i < numPairs; i++)
-    {
-        for (int k = 0; k < numImages; k++)
-        {
-            if (pairs[i].i == k)
-                cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
-            if (pairs[i].j == k)
-                cv::circle(show[k], pairs[i].equiRectPos, 2, cv::Scalar(255), -1);
-        }
-    }
-
-    for (int i = 0; i < numImages; i++)
-    {
-        char buf[64];
-        sprintf(buf, "%d", i);
-        cv::imshow(buf, show[i]);
-    }
-    cv::waitKey(0);
+#if PRINT_AND_SHOW
+    printAndShowPairsInfo(src, true, pairs, erWidth, erHeight);
+#endif
 }
 
 // use this downSizeRatio had better keep small
@@ -1074,11 +977,9 @@ static void errorFunc(double* p, double* hx, int m, int n, void* data)
 
     edata->errorFuncCallCount++;
 
-    //std::vector<double> pp(m), hxhx(n);
-    //memcpy(pp.data(), p, m * sizeof(double));
-    //memcpy(hxhx.data(), hx, n * sizeof(double));
-
+#if PRINT_AND_SHOW
     printf("call count %d, sqr err = %f, avg err %f\n", edata->errorFuncCallCount, sqrErr, sqrt(sqrErr / n));
+#endif
 }
 
 #include "levmar.h"
@@ -1145,12 +1046,13 @@ static void optimize(const std::vector<ValuePair>& valuePairs, int numImages, st
         readFrom(imageInfos, p.data(), anchorIndexes, option);
     }
 
+#if PRINT_AND_SHOW
     for (int i = 0; i < numImages; i++)
     {
         printf("[%d] e = %f, blue = %f, red = %f\n",
             i, imageInfos[i].exposure, imageInfos[i].whiteBalanceBlue, imageInfos[i].whiteBalanceRed);
     }
-    //cv::waitKey(0);
+#endif
 
     outImageInfos = imageInfos;
 }
