@@ -348,6 +348,8 @@ void linearBlend(const cv::Mat& image1, const cv::Mat& image2, const cv::Mat& al
 void linearBlend(const std::vector<cv::Mat>& images, const std::vector<cv::Mat>& alphas,
     const std::vector<cv::Mat>& masks, int radius, cv::Mat& result);
 
+void getLUT(std::vector<unsigned char>& lut, double k);
+
 // Get look up table for transform given slope k.
 // If k is around 1, we obtain an approximately identity transform.
 // If k > 1, we use three points (0, 0), (255 / k, 255) and (255, 255) to calculate an Bezier curve

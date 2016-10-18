@@ -7,7 +7,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-#define PRINT_AND_SHOW 1
+#define PRINT_AND_SHOW 0
 
 static int getResizeTimes(int width, int height, int minWidth, int minHeight)
 {
@@ -1057,7 +1057,7 @@ static void optimize(const std::vector<ValuePair>& valuePairs, int numImages, st
     outImageInfos = imageInfos;
 }
 
-void getLUT(std::vector<unsigned char> lut, double k)
+void getLUT(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
     lut.resize(256);
@@ -1066,13 +1066,15 @@ void getLUT(std::vector<unsigned char> lut, double k)
 }
 
 void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
-    const std::vector<int> anchorIndexes, const std::vector<int>& optimizeOptions,
+    const std::vector<int> anchorIndexes, int getPointPairsMethod, int optimizeWhat,
     std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios)
 {
     int numImages = images.size();
     CV_Assert(numImages == params.size());
     CV_Assert(checkSize(images));
     CV_Assert(checkType(images, CV_8UC3));
+    CV_Assert(getPointPairsMethod >= 0 && getPointPairsMethod < NUM_GET_POINT_PAIRS_METHODS);
+    CV_Assert((optimizeWhat & EXPOSURE) || (optimizeWhat & WHITE_BALANCE));
 
     int minWidth = 100, minHeight = 100;
     int resizeTimes = getResizeTimes(images[0].cols, images[0].rows, minWidth, minHeight);
@@ -1099,11 +1101,14 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
 
     int downSizePower = pow(2, resizeTimes);
     std::vector<ValuePair> pairs;
-    //getPointPairsRandom(testSrc, params, downSizePower, pairs);
-    getPointPairsAll(testSrc, params, downSizePower, pairs);
+    if (getPointPairsMethod == RANDOM_SAMPLE)
+        getPointPairsRandom(testSrc, params, downSizePower, pairs);
+    else if (getPointPairsMethod == GRID_SAMPLE)
+        getPointPairsAll(testSrc, params, downSizePower, pairs);
     //getPointPairsAll2(testSrc, params, downSizePower, pairs);
     //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
-    //getPointPairsHistogram(testSrc, params, downSizePower, pairs);
+    else if (getPointPairsMethod == HISTOGRAM)
+        getPointPairsHistogram(testSrc, params, downSizePower, pairs);
 
     std::vector<ImageInfo> imageInfos(numImages);
     for (int i = 0; i < numImages; i++)
@@ -1111,6 +1116,8 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
         cv::Scalar meanVals = cv::mean(testSrc[i]) / 255.0;
         imageInfos[i].meanVals = cv::Vec3d(meanVals[0], meanVals[1], meanVals[2]);
     }
+    std::vector<int> optimizeOptions;
+    optimizeOptions.push_back(optimizeWhat);
     optimize(pairs, numImages, anchorIndexes, testSrc[0].size(), optimizeOptions, imageInfos);
 
     exposures.resize(numImages);

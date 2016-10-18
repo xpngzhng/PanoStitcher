@@ -124,10 +124,10 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<double>& es,
 }
 
 void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
-    const std::vector<int>& anchorIndexes, const std::vector<int>& optimizeOptions)
+    const std::vector<int>& anchorIndexes, int method, int optimizeWhat)
 {
     std::vector<double> exposures, redRatios, blueRatios;
-    exposureColorOptimize(images, params, anchorIndexes, optimizeOptions, exposures, redRatios, blueRatios);
+    exposureColorOptimize(images, params, anchorIndexes, method, optimizeWhat, exposures, redRatios, blueRatios);
 
     std::vector<cv::Mat> dstImages;
     correct(images, exposures, redRatios, blueRatios, dstImages);
@@ -145,7 +145,7 @@ void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& para
     blender.prepare(masks, 50);
     blender.blend(reprojImages, blendImage);
     cv::imshow("blend", blendImage);
-    cv::imwrite("out.bmp", blendImage);
+    //cv::imwrite("out.bmp", blendImage);
 
     TilingMultibandBlendFast mbBlender;
     mbBlender.prepare(masks, 10, 8);
@@ -171,9 +171,9 @@ int main()
     std::vector<PhotoParam> params;
     std::vector<cv::Mat> srcImages;
 
-    std::vector<int> opts;
-    opts.push_back(EXPOSURE | WHITE_BALANCE);
-    //opts.push_back(WHITE_BALANCE);
+    int opts = EXPOSURE | WHITE_BALANCE;
+    int method = HISTOGRAM;
+    int offset = 3;
 
     std::vector<int> anchors;
 
@@ -185,8 +185,8 @@ int main()
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -205,8 +205,8 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     //xxxx
     //imagePaths.clear();
@@ -236,8 +236,8 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
@@ -250,8 +250,8 @@ int main()
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
@@ -263,8 +263,8 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
@@ -276,8 +276,8 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
@@ -289,8 +289,8 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
@@ -302,8 +302,8 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
-    run(srcImages, params, anchors, opts);
+    anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
@@ -316,9 +316,9 @@ int main()
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
+    anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(0);
-    run(srcImages, params, anchors, opts);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
@@ -330,12 +330,12 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
+    anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(0);
     //anchors.push_back(1);
     //anchors.push_back(2);
     //anchors.push_back(4);
-    run(srcImages, params, anchors, opts);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\1.MP4.jpg");
@@ -347,10 +347,11 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
+    anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(3);
     //anchors.push_back(4);
     //anchors.push_back(5);
-    run(srcImages, params, anchors, opts);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panovideo\\test\\chengdu\\1\\image0.bmp");
@@ -363,10 +364,10 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - 2);
+    anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(1);
     //anchors.push_back(3);
-    run(srcImages, params, anchors, opts);
+    run(srcImages, params, anchors, method, opts);
 
     return 0;
 }

@@ -57,8 +57,16 @@ enum OptimizeParamType
     WHITE_BALANCE = 2,
 };
 
+enum GetPointPairsMethod
+{
+    RANDOM_SAMPLE,
+    GRID_SAMPLE,
+    HISTOGRAM,
+    NUM_GET_POINT_PAIRS_METHODS
+};
+
 void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
-    const std::vector<int> anchorIndexes, const std::vector<int>& optimizeOptions,
+    const std::vector<int> anchorIndexes, int getPointPairsMethod, int optimizeWhat,
     std::vector<double>& exposures, std::vector<double>& redRatios, std::vector<double>& blueRatios);
 
 void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,

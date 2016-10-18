@@ -2199,7 +2199,7 @@ bool ImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::vector
 
     if (!success)
     {
-        ztool::lprintf("Error in %s, prepared not success\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, have not been prepared or prepared not success\n", __FUNCTION__);
         return false;
     }
 
@@ -2270,6 +2270,125 @@ bool RicohImageVisualCorrect::correct(const std::vector<cv::Mat>& images, std::v
     std::vector<cv::Mat> newSrc(2);
     newSrc[0] = newSrc[1] = images[0];
     return ImageVisualCorrect::correct(newSrc, exposures);
+}
+
+void RicohImageVisualCorrect::clear()
+{
+    ImageVisualCorrect::clear();
+}
+
+bool ImageVisualCorrect2::prepare(const std::string& path)
+{
+    success = 0;
+
+    bool ok = loadPhotoParams(path, params);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, load photo params failed\n", __FUNCTION__);
+        return false;
+    }
+
+    success = 1;
+}
+
+bool ImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const
+{
+    if (!success)
+    {
+        ztool::lprintf("Error in %s, have not been prepared or prepared not success\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != numImages)
+    {
+        ztool::lprintf("Error in %s, input images num not match, input %d, required %d\n",
+            __FUNCTION__, images.size(), numImages);
+        return false;
+    }
+
+    bool ok = true;
+    try
+    {
+        std::vector<double> rs, bs;
+        exposureColorOptimize(images, params, std::vector<int>(), HISTOGRAM, EXPOSURE,
+            exposures, rs, bs);
+    }
+    catch (const std::exception& e)
+    {
+        ztool::lprintf("Error in %s, exception caught, %s\n", __FUNCTION__, e.what());
+        exposures.clear();
+        ok = false;
+    }
+    return ok;
+}
+
+void ImageVisualCorrect2::clear()
+{
+    params.clear();
+    success = 0;
+}
+
+bool ImageVisualCorrect2::getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts)
+{
+    luts.clear();
+
+    int size = exposures.size();
+    if (!size)
+    {
+        ztool::lprintf("Error in %s, exposures.size() == 0\n", __FUNCTION__);
+        return false;
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        if (exposures[i] <= 0)
+        {
+            ztool::lprintf("Error in %s, exposure[%d] = %f, not positive\n",
+                __FUNCTION__, i, exposures[i]);
+            return false;
+        }
+    }
+
+    luts.resize(size);
+    for (int i = 0; i < size; i++)
+        getLUT(luts[i], exposures[i]);
+    
+    return true;
+}
+
+bool RicohImageVisualCorrect2::prepare(const std::string& path)
+{
+    bool ok = ImageVisualCorrect2::prepare(path);
+    if (!ok)
+        return false;
+
+    if (numImages != 2)
+    {
+        ztool::lprintf("Error in %s, num images = %d, requires 2\n", __FUNCTION__, numImages);
+        clear();
+        return false;
+    }
+
+    return true;
+}
+
+bool RicohImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const
+{
+    if (!success)
+    {
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != 1)
+    {
+        ztool::lprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, images.size());
+        return false;
+    }
+
+    std::vector<cv::Mat> newSrc(2);
+    newSrc[0] = newSrc[1] = images[0];
+    return ImageVisualCorrect2::correct(newSrc, exposures);
 }
 
 void RicohImageVisualCorrect::clear()

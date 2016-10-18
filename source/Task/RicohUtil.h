@@ -375,3 +375,27 @@ public:
     virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures);
     virtual void clear();
 };
+
+class ImageVisualCorrect2
+{
+public:
+    ImageVisualCorrect2() : numImages(0), success(0) {}
+    virtual bool prepare(const std::string& path);
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const;
+    virtual void clear();
+
+    static bool getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
+
+protected:
+    std::vector<PhotoParam> params;
+    int numImages;
+    int success;
+};
+
+class RicohImageVisualCorrect2 : public ImageVisualCorrect2
+{
+public:
+    virtual bool prepare(const std::string& path);
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const;
+    virtual void clear();
+};

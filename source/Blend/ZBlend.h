@@ -196,5 +196,3 @@ private:
     int rows, cols;
     bool success;
 };
-
-
