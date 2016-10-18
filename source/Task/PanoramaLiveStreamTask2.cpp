@@ -111,7 +111,7 @@ struct PanoramaLiveStreamTask2::Impl
     int fileThreadJoined;
     void fileSave();
 
-    std::unique_ptr<ImageVisualCorrect> correct;
+    std::unique_ptr<ImageVisualCorrect2> correct;
     std::vector<double> exposures;
     std::mutex mtxLuts;
     std::vector<std::vector<unsigned char> > luts;
@@ -339,10 +339,10 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     }
 
     if (panoStitchType == PanoStitchTypeMISO)
-        correct.reset(new ImageVisualCorrect);
+        correct.reset(new ImageVisualCorrect2);
     else if (panoStitchType == PanoStitchTypeRicoh)
-        correct.reset(new RicohImageVisualCorrect);
-    renderPrepareSuccess = correct->prepare(renderConfigName, videoFrameSize, cv::Size(1920, 960));
+        correct.reset(new RicohImageVisualCorrect2);
+    renderPrepareSuccess = correct->prepare(renderConfigName);
     if (!renderPrepareSuccess)
     {
         ztool::lprintf("Error in %s, could not prepare for exposure correct\n", __FUNCTION__);
@@ -1218,7 +1218,7 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
 void PanoramaLiveStreamTask2::Impl::setLUTs(const std::vector<double>& exposures)
 {
     std::lock_guard<std::mutex> lg(mtxLuts);
-    ExposureColorCorrect::getExposureLUTs(exposures, luts);
+    ImageVisualCorrect2::getLUTs(exposures, luts);
 }
 
 void PanoramaLiveStreamTask2::Impl::clearLUTs()
