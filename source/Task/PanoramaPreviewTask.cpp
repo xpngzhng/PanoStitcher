@@ -139,7 +139,7 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
     for (int i = 0; i < numVideos; i++)
         customMasks[i].init(dstSize.width, dstSize.height);
 
-    ok = blender.prepare(dstMasks, 16, 2);
+    ok = blender.prepare(dstMasks, 16, 32);
     //ok = blender.prepare(dstMasks, 50);
     blender.getUniqueMasks(dstUniqueMasks);
     if (!ok)

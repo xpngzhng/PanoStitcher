@@ -1849,7 +1849,7 @@ int IOclPanoramaRender::getNumImages() const
 #endif
 
 #if COMPILE_INTEGRATED_OPENCL
-#include "RunTimeObjects.h"
+#include "IntelOpenCL/RunTimeObjects.h"
 bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
@@ -1916,7 +1916,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             std::vector<cv::Mat> headers(numImages);
             for (int i = 0; i < numImages; i++)
                 headers[i] = weights[i].toOpenCVMat();
-            getWeightsLinearBlendBoundedRadius32F(masks, 75, headers);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, headers);
             accum.create(dstSize, CV_32FC4);
         }
     }
@@ -1930,7 +1930,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
     return true;
 }
 
-#include "MatOp.h"
+#include "IntelOpenCL/MatOp.h"
 bool IOclPanoramaRender::render(const std::vector<iocl::UMat>& src, iocl::UMat& dst)
 {
     if (!success)
@@ -2080,7 +2080,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         else
         {
             std::vector<cv::Mat> weightsCpu(numImages);
-            getWeightsLinearBlendBoundedRadius32F(masks, 75, weightsCpu);
+            getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, weightsCpu);
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weights[i].upload(weightsCpu[i]);

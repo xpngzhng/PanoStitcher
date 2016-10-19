@@ -1110,7 +1110,8 @@ void IOclPanoramaLocalDiskTask::Impl::decode()
     ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-#include "RunTimeObjects.h"
+#include "IntelOpenCL/RunTimeObjects.h"
+#include "IntelOpenCL/IntelOpenCLMat.h"
 void IOclPanoramaLocalDiskTask::Impl::proc()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -1400,7 +1401,8 @@ IOclPanoramaLocalDiskTask::~IOclPanoramaLocalDiskTask()
 }
 
 bool IOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+    int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
+    const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
     int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
     int dstVideoMaxFrameCount)
@@ -2896,7 +2898,8 @@ DOclPanoramaLocalDiskTask::~DOclPanoramaLocalDiskTask()
 }
 
 bool DOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+    int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+    const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
     int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
     int dstVideoMaxFrameCount)

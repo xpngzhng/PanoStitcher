@@ -303,7 +303,7 @@ private:
 #endif
 
 #if COMPILE_INTEGRATED_OPENCL
-#include "IntelOpenCLInterface.h"
+#include "IntelOpenCL/IntelOpenCLInterface.h"
 class IOclPanoramaRender
 {
 public:
