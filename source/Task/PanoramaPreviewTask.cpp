@@ -757,6 +757,8 @@ bool CPUPanoramaPreviewTask::Impl::setExposureWhiteBalance(const std::vector<dou
         visualCorrect.getLUTs(es, rs, bs, luts);
     else
         luts.clear();
+
+    return true;
 }
 
 void CPUPanoramaPreviewTask::Impl::clear()

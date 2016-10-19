@@ -800,6 +800,8 @@ static void writeTo(const std::vector<ImageInfo>& infos, double* x, const std::v
     }
 }
 
+namespace
+{
 struct Transform
 {
     Transform()
@@ -886,6 +888,7 @@ struct Transform
     double whiteBalanceRed;
     double whiteBalanceBlue;
 };
+}
 
 struct ExternData
 {

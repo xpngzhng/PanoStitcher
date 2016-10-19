@@ -186,22 +186,20 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         std::vector<double> es, rs, bs;
         ok = loadExposureWhiteBalance(exposureWhiteBalanceFile, es, rs, bs);
         if (!ok)
+            ztool::lprintf("Info in %s, could not load exposure white balance params, skip this\n", __FUNCTION__);
+        else
         {
-            ztool::lprintf("Error in %s, could not load exposure white balance file\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
-        }
-        
-        if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
-        {
-            ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n", 
-                __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
-        }
+            if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
+            {
+                ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n",
+                    __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
+                syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+                return false;
+            }
 
-        if (needCorrectExposureWhiteBalance(es, rs, bs))
-            getExposureColorOptimizeLUTs(es, rs, bs, luts);
+            if (needCorrectExposureWhiteBalance(es, rs, bs))
+                getExposureColorOptimizeLUTs(es, rs, bs, luts);
+        }
     }
 
     if (panoType == PanoStitchTypeMISO)
@@ -1605,22 +1603,20 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         std::vector<double> es, rs, bs;
         ok = loadExposureWhiteBalance(exposureWhiteBalanceFile, es, rs, bs);
         if (!ok)
+            ztool::lprintf("Info in %s, could not load exposure white balance params, skip this\n", __FUNCTION__);
+        else
         {
-            ztool::lprintf("Error in %s, could not load exposure white balance file\n", __FUNCTION__);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
-        }
+            if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
+            {
+                ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n",
+                    __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
+                syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+                return false;
+            }
 
-        if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
-        {
-            ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n",
-                __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
-            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
-            return false;
+            if (needCorrectExposureWhiteBalance(es, rs, bs))
+                getExposureColorOptimizeLUTs(es, rs, bs, luts);
         }
-
-        if (needCorrectExposureWhiteBalance(es, rs, bs))
-            getExposureColorOptimizeLUTs(es, rs, bs, luts);
     }
 
     if (panoType == PanoStitchTypeMISO)

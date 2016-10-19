@@ -1056,9 +1056,9 @@ bool loadExposureWhiteBalance(const std::string& fileName, std::vector<double>& 
         double e, r, b;
         try
         {
-            ptrExposure->GetValue(&e);
-            ptrRed->GetValue(&r);
-            ptrBlue->GetValue(&b);
+            ptrExposure->GetText(&e);
+            ptrRed->GetText(&r);
+            ptrBlue->GetText(&b);
         }
         catch (...)
         {
@@ -1120,65 +1120,72 @@ bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoSti
 
     Element* ptrElem = NULL;
 
-    ptrElem = ptrOutput->FirstChildElement("AudioIndex", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&audioIndex);
+    try
+    {
+        ptrElem = ptrOutput->FirstChildElement("AudioIndex", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&audioIndex);
 
-    ptrElem = ptrOutput->FirstChildElement("PanoStitchType", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&panoStitchType);
-    
-    ptrElem = ptrOutput->FirstChildElement("LogoFile", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&logoFile);
+        ptrElem = ptrOutput->FirstChildElement("PanoStitchType", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&panoStitchType);
 
-    ptrElem = ptrOutput->FirstChildElement("LogoFOV", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&logoFOV);
+        ptrElem = ptrOutput->FirstChildElement("LogoFile", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetTextOrDefault(&logoFile, std::string());
 
-    ptrElem = ptrOutput->FirstChildElement("HighQualityBlend", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&highQualityBlend);
+        ptrElem = ptrOutput->FirstChildElement("LogoFOV", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&logoFOV);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoFile", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstVideoFile);
+        ptrElem = ptrOutput->FirstChildElement("HighQualityBlend", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&highQualityBlend);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoWidth", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstWidth);
+        ptrElem = ptrOutput->FirstChildElement("VideoFile", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&dstVideoFile);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoHeight", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstHeight);
+        ptrElem = ptrOutput->FirstChildElement("VideoWidth", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&dstWidth);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoBitRate", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstVideoBitRate);
+        ptrElem = ptrOutput->FirstChildElement("VideoHeight", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&dstHeight);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoEncoder", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstVideoEncoder);
+        ptrElem = ptrOutput->FirstChildElement("VideoBitRate", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&dstVideoBitRate);
 
-    ptrElem = ptrOutput->FirstChildElement("VideoPreset", false);
-    if (ptrElem == NULL)
-        return false;
-    ptrElem->GetValue(&dstVideoPreset);
+        ptrElem = ptrOutput->FirstChildElement("VideoEncoder", false);
+        if (ptrElem == NULL)
+            return false;
+        dstVideoEncoder = ptrElem->GetText();
 
-    ptrElem = ptrOutput->FirstChildElement("MaxFrameCount", false);
-    if (ptrElem == NULL)
+        ptrElem = ptrOutput->FirstChildElement("VideoPreset", false);
+        if (ptrElem == NULL)
+            return false;
+        dstVideoPreset = ptrElem->GetText();
+
+        ptrElem = ptrOutput->FirstChildElement("MaxFrameCount", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&dstVideoMaxFrameCount);
+    }
+    catch (...)
+    {
         return false;
-    ptrElem->GetValue(&dstVideoMaxFrameCount);
+    }
 
     return true;
 }
