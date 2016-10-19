@@ -331,6 +331,7 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
     int dstVideoBitRate;
     std::string dstVideoEncoder;
     std::string dstVideoPreset;
+    int startFrameIndex;
     int dstVideoMaxFrameCount;
 
     bool ok = false;
@@ -343,13 +344,17 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
     }
     ok = loadOutputConfig(configFile, tryAudioIndex, panoType, logoFile, logoHFov,
         highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
-        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+        dstVideoEncoder, dstVideoPreset, startFrameIndex, dstVideoMaxFrameCount);
     if (!ok)
     {
         ztool::lprintf("Error in %s, could not load output video params\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
         return false;
     }
+
+    int size = offsets.size();
+    for (int i = 0; i < size; i++)
+        offsets[i] += startFrameIndex;
 
     return init(srcVideoFiles, offsets, tryAudioIndex, panoType, configFile, configFile, configFile,
         logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
@@ -1727,6 +1732,7 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
     int dstVideoBitRate;
     std::string dstVideoEncoder;
     std::string dstVideoPreset;
+    int startFrameIndex;
     int dstVideoMaxFrameCount;
 
     bool ok = false;
@@ -1739,13 +1745,17 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
     }
     ok = loadOutputConfig(configFile, tryAudioIndex, panoType, logoFile, logoHFov,
         highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
-        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+        dstVideoEncoder, dstVideoPreset, startFrameIndex, dstVideoMaxFrameCount);
     if (!ok)
     {
         ztool::lprintf("Error in %s, could not load output video params\n", __FUNCTION__);
         syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
         return false;
     }
+
+    int size = offsets.size();
+    for (int i = 0; i < size; i++)
+        offsets[i] += startFrameIndex;
 
     return init(srcVideoFiles, offsets, tryAudioIndex, panoType, configFile, configFile, configFile,
         logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,

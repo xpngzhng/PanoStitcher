@@ -110,7 +110,8 @@ bool needCorrectExposureWhiteBalance(const std::vector<double>& exposures,
 bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoStitchType,
     std::string& logoFile, int& logoFOV, int& highQualityBlend,
     std::string& dstVideoFile, int& dstWidth, int& dstHeight, int& dstVideoBitRate,
-    std::string& dstVideoEncoder, std::string& dstVideoPreset, int& dstVideoMaxFrameCount);
+    std::string& dstVideoEncoder, std::string& dstVideoPreset, 
+    int& startFrameIndex, int& dstVideoMaxFrameCount);
 
 bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours);
 

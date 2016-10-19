@@ -128,6 +128,14 @@ void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& para
 {
     std::vector<double> exposures, redRatios, blueRatios;
     exposureColorOptimize(images, params, anchorIndexes, method, optimizeWhat, exposures, redRatios, blueRatios);
+    
+    int numImages = images.size();
+    printf("show exposure and white balance:\n");
+    for (int i = 0; i < numImages; i++)
+    {
+        printf("[%d] e = %f, r = %f, b = %f\n", 
+            i, exposures[i], redRatios[i], blueRatios[i]);
+    }
 
     std::vector<cv::Mat> dstImages;
     correct(images, exposures, redRatios, blueRatios, dstImages);
@@ -172,7 +180,7 @@ int main()
     std::vector<cv::Mat> srcImages;
 
     int opts = EXPOSURE/* | WHITE_BALANCE*/;
-    int method = HISTOGRAM;
+    int method = GRID_SAMPLE;
     int offset = 3;
 
     std::vector<int> anchors;
@@ -347,7 +355,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(3);
     //anchors.push_back(4);
     //anchors.push_back(5);
