@@ -63,6 +63,13 @@ public:
     bool getAllCustomMasksForOne(int videoIndex, std::vector<int>& begFrameIndexesInc, std::vector<int>& endFrameIndexesInc,
         std::vector<cv::Mat>& masks) const;
 
+    bool correctExposureWhiteBalance(bool whiteBalance, std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    bool getExposureWhiteBalance(std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    bool setExposureWhiteBalance(const std::vector<double>& exposures,
+        const std::vector<double>& redRatios, const std::vector<double>& blueRatios);
+
     // deprecated interface
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement);
@@ -130,7 +137,8 @@ class PanoramaLocalDiskTask
 public:
     virtual ~PanoramaLocalDiskTask() {};
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount) = 0;
     virtual bool start() = 0;
@@ -148,9 +156,11 @@ public:
     CPUPanoramaLocalDiskTask();
     ~CPUPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
+    bool init(const std::string& configFile);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -169,7 +179,8 @@ public:
     IOclPanoramaLocalDiskTask();
     ~IOclPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();
@@ -190,9 +201,11 @@ public:
     CudaPanoramaLocalDiskTask();
     ~CudaPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
+    bool init(const std::string& configFile);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -211,7 +224,8 @@ public:
     DOclPanoramaLocalDiskTask();
     ~DOclPanoramaLocalDiskTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoStitchType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool start();

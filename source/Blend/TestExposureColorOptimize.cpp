@@ -171,7 +171,7 @@ int main()
     std::vector<PhotoParam> params;
     std::vector<cv::Mat> srcImages;
 
-    int opts = EXPOSURE | WHITE_BALANCE;
+    int opts = EXPOSURE/* | WHITE_BALANCE*/;
     int method = HISTOGRAM;
     int offset = 3;
 

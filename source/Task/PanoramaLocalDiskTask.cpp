@@ -32,10 +32,12 @@ struct CPUPanoramaLocalDiskTask::Impl
     Impl();
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
+    bool init(const std::string& configFile);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -52,6 +54,7 @@ struct CPUPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
     std::unique_ptr<CPUPanoramaRender> render;
     WatermarkFilter watermarkFilter;
     std::unique_ptr<LogoFilter> logoFilter;
@@ -100,7 +103,8 @@ CPUPanoramaLocalDiskTask::Impl::~Impl()
 }
 
 bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    int tryAudioIndex, int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, 
+    int tryAudioIndex, int panoType, const std::string& cameraParamFile, 
+    const std::string& exposureWhiteBalanceFile, const std::string& customMaskFile,
     const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile, 
     int dstWidth, int dstHeight,  int dstVideoBitRate, const std::string& dstVideoEncoder, 
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
@@ -113,8 +117,10 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         ztool::lprintf("[%d] %d, ", i, offsets[i]);
     ztool::lprintf("try audio index = %d, ", tryAudioIndex);
     ztool::lprintf("pano type = %d(%s), ", panoType, getPanoStitchTypeString(panoType));
-    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
-        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("camera param file = %s, expo white balance file = %s, custom mask file = %s, "
+        "logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), exposureWhiteBalanceFile.c_str(), customMaskFile.c_str(), 
+        logoFile.c_str(), logoHFov, highQualityBlend);
     ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
         dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
     ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
@@ -173,6 +179,29 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
         ztool::lprintf("Error in %s, could not init memory pool for dst video frames\n", __FUNCTION__);
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
+    }
+
+    if (!exposureWhiteBalanceFile.empty())
+    {
+        std::vector<double> es, rs, bs;
+        ok = loadExposureWhiteBalance(exposureWhiteBalanceFile, es, rs, bs);
+        if (!ok)
+        {
+            ztool::lprintf("Error in %s, could not load exposure white balance file\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            return false;
+        }
+        
+        if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
+        {
+            ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n", 
+                __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            return false;
+        }
+
+        if (needCorrectExposureWhiteBalance(es, rs, bs))
+            getExposureColorOptimizeLUTs(es, rs, bs, luts);
     }
 
     if (panoType == PanoStitchTypeMISO)
@@ -289,6 +318,46 @@ bool CPUPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVid
     return true;
 }
 
+bool CPUPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
+{
+    std::vector<std::string> srcVideoFiles;
+    std::vector<int> offsets;
+    int tryAudioIndex;
+    int panoType;
+    std::string logoFile;
+    int logoHFov;
+    int highQualityBlend;
+    std::string dstVideoFile;
+    int dstWidth;
+    int dstHeight;
+    int dstVideoBitRate;
+    std::string dstVideoEncoder;
+    std::string dstVideoPreset;
+    int dstVideoMaxFrameCount;
+
+    bool ok = false;
+    ok = loadVideoFileNamesAndOffset(configFile, srcVideoFiles, offsets);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, could not load video file names and offsets\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
+        return false;
+    }
+    ok = loadOutputConfig(configFile, tryAudioIndex, panoType, logoFile, logoHFov,
+        highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
+        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, could not load output video params\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
+        return false;
+    }
+
+    return init(srcVideoFiles, offsets, tryAudioIndex, panoType, configFile, configFile, configFile,
+        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
+        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+}
+
 void CPUPanoramaLocalDiskTask::Impl::decode()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -395,7 +464,10 @@ void CPUPanoramaLocalDiskTask::Impl::proc()
         dstVideoFramesMemoryPool.get(videoFrame);
         cv::Mat blendImage(videoFrame.height, videoFrame.width, CV_8UC3, videoFrame.data[0], videoFrame.steps[0]);
 
-        render->render(images, blendImage);
+        if (luts.empty())
+            render->render(images, blendImage);
+        else
+            render->render(images, blendImage, luts);
 
         //if (useCustomMasks)
         //{
@@ -641,6 +713,7 @@ void CPUPanoramaLocalDiskTask::Impl::clear()
     srcSize = cv::Size();
     dstSize = cv::Size();
     readers.clear();
+    luts.clear();
     render.reset();
     writer.close();
     isCanceled = false;
@@ -681,14 +754,21 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 }
 
 bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov, 
+    int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
+    const std::string& customMaskFile, const std::string& logoFile, int logoHFov, 
     int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, panoType, cameraParamFile, customMaskFile, 
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, panoType, 
+        cameraParamFile, exposureWhiteBalanceFile, customMaskFile, 
         logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+}
+
+bool CPUPanoramaLocalDiskTask::init(const std::string& configFile)
+{
+    return ptrImpl->init(configFile);
 }
 
 bool CPUPanoramaLocalDiskTask::start()
@@ -1380,10 +1460,12 @@ struct CudaPanoramaLocalDiskTask::Impl
     Impl();
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-        int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+        int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
+        const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
         int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
         int dstVideoMaxFrameCount);
+    bool init(const std::string& configFile);
     bool start();
     void waitForCompletion();
     int getProgress() const;
@@ -1399,6 +1481,7 @@ struct CudaPanoramaLocalDiskTask::Impl
     int audioIndex;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
     std::unique_ptr<CudaPanoramaRender2> render;
     PinnedMemoryPool srcFramesMemoryPool;
     AudioVideoFramePool audioFramesMemoryPool;
@@ -1447,7 +1530,8 @@ CudaPanoramaLocalDiskTask::Impl::~Impl()
 }
 
 bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
-    int tryAudioIndex, int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, 
+    int tryAudioIndex, int panoType, const std::string& cameraParamFile, 
+    const std::string& exposureWhiteBalanceFile, const std::string& customMaskFile, 
     const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile, 
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder, 
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
@@ -1460,8 +1544,10 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         ztool::lprintf("[%d] %d, ", i, offsets[i]);
     ztool::lprintf("try audio index = %d, ", tryAudioIndex);
     ztool::lprintf("pano type = %d(%s), ", panoType, getPanoStitchTypeString(panoType));
-    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
-        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("camera param file = %s, expo white balance file = %s, custom mask file = %s, "
+        "logo file = %s, logo hfov = %d, high quality blend = %d, ",
+        cameraParamFile.c_str(), exposureWhiteBalanceFile.c_str(), customMaskFile.c_str(),
+        logoFile.c_str(), logoHFov, highQualityBlend);
     ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
         dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
     ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
@@ -1512,6 +1598,29 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
             syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
             return false;
         }
+    }
+
+    if (!exposureWhiteBalanceFile.empty())
+    {
+        std::vector<double> es, rs, bs;
+        ok = loadExposureWhiteBalance(exposureWhiteBalanceFile, es, rs, bs);
+        if (!ok)
+        {
+            ztool::lprintf("Error in %s, could not load exposure white balance file\n", __FUNCTION__);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            return false;
+        }
+
+        if (es.size() != numVideos || rs.size() != numVideos || bs.size() != numVideos)
+        {
+            ztool::lprintf("Error in %s, exposure and white balance param size unsatisfied, %d, %d, %d, should be %d\n",
+                __FUNCTION__, es.size(), rs.size(), bs.size(), numVideos);
+            syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+            return false;
+        }
+
+        if (needCorrectExposureWhiteBalance(es, rs, bs))
+            getExposureColorOptimizeLUTs(es, rs, bs, luts);
     }
 
     if (panoType == PanoStitchTypeMISO)
@@ -1605,6 +1714,46 @@ bool CudaPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     initSuccess = true;
     finish = false;
     return true;
+}
+
+bool CudaPanoramaLocalDiskTask::Impl::init(const std::string& configFile)
+{
+    std::vector<std::string> srcVideoFiles;
+    std::vector<int> offsets;
+    int tryAudioIndex;
+    int panoType;
+    std::string logoFile;
+    int logoHFov;
+    int highQualityBlend;
+    std::string dstVideoFile;
+    int dstWidth;
+    int dstHeight;
+    int dstVideoBitRate;
+    std::string dstVideoEncoder;
+    std::string dstVideoPreset;
+    int dstVideoMaxFrameCount;
+
+    bool ok = false;
+    ok = loadVideoFileNamesAndOffset(configFile, srcVideoFiles, offsets);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, could not load video file names and offsets\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
+        return false;
+    }
+    ok = loadOutputConfig(configFile, tryAudioIndex, panoType, logoFile, logoHFov,
+        highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
+        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, could not load output video params\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_CONFIG_FILE_PARSE_FAIL);
+        return false;
+    }
+
+    return init(srcVideoFiles, offsets, tryAudioIndex, panoType, configFile, configFile, configFile,
+        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight, dstVideoBitRate,
+        dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
 bool CudaPanoramaLocalDiskTask::Impl::start()
@@ -1844,7 +1993,11 @@ void CudaPanoramaLocalDiskTask::Impl::proc()
         
         for (int i = 0; i < numVideos; i++)
             images[i] = srcFrames.frames[i].createMatHeader();        
-        bool ok = render->render(images, bgr32);
+        bool ok = false;
+        if (luts.empty())
+            ok = render->render(images, bgr32);
+        else
+            ok = render->render(images, bgr32, luts);
         if (!ok)
         {
             ztool::lprintf("Error in %s, render failed\n", __FUNCTION__);
@@ -2026,14 +2179,21 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 }
 
 bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
-    int panoType, const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
+    int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
+    const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
     int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset, 
     int dstVideoMaxFrameCount)
 {
-    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, panoType, cameraParamFile, customMaskFile, 
+    return ptrImpl->init(srcVideoFiles, offsets, audioIndex, panoType, 
+        cameraParamFile, exposureWhiteBalanceFile, customMaskFile, 
         logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
+}
+
+bool CudaPanoramaLocalDiskTask::init(const std::string& configFile)
+{
+    return ptrImpl->init(configFile);
 }
 
 bool CudaPanoramaLocalDiskTask::start()

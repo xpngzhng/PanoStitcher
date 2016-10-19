@@ -40,16 +40,26 @@ struct CPUPanoramaPreviewTask::Impl
     bool getAllCustomMasksForOne(int videoIndex, std::vector<int>& begFrameIndexesInc, std::vector<int>& endFrameIndexesInc,
         std::vector<cv::Mat>& masks) const;
 
+    bool correctExposureWhiteBalance(bool whiteBalance, std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    bool getExposureWhiteBalance(std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+    bool setExposureWhiteBalance(const std::vector<double>& exposures,
+        const std::vector<double>& redRatios, const std::vector<double>& blueRatios);
+
     void clear();
 
     int numVideos;
     double frameIntervalInMicroSec;
     cv::Size srcSize, dstSize;
     std::vector<avp::AudioVideoReader3> readers;
+    ImageVisualCorrect2 visualCorrect;
+    std::vector<double> es, rs, bs;
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
     std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
     std::vector<CustomIntervaledMasks> customMasks;
     TilingMultibandBlendFast blender;
-    std::vector<cv::Mat> images, reprojImages;
+    std::vector<cv::Mat> images, correctImages, reprojImages;
     std::vector<avp::AudioVideoFrame2> frames;
     cv::Mat blendImage;
     bool initSuccess;
@@ -109,6 +119,21 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
         ztool::lprintf("Warning in %s, params.size() > numVideos\n", __FUNCTION__);
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
+
+    if (!visualCorrect.prepare(cameraParamFile))
+    {
+        ztool::lprintf("Error in %s, visual correct prepare failed\n", __FUNCTION__);
+        return false;
+    }
+    es.resize(numVideos);
+    rs.resize(numVideos);
+    bs.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        es[i] = 1;
+        rs[i] = 1;
+        bs[i] = 1;
+    }
 
     customMasks.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
@@ -207,6 +232,7 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
     //ztool::lprintf("In %s, begin read frame\n", __FUNCTION__);
     frames.resize(numVideos);
     images.resize(numVideos);
+    correctImages.resize(numVideos);
     indexes.resize(numVideos);
     bool ok = true;
     for (int i = 0; i < numVideos; i++)
@@ -231,7 +257,14 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
         return false;
     }
 
-    reprojectParallel(images, reprojImages, dstSrcMaps);
+    if (luts.empty())
+        reprojectParallel(images, reprojImages, dstSrcMaps);
+    else
+    {
+        for (int i = 0; i < numVideos; i++)
+            transform(images[i], correctImages[i], luts[i]);
+        reprojectParallel(correctImages, reprojImages, dstSrcMaps);
+    }
 
     bool useCustomMask = false;
     currMasks.resize(numVideos);
@@ -266,7 +299,14 @@ bool CPUPanoramaPreviewTask::Impl::restitch(std::vector<cv::Mat>& src, std::vect
         return false;
     }
 
-    reprojectParallel(images, reprojImages, dstSrcMaps);
+    if (luts.empty())
+        reprojectParallel(images, reprojImages, dstSrcMaps);
+    else
+    {
+        for (int i = 0; i < numVideos; i++)
+            transform(images[i], correctImages[i], luts[i]);
+        reprojectParallel(correctImages, reprojImages, dstSrcMaps);
+    }
 
     bool useCustomMask = false;
     currMasks.resize(numVideos);
@@ -375,7 +415,14 @@ bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, 
         return false;
     }
 
-    reprojectParallel(images, reprojImages, dstSrcMaps);
+    if (luts.empty())
+        reprojectParallel(images, reprojImages, dstSrcMaps);
+    else
+    {
+        for (int i = 0; i < numVideos; i++)
+            transform(images[i], correctImages[i], luts[i]);
+        reprojectParallel(correctImages, reprojImages, dstSrcMaps);
+    }
 
     bool useCustomMask = false;
     currMasks.resize(numVideos);
@@ -426,7 +473,14 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForAll(std::vector<cv::Ma
         return false;
     }
 
-    reprojectParallel(images, reprojImages, dstSrcMaps);
+    if (luts.empty())
+        reprojectParallel(images, reprojImages, dstSrcMaps);
+    else
+    {
+        for (int i = 0; i < numVideos; i++)
+            transform(images[i], correctImages[i], luts[i]);
+        reprojectParallel(correctImages, reprojImages, dstSrcMaps);
+    }
     dst = reprojImages;
     return true;
 }
@@ -453,7 +507,13 @@ bool CPUPanoramaPreviewTask::Impl::readNextAndReprojectForOne(int videoIndex, cv
 
     images[videoIndex] = cv::Mat(frames[videoIndex].height, frames[videoIndex].width, CV_8UC3, 
         frames[videoIndex].data[0], frames[videoIndex].steps[0]);
-    reprojectParallel(images[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    if (luts.empty())
+        reprojectParallel(images[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    else
+    {
+        transform(images[videoIndex], correctImages[videoIndex], luts[videoIndex]);
+        reprojectParallel(correctImages[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    }
     image = reprojImages[videoIndex];
     frameIndex = frames[videoIndex].timeStamp;
     return true;
@@ -488,7 +548,13 @@ bool CPUPanoramaPreviewTask::Impl::readPrevAndReprojectForOne(int videoIndex, cv
 
     images[videoIndex] = cv::Mat(frames[videoIndex].height, frames[videoIndex].width, CV_8UC3, 
         frames[videoIndex].data[0], frames[videoIndex].steps[0]);
-    reprojectParallel(images[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    if (luts.empty())
+        reprojectParallel(images[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    else
+    {
+        transform(images[videoIndex], correctImages[videoIndex], luts[videoIndex]);
+        reprojectParallel(correctImages[videoIndex], reprojImages[videoIndex], dstSrcMaps[videoIndex]);
+    }
     image = reprojImages[videoIndex];
     frameIndex = frames[videoIndex].timeStamp;
     return true;
@@ -619,6 +685,80 @@ bool CPUPanoramaPreviewTask::Impl::getAllCustomMasksForOne(int videoIndex, std::
     return true;
 }
 
+bool CPUPanoramaPreviewTask::Impl::correctExposureWhiteBalance(bool whiteBalance, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != numVideos)
+    {
+        ztool::lprintf("Error in %s, this function can be called after stitch at least once\n", __FUNCTION__);
+        return false;
+    }
+
+    bool ret = true;
+    if (whiteBalance)
+        ret = visualCorrect.correct(images, exposures, redRatios, blueRatios);
+    else
+    {
+        redRatios.resize(numVideos);
+        blueRatios.resize(numVideos);
+        for (int i = 0; i < numVideos; i++)
+        {
+            redRatios[i] = 1;
+            blueRatios[i] = 1;
+        }
+        ret = visualCorrect.correct(images, exposures);
+    }
+    return ret;
+}
+
+bool CPUPanoramaPreviewTask::Impl::getExposureWhiteBalance(std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    exposures = es;
+    redRatios = rs;
+    blueRatios = bs;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::setExposureWhiteBalance(const std::vector<double>& exposures,
+    const std::vector<double>& redRatios, const std::vector<double>& blueRatios)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    if (exposures.size() != numVideos ||
+        redRatios.size() != numVideos ||
+        blueRatios.size() != numVideos)
+    {
+        ztool::lprintf("Error in %s, exposures, redRatios or blueRatios's size not equal to %d\n",
+            __FUNCTION__, numVideos);
+        return false;
+    }
+
+    es = exposures;
+    rs = redRatios;
+    bs = blueRatios;
+    if (needCorrectExposureWhiteBalance(es, rs, bs))
+        visualCorrect.getLUTs(es, rs, bs, luts);
+    else
+        luts.clear();
+}
+
 void CPUPanoramaPreviewTask::Impl::clear()
 {
     frameIntervalInMicroSec = 0;
@@ -626,12 +766,18 @@ void CPUPanoramaPreviewTask::Impl::clear()
     readers.clear();
     initSuccess = false;
 
+    es.clear();
+    rs.clear();
+    bs.clear();
+    luts.clear();
+
     dstSrcMaps.clear(); 
     dstMasks.clear();
     dstUniqueMasks.clear();
     currMasks.clear();
     customMasks.clear();
     images.clear();
+    correctImages.clear();
     reprojImages.clear();
     frames.clear();
 }
@@ -751,6 +897,24 @@ bool CPUPanoramaPreviewTask::getAllCustomMasksForOne(int videoIndex, std::vector
     std::vector<int>& endFrameIndexesInc, std::vector<cv::Mat>& masks) const
 {
     return ptrImpl->getAllCustomMasksForOne(videoIndex, begFrameIndexesInc, endFrameIndexesInc, masks);
+}
+
+bool CPUPanoramaPreviewTask::correctExposureWhiteBalance(bool whiteBalance, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios)
+{
+    return ptrImpl->correctExposureWhiteBalance(whiteBalance, exposures, redRatios, blueRatios);
+}
+
+bool CPUPanoramaPreviewTask::getExposureWhiteBalance(std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios)
+{
+    return ptrImpl->getExposureWhiteBalance(exposures, redRatios, blueRatios);
+}
+
+bool CPUPanoramaPreviewTask::setExposureWhiteBalance(const std::vector<double>& exposures,
+    const std::vector<double>& redRatios, const std::vector<double>& blueRatios)
+{
+    return ptrImpl->setExposureWhiteBalance(exposures, redRatios, blueRatios);
 }
 
 bool CPUPanoramaPreviewTask::seek(const std::vector<long long int>& timeStamps)

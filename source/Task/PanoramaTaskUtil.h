@@ -101,6 +101,17 @@ bool getIntervaledContoursFromPreviewTask(const CPUPanoramaPreviewTask& task, co
 
 bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::string>& videoFileNames, std::vector<int>& offsets);
 
+bool loadExposureWhiteBalance(const std::string& fileName, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios);
+
+bool needCorrectExposureWhiteBalance(const std::vector<double>& exposures,
+    const std::vector<double>& redRatios, const std::vector<double>& blueRatios);
+
+bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoStitchType,
+    std::string& logoFile, int& logoFOV, int& highQualityBlend,
+    std::string& dstVideoFile, int& dstWidth, int& dstHeight, int& dstVideoBitRate,
+    std::string& dstVideoEncoder, std::string& dstVideoPreset, int& dstVideoMaxFrameCount);
+
 bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours);
 
 bool cvtContoursToMasks(const std::vector<std::vector<IntervaledContour> >& contours, 

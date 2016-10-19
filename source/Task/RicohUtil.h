@@ -197,7 +197,8 @@ public:
     virtual ~CudaPanoramaRender2() { };
     virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
-        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
+        const std::vector<std::vector<std::vector<unsigned char> > >& luts = 
+        std::vector<std::vector<std::vector<unsigned char> > >());
     virtual void clear();
     virtual int getNumImages() const;
 protected:
@@ -224,7 +225,8 @@ public:
     virtual ~CudaRicohPanoramaRender() { };
     virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
-        const std::vector<std::vector<unsigned char> >& luts = std::vector<std::vector<unsigned char> >());
+        const std::vector<std::vector<std::vector<unsigned char> > >& luts =
+        std::vector<std::vector<std::vector<unsigned char> > >());
     virtual void clear();
     virtual int getNumImages() const;
 };
@@ -236,7 +238,9 @@ public:
     CPUPanoramaRender() : success(0), highQualityBlend(0), numImages(0) {};
     virtual ~CPUPanoramaRender() { };
     virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst,
+        const std::vector<std::vector<std::vector<unsigned char> > >& luts =
+        std::vector<std::vector<std::vector<unsigned char> > >());
     virtual void clear();
     virtual int getNumImages() const;
 protected:
@@ -246,6 +250,7 @@ protected:
     int highQualityBlend;
     std::unique_ptr<MultibandBlendBase> mbBlender;
     std::vector<cv::Mat> weights;
+    cv::Mat correctImage;
     cv::Mat accum;
     int numImages;
     int success;
@@ -257,7 +262,9 @@ public:
     CPURicohPanoramaRender() {};
     virtual ~CPURicohPanoramaRender() { };
     virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
-    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst);
+    virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst,
+        const std::vector<std::vector<std::vector<unsigned char> > >& luts =
+        std::vector<std::vector<std::vector<unsigned char> > >());
     virtual void clear();
     virtual int getNumImages() const;
 };
@@ -382,9 +389,14 @@ public:
     ImageVisualCorrect2() : numImages(0), success(0) {}
     virtual bool prepare(const std::string& path);
     virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const;
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios) const;
     virtual void clear();
 
     static bool getLUTs(const std::vector<double>& exposures, std::vector<std::vector<unsigned char> >& luts);
+    static bool getLUTs(const std::vector<double>& exposures, 
+        const std::vector<double>& redRatios, const std::vector<double>& blueRatios,
+        std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
 protected:
     std::vector<PhotoParam> params;
@@ -397,5 +409,7 @@ class RicohImageVisualCorrect2 : public ImageVisualCorrect2
 public:
     virtual bool prepare(const std::string& path);
     virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const;
+    virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures,
+        std::vector<double>& redRatios, std::vector<double>& blueRatios);
     virtual void clear();
 };

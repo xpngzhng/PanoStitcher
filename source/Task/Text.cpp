@@ -21,6 +21,7 @@ static IndexTextsPair indexTextsPairs[] =
     TI_LINE_BREAK, { "\n", "\n" },
     TI_SPACE, { " ", " " },
 
+    TI_CONFIG_FILE_PARSE_FAIL, { "配置文件解析失败", "Configuration file parsing failed" },
     TI_PARAM_CHECK_FAIL, { "参数校验失败", "Parameters check failed" },
     TI_STITCH_INIT_FAIL, { "视频拼接初始化失败", "Could not initialize stitching" },
     TI_OPEN_VIDEO_FAIL, { "打开视频失败", "Could not open videos" },

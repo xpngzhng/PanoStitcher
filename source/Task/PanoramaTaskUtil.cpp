@@ -1022,6 +1022,167 @@ bool loadVideoFileNamesAndOffset(const std::string& fileName, std::vector<std::s
     return success;
 }
 
+bool loadExposureWhiteBalance(const std::string& fileName, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios)
+{
+    exposures.clear();
+    redRatios.clear();
+    blueRatios.clear();
+
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* ptrRoot = doc.FirstChildElement("Root", false);
+    if (ptrRoot == NULL)
+        return false;
+
+    Element* ptrPos = ptrRoot->FirstChildElement("VIDEO", false);
+    if (ptrPos == NULL)
+        return false;
+
+    bool success = true;
+    for (ticpp::Iterator<ticpp::Element> itrVideo(ptrPos, "VIDEO"); itrVideo != itrVideo.end(); itrVideo++)
+    {
+        Element* ptrExposure = itrVideo->FirstChildElement("EXPOSURE");
+        Element* ptrRed = itrVideo->FirstChildElement("RED");
+        Element* ptrBlue = itrVideo->FirstChildElement("BLUE");
+        double e, r, b;
+        try
+        {
+            ptrExposure->GetValue(&e);
+            ptrRed->GetValue(&r);
+            ptrBlue->GetValue(&b);
+        }
+        catch (...)
+        {
+            success = false;
+            break;
+        }
+        exposures.push_back(e);
+        redRatios.push_back(r);
+        blueRatios.push_back(b);
+    }
+    if (!success)
+    {
+        exposures.clear();
+        redRatios.clear();
+        blueRatios.clear();
+    }
+    return success;
+}
+
+bool needCorrectExposureWhiteBalance(const std::vector<double>& exposures,
+    const std::vector<double>& redRatios, const std::vector<double>& blueRatios)
+{
+    int size = exposures.size();
+    if (!size || size != redRatios.size() || size != blueRatios.size())
+        return false;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (abs(exposures[i] - 1) > 0.05 ||
+            abs(redRatios[i] - 1) > 0.05 ||
+            abs(blueRatios[i] - 1) > 0.05)
+            return true;
+    }
+    return false;
+}
+
+bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoStitchType,
+    std::string& logoFile, int& logoFOV, int& highQualityBlend,
+    std::string& dstVideoFile, int& dstWidth, int& dstHeight, int& dstVideoBitRate,
+    std::string& dstVideoEncoder, std::string& dstVideoPreset, int& dstVideoMaxFrameCount)
+{
+    Document doc;
+    try
+    {
+        doc.LoadFile(fileName);
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    Element* ptrRoot = doc.FirstChildElement("Root", false);
+    if (ptrRoot == NULL)
+        return false;
+
+    Element* ptrOutput = ptrRoot->FirstChildElement("Output", false);
+    if (ptrOutput == NULL)
+        return false;
+
+    Element* ptrElem = NULL;
+
+    ptrElem = ptrOutput->FirstChildElement("AudioIndex", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&audioIndex);
+
+    ptrElem = ptrOutput->FirstChildElement("PanoStitchType", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&panoStitchType);
+    
+    ptrElem = ptrOutput->FirstChildElement("LogoFile", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&logoFile);
+
+    ptrElem = ptrOutput->FirstChildElement("LogoFOV", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&logoFOV);
+
+    ptrElem = ptrOutput->FirstChildElement("HighQualityBlend", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&highQualityBlend);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoFile", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstVideoFile);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoWidth", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstWidth);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoHeight", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstHeight);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoBitRate", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstVideoBitRate);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoEncoder", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstVideoEncoder);
+
+    ptrElem = ptrOutput->FirstChildElement("VideoPreset", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstVideoPreset);
+
+    ptrElem = ptrOutput->FirstChildElement("MaxFrameCount", false);
+    if (ptrElem == NULL)
+        return false;
+    ptrElem->GetValue(&dstVideoMaxFrameCount);
+
+    return true;
+}
+
 /*
 bool loadIntervaledContours(const std::string& fileName, std::vector<std::vector<IntervaledContour> >& contours)
 {

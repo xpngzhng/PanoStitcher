@@ -1196,7 +1196,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
 }
 
 bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
-    const std::vector<std::vector<unsigned char> >& luts)
+    const std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     if (!success)
     {
@@ -1234,11 +1234,22 @@ bool CudaPanoramaRender2::render(const std::vector<cv::Mat>& src, cv::cuda::GpuM
     {
         for (int i = 0; i < numImages; i++)
         {
-            if (luts[i].size() != 256)
+            if (luts[i].size() != 3)
             {
                 correct = false;
                 break;
             }
+
+            for (int j = 0; j < 3; j++)
+            {
+                if (luts[i][j].size() != 256)
+                {
+                    correct = false;
+                    break;
+                }
+            }
+            if (!correct)
+                break;
         }
     }
     if (!correct && luts.size())
@@ -1355,7 +1366,7 @@ bool CudaRicohPanoramaRender::prepare(const std::string& path, int highQualityBl
 }
 
 bool CudaRicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
-    const std::vector<std::vector<unsigned char> >& luts)
+    const std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     if (!success)
     {
@@ -1451,7 +1462,8 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
     return true;
 }
 
-bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst,
+    const std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     if (!success)
     {
@@ -1480,23 +1492,72 @@ bool CPUPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
             ztool::lprintf("Error in %s, type %d not equal to %d\n", __FUNCTION__, src[i].type(), CV_8UC3);
             return false;
         }
-
     }
+
+    bool correct = true;
+    if (luts.size() != numImages)
+        correct = false;
+    if (luts.size() == numImages)
+    {
+        for (int i = 0; i < numImages; i++)
+        {
+            if (luts[i].size() != 3)
+            {
+                correct = false;
+                break;
+            }
+
+            for (int j = 0; j < 3; j++)
+            {
+                if (luts[i][j].size() != 256)
+                {
+                    correct = false;
+                    break;
+                }
+            }
+            if (!correct)
+                break;
+        }
+    }
+    if (!correct && luts.size())
+        ztool::lprintf("Warning in %s, the non-empty look up tables not satisfied, skip correction\n", __FUNCTION__);
 
     try
     {
         if (!highQualityBlend)
         {
             accum.setTo(0);
-            for (int i = 0; i < numImages; i++)
-                reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
+            if (correct)
+            {
+                for (int i = 0; i < numImages; i++)
+                {
+                    transform(src[i], correctImage, luts[i]);
+                    reprojectWeightedAccumulateParallelTo32F(correctImage, accum, maps[i], weights[i]);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < numImages; i++)
+                    reprojectWeightedAccumulateParallelTo32F(src[i], accum, maps[i], weights[i]);
+            }
             accum.convertTo(dst, CV_8U);
         }
         else
         {
             reprojImages.resize(numImages);
-            for (int i = 0; i < numImages; i++)
-                reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
+            if (correct)
+            {
+                for (int i = 0; i < numImages; i++)
+                {
+                    transform(src[i], correctImage, luts[i]);
+                    reprojectParallelTo16S(correctImage, reprojImages[i], maps[i]);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < numImages; i++)
+                    reprojectParallelTo16S(src[i], reprojImages[i], maps[i]);
+            }
             mbBlender->blend(reprojImages, dst);
         }
     }
@@ -1515,6 +1576,7 @@ void CPUPanoramaRender::clear()
     reprojImages.clear();
     mbBlender.reset();
     weights.clear();
+    correctImage.release();
     accum.release();
     success = 0;
     numImages = 0;
@@ -1540,7 +1602,8 @@ bool CPURicohPanoramaRender::prepare(const std::string& path, int highQualityBle
     return true;
 }
 
-bool CPURicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst)
+bool CPURicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& dst,
+    const std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     if (!success)
     {
@@ -1556,7 +1619,7 @@ bool CPURicohPanoramaRender::render(const std::vector<cv::Mat>& src, cv::Mat& ds
 
     std::vector<cv::Mat> newSrc(2);
     newSrc[0] = newSrc[1] = src[0];
-    return CPUPanoramaRender::render(newSrc, dst);
+    return CPUPanoramaRender::render(newSrc, dst, luts);
 }
 
 void CPURicohPanoramaRender::clear()
@@ -2289,10 +2352,13 @@ bool ImageVisualCorrect2::prepare(const std::string& path)
     }
 
     success = 1;
+    return true;
 }
 
 bool ImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const
 {
+    exposures.clear();
+
     if (!success)
     {
         ztool::lprintf("Error in %s, have not been prepared or prepared not success\n", __FUNCTION__);
@@ -2316,7 +2382,40 @@ bool ImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vecto
     catch (const std::exception& e)
     {
         ztool::lprintf("Error in %s, exception caught, %s\n", __FUNCTION__, e.what());
-        exposures.clear();
+        ok = false;
+    }
+    return ok;
+}
+
+bool ImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios) const
+{
+    exposures.clear();
+    redRatios.clear();
+    blueRatios.clear();
+
+    if (!success)
+    {
+        ztool::lprintf("Error in %s, have not been prepared or prepared not success\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != numImages)
+    {
+        ztool::lprintf("Error in %s, input images num not match, input %d, required %d\n",
+            __FUNCTION__, images.size(), numImages);
+        return false;
+    }
+
+    bool ok = true;
+    try
+    {
+        exposureColorOptimize(images, params, std::vector<int>(), HISTOGRAM, EXPOSURE | WHITE_BALANCE,
+            exposures, redRatios, blueRatios);
+    }
+    catch (const std::exception& e)
+    {
+        ztool::lprintf("Error in %s, exception caught, %s\n", __FUNCTION__, e.what());
         ok = false;
     }
     return ok;
@@ -2356,6 +2455,48 @@ bool ImageVisualCorrect2::getLUTs(const std::vector<double>& exposures, std::vec
     return true;
 }
 
+bool ImageVisualCorrect2::getLUTs(const std::vector<double>& exposures, 
+    const std::vector<double>& redRatios, const std::vector<double>& blueRatios, 
+    std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    luts.clear();
+
+    int size = exposures.size();
+    if (!size)
+    {
+        ztool::lprintf("Error in %s, exposures.size() == 0\n", __FUNCTION__);
+        return false;
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        if (exposures[i] <= 0)
+        {
+            ztool::lprintf("Error in %s, exposure[%d] = %f, not positive\n",
+                __FUNCTION__, i, exposures[i]);
+            return false;
+        }
+
+        if (redRatios[i] <= 0)
+        {
+            ztool::lprintf("Error in %s, redRatios[%d] = %f, not positive\n",
+                __FUNCTION__, i, redRatios[i]);
+            return false;
+        }
+
+        if (blueRatios[i] <= 0)
+        {
+            ztool::lprintf("Error in %s, blueRatios[%d] = %f, not positive\n",
+                __FUNCTION__, i, blueRatios[i]);
+            return false;
+        }
+    }
+
+    getExposureColorOptimizeLUTs(exposures, redRatios, blueRatios, luts);
+
+    return true;
+}
+
 bool RicohImageVisualCorrect2::prepare(const std::string& path)
 {
     bool ok = ImageVisualCorrect2::prepare(path);
@@ -2391,7 +2532,7 @@ bool RicohImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::
     return ImageVisualCorrect2::correct(newSrc, exposures);
 }
 
-void RicohImageVisualCorrect::clear()
+void RicohImageVisualCorrect2::clear()
 {
-    ImageVisualCorrect::clear();
+    ImageVisualCorrect2::clear();
 }

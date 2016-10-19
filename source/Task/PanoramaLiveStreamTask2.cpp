@@ -114,10 +114,10 @@ struct PanoramaLiveStreamTask2::Impl
     std::unique_ptr<ImageVisualCorrect2> correct;
     std::vector<double> exposures;
     std::mutex mtxLuts;
-    std::vector<std::vector<unsigned char> > luts;
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
     void setLUTs(const std::vector<double>& exposures);
     void clearLUTs();
-    void getLuts(std::vector<std::vector<unsigned char> >& luts);
+    void getLuts(std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
     double videoSourceFrameRate;
     double stitchVideoFrameRate;
@@ -865,7 +865,7 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     std::vector<long long int> timeStamps;
     std::vector<cv::Mat> src(numVideos);
     cv::cuda::GpuMat bgr32;
-    std::vector<std::vector<unsigned char> > localLookUpTables;
+    std::vector<std::vector<std::vector<unsigned char> > > localLookUpTables;
     CudaMixedAudioVideoFrame renderFrame, sendFrame, saveFrame;
     cv::cuda::GpuMat bgr1, y1, u1, v1, uv1;
     cv::cuda::GpuMat bgr2, y2, u2, v2, uv2;
@@ -1218,7 +1218,16 @@ void PanoramaLiveStreamTask2::Impl::fileSave()
 void PanoramaLiveStreamTask2::Impl::setLUTs(const std::vector<double>& exposures)
 {
     std::lock_guard<std::mutex> lg(mtxLuts);
-    ImageVisualCorrect2::getLUTs(exposures, luts);
+    std::vector<double> rs(numVideos), bs(numVideos);
+    for (int i = 0; i < numVideos; i++)
+    {
+        rs[i] = 1;
+        bs[i] = 1;
+    }
+    if (needCorrectExposureWhiteBalance(exposures, rs, bs))
+        ImageVisualCorrect2::getLUTs(exposures, rs, bs, luts);
+    else
+        luts.clear();
 }
 
 void PanoramaLiveStreamTask2::Impl::clearLUTs()
@@ -1227,7 +1236,7 @@ void PanoramaLiveStreamTask2::Impl::clearLUTs()
     luts.clear();
 }
 
-void PanoramaLiveStreamTask2::Impl::getLuts(std::vector<std::vector<unsigned char> >& LUTs)
+void PanoramaLiveStreamTask2::Impl::getLuts(std::vector<std::vector<std::vector<unsigned char> > >& LUTs)
 {
     std::lock_guard<std::mutex> lg(mtxLuts);
     LUTs = luts;
