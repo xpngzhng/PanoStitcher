@@ -179,8 +179,8 @@ int main()
     std::vector<PhotoParam> params;
     std::vector<cv::Mat> srcImages;
 
-    int opts = EXPOSURE/* | WHITE_BALANCE*/;
-    int method = GRID_SAMPLE;
+    int opts = EXPOSURE | WHITE_BALANCE;
+    int method = HISTOGRAM;
     int offset = 3;
 
     std::vector<int> anchors;
@@ -193,7 +193,7 @@ int main()
     loadPhotoParams("F:\\panoimage\\detuoffice\\detuoffice.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     //xxxx
@@ -213,7 +213,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4\\vrdl4.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     //xxxx
@@ -244,7 +244,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -258,7 +258,7 @@ int main()
     rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -271,7 +271,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -284,7 +284,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -297,7 +297,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -310,7 +310,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
@@ -324,7 +324,7 @@ int main()
     rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(0);
     run(srcImages, params, anchors, method, opts);
 
@@ -338,7 +338,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(0);
     //anchors.push_back(1);
     //anchors.push_back(2);

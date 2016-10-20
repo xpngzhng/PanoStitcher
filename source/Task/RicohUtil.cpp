@@ -11,6 +11,9 @@
 #include <thread>
 #include <exception>
 
+static const int MAX_NUM_LEVELS = 10; // 16
+static const int MIN_SIDE_LENGTH = 32; // 2
+
 static const int UNIT_SHIFT = 10;
 static const int UNIT = 1 << UNIT_SHIFT;
 
@@ -552,7 +555,7 @@ bool CPUMultiCameraPanoramaRender::prepare(const std::string& path_, int blendTy
 
     numImages = params.size();
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
-    if (!blender.prepare(masks, 20, 2))
+    if (!blender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
         return false;
 
     success = 1;
@@ -599,7 +602,7 @@ bool CudaMultiCameraPanoramaRender::prepare(const std::string& path_, int blendT
     numImages = params.size();
     std::vector<cv::Mat> masks, dstSrcMaps;
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
-    if (!blender.prepare(masks, 20, 2))
+    if (!blender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
         return false;
 
     cudaGenerateReprojectMaps(params, srcSize, dstSize, dstSrcXMapsGPU, dstSrcYMapsGPU);
@@ -688,7 +691,7 @@ bool CudaMultiCameraPanoramaRender2::prepare(const std::string& path_, int type_
     }
     else if (blendType == PanoramaRender::BlendTypeMultiband)
     {
-        if (!mbBlender.prepare(masks, 20, 2))
+        if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
             return false;
     }
     else
@@ -870,7 +873,7 @@ bool CudaPanoramaRender::prepare(const std::string& path_, const std::string& cu
         getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, masks);
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, 20, 2))
+            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
                 return false;
         }
         else
@@ -1117,7 +1120,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         {
             numImages = params.size();
             getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
-            if (!mbBlender.prepare(masks, 20, 2))
+            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, failed to prepare for blending\n", __FUNCTION__);
                 return false;
@@ -1902,7 +1905,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         getReprojectMaps32FAndMasks(params, srcSize, dstSize, xheaders, yheaders, masks);
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, 20, 2))
+            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
@@ -2061,7 +2064,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         }
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, 20, 2))
+            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
@@ -2530,6 +2533,26 @@ bool RicohImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::
     std::vector<cv::Mat> newSrc(2);
     newSrc[0] = newSrc[1] = images[0];
     return ImageVisualCorrect2::correct(newSrc, exposures);
+}
+
+bool RicohImageVisualCorrect2::correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures,
+    std::vector<double>& redRatios, std::vector<double>& blueRatios) const
+{
+    if (!success)
+    {
+        ztool::lprintf("Error in %s, have not prepared or prepare failed before\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != 1)
+    {
+        ztool::lprintf("Error in %s, src size = %d, requires 1\n", __FUNCTION__, images.size());
+        return false;
+    }
+
+    std::vector<cv::Mat> newSrc(2);
+    newSrc[0] = newSrc[1] = images[0];
+    return ImageVisualCorrect2::correct(newSrc, exposures, redRatios, blueRatios);
 }
 
 void RicohImageVisualCorrect2::clear()

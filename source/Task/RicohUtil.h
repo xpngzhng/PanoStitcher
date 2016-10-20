@@ -410,6 +410,6 @@ public:
     virtual bool prepare(const std::string& path);
     virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures) const;
     virtual bool correct(const std::vector<cv::Mat>& images, std::vector<double>& exposures,
-        std::vector<double>& redRatios, std::vector<double>& blueRatios);
+        std::vector<double>& redRatios, std::vector<double>& blueRatios) const;
     virtual void clear();
 };
