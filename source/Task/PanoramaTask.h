@@ -22,7 +22,7 @@ class PanoramaPreviewTask
 public:
     virtual ~PanoramaPreviewTask() {}
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile, 
-        int dstWidth, int dstHeight) = 0;
+        int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius) = 0;
     virtual bool reset(const std::string& cameraParamFile) = 0;
     virtual bool seek(const std::vector<long long int>& timeStamps) = 0;
     virtual bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement) = 0;
@@ -35,8 +35,15 @@ public:
     ~CPUPanoramaPreviewTask();
 
     bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-        int dstWidth, int dstHeight);
+        int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius);
     bool reset(const std::string& cameraParamFile);
+    
+    bool setBlendType(bool multibandBlend);
+    bool setMultibandBlendParam(int numLevels);
+    bool setLinearBlendParam(int radius);
+    bool getBlendType(bool& multibandBlend);
+    bool getMultibandBlendParam(int& numLevels);
+    bool getLinearBlendParam(int& radius);
 
     bool isValid() const;
     int getNumSourceVideos() const;
@@ -100,7 +107,7 @@ public:
     CudaPanoramaPreviewTask();
     ~CudaPanoramaPreviewTask();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-        int dstWidth, int dstHeight);
+        int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius);
     bool reset(const std::string& cameraParamFile);
     bool seek(const std::vector<long long int>& timeStamps);
     bool stitch(std::vector<cv::Mat>& src, std::vector<long long int>& timeStamps, cv::Mat& dst, int frameIncrement = 1);

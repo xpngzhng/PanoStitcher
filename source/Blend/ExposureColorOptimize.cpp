@@ -1134,19 +1134,73 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
     }
 }
 
+static double calcMaxScale(const std::vector<double>& es, const std::vector<double>& rs, const std::vector<double>& bs)
+{
+    int size = es.size();
+    CV_Assert(size > 0 && rs.size() == size && bs.size() == size);
+
+    double scale = 0;
+    for (int i = 0; i < size; i++)
+    {
+        scale = es[i] > scale ? es[i] : scale;
+        double s;
+        s = es[i] * rs[i];
+        scale = s > scale ? s : scale;
+        s = es[i] * bs[i];
+        scale = s > scale ? s : scale;
+    }
+    return scale;
+}
+
+static void getLUTMaxScale(std::vector<unsigned char>& LUT, double k, double maxK)
+{
+    CV_Assert(k > 0);
+    LUT.resize(256);
+    if (maxK <= 1.05)
+    {
+        for (int i = 0; i < 256; i++)
+            LUT[i] = cv::saturate_cast<unsigned char>(k * i);
+        return;
+    }
+    LUT[0] = 0;
+    for (int i = 1; i < 256; i++)
+    {
+        double val = i / 255.0 * k;
+        cv::Point2d p0(0, 0), p1(1, 1), p2(maxK, 1);
+        double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - val;
+        double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+        double t0 = m - n, t1 = m + n, t;
+        if (t0 <= 1 && t0 >= 0)
+            t = t0;
+        else if (t1 <= 1 && t1 >= 0)
+            t = t1;
+        else
+            //CV_Assert(0);
+        {
+            if (i < 2)
+                t = 0;
+            if (i > 253)
+                t = 1;
+        }
+        double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y;
+        LUT[i] = cv::saturate_cast<unsigned char>(y * 255);
+    }
+}
+
 void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
     const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
     int size = exposures.size();
     CV_Assert(size > 0 && size == redRatios.size() && size == blueRatios.size());
 
+    double maxScale = calcMaxScale(exposures, redRatios, blueRatios);
     luts.resize(size);
     for (int i = 0; i < size; i++)
     {
         luts[i].resize(3);
-        getLUT(luts[i][0], exposures[i] * blueRatios[i]);
-        getLUT(luts[i][1], exposures[i]);
-        getLUT(luts[i][2], exposures[i] * redRatios[i]);
+        getLUTMaxScale(luts[i][0], exposures[i] * blueRatios[i], maxScale);
+        getLUTMaxScale(luts[i][1], exposures[i], maxScale);
+        getLUTMaxScale(luts[i][2], exposures[i] * redRatios[i], maxScale);
     }
 }
 

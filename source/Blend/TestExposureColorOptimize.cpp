@@ -86,12 +86,12 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<double>& es,
         //e /= maxE;
         double r = rs[i];
         double b = bs[i];
-        getLUT(lutr, e * r);
-        getLUT(lutg, e);
-        getLUT(lutb, e * b);
-        //getLUTMaxScale(lutr, e * r, maxScale);
-        //getLUTMaxScale(lutg, e, maxScale);
-        //getLUTMaxScale(lutb, e * b, maxScale);
+        //getLUT(lutr, e * r);
+        //getLUT(lutg, e);
+        //getLUT(lutb, e * b);
+        getLUTMaxScale(lutr, e * r, maxScale);
+        getLUTMaxScale(lutg, e, maxScale);
+        getLUTMaxScale(lutb, e * b, maxScale);
         for (int y = 0; y < rows; y++)
         {
             const unsigned char* ptrSrc = src[i].ptr<unsigned char>(y);
@@ -179,8 +179,8 @@ int main()
     std::vector<PhotoParam> params;
     std::vector<cv::Mat> srcImages;
 
-    int opts = EXPOSURE | WHITE_BALANCE;
-    int method = HISTOGRAM;
+    int opts = EXPOSURE/* | WHITE_BALANCE*/;
+    int method = GRID_SAMPLE;
     int offset = 3;
 
     std::vector<int> anchors;
@@ -338,7 +338,7 @@ int main()
     loadPhotoParamFromXML("F:\\panoimage\\changtai\\test_test5_cam_param.xml", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    //anchors.push_back(imagePaths.size() - offset);
+    anchors.push_back(imagePaths.size() - 2);
     //anchors.push_back(0);
     //anchors.push_back(1);
     //anchors.push_back(2);
@@ -356,9 +356,9 @@ int main()
     loadImages(imagePaths, srcImages);
     anchors.clear();
     //anchors.push_back(imagePaths.size() - offset);
-    //anchors.push_back(3);
-    //anchors.push_back(4);
-    //anchors.push_back(5);
+    anchors.push_back(3);
+    anchors.push_back(4);
+    anchors.push_back(5);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();

@@ -12,8 +12,15 @@ struct CPUPanoramaPreviewTask::Impl
     ~Impl();
 
     bool init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-        int dstWidth, int dstHeight);
+        int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius);
     bool reset(const std::string& cameraParamFile);
+
+    bool setBlendType(bool multibandBlend);
+    bool setMultibandBlendParam(int numLevels);
+    bool setLinearBlendParam(int radius);
+    bool getBlendType(bool& multibandBlend);
+    bool getMultibandBlendParam(int& numLevels);
+    bool getLinearBlendParam(int& radius);
 
     bool isValid() const;
     int getNumSourceVideos() const;
@@ -58,10 +65,14 @@ struct CPUPanoramaPreviewTask::Impl
     std::vector<std::vector<std::vector<unsigned char> > > luts;
     std::vector<cv::Mat> dstSrcMaps, dstMasks, dstUniqueMasks, currMasks;
     std::vector<CustomIntervaledMasks> customMasks;
-    TilingMultibandBlendFast blender;
+    TilingMultibandBlendFast mbBlender;
+    TilingLinearBlend lBlender;
     std::vector<cv::Mat> images, correctImages, reprojImages;
     std::vector<avp::AudioVideoFrame2> frames;
     cv::Mat blendImage;
+    int blendNumLevels;
+    int blendRadius;
+    bool isMultibandBlend;
     bool initSuccess;
 };
 
@@ -76,7 +87,7 @@ CPUPanoramaPreviewTask::Impl::~Impl()
 }
 
 bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-    int dstWidth, int dstHeight)
+    int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius)
 {
     clear();
 
@@ -139,14 +150,24 @@ bool CPUPanoramaPreviewTask::Impl::init(const std::vector<std::string>& srcVideo
     for (int i = 0; i < numVideos; i++)
         customMasks[i].init(dstSize.width, dstSize.height);
 
-    ok = blender.prepare(dstMasks, 16, 32);
-    //ok = blender.prepare(dstMasks, 50);
-    blender.getUniqueMasks(dstUniqueMasks);
+    blendNumLevels = mbBlendNumLevels;
+    blendRadius = lBlendRadius;
+    ok = mbBlender.prepare(dstMasks, blendNumLevels, 2);
     if (!ok)
     {
-        ztool::lprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, multiband blender prepare failed\n", __FUNCTION__);
         return false;
     }
+    mbBlender.getUniqueMasks(dstUniqueMasks);
+    ok = lBlender.prepare(dstMasks, blendRadius);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, linear blender prepare failed\n", __FUNCTION__);
+        return false;
+    }
+
+    isMultibandBlend = activateMbBlend;
+
     ztool::lprintf("Info in %s, prepare finish\n", __FUNCTION__);
 
     frameIntervalInMicroSec = 1000000.0 / readers[0].getVideoFrameRate();
@@ -180,14 +201,104 @@ bool CPUPanoramaPreviewTask::Impl::reset(const std::string& cameraParamFile)
     }
     getReprojectMapsAndMasks(params, srcSize, dstSize, dstSrcMaps, dstMasks);
 
-    bool ok = blender.prepare(dstMasks, 16, 2);
-    //ok = blender.prepare(dstMasks, 50);
+    bool ok = false;
+    ok = mbBlender.prepare(dstMasks, blendNumLevels, 2);
     if (!ok)
     {
-        ztool::lprintf("Error in %s, blender prepare failed\n", __FUNCTION__);
+        ztool::lprintf("Error in %s, multiband blender prepare failed\n", __FUNCTION__);
+        return false;
+    }
+    mbBlender.getUniqueMasks(dstUniqueMasks);
+    ok = lBlender.prepare(dstMasks, blendRadius);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, linear blender prepare failed\n", __FUNCTION__);
         return false;
     }
 
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::setBlendType(bool multibandBlend)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    isMultibandBlend = multibandBlend;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::setMultibandBlendParam(int param)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    bool ok = false;
+        ok = mbBlender.prepare(dstMasks, param, 2);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, reconfig multiband blender failed, param = %d\n",
+            __FUNCTION__, param);
+    }
+    blendNumLevels = param;
+    return ok;
+}
+
+bool CPUPanoramaPreviewTask::Impl::setLinearBlendParam(int param)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+
+    bool ok = false;
+    ok = lBlender.prepare(dstMasks, param);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, reconfig linear blender failed, param = %d\n",
+            __FUNCTION__, param);
+    }
+    blendRadius = param;
+    return ok;
+}
+
+bool CPUPanoramaPreviewTask::Impl::getBlendType(bool& multibandBlend)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+    multibandBlend = isMultibandBlend;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::getMultibandBlendParam(int& param)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+    param = blendNumLevels;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::getLinearBlendParam(int& param)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not run this function\n", __FUNCTION__);
+        return false;
+    }
+    param = blendRadius;
     return true;
 }
 
@@ -276,10 +387,15 @@ bool CPUPanoramaPreviewTask::Impl::stitch(std::vector<cv::Mat>& src, std::vector
             currMasks[i] = dstUniqueMasks[i];
     }
 
-    if (useCustomMask)
-        blender.blend(reprojImages, currMasks, blendImage);
+    if (isMultibandBlend)
+    {
+        if (useCustomMask)
+            mbBlender.blend(reprojImages, currMasks, blendImage);
+        else
+            mbBlender.blend(reprojImages, blendImage);
+    }
     else
-        blender.blend(reprojImages, blendImage);
+        lBlender.blend(reprojImages, blendImage);
     src = images;
     dst = blendImage;
     return true;
@@ -320,10 +436,15 @@ bool CPUPanoramaPreviewTask::Impl::restitch(std::vector<cv::Mat>& src, std::vect
         indexes[i] = frames[i].frameIndex;
     }
 
-    if (useCustomMask)
-        blender.blend(reprojImages, currMasks, blendImage);
+    if (isMultibandBlend)
+    {
+        if (useCustomMask)
+            mbBlender.blend(reprojImages, currMasks, blendImage);
+        else
+            mbBlender.blend(reprojImages, blendImage);
+    }
     else
-        blender.blend(reprojImages, blendImage);
+        lBlender.blend(reprojImages, blendImage);
     src = images;
     dst = blendImage;
     return true;
@@ -368,7 +489,7 @@ bool CPUPanoramaPreviewTask::Impl::getUniqueMasks(std::vector<cv::Mat>& masks) c
         return false;
     }
 
-    blender.getUniqueMasks(masks);
+    mbBlender.getUniqueMasks(masks);
     return masks.size() == numVideos;
 }
 
@@ -434,10 +555,15 @@ bool CPUPanoramaPreviewTask::Impl::reReprojectForAll(std::vector<cv::Mat>& dst, 
             currMasks[i] = dstUniqueMasks[i];
     }
 
-    if (useCustomMask)
-        blender.blend(reprojImages, currMasks, blendImage);
+    if (isMultibandBlend)
+    {
+        if (useCustomMask)
+            mbBlender.blend(reprojImages, currMasks, blendImage);
+        else
+            mbBlender.blend(reprojImages, blendImage);
+    }
     else
-        blender.blend(reprojImages, blendImage);
+        lBlender.blend(reprojImages, blendImage);
     dst = reprojImages;
     indexes.resize(numVideos);
     for (int i = 0; i < numVideos; i++)
@@ -795,14 +921,45 @@ CPUPanoramaPreviewTask::~CPUPanoramaPreviewTask()
 }
 
 bool CPUPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-    int dstWidth, int dstHeight)
+    int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius)
 {
-    return ptrImpl->init(srcVideoFiles, cameraParamFile, dstWidth, dstHeight);
+    return ptrImpl->init(srcVideoFiles, cameraParamFile, dstWidth, dstHeight, 
+        activateMbBlend, mbBlendNumLevels, lBlendRadius);
 }
 
 bool CPUPanoramaPreviewTask::reset(const std::string& cameraParamFile)
 {
     return ptrImpl->reset(cameraParamFile);
+}
+
+bool CPUPanoramaPreviewTask::setBlendType(bool multibandBlend)
+{
+    return ptrImpl->setBlendType(multibandBlend);
+}
+
+bool CPUPanoramaPreviewTask::setMultibandBlendParam(int numLevels)
+{
+    return ptrImpl->setMultibandBlendParam(numLevels);
+}
+
+bool CPUPanoramaPreviewTask::setLinearBlendParam(int radius)
+{
+    return ptrImpl->setLinearBlendParam(radius);
+}
+
+bool CPUPanoramaPreviewTask::getBlendType(bool& multibandBlend)
+{
+    return ptrImpl->getBlendType(multibandBlend);
+}
+
+bool CPUPanoramaPreviewTask::getMultibandBlendParam(int& numLevels)
+{
+    return ptrImpl->getMultibandBlendParam(numLevels);
+}
+
+bool CPUPanoramaPreviewTask::getLinearBlendParam(int& radius)
+{
+    return ptrImpl->getLinearBlendParam(radius);
 }
 
 bool CPUPanoramaPreviewTask::isValid() const
@@ -1204,7 +1361,7 @@ CudaPanoramaPreviewTask::~CudaPanoramaPreviewTask()
 }
 
 bool CudaPanoramaPreviewTask::init(const std::vector<std::string>& srcVideoFiles, const std::string& cameraParamFile,
-    int dstWidth, int dstHeight)
+    int dstWidth, int dstHeight, int activateMbBlend, int mbBlendNumLevels, int lBlendRadius)
 {
     return ptrImpl->init(srcVideoFiles, cameraParamFile, dstWidth, dstHeight);
 }
