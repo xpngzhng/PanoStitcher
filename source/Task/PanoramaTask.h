@@ -53,7 +53,8 @@ public:
 
     bool seek(const std::vector<int>& indexes);
     bool stitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst, int frameIncrement = 1);
-    bool restitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);    
+    bool restitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
+    bool getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
 
     bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes) const;
     bool reReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes);

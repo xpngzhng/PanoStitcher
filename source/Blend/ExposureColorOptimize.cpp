@@ -148,6 +148,9 @@ static void printAndShowPairsInfo(const std::vector<cv::Mat>& images, bool repro
     cv::waitKey(0);
 }
 
+// Uniform Sample on a sphere
+// http://mathworld.wolfram.com/SpherePointPicking.html
+
 static void getPointPairsRandom(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
     int downSizeRatio, std::vector<ValuePair>& pairs)
 {

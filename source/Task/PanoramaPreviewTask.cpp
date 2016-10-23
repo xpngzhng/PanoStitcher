@@ -31,6 +31,7 @@ struct CPUPanoramaPreviewTask::Impl
     bool seek(const std::vector<int>& indexes);
     bool stitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst, int frameIncrement);
     bool restitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
+    bool getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
 
     bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes) const;
     bool reReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes);
@@ -445,6 +446,28 @@ bool CPUPanoramaPreviewTask::Impl::restitch(std::vector<cv::Mat>& src, std::vect
     }
     else
         lBlender.blend(reprojImages, blendImage);
+    src = images;
+    dst = blendImage;
+    return true;
+}
+
+bool CPUPanoramaPreviewTask::Impl::getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst)
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not stitch\n", __FUNCTION__);
+        return false;
+    }
+
+    if (images.size() != numVideos)
+    {
+        ztool::lprintf("Error in %s, get stitch can be called after stitch at least once\n", __FUNCTION__);
+        return false;
+    }
+
+    indexes.resize(numVideos);
+    for (int i = 0; i < numVideos; i++)
+        indexes[i] = frames[i].frameIndex;
     src = images;
     dst = blendImage;
     return true;
@@ -1000,6 +1023,11 @@ bool CPUPanoramaPreviewTask::stitch(std::vector<cv::Mat>& src, std::vector<int>&
 bool CPUPanoramaPreviewTask::restitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst)
 {
     return ptrImpl->restitch(src, indexes, dst);
+}
+
+bool CPUPanoramaPreviewTask::getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst)
+{
+    return ptrImpl->getCurrStitch(src, indexes, dst);
 }
 
 bool CPUPanoramaPreviewTask::getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes) const
