@@ -302,7 +302,7 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     }
 
     renderPrepareSuccess = render->prepare(renderConfigName, highQualityBlend, 
-        videoFrameSize, renderFrameSize);
+        highQualityBlend ? 16 : 25, videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
         ztool::lprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);

@@ -18,13 +18,14 @@ struct CPUPanoramaPreviewTask::Impl
     bool setBlendType(bool multibandBlend);
     bool setMultibandBlendParam(int numLevels);
     bool setLinearBlendParam(int radius);
-    bool getBlendType(bool& multibandBlend);
-    bool getMultibandBlendParam(int& numLevels);
-    bool getLinearBlendParam(int& radius);
+    bool getBlendType(bool& multibandBlend) const;
+    bool getMultibandBlendParam(int& numLevels) const;
+    bool getLinearBlendParam(int& radius) const;
 
     bool isValid() const;
     int getNumSourceVideos() const;
     double getVideoFrameRate() const;
+    bool getStichSize(int& width, int& height) const;
     bool getMasks(std::vector<cv::Mat>& masks) const;
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
@@ -270,7 +271,7 @@ bool CPUPanoramaPreviewTask::Impl::setLinearBlendParam(int param)
     return ok;
 }
 
-bool CPUPanoramaPreviewTask::Impl::getBlendType(bool& multibandBlend)
+bool CPUPanoramaPreviewTask::Impl::getBlendType(bool& multibandBlend) const
 {
     if (!initSuccess)
     {
@@ -281,7 +282,7 @@ bool CPUPanoramaPreviewTask::Impl::getBlendType(bool& multibandBlend)
     return true;
 }
 
-bool CPUPanoramaPreviewTask::Impl::getMultibandBlendParam(int& param)
+bool CPUPanoramaPreviewTask::Impl::getMultibandBlendParam(int& param) const
 {
     if (!initSuccess)
     {
@@ -292,7 +293,7 @@ bool CPUPanoramaPreviewTask::Impl::getMultibandBlendParam(int& param)
     return true;
 }
 
-bool CPUPanoramaPreviewTask::Impl::getLinearBlendParam(int& param)
+bool CPUPanoramaPreviewTask::Impl::getLinearBlendParam(int& param) const
 {
     if (!initSuccess)
     {
@@ -490,6 +491,19 @@ double CPUPanoramaPreviewTask::Impl::getVideoFrameRate() const
     if (!initSuccess)
         return 0;
     return readers[0].getVideoFrameRate();
+}
+
+bool CPUPanoramaPreviewTask::Impl::getStichSize(int& width, int& height) const
+{
+    if (!initSuccess)
+    {
+        ztool::lprintf("Error in %s, init not success, could not get stitch size\n", __FUNCTION__);
+        return false;
+    }
+
+    width = dstSize.width;
+    height = dstSize.height;
+    return true;
 }
 
 bool CPUPanoramaPreviewTask::Impl::getMasks(std::vector<cv::Mat>& masks) const
@@ -970,17 +984,17 @@ bool CPUPanoramaPreviewTask::setLinearBlendParam(int radius)
     return ptrImpl->setLinearBlendParam(radius);
 }
 
-bool CPUPanoramaPreviewTask::getBlendType(bool& multibandBlend)
+bool CPUPanoramaPreviewTask::getBlendType(bool& multibandBlend) const
 {
     return ptrImpl->getBlendType(multibandBlend);
 }
 
-bool CPUPanoramaPreviewTask::getMultibandBlendParam(int& numLevels)
+bool CPUPanoramaPreviewTask::getMultibandBlendParam(int& numLevels) const
 {
     return ptrImpl->getMultibandBlendParam(numLevels);
 }
 
-bool CPUPanoramaPreviewTask::getLinearBlendParam(int& radius)
+bool CPUPanoramaPreviewTask::getLinearBlendParam(int& radius) const
 {
     return ptrImpl->getLinearBlendParam(radius);
 }
@@ -998,6 +1012,11 @@ int CPUPanoramaPreviewTask::getNumSourceVideos() const
 double CPUPanoramaPreviewTask::getVideoFrameRate() const
 {
     return ptrImpl->getVideoFrameRate();
+}
+
+bool CPUPanoramaPreviewTask::getStichSize(int& width, int& height) const
+{
+    return ptrImpl->getStichSize(width, height);
 }
 
 bool CPUPanoramaPreviewTask::getMasks(std::vector<cv::Mat>& masks) const
@@ -1025,7 +1044,7 @@ bool CPUPanoramaPreviewTask::restitch(std::vector<cv::Mat>& src, std::vector<int
     return ptrImpl->restitch(src, indexes, dst);
 }
 
-bool CPUPanoramaPreviewTask::getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst)
+bool CPUPanoramaPreviewTask::getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst) const
 {
     return ptrImpl->getCurrStitch(src, indexes, dst);
 }

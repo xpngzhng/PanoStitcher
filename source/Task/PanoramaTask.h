@@ -41,20 +41,21 @@ public:
     bool setBlendType(bool multibandBlend);
     bool setMultibandBlendParam(int numLevels);
     bool setLinearBlendParam(int radius);
-    bool getBlendType(bool& multibandBlend);
-    bool getMultibandBlendParam(int& numLevels);
-    bool getLinearBlendParam(int& radius);
+    bool getBlendType(bool& multibandBlend) const;
+    bool getMultibandBlendParam(int& numLevels) const;
+    bool getLinearBlendParam(int& radius) const;
 
     bool isValid() const;
     int getNumSourceVideos() const;
     double getVideoFrameRate() const;
+    bool getStichSize(int& width, int& height) const;
     bool getMasks(std::vector<cv::Mat>& masks) const;
     bool getUniqueMasks(std::vector<cv::Mat>& masks) const;
 
     bool seek(const std::vector<int>& indexes);
     bool stitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst, int frameIncrement = 1);
     bool restitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
-    bool getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst);
+    bool getCurrStitch(std::vector<cv::Mat>& src, std::vector<int>& indexes, cv::Mat& dst) const;
 
     bool getCurrReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes) const;
     bool reReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes);
@@ -147,7 +148,7 @@ public:
     virtual bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
         const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
+        int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate, 
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount) = 0;
     virtual bool start() = 0;
     virtual void waitForCompletion() = 0;
@@ -166,7 +167,7 @@ public:
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
         const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
+        int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool init(const std::string& configFile);
     bool start();
@@ -211,7 +212,7 @@ public:
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         int panoStitchType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
         const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
+        int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset, int dstVideoMaxFrameCount);
     bool init(const std::string& configFile);
     bool start();

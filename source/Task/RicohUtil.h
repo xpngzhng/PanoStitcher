@@ -195,7 +195,8 @@ class CudaPanoramaRender2
 public:
     CudaPanoramaRender2() : success(0), highQualityBlend(0), numImages(0) {};
     virtual ~CudaPanoramaRender2() { };
-    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool prepare(const std::string& path, int highQualityBlend, int blendParam,
+        const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst, 
         const std::vector<std::vector<std::vector<unsigned char> > >& luts = 
         std::vector<std::vector<std::vector<unsigned char> > >());
@@ -223,7 +224,8 @@ class CudaRicohPanoramaRender : public CudaPanoramaRender2
 public:
     CudaRicohPanoramaRender() {};
     virtual ~CudaRicohPanoramaRender() { };
-    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool prepare(const std::string& path, int highQualityBlend, int blendParam, 
+        const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::cuda::GpuMat& dst,
         const std::vector<std::vector<std::vector<unsigned char> > >& luts =
         std::vector<std::vector<std::vector<unsigned char> > >());
@@ -237,7 +239,8 @@ class CPUPanoramaRender
 public:
     CPUPanoramaRender() : success(0), highQualityBlend(0), numImages(0) {};
     virtual ~CPUPanoramaRender() { };
-    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool prepare(const std::string& path, int highQualityBlend, int blendParam, 
+        const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst,
         const std::vector<std::vector<std::vector<unsigned char> > >& luts =
         std::vector<std::vector<std::vector<unsigned char> > >());
@@ -261,7 +264,8 @@ class CPURicohPanoramaRender : public CPUPanoramaRender
 public:
     CPURicohPanoramaRender() {};
     virtual ~CPURicohPanoramaRender() { };
-    virtual bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    virtual bool prepare(const std::string& path, int highQualityBlend, int blendParam, 
+        const cv::Size& srcSize, const cv::Size& dstSize);
     virtual bool render(const std::vector<cv::Mat>& src, cv::Mat& dst,
         const std::vector<std::vector<std::vector<unsigned char> > >& luts =
         std::vector<std::vector<std::vector<unsigned char> > >());

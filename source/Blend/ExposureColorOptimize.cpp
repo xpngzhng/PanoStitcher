@@ -1201,9 +1201,12 @@ void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const st
     for (int i = 0; i < size; i++)
     {
         luts[i].resize(3);
-        getLUTMaxScale(luts[i][0], exposures[i] * blueRatios[i], maxScale);
-        getLUTMaxScale(luts[i][1], exposures[i], maxScale);
-        getLUTMaxScale(luts[i][2], exposures[i] * redRatios[i], maxScale);
+        //getLUTMaxScale(luts[i][0], exposures[i] * blueRatios[i], maxScale);
+        //getLUTMaxScale(luts[i][1], exposures[i], maxScale);
+        //getLUTMaxScale(luts[i][2], exposures[i] * redRatios[i], maxScale);
+        getLUT(luts[i][0], exposures[i] * blueRatios[i]);
+        getLUT(luts[i][1], exposures[i]);
+        getLUT(luts[i][2], exposures[i] * redRatios[i]);
     }
 }
 

@@ -1096,7 +1096,7 @@ bool needCorrectExposureWhiteBalance(const std::vector<double>& exposures,
 }
 
 bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoStitchType,
-    std::string& logoFile, int& logoFOV, int& highQualityBlend,
+    std::string& logoFile, int& logoFOV, int& highQualityBlend, int& blendParam,
     std::string& dstVideoFile, int& dstWidth, int& dstHeight, int& dstVideoBitRate,
     std::string& dstVideoEncoder, std::string& dstVideoPreset, 
     int& startFrameIndex, int& dstVideoMaxFrameCount)
@@ -1147,6 +1147,11 @@ bool loadOutputConfig(const std::string& fileName, int& audioIndex, int& panoSti
         if (ptrElem == NULL)
             return false;
         ptrElem->GetText(&highQualityBlend);
+
+        ptrElem = ptrOutput->FirstChildElement("BlendParam", false);
+        if (ptrElem == NULL)
+            return false;
+        ptrElem->GetText(&blendParam);
 
         ptrElem = ptrOutput->FirstChildElement("VideoFile", false);
         if (ptrElem == NULL)

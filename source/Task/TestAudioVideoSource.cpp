@@ -115,6 +115,15 @@ void ShowThread()
                 ptrSource->close();
                 break;
             }
+            if (key == 's')
+            {
+                char buf[256];
+                for (int i = 0; i < numVideos; i++)
+                {
+                    sprintf(buf, "snapshot%d.bmp", i);
+                    cv::imwrite(buf, images[i]);
+                }
+            }
         }
     }
 
@@ -134,16 +143,16 @@ int main()
     //showTiledImages.init(1920, 1080, vds.size());
 
     std::vector<std::string> urls;
-    urls.push_back("192.168.137.206");
-    urls.push_back("192.168.137.207");
-    urls.push_back("192.168.137.209");
-    urls.push_back("192.168.137.210");
+    urls.push_back("192.168.137.201");
+    urls.push_back("192.168.137.202");
+    //urls.push_back("192.168.137.203");
+    urls.push_back("192.168.137.204");
     ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
     ptrSource->open(urls);
     numVideos = urls.size();
     waitTime = 30;
-    showTiledImages.init(1920, 1080, urls.size());
+    showTiledImages.init(2048, 1536, urls.size());
 
     std::thread showThread(ShowThread);
     showThread.join();

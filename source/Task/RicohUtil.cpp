@@ -1088,7 +1088,7 @@ int CudaPanoramaRender::getNumImages() const
     return success ? numImages : 0;
 }
 
-bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend_, 
+bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend_, int blendParam_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -1099,6 +1099,12 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         dstSize_.height * 2 == dstSize_.width))
     {
         ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        return false;
+    }
+
+    if (blendParam_ <= 0)
+    {
+        ztool::lprintf("Error in %s, blendParam = %d, should be positive\n", __FUNCTION__, blendParam_);
         return false;
     }
 
@@ -1120,7 +1126,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
         {
             numImages = params.size();
             getReprojectMaps32FAndMasks(params, srcSize, dstSize, dstSrcXMaps, dstSrcYMaps, masks);
-            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
+            if (!mbBlender.prepare(masks, blendParam_, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, failed to prepare for blending\n", __FUNCTION__);
                 return false;
@@ -1170,7 +1176,7 @@ bool CudaPanoramaRender2::prepare(const std::string& path_, int highQualityBlend
 
             std::vector<cv::Mat> weights;
             //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
-            getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
+            getWeightsLinearBlend32F(masks, blendParam_, weights);
             weightsGPU.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weightsGPU[i].upload(weights[i]);
@@ -1354,9 +1360,10 @@ int CudaPanoramaRender2::getNumImages() const
     return success ? numImages : 0;
 }
 
-bool CudaRicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CudaRicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, int blendParam, 
+    const cv::Size& srcSize, const cv::Size& dstSize)
 {
-    bool ok = CudaPanoramaRender2::prepare(path, highQualityBlend, srcSize, dstSize);
+    bool ok = CudaPanoramaRender2::prepare(path, highQualityBlend, blendParam, srcSize, dstSize);
     if (!ok)
         return false;
     if (numImages != 2)
@@ -1405,7 +1412,7 @@ void setCPUMultibandBlendMultiThread(bool multiThread)
     cpuMultibandBlendMT = multiThread;
 }
 
-bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, 
+bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int blendParam_, 
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -1416,6 +1423,12 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
         dstSize_.height * 2 == dstSize_.width))
     {
         ztool::lprintf("Error in %s, dstSize not qualified\n", __FUNCTION__);
+        return false;
+    }
+
+    if (blendParam_ <= 0)
+    {
+        ztool::lprintf("Error in %s, blendParam = %d, should be positive\n", __FUNCTION__, blendParam_);
         return false;
     }
 
@@ -1442,7 +1455,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
                 mbBlender.reset(new TilingMultibandBlendFastParallel);
             else
                 mbBlender.reset(new TilingMultibandBlendFast);
-            if (!mbBlender->prepare(masks, 20, 2))
+            if (!mbBlender->prepare(masks, blendParam_, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
@@ -1451,7 +1464,7 @@ bool CPUPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
         else
         {
             //getWeightsLinearBlendBoundedRadius32F(masks, dstSize.width * 0.05, 10, weights);
-            getWeightsLinearBlend32F(masks, dstSize.width * 0.05, weights);
+            getWeightsLinearBlend32F(masks, blendParam_, weights);
             accum.create(dstSize, CV_32FC3);
         }
     }
@@ -1591,9 +1604,10 @@ int CPUPanoramaRender::getNumImages() const
     return success ? numImages : 0;
 }
 
-bool CPURicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize)
+bool CPURicohPanoramaRender::prepare(const std::string& path, int highQualityBlend, int blendParam,
+    const cv::Size& srcSize, const cv::Size& dstSize)
 {
-    bool ok = CPUPanoramaRender::prepare(path, highQualityBlend, srcSize, dstSize);
+    bool ok = CPUPanoramaRender::prepare(path, highQualityBlend, blendParam, srcSize, dstSize);
     if (!ok)
         return false;
     if (numImages != 2)
@@ -2354,6 +2368,7 @@ bool ImageVisualCorrect2::prepare(const std::string& path)
         return false;
     }
 
+    numImages = params.size();
     success = 1;
     return true;
 }
