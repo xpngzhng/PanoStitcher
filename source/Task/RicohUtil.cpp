@@ -11,8 +11,8 @@
 #include <thread>
 #include <exception>
 
-static const int MAX_NUM_LEVELS = 10; // 16
-static const int MIN_SIDE_LENGTH = 32; // 2
+static const int MAX_NUM_LEVELS = 16; // 16
+static const int MIN_SIDE_LENGTH = 2; // 2
 
 static const int UNIT_SHIFT = 10;
 static const int UNIT = 1 << UNIT_SHIFT;
@@ -1867,7 +1867,7 @@ int IOclPanoramaRender::getNumImages() const
 
 #if COMPILE_INTEGRATED_OPENCL
 #include "IntelOpenCL/RunTimeObjects.h"
-bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
+bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int blendParam_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -1919,7 +1919,7 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         getReprojectMaps32FAndMasks(params, srcSize, dstSize, xheaders, yheaders, masks);
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
+            if (!mbBlender.prepare(masks, blendParam_, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
@@ -1933,7 +1933,8 @@ bool IOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
             std::vector<cv::Mat> headers(numImages);
             for (int i = 0; i < numImages; i++)
                 headers[i] = weights[i].toOpenCVMat();
-            getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, headers);
+            //getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, headers);
+            getWeightsLinearBlend32F(masks, blendParam_, headers);
             accum.create(dstSize, CV_32FC4);
         }
     }
@@ -2031,7 +2032,7 @@ int IOclPanoramaRender::getNumImages() const
 #include "OpenCLAccel/CompileControl.h"
 #include "OpenCLAccel/ProgramSourceStrings.h"
 
-bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_,
+bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_, int blendParam_,
     const cv::Size& srcSize_, const cv::Size& dstSize_)
 {
     clear();
@@ -2078,7 +2079,7 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         }
         if (highQualityBlend)
         {
-            if (!mbBlender.prepare(masks, MAX_NUM_LEVELS, MIN_SIDE_LENGTH))
+            if (!mbBlender.prepare(masks, blendParam_, MIN_SIDE_LENGTH))
             {
                 ztool::lprintf("Error in %s, multiband blend prepare failed\n", __FUNCTION__);
                 return false;
@@ -2097,7 +2098,8 @@ bool DOclPanoramaRender::prepare(const std::string& path_, int highQualityBlend_
         else
         {
             std::vector<cv::Mat> weightsCpu(numImages);
-            getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, weightsCpu);
+            //getWeightsLinearBlendBoundedRadius32F(masks, 75, 10, weightsCpu);
+            getWeightsLinearBlend32F(masks, blendParam_, weightsCpu);
             weights.resize(numImages);
             for (int i = 0; i < numImages; i++)
                 weights[i].upload(weightsCpu[i]);

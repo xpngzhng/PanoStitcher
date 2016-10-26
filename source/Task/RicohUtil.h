@@ -313,7 +313,8 @@ class IOclPanoramaRender
 public:
     IOclPanoramaRender() : success(0) {};
     ~IOclPanoramaRender() { clear(); };
-    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int highQualityBlend, int blendParam,
+        const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<iocl::UMat>& src, iocl::UMat& dst);
     void clear();
     int getNumImages() const;
@@ -338,7 +339,8 @@ class DOclPanoramaRender
 public:
     DOclPanoramaRender() : success(0) {};
     ~DOclPanoramaRender() { clear(); };
-    bool prepare(const std::string& path, int highQualityBlend, const cv::Size& srcSize, const cv::Size& dstSize);
+    bool prepare(const std::string& path, int highQualityBlend, int blendParam,
+        const cv::Size& srcSize, const cv::Size& dstSize);
     bool render(const std::vector<docl::HostMem>& src, docl::GpuMat& dst);
     void clear();
     int getNumImages() const;

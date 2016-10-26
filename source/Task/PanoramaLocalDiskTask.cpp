@@ -757,7 +757,7 @@ CPUPanoramaLocalDiskTask::~CPUPanoramaLocalDiskTask()
 
 }
 
-bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+bool CPUPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int>& offsets, int audioIndex,
     int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
     const std::string& customMaskFile, const std::string& logoFile, int logoHFov, 
     int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight,
@@ -818,7 +818,7 @@ struct IOclPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
+        int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight, int dstVideoBitRate,
         const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
         int dstVideoMaxFrameCount);
     bool start();
@@ -886,7 +886,7 @@ IOclPanoramaLocalDiskTask::Impl::~Impl()
 
 bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile,
-    const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile,
+    const std::string& logoFile, int logoHFov, int highQualityBlend, int blendParam, const std::string& dstVideoFile,
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder,
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
@@ -897,8 +897,9 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     for (int i = 0; i < offsets.size(); i++)
         ztool::lprintf("[%d] %d, ", i, offsets[i]);
     ztool::lprintf("try audio index = %d, ", tryAudioIndex);
-    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
-        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, "
+        "high quality blend = %d, blend param = %d, ",
+        cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend, blendParam);
     ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
         dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
     ztool::lprintf("dst video encoder = %s, dst video preset = %s, dst video max frame count = %d\n",
@@ -959,7 +960,7 @@ bool IOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         return false;
     }
 
-    ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, highQualityBlend, blendParam, srcSize, dstSize);
     if (!ok)
     {
         ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -1401,15 +1402,15 @@ IOclPanoramaLocalDiskTask::~IOclPanoramaLocalDiskTask()
 
 }
 
-bool IOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+bool IOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int>& offsets, int audioIndex,
     int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
     const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-    int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
     int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile,
-        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
+        logoFile, logoHFov, highQualityBlend, blendParam, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 
@@ -2188,7 +2189,7 @@ CudaPanoramaLocalDiskTask::~CudaPanoramaLocalDiskTask()
 
 }
 
-bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+bool CudaPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int>& offsets, int audioIndex,
     int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile,
     const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
     int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight,
@@ -2262,7 +2263,7 @@ struct DOclPanoramaLocalDiskTask::Impl
     ~Impl();
     bool init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
         const std::string& cameraParamFile, const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-        int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+        int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight,
         int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
         int dstVideoMaxFrameCount);
     bool start();
@@ -2329,7 +2330,7 @@ DOclPanoramaLocalDiskTask::Impl::~Impl()
 
 bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets,
     int tryAudioIndex, const std::string& cameraParamFile, const std::string& customMaskFile,
-    const std::string& logoFile, int logoHFov, int highQualityBlend, const std::string& dstVideoFile,
+    const std::string& logoFile, int logoHFov, int highQualityBlend, int blendParam, const std::string& dstVideoFile,
     int dstWidth, int dstHeight, int dstVideoBitRate, const std::string& dstVideoEncoder,
     const std::string& dstVideoPreset, int dstVideoMaxFrameCount)
 {
@@ -2340,7 +2341,8 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
     for (int i = 0; i < offsets.size(); i++)
         ztool::lprintf("[%d] %d, ", i, offsets[i]);
     ztool::lprintf("try audio index = %d, ", tryAudioIndex);
-    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, high quality blend = %d, ",
+    ztool::lprintf("camera param file = %s, custom mask file = %s, logo file = %s, logo hfov = %d, "
+        "high quality blend = %d, blend param = %d, ",
         cameraParamFile.c_str(), customMaskFile.c_str(), logoFile.c_str(), logoHFov, highQualityBlend);
     ztool::lprintf("dst video file = %s, dst width = %d, dst height = %d, dst video bps = %d, ",
         dstVideoFile.c_str(), dstWidth, dstHeight, dstVideoBitRate);
@@ -2404,7 +2406,7 @@ bool DOclPanoramaLocalDiskTask::Impl::init(const std::vector<std::string>& srcVi
         }
     }
 
-    ok = render.prepare(cameraParamFile, highQualityBlend, srcSize, dstSize);
+    ok = render.prepare(cameraParamFile, highQualityBlend, blendParam, srcSize, dstSize);
     if (!ok)
     {
         ztool::lprintf("Error in %s, render prepare failed\n", __FUNCTION__);
@@ -2899,15 +2901,15 @@ DOclPanoramaLocalDiskTask::~DOclPanoramaLocalDiskTask()
 
 }
 
-bool DOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int> offsets, int audioIndex,
+bool DOclPanoramaLocalDiskTask::init(const std::vector<std::string>& srcVideoFiles, const std::vector<int>& offsets, int audioIndex,
     int panoType, const std::string& cameraParamFile, const std::string& exposureWhiteBalanceFile, 
     const std::string& customMaskFile, const std::string& logoFile, int logoHFov,
-    int highQualityBlend, const std::string& dstVideoFile, int dstWidth, int dstHeight,
+    int highQualityBlend, int blendParam, const std::string& dstVideoFile, int dstWidth, int dstHeight,
     int dstVideoBitRate, const std::string& dstVideoEncoder, const std::string& dstVideoPreset,
     int dstVideoMaxFrameCount)
 {
     return ptrImpl->init(srcVideoFiles, offsets, audioIndex, cameraParamFile, customMaskFile,
-        logoFile, logoHFov, highQualityBlend, dstVideoFile, dstWidth, dstHeight,
+        logoFile, logoHFov, highQualityBlend, blendParam, dstVideoFile, dstWidth, dstHeight,
         dstVideoBitRate, dstVideoEncoder, dstVideoPreset, dstVideoMaxFrameCount);
 }
 

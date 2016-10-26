@@ -1050,9 +1050,15 @@ bool loadExposureWhiteBalance(const std::string& fileName, std::vector<double>& 
     bool success = true;
     for (ticpp::Iterator<ticpp::Element> itrVideo(ptrPos, "VIDEO"); itrVideo != itrVideo.end(); itrVideo++)
     {
-        Element* ptrExposure = itrVideo->FirstChildElement("EXPOSURE");
-        Element* ptrRed = itrVideo->FirstChildElement("RED");
-        Element* ptrBlue = itrVideo->FirstChildElement("BLUE");
+        Element* ptrExposure = itrVideo->FirstChildElement("EXPOSURE", false);
+        Element* ptrRed = itrVideo->FirstChildElement("RED", false);
+        Element* ptrBlue = itrVideo->FirstChildElement("BLUE", false);
+        if (!ptrExposure || !ptrRed || !ptrBlue)
+        {
+            success = false;
+            break;
+        }
+
         double e, r, b;
         try
         {
