@@ -1,4 +1,5 @@
 #include "RicohUtil.h"
+#include "PanoramaTaskUtil.h"
 #include "Blend/ZBlend.h"
 #include "Warp/ZReproject.h"
 #include "Tool/Timer.h"
@@ -17,29 +18,39 @@ int main()
     ztool::Timer timerAll, timerTotal, timerDecode, timerReproject, timerBlend, timerEncode;
 
     avp::AudioVideoReader reader;
-    //reader.open("F:\\QQRecord\\452103256\\FileRecv\\vlc-record-2016-06-16-13h42m11s-rtsp___192.168.1.254-.mp4", false, true, avp::PixelTypeBGR24);
-    //reader.open("F:\\panovideo\\ricoh\\R0010113.MP4", false, true, avp::PixelTypeBGR24);
-    reader.open("F:\\panovideo\\ricoh m15\\R0010129.MOV", false, true, avp::PixelTypeBGR24);
-
+    CPURicohPanoramaRender render;
     cv::Size dstSize = cv::Size(2048, 1024);
-    cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
 
-    RicohPanoramaRender render;
+    //reader.open("F:\\QQRecord\\452103256\\FileRecv\\vlc-record-2016-06-16-13h42m11s-rtsp___192.168.1.254-.mp4", false, true, avp::PixelTypeBGR24);
+    //cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
     //render.prepare("F:\\QQRecord\\452103256\\FileRecv\\45678-mod.xml", srcSize, dstSize);
+
+    //reader.open("F:\\panovideo\\ricoh\\R0010113.MP4", false, true, avp::PixelTypeBGR24);
+    //cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
     //render.prepare("F:\\panovideo\\ricoh\\paramricoh.xml", srcSize, dstSize);
-    render.prepare("F:\\panovideo\\ricoh m15\\param.xml", srcSize, dstSize);
+
+    //reader.open("F:\\panovideo\\ricoh m15\\R0010129.MOV", false, true, avp::PixelTypeBGR24);
+    //cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
+    //render.prepare("F:\\panovideo\\ricoh m15\\param.xml", srcSize, dstSize);
+
+    reader.open("F:\\panovideo\\vrdlc\\2016_1017_195821_006A.MP4", false, true, avp::PixelTypeBGR24);
+    cv::Size srcSize = cv::Size(reader.getVideoWidth(), reader.getVideoHeight());
+    render.prepare("F:\\panovideo\\vrdlc\\201610271307.xml", true, 8, srcSize, dstSize);
 
     avp::AudioVideoWriter writer;
-    writer.open("ricohm15.mp4", "", false, 
+    writer.open("vrdlc.mp4", "", false, 
         false, "", 0, 0, 0, 0, 
         true, "", avp::PixelTypeBGR24, dstSize.width, dstSize.height, reader.getVideoFrameRate(), 8000000);
+
+    WatermarkFilter watermark;
+    watermark.init(dstSize.width, dstSize.height, CV_8UC3);
 
     int failCount = 0;
     timerAll.start();
     while (true)
     {
         printf("currCount = %d\n", frameCount++);
-        if (frameCount >= 4800)
+        if (frameCount >= 30 * 14)
             break;
 
         timerTotal.start();
@@ -56,9 +67,11 @@ int main()
         }
 
         cv::Mat raw(frame.height, frame.width, CV_8UC3, frame.data, frame.step);
+        std::vector<cv::Mat> v;
+        v.push_back(raw);
 
         timerReproject.start();
-        render.render(raw, blendImage);
+        render.render(v, blendImage);
         timerReproject.end();
 
         cv::imshow("blend image", blendImage);
@@ -66,6 +79,8 @@ int main()
 
         timerBlend.start();
         timerBlend.end();
+
+        watermark.addWatermark(blendImage);
 
         timerEncode.start();
         avp::AudioVideoFrame image = avp::videoFrame(blendImage.data, blendImage.step, 

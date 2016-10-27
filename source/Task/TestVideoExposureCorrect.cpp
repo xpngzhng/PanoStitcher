@@ -432,7 +432,7 @@ int main2()
 #define NEW_VISUAL_CORRECT 1
 
 // main 3
-int main3()
+int main()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         "F:\\panovideo\\test\\test7\\changtai.pvs"
@@ -447,7 +447,7 @@ int main3()
     int numVideos = fileNames.size();
     //int globalOffset = 1095;
     //int globalOffset = 25 * 60 * 3;
-    int globalOffset = 2100;
+    int globalOffset = 1000;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
     int readSkipCount = 23;

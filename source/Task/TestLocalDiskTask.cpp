@@ -37,7 +37,7 @@ static void cancelTask(PanoramaLocalDiskTask* task)
         task->cancel();
 }
 
-int main1(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
     const char* keys =
         "{project_file           |             | project file path}"
@@ -53,7 +53,7 @@ int main1(int argc, char* argv[])
     //avp::setFFmpegLogCallback(bstLogVlPrintf);
     //avp::setLogCallback(bstLogVlPrintf);
     //setPanoTaskLogCallback(bstLogVlPrintf);
-    //setLanguage(false);
+    setLanguage(false);
     setCPUMultibandBlendMultiThread(true);
 
     cv::Size srcSize, dstSize;
@@ -63,7 +63,6 @@ int main1(int argc, char* argv[])
 
     dstSize.width = parser.get<int>("pano_width");
     dstSize.height = parser.get<int>("pano_height");
-    dstSize = cv::Size(4096, 2048);
 
     panoVideoName = parser.get<std::string>("pano_video_name");
 
@@ -77,9 +76,14 @@ int main1(int argc, char* argv[])
 #endif
 
 #if TEST_RICOH
-    projFileName = "F:\\panovideo\\ricoh\\paramricoh.xml";
     srcVideoNames.clear();
-    srcVideoNames.push_back("F:\\panovideo\\ricoh\\R0010113.MP4");
+
+    //projFileName = "F:\\panovideo\\ricoh\\paramricoh.xml";
+    //srcVideoNames.push_back("F:\\panovideo\\ricoh\\R0010113.MP4");
+
+    projFileName = "F:\\panovideo\\vrdlc\\201610271307.xml";    
+    srcVideoNames.push_back("F:\\panovideo\\vrdlc\\2016_1017_195821_006A.MP4");
+
     offset.clear();
     offset.push_back(0);
 #endif
@@ -92,15 +96,15 @@ int main1(int argc, char* argv[])
 
     avp::setDumpInput(false);
     
-    panoVideoName = "libx264_cuda.mp4";
+    panoVideoName = "qsv_h264_linear.mp4";
     std::string logoFileName = ""/*"F:\\image\\Earth_global.png"*/;
     int fov = 45;
 #if TEST_RICOH
-    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, logoFileName, fov, 0, 
-        panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
+    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeRicoh, projFileName, projFileName, projFileName, 
+        logoFileName, fov, 0, 25, panoVideoName, dstSize.width, dstSize.height, 8000000, "h264", "medium", 40 * 48);
 #else
-    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, logoFileName, fov, 1, 
-        panoVideoName, dstSize.width, dstSize.height, 48000000, "h264", "medium", 10 * 48);
+    bool ok = task->init(srcVideoNames, offset, 0, PanoStitchTypeMISO, projFileName, projFileName, projFileName, 
+        logoFileName, fov, 0, 25, panoVideoName, dstSize.width, dstSize.height, 48000000, "h264_qsv", "medium", 20 * 48);
 #endif
     if (!ok)
     {
