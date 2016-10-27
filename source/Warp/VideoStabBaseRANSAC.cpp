@@ -195,6 +195,7 @@ int main()
     ExposureColorCorrect correct;
     correct.prepare(dstMasks);
 
+	// changtai
     std::vector<std::string> srcVideoNames;
     srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0078.mp4");
     srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test1\\YDXJ0081.mp4");
@@ -207,6 +208,7 @@ int main()
     int offset[] = { 563, 0, 268, 651, 91, 412 };
     int numSkip = 2100;
 
+	// zhanxiang
     //std::vector<std::string> srcVideoNames;
     //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0072.mp4");
     //srcVideoNames.push_back("F:\\QQRecord\\452103256\\FileRecv\\test2\\YDXJ0075.mp4");

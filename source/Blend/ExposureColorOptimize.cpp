@@ -407,7 +407,8 @@ static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<
 #endif
 }
 
-static void getPointPairsAll2(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
+// First reproject all images to equirect mode and then get all point pairs
+static void getPointPairsAllInEquiRect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams, 
     int downSizeRatio, std::vector<ValuePair>& pairs)
 {
     int numImages = src.size();
@@ -1210,3 +1211,19 @@ void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const st
     }
 }
 
+void getExposureColorOptimizeBezierClampedLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
+    const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts)
+{
+    int size = exposures.size();
+    CV_Assert(size > 0 && size == redRatios.size() && size == blueRatios.size());
+
+    double maxScale = calcMaxScale(exposures, redRatios, blueRatios);
+    luts.resize(size);
+    for (int i = 0; i < size; i++)
+    {
+        luts[i].resize(3);
+        getLUTMaxScale(luts[i][0], exposures[i] * blueRatios[i], maxScale);
+        getLUTMaxScale(luts[i][1], exposures[i], maxScale);
+        getLUTMaxScale(luts[i][2], exposures[i] * redRatios[i], maxScale);
+    }
+}

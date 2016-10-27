@@ -72,6 +72,9 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
 void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
     const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
+void getExposureColorOptimizeBezierClampedLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
+    const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts);
+
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<unsigned char>& lut, const cv::Mat& mask = cv::Mat());
 
 void transform(const cv::Mat& src, cv::Mat& dst, const std::vector<std::vector<unsigned char> >& luts,

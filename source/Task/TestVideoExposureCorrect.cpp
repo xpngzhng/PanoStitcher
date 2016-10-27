@@ -2,9 +2,36 @@
 #include "PanoramaTaskUtil.h"
 #include "Warp/ZReproject.h"
 #include "Blend/ZBlend.h"
+#include "Blend/VisualManip.h"
 #include "CudaAccel/CudaInterface.h"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+
+static void smooth(const std::vector<std::vector<double> >& src, int radius, std::vector<std::vector<double> >& dst)
+{
+    dst.clear();
+    if (src.empty())
+        return;
+    int size = src.size();
+    int length = src[0].size();
+    dst.resize(size);
+    std::vector<double> sum(length);
+    for (int i = 0; i < size; i++)
+    {
+        int beg = std::max(0, i - radius);
+        int end = std::min(i + radius, size - 1);
+        for (int k = 0; k < length; k++)
+            sum[k] = 0;
+        for (int j = beg; j <= end; j++)
+        {
+            for (int k = 0; k < length; k++)
+                sum[k] += src[j][k];
+        }
+        dst[i].resize(length);
+        for (int k = 0; k < length; k++)
+            dst[i][k] = sum[k] * (1.0 / (end + 1 - beg));
+    }
+}
 
 struct ShowTiledImages
 {
@@ -79,7 +106,7 @@ void huginCorrect(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>
     std::vector<std::vector<std::vector<unsigned char> > >& luts);
 
 // main 1
-int main()
+int main1()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
         /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
@@ -367,7 +394,7 @@ int main2()
                 double compLambda = 1 - lambda;
                 currExpo[i] = exposures[index][i] * lambda + exposures[nextIndex][i] * compLambda;
                 currBlue[i] = blues[index][i] * lambda + blues[nextIndex][i] * compLambda;
-                currRed[i] = reds[index][i] * lambda + blues[nextIndex][i] * compLambda;
+                currRed[i] = reds[index][i] * lambda + reds[nextIndex][i] * compLambda;
             }
         }
         else
@@ -402,14 +429,16 @@ int main2()
     return 0;
 }
 
+#define NEW_VISUAL_CORRECT 1
+
 // main 3
 int main3()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
-        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
-        /*"F:\\panovideo\\test\\test6\\zhanxiang.xml"*/
+        "F:\\panovideo\\test\\test7\\changtai.pvs"
+        /*"F:\\panovideo\\test\\test6\\proj.pvs"*/
         /*"F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs"*/
-        "F:\\panovideo\\test\\chengdu\\1\\proj.pvs";
+        /*"F:\\panovideo\\test\\chengdu\\1\\proj.pvs"*/;
 
     std::vector<std::string> fileNames;
     std::vector<int> offsets;
@@ -418,10 +447,10 @@ int main3()
     int numVideos = fileNames.size();
     //int globalOffset = 1095;
     //int globalOffset = 25 * 60 * 3;
-    int globalOffset = 0;
+    int globalOffset = 2100;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
-    int readSkipCount = 3;
+    int readSkipCount = 23;
     int interval = readSkipCount + 1;
 
     std::vector<avp::AudioVideoReader3> readers;
@@ -447,8 +476,10 @@ int main3()
 
     std::vector<cv::Mat> images(numVideos), reprojImages(numVideos);
 
+#if !NEW_VISUAL_CORRECT
     ExposureColorCorrect correct;
     correct.prepare(masks);
+#endif
 
     std::vector<std::vector<double> > exposures, reds, blues;
     exposures.reserve(validFrameCount / readSkipCount + 20);
@@ -478,10 +509,18 @@ int main3()
 
         for (int i = 0; i < numVideos; i++)
             images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
+#if NEW_VISUAL_CORRECT
+#else
         reprojectParallel(images, reprojImages, maps);
+#endif
 
         std::vector<double> es, bs, rs;
+#if NEW_VISUAL_CORRECT
+        exposureColorOptimize(images, photoParams, std::vector<int>(), 
+            HISTOGRAM, EXPOSURE/* | WHITE_BALANCE*/, es, rs, bs);
+#else
         correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
+#endif
         exposures.push_back(es);
         reds.push_back(rs);
         blues.push_back(bs);
@@ -517,12 +556,17 @@ int main3()
 
     printf("analyze finish\n");
 
+    std::vector<std::vector<double> > rss, bss;
+    smooth(reds, 10, rss);
+    smooth(blues, 10, bss);
+    reds.swap(rss);
+    blues.swap(bss);
     //return 0;
 
     dstSize.width = 2048, dstSize.height = 1024;
     avp::AudioVideoWriter3 writer;
-    writer.open("video1.mp4", "", false, false, "", 0, 0, 0, 0,
-        true, "h264_qsv", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
+    writer.open("video.mp4", "", false, false, "", 0, 0, 0, 0,
+        true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
     prepareSrcVideos(fileNames, avp::PixelTypeBGR32, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
     getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
 
@@ -588,7 +632,7 @@ int main3()
                 double compLambda = 1 - lambda;
                 currExpo[i] = exposures[index][i] * lambda + exposures[nextIndex][i] * compLambda;
                 currBlue[i] = blues[index][i] * lambda + blues[nextIndex][i] * compLambda;
-                currRed[i] = reds[index][i] * lambda + blues[nextIndex][i] * compLambda;
+                currRed[i] = reds[index][i] * lambda + reds[nextIndex][i] * compLambda;
             }
         }
         else
@@ -599,7 +643,11 @@ int main3()
         }
 
         std::vector<std::vector<std::vector<unsigned char> > > luts;
+#if NEW_VISUAL_CORRECT
+        getExposureColorOptimizeBezierClampedLUTs(currExpo, currRed, currBlue, luts);
+#else
         ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(currExpo, currRed, currBlue, luts);
+#endif
         
         for (int i = 0; i < numVideos; i++)
             srcImagesGpu[i].upload(srcImagesCpu[i], streams[i]);
@@ -627,5 +675,161 @@ int main3()
 
     writer.close();
 
+    return 0;
+}
+
+// main 4
+int main4()
+{
+    std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
+        "F:\\panovideo\\test\\test7\\changtai2.pvs"
+        /*"F:\\panovideo\\test\\test6\\proj.pvs"*/
+        /*"F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs"*/
+        /*"F:\\panovideo\\test\\chengdu\\1\\proj.pvs"*/;
+
+    std::vector<std::string> fileNames;
+    std::vector<int> offsets;
+    loadVideoFileNamesAndOffset(configFileName, fileNames, offsets);
+
+    int numVideos = fileNames.size();
+    //int globalOffset = 1095;
+    //int globalOffset = 25 * 60 * 3;
+    int globalOffset = 2000;
+    for (int i = 0; i < numVideos; i++)
+        offsets[i] += globalOffset;
+    int readSkipCount = 23;
+    int interval = readSkipCount + 1;
+
+    std::vector<avp::AudioVideoReader3> readers;
+    cv::Size srcSize;
+    int audioIndex, validFrameCount;
+    prepareSrcVideos(fileNames, avp::PixelTypeBGR24, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
+    //for (int i = 0; i < numVideos; i++)
+    //{
+    //    avp::AudioVideoFrame2 frame;
+    //    readers[i].read(frame);
+    //    cv::Mat image(frame.height, frame.width, CV_8UC3, frame.data[0], frame.steps[0]);
+    //    char buf[128];
+    //    sprintf(buf, "image%d.bmp", i);
+    //    cv::imwrite(buf, image);
+    //}
+    //return 0;
+
+    cv::Size dstSize(1280, 640);
+    std::vector<PhotoParam> photoParams;
+    loadPhotoParams(configFileName, photoParams);
+    std::vector<cv::Mat> masks, maps;
+    getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
+
+    std::vector<cv::Mat> images(numVideos), correctImages(numVideos), reprojImages(numVideos);
+    TilingMultibandBlendFastParallel blender;
+    blender.prepare(masks, 6, 32);
+    cv::Mat blendImage;
+
+#if !NEW_VISUAL_CORRECT
+    ExposureColorCorrect correct;
+    correct.prepare(masks);
+#endif
+
+    std::vector<std::vector<double> > exposures, reds, blues;
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
+    exposures.reserve(validFrameCount / readSkipCount + 20);
+    reds.reserve(validFrameCount / readSkipCount + 20);
+    blues.reserve(validFrameCount / readSkipCount + 20);
+
+    int saveCount = 0;
+
+    int numAnalyze = validFrameCount / interval + 1;
+    int analyzeCount = 0;
+    std::vector<avp::AudioVideoFrame2> frames(numVideos);
+    while (true)
+    {
+        bool ok = true;
+        for (int i = 0; i < numVideos; i++)
+        {
+            ok = readers[i].read(frames[i]);
+            if (!ok)
+            {
+                break;
+            }
+        }
+        if (!ok)
+            break;
+
+        //for (int i = 0; i < numVideos; i++)
+        //    printf("%6d", frames[i].frameIndex);
+        //printf("\n");
+
+        for (int i = 0; i < numVideos; i++)
+            images[i] = cv::Mat(srcSize, CV_8UC3, frames[i].data[0], frames[i].steps[0]);
+#if NEW_VISUAL_CORRECT
+#else
+        reprojectParallel(images, reprojImages, maps);
+#endif
+
+        std::vector<double> es, bs, rs;
+#if NEW_VISUAL_CORRECT
+        exposureColorOptimize(images, photoParams, std::vector<int>(),
+            GRID_SAMPLE, EXPOSURE | WHITE_BALANCE, es, rs, bs);
+#else
+        correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
+#endif
+        exposures.push_back(es);
+        reds.push_back(rs);
+        blues.push_back(bs);
+
+        getExposureColorOptimizeBezierClampedLUTs(es, rs, bs, luts);
+        for (int i = 0; i < numVideos; i++)
+        {
+            transform(images[i], correctImages[i], luts[i]);
+            reprojectParallelTo16S(correctImages[i], reprojImages[i], maps[i]);
+        }
+        blender.blend(reprojImages, blendImage);
+
+        printf("e: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", es[i]);
+        printf("\nr: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", rs[i]);
+        printf("\nb: ");
+        for (int i = 0; i < numVideos; i++)
+            printf("%8.5f ", bs[i]);
+        printf("\n");
+
+        for (int i = 0; i < numVideos; i++)
+        {
+            for (int j = 0; j < readSkipCount; j++)
+            {
+                ok = readers[i].read(frames[i]);
+                if (!ok)
+                {
+                    break;
+                }
+            }
+        }
+        if (!ok)
+            break;
+        analyzeCount++;
+        if (analyzeCount % 10 == 0)
+            printf("analyze %d\n", analyzeCount);
+
+        cv::imshow("blend image", blendImage);
+        int key = cv::waitKey(0);
+        if (key == 'q')
+            break;
+        if (key == 's')
+        {
+            char buf[128];
+            for (int i = 0; i < numVideos; i++)
+            {
+                sprintf(buf, "image%d.bmp", saveCount++);
+                cv::imwrite(buf, images[i]);
+            }
+        }
+    }
+
+    printf("analyze finish\n");
+    
     return 0;
 }
