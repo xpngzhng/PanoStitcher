@@ -73,6 +73,7 @@ struct PanoramaLiveStreamTask2::Impl
     std::string renderConfigName;
     cv::Size renderFrameSize;
     int renderPrepareSuccess;
+    int stitchType;
     std::unique_ptr<std::thread> renderThread;
     int renderEndFlag;
     int renderThreadJoined;
@@ -300,9 +301,10 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
         ztool::lprintf("Error in %s, unsupported pano stitch type %d, should be %d or %d\n",
             __FUNCTION__, panoStitchType, PanoStitchTypeMISO, PanoStitchTypeRicoh);
     }
+    stitchType = panoStitchType;
 
     renderPrepareSuccess = render->prepare(renderConfigName, highQualityBlend, 
-        highQualityBlend ? 16 : 25, videoFrameSize, renderFrameSize);
+        highQualityBlend ? 16 : 75, videoFrameSize, renderFrameSize);
     if (!renderPrepareSuccess)
     {
         ztool::lprintf("Error in %s, could not prepare for video stitch\n", __FUNCTION__);
@@ -386,6 +388,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
         procFramePool.clear();
+        stitchType = PanoStitchTypeNone;
 
         appendLog(getText(TI_STITCH_TASK_FINISH) + "\n");
     }
@@ -807,6 +810,7 @@ void PanoramaLiveStreamTask2::Impl::initAll()
     audioSampleRate = 0;
     audioOpenSuccess = 0;
 
+    stitchType = PanoStitchTypeNone;
     renderPrepareSuccess = 0;
     renderEndFlag = 0;
     renderThreadJoined = 1;
@@ -1431,4 +1435,9 @@ double PanoramaLiveStreamTask2::getVideoFrameRate() const
 int PanoramaLiveStreamTask2::getAudioSampleRate() const
 {
     return ptrImpl->audioSampleRate;
+}
+
+int PanoramaLiveStreamTask2::getStitchType() const
+{
+    return ptrImpl->stitchType;
 }

@@ -136,6 +136,7 @@ private:
 
 enum PanoStitchType
 {
+    PanoStitchTypeNone = -1,
     PanoStitchTypeMISO, // multiple input single output
     PanoStitchTypeRicoh,
     PanoStitchTypeCount
@@ -364,6 +365,7 @@ public:
     int getVideoHeight() const;
     double getVideoFrameRate() const;
     int getAudioSampleRate() const;
+    int getStitchType() const;
 
 private:
     struct Impl;

@@ -1056,7 +1056,7 @@ bool CPUPanoramaPreviewTask::getCurrReprojectForAll(std::vector<cv::Mat>& images
 
 bool CPUPanoramaPreviewTask::reReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes)
 {
-    return ptrImpl->readNextAndReprojectForAll(images, indexes);
+    return ptrImpl->reReprojectForAll(images, indexes);
 }
 
 bool CPUPanoramaPreviewTask::readNextAndReprojectForAll(std::vector<cv::Mat>& images, std::vector<int>& indexes)
