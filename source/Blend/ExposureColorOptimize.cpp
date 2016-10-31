@@ -1191,6 +1191,87 @@ static void getLUTMaxScale(std::vector<unsigned char>& LUT, double k, double max
     }
 }
 
+static double getValBezierSmooth(double val, double k)
+{
+    if (val <= 0) return 0;
+    if (val >= 1) return 1;
+    if (k == 1) return val;
+
+    cv::Point2d p0(0, 0), p1, p2(1.0, 1.0);
+    if (k > 1)
+        p1 = cv::Point2d(1.0 / k, 1.0);
+    else
+    {
+        double x = (1 - 1 / k) / (k - 1 / k);
+        p1.x = x;
+        p1.y = x * k;
+        //p1 = cv::Point2d(1.0, k);
+    }
+
+    double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - val;
+    double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+    double t0 = m - n, t1 = m + n, t;
+    if (t0 < 1 && t0 > 0)
+        t = t0;
+    else if (t1 < 1 && t1 > 0)
+        t = t1;
+    else
+        //CV_Assert(0);
+    {
+        return val;
+    }
+    double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y;
+    //if (k < 0.85 && val > 0.9)
+    //    printf("val = %f, k = %f, out = %f\n", val, k, y);
+    return y;
+}
+
+static void getLUTMaxScaleRaiseIfKLessThanOne(std::vector<unsigned char>& LUT, double k, double maxK)
+{
+    CV_Assert(k > 0);
+    LUT.resize(256);
+    if (maxK <= 1.05)
+    {
+        if (k >= 1)
+        {
+            for (int i = 0; i < 256; i++)
+                LUT[i] = cv::saturate_cast<unsigned char>(k * i);
+        }
+        else
+        {
+            for (int i = 0; i < 256; i++)
+                LUT[i] = cv::saturate_cast<unsigned char>(getValBezierSmooth(i / 255.0, k) * 255);
+        }
+        return;
+    }
+    LUT[0] = 0;
+    for (int i = 1; i < 256; i++)
+    {
+        double val = k >= 1 ? (i / 255.0 * k) : getValBezierSmooth(i / 255.0, k);;
+        cv::Point2d p0(0, 0), p1(1, 1), p2(maxK, 1);
+        double a = p0.x + p2.x - 2 * p1.x, b = 2 * (p1.x - p0.x), c = p0.x - val;
+        double m = -b / (2 * a), n = sqrt(b * b - 4 * a * c) / (2 * a);
+        double t0 = m - n, t1 = m + n, t;
+        if (t0 <= 1 && t0 >= 0)
+            t = t0;
+        else if (t1 <= 1 && t1 >= 0)
+            t = t1;
+        else
+            //CV_Assert(0);
+        {
+            if (i < 2)
+                t = 0;
+            if (i > 253)
+                t = 1;
+        }
+        double y = (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y;
+        LUT[i] = cv::saturate_cast<unsigned char>(y * 255);
+    }
+    //for (int i = 0; i < 256; i++)
+    //    printf("%d ", LUT[i]);
+    //printf("\n");
+}
+
 void getExposureColorOptimizeLUTs(const std::vector<double>& exposures, const std::vector<double>& redRatios,
     const std::vector<double>& blueRatios, std::vector<std::vector<std::vector<unsigned char> > >& luts)
 {
@@ -1225,5 +1306,8 @@ void getExposureColorOptimizeBezierClampedLUTs(const std::vector<double>& exposu
         getLUTMaxScale(luts[i][0], exposures[i] * blueRatios[i], maxScale);
         getLUTMaxScale(luts[i][1], exposures[i], maxScale);
         getLUTMaxScale(luts[i][2], exposures[i] * redRatios[i], maxScale);
+        //getLUTMaxScaleRaiseIfKLessThanOne(luts[i][0], exposures[i] * blueRatios[i], maxScale);
+        //getLUTMaxScaleRaiseIfKLessThanOne(luts[i][1], exposures[i], maxScale);
+        //getLUTMaxScaleRaiseIfKLessThanOne(luts[i][2], exposures[i] * redRatios[i], maxScale);
     }
 }

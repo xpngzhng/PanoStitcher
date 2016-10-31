@@ -432,11 +432,11 @@ int main2()
 #define NEW_VISUAL_CORRECT 1
 
 // main 3
-int main()
+int main3()
 {
     std::string configFileName = /*"F:\\panovideo\\test\\SP7\\gopro.pvs"*/
-        "F:\\panovideo\\test\\test7\\changtai.pvs"
-        /*"F:\\panovideo\\test\\test6\\proj.pvs"*/
+        /*"F:\\panovideo\\test\\test7\\changtai.pvs"*/
+        "F:\\panovideo\\test\\test6\\proj.pvs"
         /*"F:\\panovideo\\test\\chengdu\\´¨Î÷VR-¹·Æ´ÐÜÃ¨4\\proj.pvs"*/
         /*"F:\\panovideo\\test\\chengdu\\1\\proj.pvs"*/;
 
@@ -447,7 +447,7 @@ int main()
     int numVideos = fileNames.size();
     //int globalOffset = 1095;
     //int globalOffset = 25 * 60 * 3;
-    int globalOffset = 1000;
+    int globalOffset = 2000;
     for (int i = 0; i < numVideos; i++)
         offsets[i] += globalOffset;
     int readSkipCount = 23;
@@ -517,7 +517,7 @@ int main()
         std::vector<double> es, bs, rs;
 #if NEW_VISUAL_CORRECT
         exposureColorOptimize(images, photoParams, std::vector<int>(), 
-            HISTOGRAM, EXPOSURE/* | WHITE_BALANCE*/, es, rs, bs);
+            HISTOGRAM, EXPOSURE | WHITE_BALANCE, es, rs, bs);
 #else
         correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
 #endif
@@ -565,8 +565,8 @@ int main()
 
     dstSize.width = 2048, dstSize.height = 1024;
     avp::AudioVideoWriter3 writer;
-    writer.open("video.mp4", "", false, false, "", 0, 0, 0, 0,
-        true, "h264", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
+    writer.open("video_zhanxiang.mp4", "", false, false, "", 0, 0, 0, 0,
+        true, "h264_qsv", avp::PixelTypeBGR32, dstSize.width, dstSize.height, readers[0].getVideoFrameRate(), 16000000);
     prepareSrcVideos(fileNames, avp::PixelTypeBGR32, offsets, -1, readers, audioIndex, srcSize, validFrameCount);
     getReprojectMapsAndMasks(photoParams, srcSize, dstSize, maps, masks);
 
@@ -644,7 +644,8 @@ int main()
 
         std::vector<std::vector<std::vector<unsigned char> > > luts;
 #if NEW_VISUAL_CORRECT
-        getExposureColorOptimizeBezierClampedLUTs(currExpo, currRed, currBlue, luts);
+        //getExposureColorOptimizeBezierClampedLUTs(currExpo, currRed, currBlue, luts);
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(currExpo, currRed, currBlue, luts);
 #else
         ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(currExpo, currRed, currBlue, luts);
 #endif
@@ -770,7 +771,7 @@ int main4()
         std::vector<double> es, bs, rs;
 #if NEW_VISUAL_CORRECT
         exposureColorOptimize(images, photoParams, std::vector<int>(),
-            GRID_SAMPLE, EXPOSURE | WHITE_BALANCE, es, rs, bs);
+            HISTOGRAM, EXPOSURE | WHITE_BALANCE, es, rs, bs);
 #else
         correct.correctExposureAndWhiteBalance(reprojImages, es, rs, bs);
 #endif
@@ -778,7 +779,8 @@ int main4()
         reds.push_back(rs);
         blues.push_back(bs);
 
-        getExposureColorOptimizeBezierClampedLUTs(es, rs, bs, luts);
+        //getExposureColorOptimizeBezierClampedLUTs(es, rs, bs, luts);
+        ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es, rs, bs, luts);
         for (int i = 0; i < numVideos; i++)
         {
             transform(images[i], correctImages[i], luts[i]);

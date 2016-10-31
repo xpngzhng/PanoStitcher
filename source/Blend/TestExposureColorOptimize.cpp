@@ -123,6 +123,20 @@ void correct(const std::vector<cv::Mat>& src, const std::vector<double>& es,
     cv::waitKey(0);
 }
 
+void correct2(const std::vector<cv::Mat>& src, const std::vector<double>& es,
+    const std::vector<double>& rs, const std::vector<double>& bs, std::vector<cv::Mat>& dst)
+{
+    std::vector<std::vector<std::vector<unsigned char> > > luts;
+    //ExposureColorCorrect::getExposureAndWhiteBalanceLUTs(es, rs, bs, luts);
+    //getExposureColorOptimizeBezierClampedLUTs(es, rs, bs, luts);
+    getExposureColorOptimizeLUTs(es, rs, bs, luts);
+
+    int numImages = src.size();
+    dst.resize(numImages);
+    for (int i = 0; i < numImages; i++)
+        transform(src[i], dst[i], luts[i]);
+}
+
 void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& params,
     const std::vector<int>& anchorIndexes, int method, int optimizeWhat)
 {
@@ -133,12 +147,16 @@ void run(const std::vector<cv::Mat>& images, const std::vector<PhotoParam>& para
     printf("show exposure and white balance:\n");
     for (int i = 0; i < numImages; i++)
     {
-        printf("[%d] e = %f, r = %f, b = %f\n", 
+        printf("[%d] e = %f, r = %f, b = %f\n",
             i, exposures[i], redRatios[i], blueRatios[i]);
+        //printf("[%d] e = %f, r = %f, b = %f, rq = %f, bq = %f, gq = %f\n", 
+        //    i, exposures[i], redRatios[i], blueRatios[i], rQuads[i], gQuads[i], bQuads[i]);
     }
 
     std::vector<cv::Mat> dstImages;
-    correct(images, exposures, redRatios, blueRatios, dstImages);
+    //correct(images, exposures, redRatios, blueRatios, dstImages);
+    correct2(images, exposures, redRatios, blueRatios, dstImages);
+    //correct3(images, exposures, redRatios, blueRatios, rQuads, gQuads, bQuads, dstImages);
 
     cv::Size dstSize(1200, 600);
     std::vector<cv::Mat> maps, masks, weights;
@@ -180,7 +198,7 @@ int main()
     std::vector<cv::Mat> srcImages;
 
     int opts = EXPOSURE | WHITE_BALANCE;
-    int method = RANDOM_SAMPLE;
+    int method = GRID_SAMPLE;
     int offset = 3;
 
     std::vector<int> anchors;
@@ -236,97 +254,97 @@ int main()
     //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019small.xml", params);
     //run(imagePaths, params, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot0.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot1.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot2.bmp");
+    imagePaths.push_back("F:\\panoimage\\919-4-1\\snapshot3.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\919-4-1\\vrdl(4).xml", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
-    //rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\0.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang\\5.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\zhanxiang\\zhanxiang.xml", params);
+    rotateCameras(params, 0, 35.264 / 180 * PI, PI / 4);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang2\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang3\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang4\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
-    //imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
-    //loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image0.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image1.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image2.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image3.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image4.bmp");
+    imagePaths.push_back("F:\\panoimage\\zhanxiang5\\image5.bmp");
+    loadPhotoParamFromXML("F:\\panovideo\\test\\test6\\proj.pvs", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
-    //imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
-    //loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
-    //rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    ////anchors.push_back(imagePaths.size() - offset);
-    ////anchors.push_back(0);
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\2\\1\\1.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\2.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\3.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\4.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\5.jpg");
+    imagePaths.push_back("F:\\panoimage\\2\\1\\6.jpg");
+    loadPhotoParamFromXML("F:\\panoimage\\2\\1\\distortnew.xml", params);
+    rotateCameras(params, 0, -35.264 / 180 * PI, -PI / 4);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    //anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(0);
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai\\image0.bmp");
@@ -359,57 +377,57 @@ int main()
     printf("changtai 0\n");
     run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image6.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image7.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image8.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image9.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image10.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image11.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai6.xml", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    //printf("changtai 6\n");
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image6.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image7.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image8.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image9.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image10.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image11.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai6.xml", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    printf("changtai 6\n");
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image12.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image13.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image14.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image15.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image16.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image17.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai12.xml", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    //printf("changtai 12\n");
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image12.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image13.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image14.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image15.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image16.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image17.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai12.xml", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    printf("changtai 12\n");
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image18.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image19.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image20.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image21.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image22.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image23.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai18.xml", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    //printf("changtai 18\n");
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image18.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image19.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image20.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image21.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image22.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image23.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai18.xml", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    printf("changtai 18\n");
+    run(srcImages, params, anchors, method, opts);
 
-    //imagePaths.clear();
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image24.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image25.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image26.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image27.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image28.bmp");
-    //imagePaths.push_back("F:\\panoimage\\changtai2\\image29.bmp");
-    //loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai24.xml", params);
-    //loadImages(imagePaths, srcImages);
-    //anchors.clear();
-    //printf("changtai 24\n");
-    //run(srcImages, params, anchors, method, opts);
+    imagePaths.clear();
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image24.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image25.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image26.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image27.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image28.bmp");
+    imagePaths.push_back("F:\\panoimage\\changtai2\\image29.bmp");
+    loadPhotoParamFromXML("F:\\panoimage\\changtai2\\changtai24.xml", params);
+    loadImages(imagePaths, srcImages);
+    anchors.clear();
+    printf("changtai 24\n");
+    run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();
     imagePaths.push_back("F:\\panoimage\\changtai2\\image30.bmp");
@@ -461,9 +479,9 @@ int main()
     loadImages(imagePaths, srcImages);
     anchors.clear();
     //anchors.push_back(imagePaths.size() - offset);
-    anchors.push_back(3);
-    anchors.push_back(4);
-    anchors.push_back(5);
+    //anchors.push_back(3);
+    //anchors.push_back(4);
+    //anchors.push_back(5);
     run(srcImages, params, anchors, method, opts);
 
     imagePaths.clear();

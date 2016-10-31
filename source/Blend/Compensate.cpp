@@ -322,7 +322,7 @@ void getLUTBezierSmooth(std::vector<unsigned char>& lut, double k)
 {
     CV_Assert(k > 0);
     lut.resize(256);
-    if (abs(k - 1) < 0.02)
+    if (abs(k - 1) < 0.02/*k > 0.99*/)
     {
         for (int i = 0; i < 256; i++)
             lut[i] = cv::saturate_cast<unsigned char>(i * k);
@@ -331,7 +331,7 @@ void getLUTBezierSmooth(std::vector<unsigned char>& lut, double k)
     {
         cv::Point2d p0(0, 0), p1, p2(255, 255);
         if (k > 1)
-            p1 = cv::Point(255 / k, 255);
+            p1 = cv::Point2d(255 / k, 255);
         else
         {
             double x = 255.0 * (1 - 1 / k) / (k - 1 / k);
