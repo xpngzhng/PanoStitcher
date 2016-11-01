@@ -7,7 +7,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-#define PRINT_AND_SHOW 0
+#define PRINT_AND_SHOW 1
 
 static int getResizeTimes(int width, int height, int minWidth, int minHeight)
 {
@@ -365,10 +365,7 @@ static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<
                                 if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
                                     continue;
                             }
-                            if (pti.x < 20 || ptj.x < 20)
-                            {
-                                int a = 0;
-                            }
+
                             cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
                             int gradValJ = grads[j].at<unsigned char>(ptj);
                             if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
@@ -388,6 +385,162 @@ static void getPointPairsAll(const std::vector<cv::Mat>& src, const std::vector<
                                 pair.equiRectPos = cv::Point(erx, ery);
                                 getPair = 1;
                                 numPairs++;
+                                pairs.push_back(pair);
+                                //break;
+                            }
+                        }
+                    }
+                }
+            }
+            //if (getPair)
+            //    break;
+        }
+        //if (numPairs >= expectNumPairs)
+        //    break;
+    }
+
+#if PRINT_AND_SHOW
+    printAndShowPairsInfo(src, false, pairs, erWidth, erHeight);
+#endif
+}
+
+struct Close
+{
+    Close(const ValuePair& pair_, double distThresh_) : pair(pair_), distThresh(distThresh_) {}
+
+    bool operator()(const ValuePair& test) const
+    {
+        if (test.i == pair.i)
+            return (cv::norm(test.iPos - pair.iPos) <= distThresh);
+        if (test.i == pair.j)
+            return (cv::norm(test.iPos - pair.jPos) <= distThresh);
+        if (test.j == pair.i)
+            return (cv::norm(test.jPos - pair.iPos) <= distThresh);
+        if (test.j == pair.j)
+            return (cv::norm(test.jPos - pair.jPos) <= distThresh);
+        return false;
+    }
+
+    const ValuePair& pair;
+    double distThresh;
+};
+
+static void getPointPairsAllDistanceConstraint(const std::vector<cv::Mat>& src, const std::vector<PhotoParam>& photoParams,
+    int downSizeRatio, std::vector<ValuePair>& pairs)
+{
+    int numImages = src.size();
+    CV_Assert(photoParams.size() == numImages);
+
+    int erWidth = 200, erHeight = 100;
+    std::vector<Remap> remaps(numImages);
+    for (int i = 0; i < numImages; i++)
+        remaps[i].init(photoParams[i], erWidth, erHeight, src[0].cols * downSizeRatio, src[0].rows * downSizeRatio);
+
+    std::vector<cv::Mat> grads(numImages);
+    for (int i = 0; i < numImages; i++)
+        calcGradImage(src[i], grads[i]);
+
+#if PRINT_AND_SHOW
+    for (int i = 0; i < numImages; i++)
+    {
+        double maxVal, minVal;
+        cv::minMaxLoc(grads[i], &minVal, &maxVal);
+        printf("min %f, max %f\n", minVal, maxVal);
+    }
+#endif
+
+    cv::Rect validRect(0, 0, src[0].cols, src[0].rows);
+
+    pairs.clear();
+
+    int minValThresh = 5, maxValThresh = 250;
+    int gradThresh = 3;
+    cv::RNG_MT19937 rng(cv::getTickCount());
+    const double downSizeScale = 1.0 / downSizeRatio;
+    const double normScale = 1.0 / 255.0;
+    const double halfWidth = erWidth * 0.5;
+    const double halfHeight = erHeight * 0.5;
+    const int gridSize = 200;
+    //for (int ery = 0; ery < erHeight; ery++)
+    //for (int erx = 0; erx < erWidth; erx++)
+    for (int y = 0; y < gridSize; y++)
+    for (int x = 0; x < gridSize; x++)
+    {
+        double theta = 2 * PI * ((x + 0.5) / gridSize - 0.5);
+        double u = ((y + 0.5) / gridSize - 0.5) * 2;
+        double v = sqrt(1 - u * u);
+        cv::Point2d pd = sphereToEquirect(cv::Point3d(cos(theta) * v, sin(theta) * v, u), halfWidth, halfHeight);
+        int erx = pd.x + 0.5;
+        int ery = pd.y + 0.5;
+        for (int i = 0; i < numImages; i++)
+        {
+            double srcxid, srcyid;
+            remaps[i].remapImage(srcxid, srcyid, erx, ery);
+            cv::Point pti(srcxid * downSizeScale, srcyid * downSizeScale);
+            if (validRect.contains(pti))
+            {
+                if (photoParams[i].circleR > 0)
+                {
+                    double diffx = srcxid - photoParams[i].circleX;
+                    double diffy = srcyid - photoParams[i].circleY;
+                    if (diffx * diffx + diffy * diffy > photoParams[i].circleR * photoParams[i].circleR - 25)
+                        continue;
+                }
+                cv::Vec3b valI = src[i].at<cv::Vec3b>(pti);
+                int gradValI = grads[i].at<unsigned char>(pti);
+                if (/*valI[0] > minValThresh && valI[0] < maxValThresh &&
+                    valI[1] > minValThresh && valI[1] < maxValThresh &&
+                    valI[2] > minValThresh && valI[2] < maxValThresh &&*/
+                    gradValI < gradThresh)
+                {
+                    for (int j = 0; j < numImages; j++)
+                    {
+                        if (i == j)
+                            continue;
+
+                        double srcxjd, srcyjd;
+                        remaps[j].remapImage(srcxjd, srcyjd, erx, ery);
+                        cv::Point ptj(srcxjd * downSizeScale, srcyjd * downSizeScale);
+                        if (validRect.contains(ptj))
+                        {
+                            if (photoParams[j].circleR > 0)
+                            {
+                                double diffx = srcxjd - photoParams[j].circleX;
+                                double diffy = srcyjd - photoParams[j].circleY;
+                                if (diffx * diffx + diffy * diffy > photoParams[j].circleR * photoParams[j].circleR - 25)
+                                    continue;
+                            }
+
+                            cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
+                            int gradValJ = grads[j].at<unsigned char>(ptj);
+                            if (/*valJ[0] > minValThresh && valJ[0] < maxValThresh &&
+                                valJ[1] > minValThresh && valJ[1] < maxValThresh &&
+                                valJ[2] > minValThresh && valJ[2] < maxValThresh &&*/
+                                gradValJ < gradThresh)
+                            {
+                                ValuePair pair;
+                                pair.i = i;
+                                pair.j = j;
+                                pair.iPos = pti;
+                                pair.jPos = ptj;
+                                pair.iVal = valI;
+                                pair.jVal = valJ;
+                                pair.iValD = toVec3d(pair.iVal) * normScale;
+                                pair.jValD = toVec3d(pair.jVal) * normScale;
+                                pair.equiRectPos = cv::Point(erx, ery);
+
+                                if (valI[0] <= minValThresh || valI[0] >= maxValThresh &&
+                                    valI[1] <= minValThresh || valI[1] >= maxValThresh &&
+                                    valI[2] <= minValThresh || valI[2] >= maxValThresh &&
+                                    valJ[0] <= minValThresh || valJ[0] >= maxValThresh &&
+                                    valJ[1] <= minValThresh || valJ[1] >= maxValThresh &&
+                                    valJ[2] <= minValThresh || valJ[2] >= maxValThresh)
+                                {
+                                    std::vector<ValuePair>::iterator itr = std::find_if(pairs.begin(), pairs.end(), Close(pair, 5));
+                                    if (itr != pairs.end())
+                                        continue;
+                                }
+
                                 pairs.push_back(pair);
                                 //break;
                             }
@@ -499,10 +652,7 @@ static void getPointPairsAllInEquiRect(const std::vector<cv::Mat>& src, const st
                                 if (diffx * diffx + diffy * diffy > params[j].circleR * params[j].circleR - 5)
                                     continue;
                             }
-                            if (pti.x < 20 || ptj.x < 20)
-                            {
-                                int a = 0;
-                            }
+
                             cv::Vec3b valJ = src[j].at<cv::Vec3b>(ptj);
                             int gradValJ = grads[j].at<unsigned char>(ptj);
                             if (valJ[0] > minValThresh && valJ[0] < maxValThresh &&
@@ -1111,7 +1261,7 @@ void exposureColorOptimize(const std::vector<cv::Mat>& images, const std::vector
     if (getPointPairsMethod == RANDOM_SAMPLE)
         getPointPairsRandom(testSrc, params, downSizePower, pairs);
     else if (getPointPairsMethod == GRID_SAMPLE)
-        getPointPairsAll(testSrc, params, downSizePower, pairs);
+        getPointPairsAll/*DistanceConstraint*/(testSrc, params, downSizePower, pairs);
     //getPointPairsAll2(testSrc, params, downSizePower, pairs);
     //getPointPairsAllReproject(testSrc, params, downSizePower, pairs);
     else if (getPointPairsMethod == HISTOGRAM)

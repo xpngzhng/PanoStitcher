@@ -197,7 +197,7 @@ int main()
     std::vector<PhotoParam> params;
     std::vector<cv::Mat> srcImages;
 
-    int opts = EXPOSURE | WHITE_BALANCE;
+    int opts = EXPOSURE/* | WHITE_BALANCE*/;
     int method = GRID_SAMPLE;
     int offset = 3;
 
@@ -495,7 +495,7 @@ int main()
     loadPhotoParamFromXML("F:\\panovideo\\test\\chengdu\\1\\proj.pvs", params);
     loadImages(imagePaths, srcImages);
     anchors.clear();
-    anchors.push_back(imagePaths.size() - offset);
+    //anchors.push_back(imagePaths.size() - offset);
     //anchors.push_back(1);
     //anchors.push_back(3);
     run(srcImages, params, anchors, method, opts);
