@@ -145,7 +145,7 @@ int main()
     std::vector<std::string> urls;
     urls.push_back("192.168.137.201");
     urls.push_back("192.168.137.202");
-    //urls.push_back("192.168.137.203");
+    urls.push_back("192.168.137.203");
     urls.push_back("192.168.137.204");
     ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);

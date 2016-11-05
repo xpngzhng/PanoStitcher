@@ -8,7 +8,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include <fstream>
 
-int maina()
+int main()
 {
     cv::Size dstSize = cv::Size(1920, 960);
 
@@ -22,9 +22,13 @@ int maina()
     //loadPhotoParamFromPTS("F:\\panoimage\\outdoor\\Panorama.pts", params);
     //rotateCameras(params, 0, 3.1415926536 / 2 * 0.65, 0);
 
-    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
-    paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
-    loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
+    //paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    //paths.push_back("F:\\panoimage\\vrdlc\\2016_1011_153743_001.JPG");
+    //loadPhotoParamFromXML("F:\\panoimage\\vrdlc\\vrdl-201610112019.xml", params);
+
+    paths.push_back("F:\\panoimage\\vrdlc2\\QQͼƬ20161105143834.png");
+    paths.push_back("F:\\panoimage\\vrdlc2\\QQͼƬ20161105143834.png");
+    loadPhotoParamFromXML("F:\\panoimage\\vrdlc2\\vrdl1(2).xml", params);
 
     int numImages = paths.size();
     std::vector<cv::Mat> src(numImages);
