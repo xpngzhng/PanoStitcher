@@ -1357,6 +1357,8 @@ void HuaTuAudioVideoSource::videoRecieve()
     size_t id = std::this_thread::get_id().hash();
     ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
+    int seeIFrame[4] = { 0 };
+
     while (!videoEndFlag && !finish)
     {
         LPNSD_AVFRAME_DATA frameData = NULL;
@@ -1369,6 +1371,17 @@ void HuaTuAudioVideoSource::videoRecieve()
             for (int j = 0; j < frameCount; j++)
             {
                 int index = frameData[j].byChannel - 1;
+                // NOTICE!!!
+                // We invoke Intel QSV to decode received video packets,
+                // we have to make sure the very first packet fed to the decoder is I frame.
+                // So we use seeIFrame array to ensure this.
+                if (!seeIFrame[index])
+                {
+                    if (frameData[j].byFrameType != 1)
+                        continue;
+
+                    seeIFrame[index] = 1;
+                }
                 (*ptrDataPacketQueues)[index].push(DataPacket((unsigned char*)frameData[j].pszData,
                     frameData[j].lDataLength, -1, frameData[j].lTimeStamp));
             }
@@ -1391,7 +1404,7 @@ void HuaTuAudioVideoSource::videoDecode(int index)
     RealTimeDataPacketQueue& dataPacketQueue = (*ptrDataPacketQueues)[index];
     ForceWaitFrameQueue& frameQueue = (*ptrFrameBuffers)[index];
     AudioVideoFramePool& pool = (*ptrVideoFramePools)[index];
-    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264", pixelType);
+    avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264_qsv", pixelType);
     DataPacket pkt;
     avp::AudioVideoFrame2 frame, copyFrame;
     bool ok;

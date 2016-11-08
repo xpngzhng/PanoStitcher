@@ -17,6 +17,8 @@ PanoTaskLogCallbackFunc setPanoTaskLogCallback(PanoTaskLogCallbackFunc func);
 
 void listNetworkDevices(std::vector<std::string>& urls);
 
+void listNetworkDevices2(std::vector<std::string>& urls);
+
 class PanoramaPreviewTask
 {
 public:

@@ -3,6 +3,7 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include "IPCamSDKDLL.h"
+#include "NsdNetSDK.h"
 
 #include <vector>
 #include <string>
@@ -69,4 +70,43 @@ void listNetworkDevices(std::vector<std::string>& urls)
         ret = SDK_SearchDevices(searchCallback, &urls, (char *)hostIPs[i].c_str(), 1);
 
     SDK_Cleanup();
+}
+
+void __stdcall findDevCallback(NSD_HANDLE lDeviceDiscoveryHandle, LPNSD_DEVICE_INFO lpDeviceInfo, void* pUserData)
+{
+    std::vector<std::string>* ptrIPs = (std::vector<std::string>*)pUserData;
+    ptrIPs->push_back(lpDeviceInfo->struDeviceAddr.szHostIP);
+}
+
+void listNetworkDevices2(std::vector<std::string>& urls)
+{
+    urls.clear();
+
+    std::vector<std::string> hostIPs;
+    //getLocalHostIPs(hostIPs);
+    hostIPs.push_back("127.0.0.1");
+    if (hostIPs.empty())
+        return;
+
+    int ret = 0;
+    ret = NSD_Init();
+    if (ret != 0)
+        return;
+
+    int numHostIPs = hostIPs.size();
+    for (int i = 0; i < numHostIPs; i++)
+    {
+        NSD_INETADDR hostAddr;
+        memset(&hostAddr, 0, sizeof(NSD_INETADDR));
+        hostAddr.byIPProtoVer = NSD_IPPROTO_V4;
+        hostAddr.wPORT = 80;
+        strcpy(hostAddr.szHostIP, hostIPs[i].c_str());
+
+        NSD_HANDLE findDevHandle;
+        NSD_StartDeviceDiscovery(&hostAddr, findDevCallback, &findDevHandle, &urls);
+        Sleep(1000);
+        NSD_StopDeviceDiscovery(findDevHandle);
+    }
+
+    NSD_Cleanup();
 }
