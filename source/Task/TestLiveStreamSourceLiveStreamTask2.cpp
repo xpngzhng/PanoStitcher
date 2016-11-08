@@ -5,6 +5,8 @@
 #include <iostream>
 #include <thread>
 
+#define TEST_HUATU_SOURCE 1
+
 struct ShowTiledImages
 {
     ShowTiledImages() : hasInit(false) {};
@@ -271,7 +273,11 @@ int main(int argc, char* argv[])
     }
     urls.push_back(url);
 
+#if TEST_HUATU_SOURCE
+    ok = task.openAudioVideoSources("192.168.12.100");
+#else
     ok = task.openAudioVideoSources(urls);
+#endif
     if (!ok)
     {
         printf("Could not open urls\n");
@@ -286,6 +292,9 @@ int main(int argc, char* argv[])
     highQualityBlend = false;
     cameraParamPath = parser.get<std::string>("camera_param_path");
     stitchFrameSize = sz;
+#if TEST_HUATU_SOURCE
+    cameraParamPath = "F:\\panoimage\\huatu\\201611081336.xml";
+#endif
     if (cameraParamPath.size() && cameraParamPath != "null")
     {
         ok = task.beginVideoStitch(PanoStitchTypeMISO, cameraParamPath, stitchFrameSize.width, stitchFrameSize.height, highQualityBlend);

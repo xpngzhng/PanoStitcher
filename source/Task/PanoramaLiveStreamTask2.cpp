@@ -27,6 +27,7 @@ struct PanoramaLiveStreamTask2::Impl
     bool openAudioVideoSources(const std::vector<avp::Device>& devices, int width, int height, int frameRate,
         bool openAudio, const avp::Device& device, int sampleRate);
     bool openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url);
+    bool openAudioVideoSources(const std::string& url);
     void closeAudioVideoSources();
 
     bool beginVideoStitch(int panoStitchType, const std::string& configFileName, 
@@ -251,6 +252,41 @@ bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::vector<std:
     audioOpenSuccess = audioVideoSource->isAudioOpened();
 
     ztool::lprintf("Info in %s, audio video sources open success, video width = %d, height = %d, frame rate = %f\n", 
+        __FUNCTION__, videoFrameSize.width, videoFrameSize.height, videoFrameRate);
+    return true;
+}
+
+bool PanoramaLiveStreamTask2::Impl::openAudioVideoSources(const std::string& url)
+{
+    ztool::lprintf("Info in %s, params: url = %s", __FUNCTION__, url.c_str());
+
+    if (audioVideoSource)
+    {
+        ztool::lprintf("Error in %s, audio video sources should be closed first before open again\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_RUNNING_CLOSE_BEFORE_LAUNCH_NEW);
+        return false;
+    }
+
+    bool ok = false;
+    audioVideoSource.reset(new HuaTuAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 1,
+        &procFrameBufferForSend, &procFrameBufferForSave, &finish));
+    ok = ((HuaTuAudioVideoSource*)audioVideoSource.get())->open(url);
+    if (!ok)
+    {
+        ztool::lprintf("Error in %s, could not open audio video sources\n", __FUNCTION__);
+        syncErrorMessage = getText(TI_AUDIO_VIDEO_SOURCE_OPEN_FAIL);
+        return false;
+    }
+
+    videoFrameSize.width = audioVideoSource->getVideoFrameWidth();
+    videoFrameSize.height = audioVideoSource->getVideoFrameHeight();
+    videoFrameRate = audioVideoSource->getVideoFrameRate();
+    numVideos = audioVideoSource->getNumVideos();
+    audioSampleRate = 0;
+    videoOpenSuccess = 1;
+    audioOpenSuccess = audioVideoSource->isAudioOpened();
+
+    ztool::lprintf("Info in %s, audio video sources open success, video width = %d, height = %d, frame rate = %f\n",
         __FUNCTION__, videoFrameSize.width, videoFrameSize.height, videoFrameRate);
     return true;
 }
@@ -1290,6 +1326,11 @@ bool PanoramaLiveStreamTask2::openAudioVideoSources(const std::vector<avp::Devic
 bool PanoramaLiveStreamTask2::openAudioVideoSources(const std::vector<std::string>& urls, bool openAudio, const std::string& url)
 {
     return ptrImpl->openAudioVideoSources(urls, openAudio, url);
+}
+
+bool PanoramaLiveStreamTask2::openAudioVideoSources(const std::string& url)
+{
+    return ptrImpl->openAudioVideoSources(url);
 }
 
 void PanoramaLiveStreamTask2::closeAudioVideoSources()

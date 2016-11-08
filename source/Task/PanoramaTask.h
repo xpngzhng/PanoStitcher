@@ -326,6 +326,7 @@ public:
         bool openAudio = false, const avp::Device& device = avp::Device(), int sampleRate = 0);
     bool openAudioVideoSources(const std::vector<std::string>& urls, 
         bool openAudio = false, const std::string& url = std::string());
+    bool openAudioVideoSources(const std::string& url);
     void closeAudioVideoSources();
 
     bool beginVideoStitch(int stitchType, const std::string& configFileName, 
