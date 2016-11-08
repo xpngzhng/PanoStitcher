@@ -78,7 +78,8 @@ ForShowFrameVectorQueue syncedFramesBufferForShow;
 BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
 ForceWaitMixedFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 //FFmpegAudioVideoSource* ptrSource;
-JuJingAudioVideoSource* ptrSource;
+//JuJingAudioVideoSource* ptrSource;
+HuaTuAudioVideoSource* ptrSource;
 
 void ShowThread()
 {
@@ -135,6 +136,7 @@ int main()
     std::vector<avp::Device> ds, vds;
     avp::listDirectShowDevices(ds);
     avp::keepVideoDirectShowDevices(ds, vds);
+
     //ptrSource = new FFmpegAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, 
     //    &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
     //ptrSource->open(vds, 1920, 1080, 30);
@@ -142,17 +144,31 @@ int main()
     //waitTime = 30;
     //showTiledImages.init(1920, 1080, vds.size());
 
-    std::vector<std::string> urls;
-    urls.push_back("192.168.137.201");
-    urls.push_back("192.168.137.202");
-    urls.push_back("192.168.137.203");
-    urls.push_back("192.168.137.204");
-    ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
+    //std::vector<std::string> urls;
+    //urls.push_back("192.168.137.201");
+    //urls.push_back("192.168.137.202");
+    //urls.push_back("192.168.137.203");
+    //urls.push_back("192.168.137.204");
+    //ptrSource = new JuJingAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
+    //    &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
+    //ptrSource->open(urls);
+    //numVideos = urls.size();
+
+    std::string url = "192.168.12.100";
+    ptrSource = new HuaTuAudioVideoSource(&syncedFramesBufferForShow, &syncedFramesBufferForProc, true,
         &procFrameBufferForSend, &procFrameBufferForSave, &globalFinish);
-    ptrSource->open(urls);
-    numVideos = urls.size();
+    bool ok = ptrSource->open(url);
+    if (!ok)
+    {
+        printf("open failed\n");
+        delete ptrSource;
+        return 0;
+    }
+    numVideos = 4;    
+    
     waitTime = 30;
-    showTiledImages.init(2048, 1536, urls.size());
+    //showTiledImages.init(2048, 1536, numVideos);
+    showTiledImages.init(ptrSource->getVideoFrameWidth(), ptrSource->getVideoFrameHeight(), numVideos);
 
     std::thread showThread(ShowThread);
     showThread.join();

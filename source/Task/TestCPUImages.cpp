@@ -43,7 +43,7 @@ int main()
     {
         char buf[64];
         sprintf(buf, "mask%d.bmp", i);
-        cv::imwrite(buf, masks[i]);
+        //cv::imwrite(buf, masks[i]);
         reproject(src[i], dst[i], maps[i]);
         sprintf(buf, "reprojimage%d.bmp", i);
         cv::imwrite(buf, dst[i]);
@@ -56,10 +56,11 @@ int main()
     cv::Mat blendImage;
     blender.blend(dst, masks, blendImage);
     cv::imshow("blend", blendImage);
+    cv::imwrite("blend.bmp", blendImage);
     cv::waitKey(0);
 
     std::vector<cv::Mat> weights;
-    getWeightsLinearBlend32F(masks, 25, weights);
+    getWeightsLinearBlend32F(masks, 100, weights);
 
     cv::Mat r = cv::Mat::zeros(dstSize, CV_32FC3);
     for (int i = 0; i < numImages; i++)
@@ -67,6 +68,7 @@ int main()
     cv::Mat rr;
     r.convertTo(rr, CV_8U);
     cv::imshow("r", rr);
+    cv::imwrite("linearblend.jpg", r);
     cv::waitKey(0);
 
     return 0;

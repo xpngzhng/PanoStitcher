@@ -190,3 +190,34 @@ private:
     void videoRecieve(int index);
     void videoDecode(int index);
 };
+
+struct HuaTuAudioVideoSource : public AudioVideoSource
+{
+public:
+    HuaTuAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow,
+        void* ptrSyncedFramesBufferForProc, int forCuda,
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSend,
+        ForceWaitMixedFrameQueue* ptrProcFrameBufferForSave, int* ptrFinish);
+    ~HuaTuAudioVideoSource();
+    bool open(const std::string& url);
+    void close();
+
+    int getNumVideos() const;
+    int getVideoFrameWidth() const;
+    int  getVideoFrameHeight() const;
+    double getVideoFrameRate() const;
+    int getAudioSampleRate() const;
+    int getAudioSampleType() const;
+    int getAudioNumChannels() const;
+    int getAudioChannelLayout() const;
+
+private:
+    std::unique_ptr<std::thread> videoReceiveThread;
+    std::vector<std::unique_ptr<std::thread> > videoDecodeThreads;
+    std::unique_ptr<std::thread> videoSinkThread;
+    std::unique_ptr<std::vector<RealTimeDataPacketQueue> > ptrDataPacketQueues;
+    void videoRecieve();
+    void videoDecode(int index);
+    long long int devHandle;
+    long long int camHandle;
+};

@@ -128,7 +128,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source;..\TiCPP\src;E:\Projects\AudioVideoProcessor\source;D:\OpenCV3.0.0\build\include;D:\IPCamSDK\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source;..\TiCPP\src;E:\Projects\AudioVideoProcessor\source;D:\OpenCV3.0.0\build\include;D:\IPCamSDK\include;$(QTDIR)\include;D:\PanoSDK_v1.0.9.1\include\cn;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -175,7 +175,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\source;..\TiCPP\src;E:\Projects\AudioVideoProcessor\source;D:\OpenCV3.0.0\build\include;D:\IPCamSDK\include;$(QTDIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\source;..\TiCPP\src;E:\Projects\AudioVideoProcessor\source;D:\OpenCV3.0.0\build\include;D:\IPCamSDK\include;$(QTDIR)\include;D:\PanoSDK_v1.0.9.1\include\cn;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

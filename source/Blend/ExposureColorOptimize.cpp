@@ -7,7 +7,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 
-#define PRINT_AND_SHOW 1
+#define PRINT_AND_SHOW 0
 
 static int getResizeTimes(int width, int height, int minWidth, int minHeight)
 {
