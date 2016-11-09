@@ -1142,13 +1142,13 @@ void JuJingAudioVideoSource::videoDecode(int index)
     int count = 0;
     while (!videoEndFlag && !finish)
     {
-        if (count == 20)
-        {
-            count = 0;
-            timer.end();
-            printf("fps = %f\n", 20 / timer.elapse());
-            timer.start();
-        }
+        //if (count == 20)
+        //{
+        //    count = 0;
+        //    timer.end();
+        //    printf("fps = %f\n", 20 / timer.elapse());
+        //    timer.start();
+        //}
         ok = dataPacketQueue.pull(pkt);
         if (!ok)
             break;
@@ -1242,12 +1242,14 @@ bool HuaTuAudioVideoSource::open(const std::string& url)
 
     videoFrameSize.width = 2592;
     videoFrameSize.height = 1944;
-    videoFrameRate = 15;
+    videoFrameRate = 25;
     roundedVideoFrameRate = videoFrameRate + 0.5;
 
     numVideos = 4;
 
     ptrDataPacketQueues.reset(new std::vector<RealTimeDataPacketQueue>(numVideos));
+    for (int i = 0; i < numVideos; i++)
+        (*ptrDataPacketQueues)[i].setMaxSize(36);
     ptrFrameBuffers.reset(new std::vector<ForceWaitFrameQueue>(numVideos));
     for (int i = 0; i < numVideos; i++)
         (*ptrFrameBuffers)[i].setMaxSize(36);
@@ -1364,7 +1366,8 @@ void HuaTuAudioVideoSource::videoRecieve()
         LPNSD_AVFRAME_DATA frameData = NULL;
         long frameCount = 0;
         int ret = NSD_RemoteCamera_ReadEx(camHandle, &frameData, &frameCount);
-        printErrorMessage(ret);
+        if (ret != NSD_ERRNO_SOCKET_RECEIVE_TIMEOUT)
+            printErrorMessage(ret);
 
         if (!ret)
         {
@@ -1385,9 +1388,14 @@ void HuaTuAudioVideoSource::videoRecieve()
                 (*ptrDataPacketQueues)[index].push(DataPacket((unsigned char*)frameData[j].pszData,
                     frameData[j].lDataLength, -1, frameData[j].lTimeStamp));
             }
+            //printf("read pts = %lld\n", frameData[0].lTimeStamp);
+
+            for (int j = 0; j < frameCount; j++)
+                printf("[%d] %lld %d ", frameData[j].byChannel, frameData[j].lTimeStamp, frameData[j].lDataLength);
+            printf("\n");
         }
 
-        Sleep(10);
+        //Sleep(5);
     }
 
     for (int i = 0; i < numVideos; i++)
@@ -1412,24 +1420,47 @@ void HuaTuAudioVideoSource::videoDecode(int index)
     int count = 0;
     while (!videoEndFlag && !finish)
     {
-        if (count == 20)
-        {
-            count = 0;
-            timer.end();
-            printf("fps = %f\n", 20 / timer.elapse());
-            timer.start();
-        }
+        //if (count == 20)
+        //{
+        //    count = 0;
+        //    timer.end();
+        //    printf("fps = %f\n", 20 / timer.elapse());
+        //    timer.start();
+        //}
         dataPacketQueue.pull(pkt);
         if (pkt.data.get())
         {
-            ok = decoder->decode(pkt.data.get(), pkt.dataSize, pkt.pts, frame);
-            if (ok && frame.data[0])
+            //timer.start();
+            //ok = decoder->decode(pkt.data.get(), pkt.dataSize, pkt.pts, frame);
+            //timer.end();
+            //if (index == 0)
+            //    printf("decode time = %f\n", timer.elapse());
+            //if (ok && frame.data[0])
+            //{
+            //    frame.timeStamp = pkt.pts;
+            //    pool.get(copyFrame);
+            //    frame.copyTo(copyFrame);
+            //    frameQueue.push(copyFrame);
+            //}
+            //timer.end();
+            //if (index == 0)
+            //    printf("decode total time = %f\n", timer.elapse());
+
+            pool.get(frame);
+            bool gotFrame;
+            //timer.start();
+            ok = decoder->decodeTo(pkt.data.get(), pkt.dataSize, pkt.pts, frame, gotFrame);
+            //timer.end();
+            //if (index == 0)
+            //    printf("decode time = %f\n", timer.elapse());
+            if (ok && gotFrame)
             {
                 frame.timeStamp = pkt.pts;
-                pool.get(copyFrame);
-                frame.copyTo(copyFrame);
-                frameQueue.push(copyFrame);
+                frameQueue.push(frame);
             }
+            //timer.end();
+            //if (index == 0)
+            //    printf("decode total time = %f\n", timer.elapse());
         }
         count++;
     }

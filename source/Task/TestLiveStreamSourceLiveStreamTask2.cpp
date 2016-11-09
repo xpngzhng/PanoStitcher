@@ -129,14 +129,14 @@ void showVideoSources()
             //showTiledImages.show("src images", images);
 
             double scale = double(singleShowWidth) / frames[0].width;
-            singleShows.resize(numCameras);
-            for (int i = 0; i < numCameras; i++)
-            {
-                char buf[256];
-                sprintf(buf, "single %d", i);
-                cv::resize(images[i], singleShows[i], cv::Size(), scale, scale);
-                cv::imshow(buf, singleShows[i]);
-            }
+            //singleShows.resize(numCameras);
+            //for (int i = 0; i < numCameras; i++)
+            //{
+            //    char buf[256];
+            //    sprintf(buf, "single %d", i);
+            //    cv::resize(images[i], singleShows[i], cv::Size(), scale, scale);
+            //    cv::imshow(buf, singleShows[i]);
+            //}
 
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
@@ -166,6 +166,8 @@ void showVideoResult()
     size_t id = std::this_thread::get_id().hash();
     printf("Thread %s [%8x] started\n", __FUNCTION__, id);
 
+    cv::Mat temp(10, 10, CV_8UC3);
+
     avp::AudioVideoFrame2 frame;
     while (true)
     {
@@ -174,8 +176,9 @@ void showVideoResult()
         task.getStitchedVideoFrame(frame);
         if (frame.data[0])
         {
-            cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
-            cv::imshow("result", show);
+            //cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
+            //cv::imshow("result", show);
+            cv::imshow("temp", temp);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
                 printf("pressed in %s\n", __FUNCTION__);
@@ -190,7 +193,7 @@ void showVideoResult()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-int main(int argc, char* argv[])
+int main1(int argc, char* argv[])
 {
     const char* keys =
         "{@url0                       |               |}"
@@ -329,7 +332,8 @@ int main(int argc, char* argv[])
     streamURL = parser.get<std::string>("pano_stream_url");
     //streamURL = "rtsp://192.168.1.234/test.sdp";/*"rtsp://127.0.0.1/test.sdp"*/
     //streamURL = "rtmp://110.172.214.59:80/live/myStream";
-    streamURL = "null";
+    //streamURL = "null";
+    streamURL = "rtsp://192.168.1.101/test.sdp";
     //streamURL = "rtsp://127.0.0.1/test.sdp";
     //streamURL = "rtsp://192.168.1.163/test.sdp";
     if (streamURL.size() && streamURL != "null")
@@ -358,11 +362,13 @@ int main(int argc, char* argv[])
             streamEncodePreset != "slower" || streamEncodePreset != "veryslow")
             streamEncodePreset = "veryfast";
 
-        //streamFrameSize = sz;
-        streamFrameSize = cv::Size(1536, 1024);
-        streamBitRate = 1000000;
-        ok = task.openLiveStream(streamURL, PanoTypeCube3x2, streamFrameSize.width, streamFrameSize.height,
+        streamBitRate = 4000000;
+        streamFrameSize = sz;
+        ok = task.openLiveStream(streamURL, PanoTypeEquiRect, streamFrameSize.width, streamFrameSize.height,
             streamBitRate, streamEncoder, streamEncodePreset, 96000);
+        //streamFrameSize = cv::Size(1536, 1024);
+        //ok = task.openLiveStream(streamURL, PanoTypeCube3x2, streamFrameSize.width, streamFrameSize.height,
+        //    streamBitRate, streamEncoder, streamEncodePreset, 96000);
         if (!ok)
         {
             printf("Could not open streaming url with frame rate = %d and bit rate = %d\n", frameRate, streamBitRate);
