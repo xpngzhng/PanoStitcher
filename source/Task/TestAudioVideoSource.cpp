@@ -98,12 +98,12 @@ void ShowThread()
         if (frames.size() == numVideos)
         {
             //printf("first frame pts = %lld\n", frames[0].timeStamp);
-            printf("pts: ");
-            for (int i = 0; i < numVideos; i++)
-            {
-                printf("%lld ", frames[i].timeStamp);
-            }
-            printf("\n");
+            //printf("pts: ");
+            //for (int i = 0; i < numVideos; i++)
+            //{
+            //    printf("%lld ", frames[i].timeStamp);
+            //}
+            //printf("\n");
             for (int i = 0; i < numVideos; i++)
             {
                 images[i] = cv::Mat(frames[i].height, frames[i].width,

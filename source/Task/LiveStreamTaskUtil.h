@@ -86,6 +86,8 @@ protected:
     int audioEndFlag;
     int audioThreadJoined;
 
+    int syncInterval;
+
     std::unique_ptr<std::vector<ForceWaitFrameQueue> > ptrFrameBuffers;
     std::unique_ptr<std::vector<AudioVideoFramePool> > ptrVideoFramePools;
     ForShowFrameVectorQueue* ptrSyncedFramesBufferForShow;
