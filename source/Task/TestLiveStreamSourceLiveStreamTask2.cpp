@@ -176,9 +176,9 @@ void showVideoResult()
         task.getStitchedVideoFrame(frame);
         if (frame.data[0])
         {
-            //cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
-            //cv::imshow("result", show);
-            cv::imshow("temp", temp);
+            cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
+            cv::imshow("result", show);
+            //cv::imshow("temp", temp);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
                 printf("pressed in %s\n", __FUNCTION__);
@@ -193,7 +193,7 @@ void showVideoResult()
     printf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
 
-int main1(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
     const char* keys =
         "{@url0                       |               |}"

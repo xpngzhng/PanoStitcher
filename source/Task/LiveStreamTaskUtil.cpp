@@ -1175,6 +1175,8 @@ void JuJingAudioVideoSource::videoDecode(int index)
 
 #include "NsdNetSDK.h"
 
+#define ENABLE_NSD_SYNC_READ 0
+
 static void printErrorMessage(int code)
 {
     if (!code) return;
@@ -1221,6 +1223,7 @@ bool HuaTuAudioVideoSource::open(const std::string& url)
     printErrorMessage(ret);
     if (ret) return false;
 
+#if ENABLE_NSD_SYNC_READ
     ret = NSD_RemoteCamera_SetTransferProtocol(camHandle, NSD_TRANSFER_PROTOCOL_TCP);
     printErrorMessage(ret);
     if (ret) return false;
@@ -1237,12 +1240,13 @@ bool HuaTuAudioVideoSource::open(const std::string& url)
     ret = NSD_RemoteCamera_Open(camHandle);
     printErrorMessage(ret);
     if (ret) return false;
+#endif
 
     videoOpenSuccess = 1;
 
     videoFrameSize.width = 2592;
     videoFrameSize.height = 1944;
-    videoFrameRate = 25;
+    videoFrameRate = 30;
     roundedVideoFrameRate = videoFrameRate + 0.5;
 
     numVideos = 4;
@@ -1298,10 +1302,12 @@ void HuaTuAudioVideoSource::close()
     if (camHandle || devHandle)
     {
         int ret = 0;
+#if ENABLE_NSD_SYNC_READ
         ret = NSD_RemoteCamera_Close(camHandle);
         printErrorMessage(ret);
         ret = NSD_RemoteCamera_Uninit(camHandle);
         printErrorMessage(ret);
+#endif
         ret = NSD_Logout(devHandle);
         printErrorMessage(ret);
         ret = NSD_Cleanup();
@@ -1354,6 +1360,7 @@ int HuaTuAudioVideoSource::getAudioChannelLayout() const
     return 0;
 }
 
+#if ENABLE_NSD_SYNC_READ
 void HuaTuAudioVideoSource::videoRecieve()
 {
     size_t id = std::this_thread::get_id().hash();
@@ -1403,6 +1410,82 @@ void HuaTuAudioVideoSource::videoRecieve()
 
     ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
 }
+#else
+struct CallbackData
+{
+    int index;
+    int seeIFrame;
+    RealTimeDataPacketQueue* dataPacketQueue;
+};
+
+void __stdcall receiveDataCallback(NSD_HANDLE lRealHandle, NSD_AVFRAME_DATA* frameData, void* pUserData)
+{
+    CallbackData* data = (CallbackData*)pUserData;
+    if (!data->seeIFrame)
+    {
+        if (frameData->byFrameType != 1)
+            return;
+
+        data->seeIFrame = 1;
+    }
+    data->dataPacketQueue->push(DataPacket((unsigned char*)frameData->pszData,
+        frameData->lDataLength, -1, frameData->lTimeStamp));
+}
+
+void HuaTuAudioVideoSource::videoRecieve()
+{
+    size_t id = std::this_thread::get_id().hash();
+    ztool::lprintf("Thread %s [%8x] started\n", __FUNCTION__, id);
+
+    int ret = 0;
+    std::vector<NSD_HANDLE> camHandles(numVideos, 0);
+    std::vector<CallbackData> callbackData(numVideos);
+
+    for (int i = 0; i < numVideos; i++)
+    {
+        NSD_CLIENTINFO client = { 0 };
+        client.bEnableAutoReconnect = 1;
+        client.byChannel = i + 1;
+        client.byStreamID = 1;
+        client.byTransferProtocol = NSD_TRANSFER_PROTOCOL_TCP;
+        client.lReconnectCount = 10;
+        client.bStretchMode = 1;
+
+        CallbackData& data = callbackData[i];
+        data.index = i;
+        data.seeIFrame = 0;
+        data.dataPacketQueue = (*ptrDataPacketQueues).data() + i;
+
+        ret = NSD_StartRealPlay(devHandle, &client, 0, &camHandles[i], 0);
+        if (ret)
+        {
+            printErrorMessage(ret);
+            break;
+        }
+
+        ret = NSD_SetStandardDataCallBack(camHandles[i], receiveDataCallback, &data);
+        if (ret)
+        {
+            printErrorMessage(ret);
+            break;
+        }
+    }
+
+    while (!videoEndFlag && !finish)
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    for (int i = 0; i < numVideos; i++)
+    {
+        ret = NSD_StopRealPlay(camHandles[i]);
+        printErrorMessage(ret);
+    }
+
+    for (int i = 0; i < numVideos; i++)
+        (*ptrDataPacketQueues)[i].stop();
+
+    ztool::lprintf("Thread %s [%8x] end\n", __FUNCTION__, id);
+}
+#endif
 
 void HuaTuAudioVideoSource::videoDecode(int index)
 {
@@ -1414,7 +1497,7 @@ void HuaTuAudioVideoSource::videoDecode(int index)
     AudioVideoFramePool& pool = (*ptrVideoFramePools)[index];
     avp::AudioVideoDecoder* decoder = avp::createVideoDecoder("h264_qsv", pixelType);
     DataPacket pkt;
-    avp::AudioVideoFrame2 frame, copyFrame;
+    avp::AudioVideoFrame2 frame, copyFrame, lastFrame;
     bool ok;
     ztool::Timer timer;
     int count = 0;
@@ -1430,22 +1513,6 @@ void HuaTuAudioVideoSource::videoDecode(int index)
         dataPacketQueue.pull(pkt);
         if (pkt.data.get())
         {
-            //timer.start();
-            //ok = decoder->decode(pkt.data.get(), pkt.dataSize, pkt.pts, frame);
-            //timer.end();
-            //if (index == 0)
-            //    printf("decode time = %f\n", timer.elapse());
-            //if (ok && frame.data[0])
-            //{
-            //    frame.timeStamp = pkt.pts;
-            //    pool.get(copyFrame);
-            //    frame.copyTo(copyFrame);
-            //    frameQueue.push(copyFrame);
-            //}
-            //timer.end();
-            //if (index == 0)
-            //    printf("decode total time = %f\n", timer.elapse());
-
             pool.get(frame);
             bool gotFrame;
             //timer.start();
@@ -1457,6 +1524,14 @@ void HuaTuAudioVideoSource::videoDecode(int index)
             {
                 frame.timeStamp = pkt.pts;
                 frameQueue.push(frame);
+                lastFrame = frame;
+            }
+            // Sometimes, decoder does not produce a frame, 
+            // in order to avoid out of synchronization, we insert the last decoded frame into frameQueue.
+            else if (lastFrame.data[0])
+            {
+                lastFrame.timeStamp = pkt.pts;
+                frameQueue.push(lastFrame);
             }
             //timer.end();
             //if (index == 0)
