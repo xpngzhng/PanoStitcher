@@ -176,9 +176,9 @@ void showVideoResult()
         task.getStitchedVideoFrame(frame);
         if (frame.data[0])
         {
-            cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
-            cv::imshow("result", show);
-            //cv::imshow("temp", temp);
+            //cv::Mat show(frame.height, frame.width, frame.pixelType == avp::PixelTypeBGR24 ? CV_8UC3 : CV_8UC4, frame.data[0], frame.steps[0]);
+            //cv::imshow("result", show);
+            cv::imshow("temp", temp);
             int key = cv::waitKey(waitTime / 2);
             if (key >= 0)
                 printf("pressed in %s\n", __FUNCTION__);
@@ -288,8 +288,8 @@ int main(int argc, char* argv[])
     }
 
     //cv::Size sz(2048, 1024);
-    //cv::Size sz(3072, 1536);
-    cv::Size sz(2048, 1024);
+    cv::Size sz(3072, 1536);
+    //cv::Size sz(2048, 1024);
 
     highQualityBlend = parser.get<bool>("high_quality_blend");
     highQualityBlend = false;

@@ -1195,7 +1195,7 @@ HuaTuAudioVideoSource::HuaTuAudioVideoSource(ForShowFrameVectorQueue* ptrSyncedF
     init();
     setProp(ptrSyncedFramesBufferForShow, ptrSyncedFramesBufferForProc, forCuda,
         ptrProcFrameBufferForSend, ptrProcFrameBufferForSave, ptrFinish);
-    syncInterval = 5;
+    syncInterval = 20;
     devHandle = 0;
     camHandle = 0;
     int ret = 0;
@@ -1249,7 +1249,7 @@ bool HuaTuAudioVideoSource::open(const std::string& url)
 
     videoFrameSize.width = 2592;
     videoFrameSize.height = 1944;
-    videoFrameRate = 30;
+    videoFrameRate = 20;
     roundedVideoFrameRate = videoFrameRate + 0.5;
 
     numVideos = 4;
@@ -1426,20 +1426,20 @@ struct CallbackData
     ztool::Timer timer;
     int count;
     int period;
-    FILE* file;
+    //FILE* file;
 };
 
 void __stdcall receiveDataCallback(NSD_HANDLE lRealHandle, NSD_AVFRAME_DATA* frameData, void* pUserData)
 {
     CallbackData* data = (CallbackData*)pUserData;
-    if (data->count == data->period)
-    {
-        data->timer.end();
-        printf("data receive [%d] fps = %f\n", data->index, data->period / data->timer.elapse());
-        data->timer.start();
-        data->count = 0;
-    }
-    data->count++;
+    //if (data->count == data->period)
+    //{
+    //    data->timer.end();
+    //    printf("data receive [%d] fps = %f\n", data->index, data->period / data->timer.elapse());
+    //    data->timer.start();
+    //    data->count = 0;
+    //}
+    //data->count++;
     if (!data->seeIFrame)
     {
         if (frameData->byFrameType != 1)
@@ -1447,7 +1447,7 @@ void __stdcall receiveDataCallback(NSD_HANDLE lRealHandle, NSD_AVFRAME_DATA* fra
 
         data->seeIFrame = 1;
     }
-    fprintf(data->file, "%lld\n", frameData->lTimeStamp);
+    //fprintf(data->file, "%lld\n", frameData->lTimeStamp);
     data->dataPacketQueue->push(DataPacket((unsigned char*)frameData->pszData,
         frameData->lDataLength, -1, frameData->lTimeStamp));
 }
@@ -1477,9 +1477,9 @@ void HuaTuAudioVideoSource::videoRecieve()
         data.dataPacketQueue = (*ptrDataPacketQueues).data() + i;
         data.count = 0;
         data.period = roundedVideoFrameRate;
-        char buf[256];
-        sprintf(buf, "ts%d.txt", i);
-        data.file = fopen(buf, "w");
+        //char buf[256];
+        //sprintf(buf, "ts%d.txt", i);
+        //data.file = fopen(buf, "w");
         data.timer.start();
 
         ret = NSD_StartRealPlay(devHandle, &client, 0, &camHandles[i], 0);
@@ -1506,8 +1506,8 @@ void HuaTuAudioVideoSource::videoRecieve()
         printErrorMessage(ret);
     }
 
-    for (int i = 0; i < numVideos; i++)
-        fclose(callbackData[i].file);
+    //for (int i = 0; i < numVideos; i++)
+    //    fclose(callbackData[i].file);
 
     for (int i = 0; i < numVideos; i++)
         (*ptrDataPacketQueues)[i].stop();
@@ -1532,13 +1532,13 @@ void HuaTuAudioVideoSource::videoDecode(int index)
     int count = 0;
     while (!videoEndFlag && !finish)
     {
-        if (count == roundedVideoFrameRate)
-        {
-            count = 0;
-            timer.end();
-            printf("decoder [%d] fps = %f\n", index, roundedVideoFrameRate / timer.elapse());
-            timer.start();
-        }
+        //if (count == roundedVideoFrameRate)
+        //{
+        //    count = 0;
+        //    timer.end();
+        //    printf("decoder [%d] fps = %f\n", index, roundedVideoFrameRate / timer.elapse());
+        //    timer.start();
+        //}
         dataPacketQueue.pull(pkt);
         if (pkt.data.get())
         {

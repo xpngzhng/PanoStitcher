@@ -73,6 +73,7 @@ struct PanoramaLiveStreamTask2::Impl
     std::unique_ptr<CudaPanoramaRender2> render;
     std::string renderConfigName;
     cv::Size renderFrameSize;
+    cv::Size showFrameSize;
     int renderPrepareSuccess;
     int stitchType;
     std::unique_ptr<std::thread> renderThread;
@@ -142,7 +143,7 @@ struct PanoramaLiveStreamTask2::Impl
     int allowGetSyncedFramesBufferForShow;
     ForShowFrameVectorQueue syncedFramesBufferForShow;
     BoundedPinnedMemoryFrameQueue syncedFramesBufferForProc;
-    CudaHostMemVideoFrameMemoryPool procFramePool, sendFramePool, saveFramePool;
+    CudaHostMemVideoFrameMemoryPool procFramePool, showFramePool, sendFramePool, saveFramePool;
     ForShowMixedFrameQueue procFrameBufferForShow;
     ForceWaitMixedFrameQueue procFrameBufferForSend, procFrameBufferForSave;
 };
@@ -327,6 +328,13 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     renderConfigName = configFileName;
     renderFrameSize.width = width;
     renderFrameSize.height = height;
+    if (renderFrameSize.width > 2048 || renderFrameSize.height > 1024)
+    {
+        showFrameSize.width = 2048;
+        showFrameSize.height = 1024;
+    }
+    else
+        showFrameSize = renderFrameSize;
 
     if (panoStitchType == PanoStitchTypeMISO)
         render.reset(new CudaPanoramaRender2);
@@ -361,6 +369,16 @@ bool PanoramaLiveStreamTask2::Impl::beginVideoStitch(int panoStitchType, const s
     if (!renderPrepareSuccess)
     {
         ztool::lprintf("Error in %s, could not init proc frame pool\n", __FUNCTION__);
+        appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
+        syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
+        return false;
+    }
+
+    // We init showFramePool, but only when showFrameSize != renderFrameSize we will use showFramePool
+    renderPrepareSuccess = showFramePool.init(pixelType, showFrameSize.width, showFrameSize.height);
+    if (!renderPrepareSuccess)
+    {
+        ztool::lprintf("Error in %s, could not init show frame pool\n", __FUNCTION__);
         appendLog(getText(TI_STITCH_INIT_FAIL) + "\n");
         syncErrorMessage = getText(TI_STITCH_INIT_FAIL);
         return false;
@@ -424,6 +442,7 @@ void PanoramaLiveStreamTask2::Impl::stopVideoStitch()
         renderPrepareSuccess = 0;
         renderThreadJoined = 1;
         procFramePool.clear();
+        showFramePool.clear();
         stitchType = PanoStitchTypeNone;
 
         appendLog(getText(TI_STITCH_TASK_FINISH) + "\n");
@@ -884,6 +903,7 @@ void PanoramaLiveStreamTask2::Impl::closeAll()
     syncedFramesBufferForShow.clear();
     syncedFramesBufferForProc.clear();
     procFramePool.clear();
+    showFramePool.clear();
     procFrameBufferForShow.clear();
     procFrameBufferForSend.clear();
     procFrameBufferForSave.clear();
@@ -904,9 +924,9 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
     std::vector<cv::cuda::HostMem> mems;
     std::vector<long long int> timeStamps;
     std::vector<cv::Mat> src(numVideos);
-    cv::cuda::GpuMat bgr32;
+    cv::cuda::GpuMat bgr32, bgr32Resize;
     std::vector<std::vector<std::vector<unsigned char> > > localLookUpTables;
-    CudaMixedAudioVideoFrame renderFrame, sendFrame, saveFrame;
+    CudaMixedAudioVideoFrame renderFrame, showFrame, sendFrame, saveFrame;
     cv::cuda::GpuMat bgr1, y1, u1, v1, uv1;
     cv::cuda::GpuMat bgr2, y2, u2, v2, uv2;
     bool ok;
@@ -1004,7 +1024,19 @@ void PanoramaLiveStreamTask2::Impl::procVideo()
             cv::Mat bgr = renderFrame.planes[0].createMatHeader();
             bgr32.download(bgr);
             renderFrame.frame.timeStamp = timeStamps[0];
-            procFrameBufferForShow.push(renderFrame);
+
+            if (showFrameSize == renderFrameSize)
+                procFrameBufferForShow.push(renderFrame);
+            else
+            {
+                resize8UC4(bgr32, bgr32Resize, showFrameSize);
+                if (showFramePool.get(showFrame))
+                {
+                    cv::Mat bgr = showFrame.planes[0].createMatHeader();
+                    bgr32Resize.download(bgr);
+                    procFrameBufferForShow.push(showFrame);
+                }
+            }
 
             if (streamOpenSuccess && sendFramePool.get(sendFrame))
             {
