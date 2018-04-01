@@ -18,7 +18,7 @@
 6. [IntelOpenCL](https://github.com/XupingZHENG/PanoSticher/tree/master/source/IntelOpenCL) Intel 集成显卡 OpenCL 加速模块  
 使用 OpenCL 实现图像融合和图像变形算法，用于 Intel 的集成显卡  
 7. [Task](https://github.com/XupingZHENG/PanoSticher/tree/master/source/Task) 任务模块  
-7.1 全景视频拼接任务 -- 离线制作全景视频并保存到本地
+7.1 全景视频拼接任务 -- 离线制作全景视频并保存到本地  
 7.2 全景视频直播任务 -- 实时制作全景视频并进行推流
 8. [Tool](https://github.com/XupingZHENG/PanoSticher/tree/master/source/Tool) 工具模块  
 辅助工具
