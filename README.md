@@ -1,5 +1,5 @@
 # PanoSticher 
-全景图和全景视频拼接项目，和 EasyFFmpeg 搭配使用
+全景图和全景视频拼接项目，和 [EasyFFmpeg](https://github.com/XupingZHENG/EasyFFmpeg) 搭配使用
 
 ## 主要内容
 1. [Blend](https://github.com/XupingZHENG/PanoSticher/tree/master/source/Blend) 图像融合模块  
@@ -11,14 +11,15 @@
 2.2 全景视频去抖动算法  
 3. [CudaAccel](https://github.com/XupingZHENG/PanoSticher/tree/master/source/CudaAccel) CUDA 加速模块  
 使用 CUDA 实现图像融合和图像变形的算法  
-4. [OpenCLAccel](https://github.com/XupingZHENG/PanoSticher/tree/master/source/OpenCLAccel) OpenCL 加速基础模块
+4. [OpenCLAccel](https://github.com/XupingZHENG/PanoSticher/tree/master/source/OpenCLAccel) OpenCL 加速基础模块  
 对 OpenCL 运行时库进行封装
 5. [DiscreteOpenCL](https://github.com/XupingZHENG/PanoSticher/tree/master/source/DiscreteOpenCL) 独立显卡 OpenCL 加速模块  
 使用 OpenCL 实现图像融合和图像变形算法，用于 NVIDIA 和 AMD 的独立显卡  
 6. [IntelOpenCL](https://github.com/XupingZHENG/PanoSticher/tree/master/source/IntelOpenCL) Intel 集成显卡 OpenCL 加速模块  
 使用 OpenCL 实现图像融合和图像变形算法，用于 Intel 的集成显卡  
 7. [Task](https://github.com/XupingZHENG/PanoSticher/tree/master/source/Task) 任务模块  
-7.1 全景视频拼接任务 -- 离线制作全景视频并保存到本地  
-7.2 全景视频直播任务 -- 实时制作全景视频并进行推流
+7.1 全景视频预览任务 -- 渲染视频帧，提供给 GUI 程序进行预览  
+7.2 全景视频拼接任务 -- 离线制作全景视频并保存到本地  
+7.3 全景视频直播任务 -- 实时制作全景视频并进行推流
 8. [Tool](https://github.com/XupingZHENG/PanoSticher/tree/master/source/Tool) 工具模块  
 辅助工具
